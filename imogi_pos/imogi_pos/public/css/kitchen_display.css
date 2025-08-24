@@ -1,0 +1,599 @@
+/**
+ * IMOGI POS - Kitchen Display CSS
+ * 
+ * Modern, classy, minimal styling for the Kitchen Display interface
+ * Includes:
+ * - Kitchen layout with multiple columns
+ * - KOT cards with status indicators
+ * - Timer/SLA indicators
+ * - Actions for state changes
+ * - Dark mode support
+ */
+
+/* ===== LAYOUT STRUCTURE ===== */
+.kitchen-display {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-gray-100);
+}
+
+.kitchen-header {
+  background-color: var(--brand-header-bg);
+  color: var(--brand-text);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+}
+
+.kitchen-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.kitchen-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.station-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-md);
+}
+
+.station-label {
+  font-weight: var(--font-weight-medium);
+}
+
+.kitchen-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.refresh-button {
+  color: var(--brand-text);
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-1) var(--spacing-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  transition: all 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+}
+
+.kitchen-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: var(--spacing-4);
+}
+
+/* ===== KITCHEN COLUMNS ===== */
+.kitchen-columns {
+  display: flex;
+  width: 100%;
+  gap: var(--spacing-4);
+  height: 100%;
+}
+
+.kitchen-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+.column-header {
+  background-color: var(--color-white);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border: 1px solid var(--color-gray-200);
+  border-bottom: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.column-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.column-count {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.column-actions {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.column-body {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--color-gray-50);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border: 1px solid var(--color-gray-200);
+  padding: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* Column specific styling */
+.column-queued .column-header {
+  border-top: 4px solid var(--color-info);
+}
+
+.column-queued .column-title {
+  color: var(--color-info);
+}
+
+.column-preparing .column-header {
+  border-top: 4px solid var(--color-warning);
+}
+
+.column-preparing .column-title {
+  color: var(--color-warning);
+}
+
+.column-ready .column-header {
+  border-top: 4px solid var(--color-success);
+}
+
+.column-ready .column-title {
+  color: var(--color-success);
+}
+
+/* ===== KOT CARDS ===== */
+.kot-card {
+  background-color: var(--color-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-gray-200);
+  transition: all 0.2s;
+}
+
+.kot-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.kot-header {
+  padding: var(--spacing-3);
+  border-bottom: 1px solid var(--color-gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kot-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.kot-id {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+}
+
+.kot-meta {
+  display: flex;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+}
+
+.kot-table {
+  font-weight: var(--font-weight-medium);
+}
+
+.kot-time {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.kot-timer {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-gray-100);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.kot-timer.warning {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.kot-timer.danger {
+  background-color: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.kot-items {
+  padding: var(--spacing-3);
+}
+
+.kot-item {
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: flex-start;
+}
+
+.kot-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.kot-item-qty {
+  background-color: var(--color-gray-100);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-1) var(--spacing-2);
+  min-width: 32px;
+  text-align: center;
+  font-weight: var(--font-weight-bold);
+}
+
+.kot-item-details {
+  flex: 1;
+}
+
+.kot-item-name {
+  font-weight: var(--font-weight-medium);
+}
+
+.kot-item-note {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  margin-top: var(--spacing-1);
+  background-color: var(--color-gray-50);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-gray-300);
+}
+
+.kot-footer {
+  padding: var(--spacing-3);
+  border-top: 1px solid var(--color-gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-gray-50);
+}
+
+.kot-actions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.kot-action-btn {
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  min-height: 36px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+}
+
+/* KOT Card by status */
+.kot-card.queued {
+  border-left: 4px solid var(--color-info);
+}
+
+.kot-card.preparing {
+  border-left: 4px solid var(--color-warning);
+}
+
+.kot-card.ready {
+  border-left: 4px solid var(--color-success);
+}
+
+/* ===== BULK ACTIONS ===== */
+.bulk-actions {
+  position: fixed;
+  bottom: var(--spacing-4);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-2) var(--spacing-4);
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+  z-index: 100;
+  border: 1px solid var(--color-gray-200);
+}
+
+.bulk-actions-label {
+  font-weight: var(--font-weight-medium);
+}
+
+.bulk-actions-buttons {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* ===== EMPTY STATES ===== */
+.column-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-6);
+  color: var(--color-gray-400);
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: var(--spacing-3);
+  opacity: 0.5;
+}
+
+.empty-message {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-2);
+}
+
+.empty-submessage {
+  font-size: var(--font-size-sm);
+}
+
+/* ===== FILTERS AND SORTING ===== */
+.kitchen-filters {
+  margin-bottom: var(--spacing-4);
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background-color: var(--color-white);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+}
+
+.filter-label {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+}
+
+.filter-select {
+  border: none;
+  background: transparent;
+  padding: var(--spacing-1);
+  font-size: var(--font-size-sm);
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background-color: var(--color-white);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+  cursor: pointer;
+}
+
+.filter-toggle.active {
+  background-color: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+}
+
+/* ===== PRINT DIALOG ===== */
+.print-dialog {
+  background-color: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  max-width: 400px;
+  width: 100%;
+}
+
+.print-dialog-header {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-gray-200);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.print-dialog-body {
+  padding: var(--spacing-4);
+}
+
+.print-options {
+  margin-bottom: var(--spacing-4);
+}
+
+.print-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-2);
+}
+
+.print-option:last-child {
+  margin-bottom: 0;
+}
+
+.print-option-label {
+  flex: 1;
+}
+
+.print-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+/* ===== RESPONSIVE STYLES ===== */
+@media (max-width: 1200px) {
+  .kitchen-columns {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .kitchen-column {
+    max-width: none;
+    width: calc(50% - var(--spacing-2));
+  }
+}
+
+@media (max-width: 768px) {
+  .kitchen-header {
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+  }
+  
+  .kitchen-header-left,
+  .kitchen-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .kitchen-columns {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .kitchen-column {
+    width: 100%;
+    max-width: 500px;
+  }
+  
+  .bulk-actions {
+    flex-direction: column;
+    width: calc(100% - var(--spacing-8));
+    padding: var(--spacing-2);
+  }
+  
+  .kitchen-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ===== DARK MODE ===== */
+@media (prefers-color-scheme: dark) {
+  .kitchen-display {
+    background-color: var(--color-gray-900);
+  }
+  
+  .column-header,
+  .kot-card,
+  .bulk-actions,
+  .filter-group,
+  .filter-toggle,
+  .print-dialog {
+    background-color: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+  }
+  
+  .column-body {
+    background-color: var(--color-gray-850);
+    border-color: var(--color-gray-700);
+  }
+  
+  .kot-item {
+    border-color: var(--color-gray-700);
+  }
+  
+  .kot-footer {
+    background-color: var(--color-gray-850);
+    border-color: var(--color-gray-700);
+  }
+  
+  .kot-timer {
+    background-color: var(--color-gray-700);
+  }
+  
+  .kot-item-qty {
+    background-color: var(--color-gray-700);
+  }
+  
+  .kot-item-note {
+    background-color: var(--color-gray-850);
+    border-color: var(--color-gray-600);
+  }
+  
+  .column-count {
+    background-color: var(--color-gray-700);
+    color: var(--color-gray-300);
+  }
+  
+  .filter-select {
+    color: var(--color-gray-300);
+  }
+  
+  .column-empty {
+    color: var(--color-gray-600);
+  }
+  
+  .kot-meta,
+  .kot-item-note {
+    color: var(--color-gray-400);
+  }
+  
+  .print-dialog-header,
+  .print-dialog-footer {
+    border-color: var(--color-gray-700);
+  }
+}
