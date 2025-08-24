@@ -1,0 +1,362 @@
+{
+  "actions": [],
+  "creation": "2023-09-01 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "branch_section",
+    "enforce_branch",
+    "default_branch",
+    "column_break_bs",
+    "show_branch_selector_in_ui",
+    "branding_section",
+    "imogi_brand_logo",
+    "imogi_brand_logo_dark",
+    "column_break_branding",
+    "imogi_brand_name",
+    "imogi_brand_home_url",
+    "imogi_brand_color_primary",
+    "imogi_brand_color_accent",
+    "kot_section",
+    "enable_kot",
+    "auto_kot_print",
+    "auto_kot_print_copies",
+    "column_break_ks",
+    "kot_print_format",
+    "kot_group_by_kitchen_station",
+    "print_notes_on_kot",
+    "table_section",
+    "default_floor",
+    "default_table_layout_profile",
+    "column_break_ts",
+    "enable_table_status_colors",
+    "vacant_table_color",
+    "occupied_table_color",
+    "ready_table_color",
+    "ordering_section",
+    "require_customer_for_dine_in",
+    "require_customer_for_takeaway",
+    "column_break_os",
+    "allow_void_items",
+    "require_void_reason",
+    "self_order_section",
+    "enable_self_order",
+    "default_self_order_mode",
+    "self_order_qr_format",
+    "column_break_so",
+    "self_order_allow_guest",
+    "self_order_default_token_ttl",
+    "self_order_disclaimer",
+    "miscellaneous_section",
+    "show_prices_on_qr_menu",
+    "show_out_of_stock_indicator",
+    "hide_inactive_items"
+  ],
+  "fields": [
+    {
+      "fieldname": "branch_section",
+      "fieldtype": "Section Break",
+      "label": "Branch"
+    },
+    {
+      "default": "0",
+      "fieldname": "enforce_branch",
+      "fieldtype": "Check",
+      "label": "Enforce Branch on Documents"
+    },
+    {
+      "fieldname": "default_branch",
+      "fieldtype": "Link",
+      "label": "Default Branch",
+      "options": "Branch"
+    },
+    {
+      "fieldname": "column_break_bs",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "1",
+      "fieldname": "show_branch_selector_in_ui",
+      "fieldtype": "Check",
+      "label": "Show Branch Selector in UI"
+    },
+    {
+      "fieldname": "branding_section",
+      "fieldtype": "Section Break",
+      "label": "Branding"
+    },
+    {
+      "fieldname": "imogi_brand_logo",
+      "fieldtype": "Attach Image",
+      "label": "Brand Logo"
+    },
+    {
+      "fieldname": "imogi_brand_logo_dark",
+      "fieldtype": "Attach Image",
+      "label": "Brand Logo (Dark Mode)"
+    },
+    {
+      "fieldname": "column_break_branding",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "imogi_brand_name",
+      "fieldtype": "Data",
+      "label": "Brand Name"
+    },
+    {
+      "fieldname": "imogi_brand_home_url",
+      "fieldtype": "Data",
+      "label": "Brand Home URL"
+    },
+    {
+      "fieldname": "imogi_brand_color_primary",
+      "fieldtype": "Color",
+      "label": "Brand Primary Color"
+    },
+    {
+      "fieldname": "imogi_brand_color_accent",
+      "fieldtype": "Color",
+      "label": "Brand Accent Color"
+    },
+    {
+      "fieldname": "kot_section",
+      "fieldtype": "Section Break",
+      "label": "Kitchen Order Ticket (KOT)"
+    },
+    {
+      "default": "1",
+      "fieldname": "enable_kot",
+      "fieldtype": "Check",
+      "label": "Enable KOT"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "auto_kot_print",
+      "fieldtype": "Check",
+      "label": "Auto-Print KOT on Submit"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.auto_kot_print==1 && doc.enable_kot==1",
+      "fieldname": "auto_kot_print_copies",
+      "fieldtype": "Int",
+      "label": "Auto-Print Copies"
+    },
+    {
+      "fieldname": "column_break_ks",
+      "fieldtype": "Column Break"
+    },
+    {
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "kot_print_format",
+      "fieldtype": "Link",
+      "label": "KOT Print Format",
+      "options": "Print Format"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "kot_group_by_kitchen_station",
+      "fieldtype": "Check",
+      "label": "Group KOT by Kitchen Station"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "print_notes_on_kot",
+      "fieldtype": "Check",
+      "label": "Print Notes on KOT"
+    },
+    {
+      "fieldname": "table_section",
+      "fieldtype": "Section Break",
+      "label": "Table"
+    },
+    {
+      "fieldname": "default_floor",
+      "fieldtype": "Link",
+      "label": "Default Floor",
+      "options": "Restaurant Floor"
+    },
+    {
+      "fieldname": "default_table_layout_profile",
+      "fieldtype": "Link",
+      "label": "Default Table Layout Profile",
+      "options": "Table Layout Profile"
+    },
+    {
+      "fieldname": "column_break_ts",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "1",
+      "fieldname": "enable_table_status_colors",
+      "fieldtype": "Check",
+      "label": "Enable Table Status Colors"
+    },
+    {
+      "default": "#4CAF50",
+      "depends_on": "eval:doc.enable_table_status_colors==1",
+      "fieldname": "vacant_table_color",
+      "fieldtype": "Color",
+      "label": "Vacant Table Color"
+    },
+    {
+      "default": "#FFC107",
+      "depends_on": "eval:doc.enable_table_status_colors==1",
+      "fieldname": "occupied_table_color",
+      "fieldtype": "Color",
+      "label": "Occupied Table Color"
+    },
+    {
+      "default": "#F44336",
+      "depends_on": "eval:doc.enable_table_status_colors==1",
+      "fieldname": "ready_table_color",
+      "fieldtype": "Color",
+      "label": "Ready Table Color"
+    },
+    {
+      "fieldname": "ordering_section",
+      "fieldtype": "Section Break",
+      "label": "Ordering"
+    },
+    {
+      "default": "0",
+      "fieldname": "require_customer_for_dine_in",
+      "fieldtype": "Check",
+      "label": "Require Customer for Dine-In"
+    },
+    {
+      "default": "1",
+      "fieldname": "require_customer_for_takeaway",
+      "fieldtype": "Check",
+      "label": "Require Customer for Takeaway"
+    },
+    {
+      "fieldname": "column_break_os",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "1",
+      "fieldname": "allow_void_items",
+      "fieldtype": "Check",
+      "label": "Allow Void Items"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.allow_void_items==1",
+      "fieldname": "require_void_reason",
+      "fieldtype": "Check",
+      "label": "Require Void Reason"
+    },
+    {
+      "fieldname": "self_order_section",
+      "fieldtype": "Section Break",
+      "label": "Self Order"
+    },
+    {
+      "default": "0",
+      "fieldname": "enable_self_order",
+      "fieldtype": "Check",
+      "label": "Enable Self Order"
+    },
+    {
+      "default": "Table",
+      "depends_on": "eval:doc.enable_self_order==1",
+      "fieldname": "default_self_order_mode",
+      "fieldtype": "Select",
+      "label": "Default Self Order Mode",
+      "options": "Table\nTakeaway"
+    },
+    {
+      "depends_on": "eval:doc.enable_self_order==1",
+      "fieldname": "self_order_qr_format",
+      "fieldtype": "Link",
+      "label": "Self Order QR Print Format",
+      "options": "Print Format"
+    },
+    {
+      "fieldname": "column_break_so",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "1",
+      "depends_on": "eval:doc.enable_self_order==1",
+      "fieldname": "self_order_allow_guest",
+      "fieldtype": "Check",
+      "label": "Allow Guest Access"
+    },
+    {
+      "default": "60",
+      "depends_on": "eval:doc.enable_self_order==1",
+      "fieldname": "self_order_default_token_ttl",
+      "fieldtype": "Int",
+      "label": "Default Token TTL (minutes)"
+    },
+    {
+      "depends_on": "eval:doc.enable_self_order==1",
+      "fieldname": "self_order_disclaimer",
+      "fieldtype": "Small Text",
+      "label": "Self Order Disclaimer"
+    },
+    {
+      "fieldname": "miscellaneous_section",
+      "fieldtype": "Section Break",
+      "label": "Miscellaneous"
+    },
+    {
+      "default": "1",
+      "fieldname": "show_prices_on_qr_menu",
+      "fieldtype": "Check",
+      "label": "Show Prices on QR Menu"
+    },
+    {
+      "default": "1",
+      "fieldname": "show_out_of_stock_indicator",
+      "fieldtype": "Check",
+      "label": "Show Out of Stock Indicator"
+    },
+    {
+      "default": "1",
+      "fieldname": "hide_inactive_items",
+      "fieldtype": "Check",
+      "label": "Hide Inactive Items"
+    }
+  ],
+  "in_create": 1,
+  "issingle": 1,
+  "links": [],
+  "modified": "2023-09-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Restaurant Settings",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 1,
+      "print": 1,
+      "read": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 1,
+      "print": 1,
+      "read": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}

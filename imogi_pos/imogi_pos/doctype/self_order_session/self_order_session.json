@@ -1,0 +1,178 @@
+{
+  "actions": [],
+  "autoname": "field:token",
+  "creation": "2023-09-01 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "token_section",
+    "token",
+    "slug",
+    "expires_on",
+    "column_break_tkn",
+    "is_guest",
+    "status",
+    "session_info_section",
+    "branch",
+    "table",
+    "pos_profile",
+    "column_break_si",
+    "order_linkage",
+    "device_info_section",
+    "last_ip",
+    "user_agent"
+  ],
+  "fields": [
+    {
+      "fieldname": "token_section",
+      "fieldtype": "Section Break",
+      "label": "Token Information"
+    },
+    {
+      "fieldname": "token",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Token",
+      "read_only_depends_on": "eval:!doc.__islocal",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "slug",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Slug",
+      "read_only_depends_on": "eval:!doc.__islocal",
+      "unique": 1
+    },
+    {
+      "fieldname": "expires_on",
+      "fieldtype": "Datetime",
+      "in_list_view": 1,
+      "label": "Expires On",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_tkn",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "0",
+      "fieldname": "is_guest",
+      "fieldtype": "Check",
+      "label": "Is Guest"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Status",
+      "options": "Active\nExpired\nCompleted",
+      "read_only": 1
+    },
+    {
+      "fieldname": "session_info_section",
+      "fieldtype": "Section Break",
+      "label": "Session Information"
+    },
+    {
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Branch",
+      "options": "Branch",
+      "reqd": 1
+    },
+    {
+      "fieldname": "table",
+      "fieldtype": "Link",
+      "label": "Table",
+      "options": "Restaurant Table"
+    },
+    {
+      "fieldname": "pos_profile",
+      "fieldtype": "Link",
+      "label": "POS Profile",
+      "options": "POS Profile",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_si",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "order_linkage",
+      "fieldtype": "Link",
+      "label": "POS Order",
+      "options": "POS Order"
+    },
+    {
+      "fieldname": "device_info_section",
+      "fieldtype": "Section Break",
+      "label": "Device Information"
+    },
+    {
+      "fieldname": "last_ip",
+      "fieldtype": "Data",
+      "label": "Last IP",
+      "read_only": 1
+    },
+    {
+      "fieldname": "user_agent",
+      "fieldtype": "Small Text",
+      "label": "User Agent",
+      "read_only": 1
+    }
+  ],
+  "links": [],
+  "modified": "2023-09-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Self Order Session",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 0,
+      "export": 0,
+      "print": 1,
+      "read": 1,
+      "report": 0,
+      "role": "Waiter",
+      "share": 0,
+      "write": 1
+    },
+    {
+      "create": 0,
+      "delete": 0,
+      "email": 0,
+      "export": 0,
+      "if_owner": 0,
+      "print": 0,
+      "read": 1,
+      "report": 0,
+      "role": "Guest",
+      "share": 0,
+      "write": 0
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1,
+  "track_seen": 1
+}
