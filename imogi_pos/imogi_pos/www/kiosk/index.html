@@ -1,0 +1,881 @@
+{% extends "templates/web.html" %}
+
+{% block style %}
+<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/kiosk.css">
+
+<style>
+  :root {
+    --primary-color: {{ branding.primary_color }};
+    --accent-color: {{ branding.accent_color }};
+    --header-bg: {{ branding.header_bg }};
+  }
+  
+  .kiosk-container {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 60px);
+  }
+  
+  @media (max-width: 768px) {
+    .kiosk-container {
+      grid-template-columns: 1fr;
+      grid-template-rows: 60vh 40vh;
+    }
+  }
+  
+  .catalog-section {
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f7fa;
+    overflow: hidden;
+  }
+  
+  .catalog-header {
+    padding: 1rem;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+  }
+  
+  .catalog-search {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .search-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .catalog-categories {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .category-pill {
+    padding: 0.5rem 1rem;
+    background-color: #f0f0f0;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  .category-pill.active {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  .catalog-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+  }
+  
+  .item-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .item-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .item-image {
+    width: 100%;
+    height: 120px;
+    background-color: #f0f0f0;
+    background-size: cover;
+    background-position: center;
+  }
+  
+  .item-info {
+    padding: 0.75rem;
+  }
+  
+  .item-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+  }
+  
+  .item-price {
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+  
+  .item-has-variants {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+  }
+  
+  .cart-section {
+    background-color: white;
+    box-shadow: -1px 0 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .cart-header {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+  }
+  
+  .cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem;
+  }
+  
+  .cart-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+  }
+  
+  .cart-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cart-item-name {
+    font-weight: 500;
+  }
+  
+  .cart-item-price {
+    font-weight: 600;
+  }
+  
+  .cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .cart-item-qty {
+    width: 40px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.25rem;
+  }
+  
+  .qty-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .qty-btn:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .cart-item-notes {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+  
+  .cart-item-remove {
+    position: absolute;
+    top: 1rem;
+    right: 0;
+    color: #ff5555;
+    cursor: pointer;
+  }
+  
+  .cart-totals {
+    padding: 1rem;
+    border-top: 1px solid #eee;
+  }
+  
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  
+  .grand-total {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #eee;
+  }
+  
+  .cart-actions {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .btn-checkout {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  
+  .btn-checkout:hover {
+    background-color: #3a4651;
+  }
+  
+  .btn-clear {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  
+  .btn-clear:hover {
+    background-color: #e9e9e9;
+  }
+  
+  /* Variant Picker Modal */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  
+  .modal-content {
+    background-color: white;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  
+  .modal-close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .variant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+  }
+  
+  .variant-card {
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .variant-card:hover {
+    border-color: var(--accent-color);
+    background-color: rgba(36, 144, 239, 0.05);
+  }
+  
+  .variant-card.selected {
+    border-color: var(--accent-color);
+    background-color: rgba(36, 144, 239, 0.1);
+  }
+  
+  .variant-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+  
+  .variant-price {
+    color: var(--primary-color);
+  }
+  
+  .variant-attributes {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+  }
+  
+  .variant-attribute {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .notes-field {
+    margin-top: 1rem;
+  }
+  
+  .notes-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .notes-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 80px;
+    resize: vertical;
+  }
+  
+  .modal-footer {
+    padding: 1rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  
+  .btn-cancel {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .btn-add {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  /* Payment Modal */
+  .payment-modal .modal-content {
+    max-width: 600px;
+  }
+  
+  .payment-options {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .payment-option {
+    flex: 1;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+  }
+  
+  .payment-option.selected {
+    border-color: var(--accent-color);
+    background-color: rgba(36, 144, 239, 0.05);
+  }
+  
+  .payment-option-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .payment-option-name {
+    font-weight: 500;
+  }
+  
+  .payment-amount {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 1rem 0;
+  }
+  
+  .payment-qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1rem 0;
+  }
+  
+  .payment-qr {
+    width: 200px;
+    height: 200px;
+    background-color: #f0f0f0;
+    margin-bottom: 1rem;
+  }
+  
+  .payment-instructions {
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .payment-timer {
+    text-align: center;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .payment-status {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+  
+  .payment-status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  .payment-status.success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  
+  .payment-status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .keypad-button {
+    padding: 1rem;
+    font-size: 1.25rem;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+  }
+  
+  .keypad-button:hover {
+    background-color: #e9e9e9;
+  }
+  
+  .keypad-button.keypad-clear {
+    grid-column: 1 / 3;
+  }
+  
+  .keypad-input {
+    padding: 0.75rem;
+    font-size: 1.25rem;
+    text-align: right;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .session-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin: 1rem;
+    text-align: center;
+  }
+  
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    display: none;
+  }
+  
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    margin-bottom: 1rem;
+  }
+  
+  .loading-text {
+    font-size: 1.1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Empty states */
+  .empty-catalog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  .empty-cart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  /* Success Modal */
+  .success-modal .modal-content {
+    text-align: center;
+    padding: 2rem;
+  }
+  
+  .success-icon {
+    font-size: 4rem;
+    color: #28a745;
+    margin-bottom: 1rem;
+  }
+  
+  .success-message {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .success-details {
+    margin-bottom: 2rem;
+  }
+  
+  .success-queue {
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 1rem 0;
+    color: var(--primary-color);
+  }
+  
+  .btn-done {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block page_content %}
+{% if show_header %}
+<header class="app-header">
+  <div class="header-left">
+    <a href="/" class="home-link">
+      <i class="fa fa-home"></i>
+    </a>
+    <h1 class="page-title">{{ _("Self-Service Kiosk") }}</h1>
+  </div>
+  <div class="header-center">
+    {% if branding.logo %}
+    <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+    {% else %}
+    <span class="brand-name">{{ branding.name }}</span>
+    {% endif %}
+  </div>
+  <div class="header-right">
+    {% if branch %}
+    <div class="branch-selector">
+      <span class="branch-label">{{ _("Branch") }}:</span>
+      <span class="branch-value">{{ branch }}</span>
+    </div>
+    {% endif %}
+  </div>
+</header>
+{% endif %}
+
+{% if require_pos_session and enforce_session_on_kiosk and not has_active_session %}
+<div class="session-warning">
+  {{ _("No active POS Session. Please contact staff for assistance.") }}
+</div>
+{% endif %}
+
+<div class="kiosk-container" id="kiosk-container">
+  <section class="catalog-section">
+    <div class="catalog-header">
+      <div class="catalog-search">
+        <input type="text" class="search-input" placeholder="{{ _('Search items...') }}" id="search-input">
+      </div>
+      
+      <div class="catalog-categories" id="categories-container">
+        <div class="category-pill active" data-category="all">{{ _("All Items") }}</div>
+        
+        {% for category in item_categories.menu_categories %}
+        <div class="category-pill" data-category="{{ category.name }}">{{ category.name }}</div>
+        {% endfor %}
+        
+        {% for group in item_categories.item_groups %}
+        <div class="category-pill" data-category="{{ group.name }}">{{ group.name }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    
+    <div class="catalog-grid" id="catalog-grid">
+      <!-- Items will be populated here -->
+      <div class="empty-catalog">
+        <p>{{ _("Loading items...") }}</p>
+      </div>
+    </div>
+  </section>
+  
+  <section class="cart-section">
+    <div class="cart-header">
+      {{ _("Your Order") }}
+    </div>
+    
+    <div class="cart-items" id="cart-items">
+      <div class="empty-cart">
+        <p>{{ _("Your cart is empty") }}</p>
+        <p>{{ _("Select items from the menu") }}</p>
+      </div>
+    </div>
+    
+    <div class="cart-totals">
+      <div class="total-row">
+        <span>{{ _("Subtotal") }}</span>
+        <span id="cart-subtotal">{{ currency_symbol }} 0.00</span>
+      </div>
+      <div class="total-row">
+        <span>{{ _("Tax") }}</span>
+        <span id="cart-tax">{{ currency_symbol }} 0.00</span>
+      </div>
+      <div class="grand-total total-row">
+        <span>{{ _("Total") }}</span>
+        <span id="cart-total">{{ currency_symbol }} 0.00</span>
+      </div>
+    </div>
+    
+    <div class="cart-actions">
+      <button id="btn-checkout" class="btn-checkout" disabled>
+        {{ _("Checkout") }}
+      </button>
+      <button id="btn-clear" class="btn-clear" disabled>
+        {{ _("Clear Order") }}
+      </button>
+    </div>
+  </section>
+</div>
+
+<!-- Variant Picker Modal -->
+<div class="modal" id="variant-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Choose Variant") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="variant-grid" id="variant-grid">
+        <!-- Variants will be populated here -->
+      </div>
+      
+      {% if allow_notes %}
+      <div class="notes-field">
+        <label for="item-notes" class="notes-label">{{ _("Special Instructions") }}</label>
+        <textarea id="item-notes" class="notes-input" placeholder="{{ _('Add special instructions here...') }}"></textarea>
+      </div>
+      {% endif %}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-variant-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-variant-add" disabled>{{ _("Add to Order") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal payment-modal" id="payment-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Complete Payment") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="payment-options">
+        <div class="payment-option selected" data-method="qr_code">
+          <div class="payment-option-icon">
+            <i class="fa fa-qrcode"></i>
+          </div>
+          <div class="payment-option-name">{{ _("QR Payment") }}</div>
+        </div>
+        <div class="payment-option" data-method="cash">
+          <div class="payment-option-icon">
+            <i class="fa fa-money"></i>
+          </div>
+          <div class="payment-option-name">{{ _("Cash") }}</div>
+        </div>
+      </div>
+      
+      <div class="payment-amount" id="payment-amount">
+        {{ currency_symbol }} 0.00
+      </div>
+      
+      <div id="payment-qr-section">
+        <div class="payment-qr-container">
+          <div class="payment-qr" id="payment-qr"></div>
+          <div class="payment-instructions">{{ _("Scan the QR code with your payment app") }}</div>
+        </div>
+        
+        <div class="payment-timer" id="payment-timer">
+          {{ _("Expires in:") }} <span id="payment-countdown">5:00</span>
+        </div>
+        
+        <div class="payment-status pending" id="payment-status">
+          {{ _("Waiting for payment...") }}
+        </div>
+      </div>
+      
+      <div id="payment-cash-section" style="display: none;">
+        <div class="keypad-input-container">
+          <input type="text" id="cash-amount" class="keypad-input" readonly value="{{ currency_symbol }} 0.00">
+        </div>
+        
+        <div class="keypad">
+          <div class="keypad-button" data-value="1">1</div>
+          <div class="keypad-button" data-value="2">2</div>
+          <div class="keypad-button" data-value="3">3</div>
+          <div class="keypad-button" data-value="4">4</div>
+          <div class="keypad-button" data-value="5">5</div>
+          <div class="keypad-button" data-value="6">6</div>
+          <div class="keypad-button" data-value="7">7</div>
+          <div class="keypad-button" data-value="8">8</div>
+          <div class="keypad-button" data-value="9">9</div>
+          <div class="keypad-button keypad-clear" data-value="clear">{{ _("Clear") }}</div>
+          <div class="keypad-button" data-value="0">0</div>
+        </div>
+        
+        <div class="payment-change" id="payment-change">
+          {{ _("Change") }}: <span id="change-amount">{{ currency_symbol }} 0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-payment-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-payment-confirm" disabled>{{ _("Confirm Payment") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal success-modal" id="success-modal">
+  <div class="modal-content">
+    <div class="success-icon">
+      <i class="fa fa-check-circle"></i>
+    </div>
+    <div class="success-message">{{ _("Order Completed!") }}</div>
+    <div class="success-details">
+      {{ _("Your order has been sent to the kitchen") }}
+    </div>
+    
+    <div class="success-queue-section">
+      <div>{{ _("Your queue number is") }}</div>
+      <div class="success-queue" id="success-queue-number">{{ next_queue_number }}</div>
+      <div>{{ _("Please wait for your number to be called") }}</div>
+    </div>
+    
+    <div style="margin-top: 2rem;">
+      <button class="btn-done" id="btn-success-done">{{ _("Done") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">{{ _("Processing...") }}</div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+  // Pass important context variables to the frontend
+  const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+  const POS_PROFILE = {{ pos_profile.name | tojson }};
+  const ACTIVE_POS_SESSION = {{ active_pos_session.name | tojson if active_pos_session else 'null' }};
+  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
+  const CURRENCY_SYMBOL = '{{ currency_symbol }}';
+  const DEFAULT_CURRENCY = '{{ default_currency }}';
+  const DOMAIN = '{{ domain }}';
+  const PAYMENT_SETTINGS = {{ payment_settings | tojson }};
+  const PRINT_SETTINGS = {{ print_settings | tojson }};
+  const NEXT_QUEUE_NUMBER = {{ next_queue_number }};
+  const ALLOW_NOTES = {{ allow_notes }};
+</script>
+
+<script src="/assets/imogi_pos/js/nav.js"></script>
+<script src="/assets/imogi_pos/js/branch.js"></script>
+<script src="/assets/imogi_pos/js/print/service.js"></script>
+<script src="/assets/imogi_pos/www/kiosk/index.js"></script>
+{% endblock %}

@@ -1,0 +1,1050 @@
+frappe.ready(function() {
+    // =====================
+    // State Management
+    // =====================
+    const KioskApp = {
+        // State
+        items: [],
+        filteredItems: [],
+        cart: [],
+        selectedCategory: 'all',
+        searchQuery: '',
+        selectedTemplateItem: null,
+        selectedVariant: null,
+        
+        // Payment state
+        paymentRequest: null,
+        paymentMethod: 'qr_code',
+        cashAmount: 0,
+        paymentTimer: null,
+        paymentCountdown: 300, // 5 minutes
+        
+        // Element references
+        elements: {
+            catalogGrid: document.getElementById('catalog-grid'),
+            cartItems: document.getElementById('cart-items'),
+            cartSubtotal: document.getElementById('cart-subtotal'),
+            cartTax: document.getElementById('cart-tax'),
+            cartTotal: document.getElementById('cart-total'),
+            checkoutBtn: document.getElementById('btn-checkout'),
+            clearBtn: document.getElementById('btn-clear'),
+            searchInput: document.getElementById('search-input'),
+            categoriesContainer: document.getElementById('categories-container'),
+            
+            // Variant modal
+            variantModal: document.getElementById('variant-modal'),
+            variantGrid: document.getElementById('variant-grid'),
+            itemNotes: document.getElementById('item-notes'),
+            variantAddBtn: document.getElementById('btn-variant-add'),
+            variantCancelBtn: document.getElementById('btn-variant-cancel'),
+            
+            // Payment modal
+            paymentModal: document.getElementById('payment-modal'),
+            paymentAmount: document.getElementById('payment-amount'),
+            paymentQrSection: document.getElementById('payment-qr-section'),
+            paymentCashSection: document.getElementById('payment-cash-section'),
+            paymentQr: document.getElementById('payment-qr'),
+            paymentTimer: document.getElementById('payment-timer'),
+            paymentCountdown: document.getElementById('payment-countdown'),
+            paymentStatus: document.getElementById('payment-status'),
+            cashAmount: document.getElementById('cash-amount'),
+            changeAmount: document.getElementById('change-amount'),
+            paymentConfirmBtn: document.getElementById('btn-payment-confirm'),
+            paymentCancelBtn: document.getElementById('btn-payment-cancel'),
+            
+            // Success modal
+            successModal: document.getElementById('success-modal'),
+            successQueueNumber: document.getElementById('success-queue-number'),
+            successDoneBtn: document.getElementById('btn-success-done'),
+            
+            // Loading overlay
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text')
+        },
+        
+        // Initialize
+        init: async function() {
+            this.setupEventListeners();
+            await this.loadItems();
+            this.renderItems();
+            this.setupPrintService();
+            
+            // Setup realtime if available
+            if (frappe.realtime) {
+                this.setupRealtimeUpdates();
+            }
+        },
+        
+        // Event listeners
+        setupEventListeners: function() {
+            // Search
+            this.elements.searchInput.addEventListener('input', this.handleSearch.bind(this));
+            
+            // Category filters
+            this.elements.categoriesContainer.addEventListener('click', (e) => {
+                const pill = e.target.closest('.category-pill');
+                if (pill) {
+                    this.selectCategory(pill.dataset.category);
+                }
+            });
+            
+            // Cart buttons
+            this.elements.checkoutBtn.addEventListener('click', this.handleCheckout.bind(this));
+            this.elements.clearBtn.addEventListener('click', this.clearCart.bind(this));
+            
+            // Variant modal
+            this.elements.variantModal.querySelector('.modal-close').addEventListener('click', () => {
+                this.closeVariantModal();
+            });
+            this.elements.variantCancelBtn.addEventListener('click', () => {
+                this.closeVariantModal();
+            });
+            this.elements.variantAddBtn.addEventListener('click', () => {
+                this.addSelectedVariantToCart();
+            });
+            
+            // Payment modal
+            this.elements.paymentModal.querySelector('.modal-close').addEventListener('click', () => {
+                this.cancelPayment();
+            });
+            this.elements.paymentCancelBtn.addEventListener('click', () => {
+                this.cancelPayment();
+            });
+            this.elements.paymentConfirmBtn.addEventListener('click', () => {
+                this.confirmPayment();
+            });
+            
+            // Payment method selection
+            const paymentOptions = document.querySelectorAll('.payment-option');
+            paymentOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    paymentOptions.forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+                    this.paymentMethod = option.dataset.method;
+                    this.togglePaymentMethod();
+                });
+            });
+            
+            // Keypad
+            const keypadButtons = document.querySelectorAll('.keypad-button');
+            keypadButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    this.handleKeypadInput(button.dataset.value);
+                });
+            });
+            
+            // Success modal
+            this.elements.successDoneBtn.addEventListener('click', () => {
+                this.closeSuccessModal();
+                this.resetApp();
+            });
+        },
+        
+        // Data loading
+        loadItems: async function() {
+            this.showLoading('Loading catalog...');
+            
+            try {
+                const response = await frappe.call({
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'Item',
+                        filters: {
+                            disabled: 0,
+                            is_sales_item: 1
+                        },
+                        fields: ['name', 'item_name', 'item_code', 'description', 'image', 
+                                'standard_rate', 'has_variants', 'variant_of', 'item_group',
+                                'menu_category', 'photo', 'default_kitchen', 'default_kitchen_station'],
+                        limit: 500
+                    }
+                });
+                
+                if (response.message) {
+                    // Filter out variants but include template items and standalone items
+                    this.items = response.message.filter(item => !item.variant_of);
+                    this.filteredItems = [...this.items];
+                    
+                    // Load rates for items that don't have standard_rate
+                    await this.loadItemRates();
+                }
+                
+                this.hideLoading();
+            } catch (error) {
+                console.error("Error loading items:", error);
+                this.showError("Failed to load items. Please try again.");
+                this.hideLoading();
+            }
+        },
+        
+        loadItemRates: async function() {
+            const itemsWithoutRate = this.items.filter(item => !item.standard_rate);
+            if (!itemsWithoutRate.length) return;
+            
+            try {
+                const response = await frappe.call({
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'Item Price',
+                        filters: {
+                            item_code: ['in', itemsWithoutRate.map(item => item.name)],
+                            price_list: POS_PROFILE.selling_price_list
+                        },
+                        fields: ['item_code', 'price_list_rate']
+                    }
+                });
+                
+                if (response.message) {
+                    // Update item rates
+                    response.message.forEach(price => {
+                        const item = this.items.find(i => i.name === price.item_code);
+                        if (item) {
+                            item.standard_rate = price.price_list_rate;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Error loading item rates:", error);
+            }
+        },
+        
+        loadVariantsForTemplate: async function(templateItem) {
+            this.showLoading('Loading variants...');
+            
+            try {
+                const response = await frappe.call({
+                    method: 'imogi_pos.api.variants.get_item_variants',
+                    args: {
+                        template_item: templateItem.name
+                    }
+                });
+                
+                this.hideLoading();
+                
+                if (response.message) {
+                    return response.message;
+                }
+                
+                return [];
+            } catch (error) {
+                console.error("Error loading variants:", error);
+                this.showError("Failed to load variants. Please try again.");
+                this.hideLoading();
+                return [];
+            }
+        },
+        
+        // Rendering
+        renderItems: function() {
+            if (!this.filteredItems.length) {
+                this.elements.catalogGrid.innerHTML = `
+                    <div class="empty-catalog">
+                        <p>No items found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            this.filteredItems.forEach(item => {
+                const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+                
+                html += `
+                    <div class="item-card" data-item="${item.name}">
+                        <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+                        <div class="item-info">
+                            <div class="item-name">${item.item_name}</div>
+                            <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
+                            ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            this.elements.catalogGrid.innerHTML = html;
+            
+            // Add click handlers
+            const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
+            itemCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const itemName = card.dataset.item;
+                    const item = this.items.find(i => i.name === itemName);
+                    if (item) {
+                        this.handleItemClick(item);
+                    }
+                });
+            });
+        },
+        
+        renderCart: function() {
+            if (this.cart.length === 0) {
+                this.elements.cartItems.innerHTML = `
+                    <div class="empty-cart">
+                        <p>Your cart is empty</p>
+                        <p>Select items from the menu</p>
+                    </div>
+                `;
+                
+                this.elements.checkoutBtn.disabled = true;
+                this.elements.clearBtn.disabled = true;
+                return;
+            }
+            
+            let html = '';
+            
+            this.cart.forEach((item, index) => {
+                html += `
+                    <div class="cart-item" data-index="${index}">
+                        <div class="cart-item-header">
+                            <div class="cart-item-name">${item.item_name}</div>
+                            <div class="cart-item-price">${CURRENCY_SYMBOL} ${formatNumber(item.amount)}</div>
+                        </div>
+                        <div class="cart-item-controls">
+                            <button class="qty-btn qty-minus" data-index="${index}">-</button>
+                            <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
+                            <button class="qty-btn qty-plus" data-index="${index}">+</button>
+                        </div>
+                        ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ''}
+                        <div class="cart-item-remove" data-index="${index}">&times;</div>
+                    </div>
+                `;
+            });
+            
+            this.elements.cartItems.innerHTML = html;
+            
+            // Add event listeners
+            const qtyMinusButtons = this.elements.cartItems.querySelectorAll('.qty-minus');
+            const qtyPlusButtons = this.elements.cartItems.querySelectorAll('.qty-plus');
+            const qtyInputs = this.elements.cartItems.querySelectorAll('.cart-item-qty');
+            const removeButtons = this.elements.cartItems.querySelectorAll('.cart-item-remove');
+            
+            qtyMinusButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const index = parseInt(button.dataset.index);
+                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
+                });
+            });
+            
+            qtyPlusButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const index = parseInt(button.dataset.index);
+                    this.updateCartItemQuantity(index, this.cart[index].qty + 1);
+                });
+            });
+            
+            qtyInputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    const index = parseInt(input.dataset.index);
+                    this.updateCartItemQuantity(index, parseInt(input.value) || 1);
+                });
+            });
+            
+            removeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const index = parseInt(button.dataset.index);
+                    this.removeCartItem(index);
+                });
+            });
+            
+            this.elements.checkoutBtn.disabled = false;
+            this.elements.clearBtn.disabled = false;
+        },
+        
+        renderVariants: function(variants) {
+            if (!variants || variants.length === 0) {
+                this.elements.variantGrid.innerHTML = `
+                    <div class="empty-variants">
+                        <p>No variants available for this item</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            variants.forEach(variant => {
+                const attributes = variant.attributes || {};
+                let attributesHtml = '';
+                
+                Object.keys(attributes).forEach(attr => {
+                    attributesHtml += `
+                        <div class="variant-attribute">
+                            <span>${attr}:</span>
+                            <span>${attributes[attr]}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                    <div class="variant-card" data-variant="${variant.name}">
+                        <div class="variant-name">${variant.item_name}</div>
+                        <div class="variant-price">${CURRENCY_SYMBOL} ${formatNumber(variant.standard_rate || 0)}</div>
+                        ${attributesHtml ? `<div class="variant-attributes">${attributesHtml}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            this.elements.variantGrid.innerHTML = html;
+            
+            // Add click handlers
+            const variantCards = this.elements.variantGrid.querySelectorAll('.variant-card');
+            variantCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    variantCards.forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    
+                    const variantName = card.dataset.variant;
+                    this.selectedVariant = variants.find(v => v.name === variantName);
+                    this.elements.variantAddBtn.disabled = false;
+                });
+            });
+        },
+        
+        updateCartTotals: function() {
+            const totals = this.calculateTotals();
+            
+            this.elements.cartSubtotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.subtotal)}`;
+            this.elements.cartTax.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.tax)}`;
+            this.elements.cartTotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
+        },
+        
+        // Event handlers
+        handleSearch: function() {
+            this.searchQuery = this.elements.searchInput.value.toLowerCase();
+            this.filterItems();
+        },
+        
+        selectCategory: function(category) {
+            this.selectedCategory = category;
+            
+            // Update UI
+            const pills = this.elements.categoriesContainer.querySelectorAll('.category-pill');
+            pills.forEach(pill => {
+                pill.classList.toggle('active', pill.dataset.category === category);
+            });
+            
+            this.filterItems();
+        },
+        
+        filterItems: function() {
+            this.filteredItems = this.items.filter(item => {
+                // Filter by search
+                const matchesSearch = !this.searchQuery || 
+                    item.item_name.toLowerCase().includes(this.searchQuery) ||
+                    item.item_code.toLowerCase().includes(this.searchQuery) ||
+                    (item.description && item.description.toLowerCase().includes(this.searchQuery));
+                
+                // Filter by category
+                const matchesCategory = this.selectedCategory === 'all' || 
+                    item.item_group === this.selectedCategory ||
+                    item.menu_category === this.selectedCategory;
+                
+                return matchesSearch && matchesCategory;
+            });
+            
+            this.renderItems();
+        },
+        
+        handleItemClick: function(item) {
+            if (item.has_variants) {
+                // Open variant picker
+                this.openVariantPicker(item);
+            } else {
+                // Add directly to cart
+                this.addItemToCart(item);
+            }
+        },
+        
+        openVariantPicker: async function(item) {
+            this.selectedTemplateItem = item;
+            this.selectedVariant = null;
+            
+            // Reset notes
+            if (this.elements.itemNotes) {
+                this.elements.itemNotes.value = '';
+            }
+            
+            // Disable add button until variant is selected
+            this.elements.variantAddBtn.disabled = true;
+            
+            // Show modal
+            this.elements.variantModal.style.display = 'flex';
+            
+            // Load variants
+            const variants = await this.loadVariantsForTemplate(item);
+            
+            // Render variants
+            this.renderVariants(variants);
+        },
+        
+        closeVariantModal: function() {
+            this.elements.variantModal.style.display = 'none';
+            this.selectedTemplateItem = null;
+            this.selectedVariant = null;
+        },
+        
+        addSelectedVariantToCart: function() {
+            if (!this.selectedVariant) return;
+            
+            const notes = this.elements.itemNotes ? this.elements.itemNotes.value : '';
+            
+            this.addItemToCart(this.selectedVariant, notes);
+            this.closeVariantModal();
+        },
+        
+        addItemToCart: function(item, notes = '') {
+            // Check if item already in cart
+            const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes);
+            
+            if (existingIndex >= 0) {
+                // Update quantity
+                this.cart[existingIndex].qty += 1;
+                this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
+            } else {
+                // Add new item
+                this.cart.push({
+                    item_code: item.name,
+                    item_name: item.item_name,
+                    qty: 1,
+                    rate: item.standard_rate || 0,
+                    amount: item.standard_rate || 0,
+                    notes: notes,
+                    kitchen: item.default_kitchen,
+                    kitchen_station: item.default_kitchen_station
+                });
+            }
+            
+            this.renderCart();
+            this.updateCartTotals();
+        },
+        
+        updateCartItemQuantity: function(index, newQty) {
+            if (newQty < 1) {
+                this.removeCartItem(index);
+                return;
+            }
+            
+            this.cart[index].qty = newQty;
+            this.cart[index].amount = this.cart[index].rate * newQty;
+            
+            this.renderCart();
+            this.updateCartTotals();
+        },
+        
+        removeCartItem: function(index) {
+            this.cart.splice(index, 1);
+            this.renderCart();
+            this.updateCartTotals();
+        },
+        
+        clearCart: function() {
+            if (!this.cart.length) return;
+            
+            if (confirm('Are you sure you want to clear your order?')) {
+                this.cart = [];
+                this.renderCart();
+                this.updateCartTotals();
+            }
+        },
+        
+        handleCheckout: function() {
+            if (!this.cart.length) return;
+            
+            // Open payment modal
+            this.openPaymentModal();
+        },
+        
+        openPaymentModal: function() {
+            const totals = this.calculateTotals();
+            
+            // Set payment amount
+            this.elements.paymentAmount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
+            
+            // Set cash amount to 0
+            this.cashAmount = 0;
+            this.elements.cashAmount.value = `${CURRENCY_SYMBOL} 0.00`;
+            this.elements.changeAmount.textContent = `${CURRENCY_SYMBOL} 0.00`;
+            
+            // Set default payment method
+            this.paymentMethod = 'qr_code';
+            this.togglePaymentMethod();
+            
+            // Show modal
+            this.elements.paymentModal.style.display = 'flex';
+            
+            // If payment gateway is enabled and QR selected, request payment QR
+            if (this.paymentMethod === 'qr_code' && PAYMENT_SETTINGS.gateway_enabled) {
+                this.requestPaymentQR();
+            }
+        },
+        
+        togglePaymentMethod: function() {
+            // Show/hide sections based on payment method
+            if (this.paymentMethod === 'qr_code') {
+                this.elements.paymentQrSection.style.display = 'block';
+                this.elements.paymentCashSection.style.display = 'none';
+                
+                // Disable confirm button if gateway enabled (will be enabled when payment confirmed)
+                // Otherwise, enable it for simulation mode
+                this.elements.paymentConfirmBtn.disabled = PAYMENT_SETTINGS.gateway_enabled;
+            } else {
+                this.elements.paymentQrSection.style.display = 'none';
+                this.elements.paymentCashSection.style.display = 'block';
+                
+                // Enable confirm button when cash amount >= total
+                const totals = this.calculateTotals();
+                this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
+            }
+        },
+        
+        requestPaymentQR: async function() {
+            this.showLoading('Generating payment QR code...');
+            
+            try {
+                // Create draft invoice first
+                const invoiceResponse = await frappe.call({
+                    method: 'imogi_pos.api.billing.generate_invoice',
+                    args: {
+                        cart_items: this.cart,
+                        pos_profile: POS_PROFILE,
+                        customer: 'Walk-in Customer',
+                        pos_session: ACTIVE_POS_SESSION,
+                        branch: CURRENT_BRANCH
+                    }
+                });
+                
+                if (!invoiceResponse.message) {
+                    throw new Error('Failed to create invoice');
+                }
+                
+                const invoice = invoiceResponse.message;
+                
+                // Now request payment
+                const paymentResponse = await frappe.call({
+                    method: 'imogi_pos.api.billing.request_payment',
+                    args: {
+                        invoice: invoice.name,
+                        amount: invoice.grand_total,
+                        customer: invoice.customer
+                    }
+                });
+                
+                this.hideLoading();
+                
+                if (!paymentResponse.message) {
+                    throw new Error('Failed to create payment request');
+                }
+                
+                // Store payment request and invoice
+                this.paymentRequest = {
+                    ...paymentResponse.message,
+                    invoice: invoice.name
+                };
+                
+                // Update UI with payment QR
+                if (this.paymentRequest.qr_image) {
+                    this.elements.paymentQr.innerHTML = `<img src="${this.paymentRequest.qr_image}" alt="Payment QR Code">`;
+                } else if (this.paymentRequest.payment_url) {
+                    // Fallback to QR code generation from URL
+                    this.elements.paymentQr.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.paymentRequest.payment_url)}" alt="Payment QR Code">`;
+                }
+                
+                // Start countdown
+                this.startPaymentCountdown();
+                
+                // Check payment status periodically if realtime not available
+                if (!frappe.realtime) {
+                    this.pollPaymentStatus();
+                }
+                
+            } catch (error) {
+                console.error("Error requesting payment:", error);
+                this.showError("Failed to generate payment QR. Please try another payment method.");
+                this.hideLoading();
+                
+                // Switch to cash as fallback
+                const cashOption = document.querySelector('.payment-option[data-method="cash"]');
+                if (cashOption) {
+                    cashOption.click();
+                }
+            }
+        },
+        
+        startPaymentCountdown: function() {
+            // Clear existing timer
+            if (this.paymentTimer) {
+                clearInterval(this.paymentTimer);
+            }
+            
+            // Set countdown from settings or default to 5 minutes
+            this.paymentCountdown = PAYMENT_SETTINGS.payment_timeout || 300;
+            this.updateCountdownDisplay();
+            
+            // Start countdown
+            this.paymentTimer = setInterval(() => {
+                this.paymentCountdown--;
+                this.updateCountdownDisplay();
+                
+                if (this.paymentCountdown <= 0) {
+                    clearInterval(this.paymentTimer);
+                    this.handlePaymentExpired();
+                }
+            }, 1000);
+        },
+        
+        updateCountdownDisplay: function() {
+            const minutes = Math.floor(this.paymentCountdown / 60);
+            const seconds = this.paymentCountdown % 60;
+            this.elements.paymentCountdown.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        },
+        
+        pollPaymentStatus: function() {
+            if (!this.paymentRequest) return;
+            
+            const checkStatus = () => {
+                frappe.call({
+                    method: 'frappe.client.get',
+                    args: {
+                        doctype: 'Payment Request',
+                        name: this.paymentRequest.name
+                    },
+                    callback: (response) => {
+                        if (response.message) {
+                            const status = response.message.status;
+                            
+                            if (status === 'Paid') {
+                                this.handlePaymentSuccess();
+                            } else if (status === 'Cancelled' || status === 'Expired') {
+                                this.handlePaymentExpired();
+                            } else {
+                                // Continue polling
+                                setTimeout(checkStatus, 5000);
+                            }
+                        }
+                    }
+                });
+            };
+            
+            // Start polling
+            setTimeout(checkStatus, 5000);
+        },
+        
+        handlePaymentSuccess: function() {
+            // Stop countdown
+            if (this.paymentTimer) {
+                clearInterval(this.paymentTimer);
+            }
+            
+            // Update status
+            this.elements.paymentStatus.className = 'payment-status success';
+            this.elements.paymentStatus.textContent = 'Payment successful!';
+            
+            // Close payment modal after a delay and proceed
+            setTimeout(() => {
+                this.closePaymentModal();
+                this.completeOrder();
+            }, 2000);
+        },
+        
+        handlePaymentExpired: function() {
+            // Update status
+            this.elements.paymentStatus.className = 'payment-status error';
+            this.elements.paymentStatus.textContent = 'Payment expired. Please try again.';
+            
+            // Switch to cash as fallback
+            const cashOption = document.querySelector('.payment-option[data-method="cash"]');
+            if (cashOption) {
+                cashOption.click();
+            }
+        },
+        
+        handleKeypadInput: function(value) {
+            const totals = this.calculateTotals();
+            
+            if (value === 'clear') {
+                this.cashAmount = 0;
+            } else {
+                // Add digit
+                this.cashAmount = this.cashAmount * 10 + parseInt(value);
+            }
+            
+            // Update display
+            this.elements.cashAmount.value = `${CURRENCY_SYMBOL} ${formatNumber(this.cashAmount)}`;
+            
+            // Calculate change
+            const change = Math.max(0, this.cashAmount - totals.total);
+            this.elements.changeAmount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(change)}`;
+            
+            // Enable confirm button when cash amount >= total
+            this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
+        },
+        
+        cancelPayment: function() {
+            // Stop countdown
+            if (this.paymentTimer) {
+                clearInterval(this.paymentTimer);
+            }
+            
+            // If there's an active payment request, cancel it
+            if (this.paymentRequest) {
+                frappe.call({
+                    method: 'frappe.client.set_value',
+                    args: {
+                        doctype: 'Payment Request',
+                        name: this.paymentRequest.name,
+                        fieldname: 'status',
+                        value: 'Cancelled'
+                    }
+                });
+                
+                this.paymentRequest = null;
+            }
+            
+            this.closePaymentModal();
+        },
+        
+        closePaymentModal: function() {
+            this.elements.paymentModal.style.display = 'none';
+        },
+        
+        confirmPayment: function() {
+            if (this.paymentMethod === 'cash') {
+                // Simulate cash payment success
+                this.completeOrder();
+            } else {
+                // For QR payment in simulation mode (gateway disabled)
+                if (!PAYMENT_SETTINGS.gateway_enabled) {
+                    this.handlePaymentSuccess();
+                }
+            }
+        },
+        
+        completeOrder: async function() {
+            this.showLoading('Completing your order...');
+            
+            try {
+                // If payment was made, we already have an invoice
+                // If cash payment, create invoice now
+                let invoice;
+                
+                if (this.paymentRequest && this.paymentRequest.invoice) {
+                    // Use existing invoice
+                    invoice = { name: this.paymentRequest.invoice };
+                } else {
+                    // Create new invoice
+                    const response = await frappe.call({
+                        method: 'imogi_pos.api.billing.generate_invoice',
+                        args: {
+                            cart_items: this.cart,
+                            pos_profile: POS_PROFILE,
+                            customer: 'Walk-in Customer',
+                            pos_session: ACTIVE_POS_SESSION,
+                            branch: CURRENT_BRANCH,
+                            payment_method: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
+                            paid_amount: this.paymentMethod === 'cash' ? this.cashAmount : undefined
+                        }
+                    });
+                    
+                    if (!response.message) {
+                        throw new Error('Failed to create invoice');
+                    }
+                    
+                    invoice = response.message;
+                }
+                
+                // Send items to kitchen (KOT)
+                if (DOMAIN === 'Restaurant') {
+                    await frappe.call({
+                        method: 'imogi_pos.api.kot.send_items_to_kitchen',
+                        args: {
+                            invoice: invoice.name,
+                            items: this.cart
+                        }
+                    });
+                }
+                
+                // Auto-print receipt if enabled
+                if (PRINT_SETTINGS.print_receipt) {
+                    await this.printReceipt(invoice.name);
+                }
+                
+                // Auto-print queue ticket if enabled
+                if (PRINT_SETTINGS.print_queue_ticket) {
+                    await this.printQueueTicket(invoice.name);
+                }
+                
+                this.hideLoading();
+                
+                // Show success modal
+                this.showSuccessModal();
+                
+            } catch (error) {
+                console.error("Error completing order:", error);
+                this.showError("An error occurred while completing your order. Please contact staff for assistance.");
+                this.hideLoading();
+            }
+        },
+        
+        printReceipt: async function(invoiceName) {
+            try {
+                const response = await frappe.call({
+                    method: 'imogi_pos.api.printing.print_receipt',
+                    args: {
+                        invoice: invoiceName,
+                        pos_profile: POS_PROFILE
+                    }
+                });
+                
+                if (response.message) {
+                    const printData = response.message;
+                    
+                    // Send to print service
+                    if (window.ImogiPrintService) {
+                        await ImogiPrintService.print({
+                            type: 'receipt',
+                            data: printData.html,
+                            printer: printData.printer,
+                            copies: printData.copies || 1
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error printing receipt:", error);
+            }
+        },
+        
+        printQueueTicket: async function(invoiceName) {
+            try {
+                const response = await frappe.call({
+                    method: 'imogi_pos.api.printing.print_queue_ticket',
+                    args: {
+                        invoice: invoiceName,
+                        pos_profile: POS_PROFILE,
+                        queue_number: NEXT_QUEUE_NUMBER
+                    }
+                });
+                
+                if (response.message) {
+                    const printData = response.message;
+                    
+                    // Send to print service
+                    if (window.ImogiPrintService) {
+                        await ImogiPrintService.print({
+                            type: 'queue',
+                            data: printData.html,
+                            printer: printData.printer,
+                            copies: printData.copies || 1
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error printing queue ticket:", error);
+            }
+        },
+        
+        showSuccessModal: function() {
+            // Set queue number
+            this.elements.successQueueNumber.textContent = NEXT_QUEUE_NUMBER;
+            
+            // Show modal
+            this.elements.successModal.style.display = 'flex';
+        },
+        
+        closeSuccessModal: function() {
+            this.elements.successModal.style.display = 'none';
+        },
+        
+        resetApp: function() {
+            // Clear cart
+            this.cart = [];
+            this.renderCart();
+            this.updateCartTotals();
+            
+            // Reset payment state
+            this.paymentRequest = null;
+            this.cashAmount = 0;
+            
+            // Clear search
+            this.elements.searchInput.value = '';
+            this.searchQuery = '';
+            
+            // Reset category filter
+            this.selectCategory('all');
+            
+            // Reload items
+            this.loadItems();
+        },
+        
+        // Utils
+        calculateTotals: function() {
+            const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
+            
+            // Calculate tax based on POS Profile
+            let taxRate = 0;
+            try {
+                // This is a simplification - in a real app, we'd apply the actual tax rules
+                // from the POS Profile / tax template
+                taxRate = 0.1; // Assume 10% tax
+            } catch (e) {
+                console.error("Error calculating tax:", e);
+            }
+            
+            const tax = subtotal * taxRate;
+            const total = subtotal + tax;
+            
+            return {
+                subtotal,
+                tax,
+                total
+            };
+        },
+        
+        setupPrintService: function() {
+            // Initialize the print service from the shared module
+            if (window.ImogiPrintService) {
+                ImogiPrintService.init({
+                    profile: POS_PROFILE,
+                    defaultInterface: 'OS' // Fallback to OS printing if profile doesn't specify
+                });
+            } else {
+                console.error("Print service not available");
+            }
+        },
+        
+        setupRealtimeUpdates: function() {
+            // Listen for payment updates
+            frappe.realtime.on('payment:pr:*', (data) => {
+                // Check if it's our payment request
+                if (this.paymentRequest && data.payment_request === this.paymentRequest.name) {
+                    if (data.status === 'Paid') {
+                        this.handlePaymentSuccess();
+                    } else if (data.status === 'Expired' || data.status === 'Cancelled') {
+                        this.handlePaymentExpired();
+                    }
+                }
+            });
+        },
+        
+        showLoading: function(message = "Loading...") {
+            this.elements.loadingText.textContent = message;
+            this.elements.loadingOverlay.style.display = 'flex';
+        },
+        
+        hideLoading: function() {
+            this.elements.loadingOverlay.style.display = 'none';
+        },
+        
+        showError: function(message) {
+            alert(message);
+        }
+    };
+    
+    // Helper function to format numbers
+    function formatNumber(number) {
+        return parseFloat(number).toFixed(2);
+    }
+    
+    // Initialize the app
+    KioskApp.init();
+});

@@ -1,0 +1,145 @@
+{
+  "doctype": "Workspace",
+  "name": "IMOGI POS",
+  "category": "Domains",
+  "is_hidden": 0,
+  "for_user": "",
+  "parent_page": "",
+  "icon": "point-of-sale",
+  "module": "IMOGI POS",
+  "label": "IMOGI POS",
+  "links": [
+    {
+      "label": "Orders",
+      "items": [
+        {
+          "type": "doctype",
+          "name": "POS Order",
+          "label": "POS Orders",
+          "description": "View all POS Orders"
+        },
+        {
+          "type": "doctype",
+          "name": "KOT Ticket",
+          "label": "KOT Tickets",
+          "description": "View all Kitchen Order Tickets"
+        }
+      ]
+    },
+    {
+      "label": "Setup",
+      "items": [
+        {
+          "type": "doctype",
+          "name": "POS Profile",
+          "label": "POS Profile",
+          "description": "Configure POS Profiles"
+        },
+        {
+          "type": "doctype",
+          "name": "Restaurant Settings",
+          "label": "Restaurant Settings",
+          "description": "Configure Restaurant Settings"
+        }
+      ]
+    }
+  ],
+  "shortcuts": [
+    {
+      "type": "Page",
+      "name": "table-display",
+      "label": "Table Display",
+      "doc_view": "",
+      "icon": "table",
+      "color": "blue"
+    },
+    {
+      "type": "Page",
+      "name": "kitchen-display",
+      "label": "Kitchen Display",
+      "doc_view": "",
+      "icon": "cooking",
+      "color": "orange"
+    },
+    {
+      "type": "URL",
+      "name": "cashier-console",
+      "label": "Cashier Console",
+      "doc_view": "",
+      "url": "/cashier-console",
+      "icon": "money-cash",
+      "color": "green"
+    },
+    {
+      "type": "URL",
+      "name": "kiosk",
+      "label": "Kiosk",
+      "doc_view": "",
+      "url": "/kiosk",
+      "icon": "kiosk",
+      "color": "purple"
+    }
+  ],
+  "charts": [
+    {
+      "name": "Sales by Hour",
+      "chart_name": "Sales by Hour",
+      "label": "Sales by Hour"
+    },
+    {
+      "name": "Orders by Status",
+      "chart_name": "Orders by Status",
+      "label": "Orders by Status"
+    }
+  ],
+  "content": [
+    {
+      "type": "header",
+      "data": {
+        "text": "Reports & Analytics",
+        "level": 4,
+        "description": "Key metrics and reports"
+      }
+    },
+    {
+      "type": "card",
+      "data": {
+        "label": "Sales",
+        "items": [
+          {
+            "label": "POS Sales Today",
+            "url": "/app/query-report/POS Sales Today"
+          },
+          {
+            "label": "Payment Summary",
+            "url": "/app/query-report/Payment Summary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "card",
+      "data": {
+        "label": "Operations",
+        "items": [
+          {
+            "label": "KOT Throughput",
+            "url": "/app/query-report/KOT Throughput"
+          }
+        ]
+      }
+    }
+  ],
+  "roles": [
+    {
+      "role": "Restaurant Manager"
+    },
+    {
+      "role": "Cashier"
+    },
+    {
+      "role": "System Manager"
+    }
+  ],
+  "sequence_id": 1.0
+}
