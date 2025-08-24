@@ -1,0 +1,284 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:profile_name",
+  "creation": "2023-09-01 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "profile_name",
+    "is_default",
+    "cb_1",
+    "pos_profile",
+    "branch",
+    "section_theme",
+    "theme_section",
+    "background_image",
+    "background_color",
+    "accent_color",
+    "use_dark_theme",
+    "custom_css",
+    "section_items",
+    "allowed_item_groups",
+    "hide_out_of_stock",
+    "show_prices",
+    "section_timeout",
+    "enable_timeout",
+    "timeout_seconds",
+    "timeout_warning_seconds",
+    "timeout_action",
+    "section_printing",
+    "enable_auto_print",
+    "receipt_printer",
+    "receipt_print_format",
+    "enable_queue_ticket",
+    "queue_printer",
+    "queue_print_format",
+    "section_payment",
+    "allow_cash_payment",
+    "allow_card_payment",
+    "allow_qr_payment",
+    "force_cashless",
+    "payment_instructions"
+  ],
+  "fields": [
+    {
+      "fieldname": "profile_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Profile Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "is_default",
+      "fieldtype": "Check",
+      "label": "Is Default"
+    },
+    {
+      "fieldname": "cb_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "pos_profile",
+      "fieldtype": "Link",
+      "label": "POS Profile",
+      "options": "POS Profile",
+      "reqd": 1
+    },
+    {
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "label": "Branch",
+      "options": "Branch"
+    },
+    {
+      "fieldname": "section_theme",
+      "fieldtype": "Section Break",
+      "label": "Theme Settings"
+    },
+    {
+      "fieldname": "theme_section",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "background_image",
+      "fieldtype": "Attach Image",
+      "label": "Background Image"
+    },
+    {
+      "fieldname": "background_color",
+      "fieldtype": "Color",
+      "label": "Background Color"
+    },
+    {
+      "fieldname": "accent_color",
+      "fieldtype": "Color",
+      "label": "Accent Color"
+    },
+    {
+      "default": "0",
+      "fieldname": "use_dark_theme",
+      "fieldtype": "Check",
+      "label": "Use Dark Theme"
+    },
+    {
+      "fieldname": "custom_css",
+      "fieldtype": "Code",
+      "label": "Custom CSS",
+      "options": "CSS"
+    },
+    {
+      "fieldname": "section_items",
+      "fieldtype": "Section Break",
+      "label": "Item Settings"
+    },
+    {
+      "fieldname": "allowed_item_groups",
+      "fieldtype": "Table",
+      "label": "Allowed Item Groups",
+      "options": "Kiosk Profile Item Group"
+    },
+    {
+      "default": "0",
+      "fieldname": "hide_out_of_stock",
+      "fieldtype": "Check",
+      "label": "Hide Out of Stock Items"
+    },
+    {
+      "default": "1",
+      "fieldname": "show_prices",
+      "fieldtype": "Check",
+      "label": "Show Prices"
+    },
+    {
+      "fieldname": "section_timeout",
+      "fieldtype": "Section Break",
+      "label": "Timeout Settings"
+    },
+    {
+      "default": "1",
+      "fieldname": "enable_timeout",
+      "fieldtype": "Check",
+      "label": "Enable Timeout"
+    },
+    {
+      "default": "120",
+      "depends_on": "eval:doc.enable_timeout==1",
+      "fieldname": "timeout_seconds",
+      "fieldtype": "Int",
+      "label": "Timeout (Seconds)"
+    },
+    {
+      "default": "30",
+      "depends_on": "eval:doc.enable_timeout==1",
+      "fieldname": "timeout_warning_seconds",
+      "fieldtype": "Int",
+      "label": "Timeout Warning (Seconds)"
+    },
+    {
+      "default": "Reset",
+      "depends_on": "eval:doc.enable_timeout==1",
+      "fieldname": "timeout_action",
+      "fieldtype": "Select",
+      "label": "Timeout Action",
+      "options": "Reset\nReturn to Home"
+    },
+    {
+      "fieldname": "section_printing",
+      "fieldtype": "Section Break",
+      "label": "Printing Settings"
+    },
+    {
+      "default": "1",
+      "fieldname": "enable_auto_print",
+      "fieldtype": "Check",
+      "label": "Auto-Print on Checkout"
+    },
+    {
+      "depends_on": "eval:doc.enable_auto_print==1",
+      "fieldname": "receipt_printer",
+      "fieldtype": "Link",
+      "label": "Receipt Printer",
+      "options": "Printer"
+    },
+    {
+      "depends_on": "eval:doc.enable_auto_print==1",
+      "fieldname": "receipt_print_format",
+      "fieldtype": "Link",
+      "label": "Receipt Print Format",
+      "options": "Print Format"
+    },
+    {
+      "default": "0",
+      "fieldname": "enable_queue_ticket",
+      "fieldtype": "Check",
+      "label": "Enable Queue Ticket"
+    },
+    {
+      "depends_on": "eval:doc.enable_queue_ticket==1",
+      "fieldname": "queue_printer",
+      "fieldtype": "Link",
+      "label": "Queue Ticket Printer",
+      "options": "Printer"
+    },
+    {
+      "depends_on": "eval:doc.enable_queue_ticket==1",
+      "fieldname": "queue_print_format",
+      "fieldtype": "Link",
+      "label": "Queue Ticket Format",
+      "options": "Print Format"
+    },
+    {
+      "fieldname": "section_payment",
+      "fieldtype": "Section Break",
+      "label": "Payment Settings"
+    },
+    {
+      "default": "1",
+      "fieldname": "allow_cash_payment",
+      "fieldtype": "Check",
+      "label": "Allow Cash Payment"
+    },
+    {
+      "default": "1",
+      "fieldname": "allow_card_payment",
+      "fieldtype": "Check",
+      "label": "Allow Card Payment"
+    },
+    {
+      "default": "1",
+      "fieldname": "allow_qr_payment",
+      "fieldtype": "Check",
+      "label": "Allow QR Payment"
+    },
+    {
+      "default": "0",
+      "fieldname": "force_cashless",
+      "fieldtype": "Check",
+      "label": "Force Cashless Only"
+    },
+    {
+      "fieldname": "payment_instructions",
+      "fieldtype": "Small Text",
+      "label": "Payment Instructions"
+    }
+  ],
+  "links": [],
+  "modified": "2023-09-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Kiosk Profile",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

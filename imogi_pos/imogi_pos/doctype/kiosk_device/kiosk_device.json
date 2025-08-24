@@ -1,0 +1,172 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:device_name",
+  "creation": "2023-09-01 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "device_name",
+    "is_active",
+    "cb_1",
+    "kiosk_profile",
+    "branch",
+    "section_pairing",
+    "pairing_code",
+    "pairing_expiry",
+    "generate_new_pairing_code",
+    "cb_2",
+    "device_token",
+    "section_status",
+    "last_connected",
+    "last_ip_address",
+    "last_user_agent",
+    "connection_count",
+    "cb_3",
+    "device_notes"
+  ],
+  "fields": [
+    {
+      "fieldname": "device_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Device Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "default": "1",
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Is Active"
+    },
+    {
+      "fieldname": "cb_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "kiosk_profile",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Kiosk Profile",
+      "options": "Kiosk Profile",
+      "reqd": 1
+    },
+    {
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "label": "Branch",
+      "options": "Branch"
+    },
+    {
+      "fieldname": "section_pairing",
+      "fieldtype": "Section Break",
+      "label": "Pairing Information"
+    },
+    {
+      "fieldname": "pairing_code",
+      "fieldtype": "Data",
+      "label": "Pairing Code",
+      "read_only": 1
+    },
+    {
+      "fieldname": "pairing_expiry",
+      "fieldtype": "Datetime",
+      "label": "Pairing Expiry",
+      "read_only": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "generate_new_pairing_code",
+      "fieldtype": "Check",
+      "label": "Generate New Pairing Code"
+    },
+    {
+      "fieldname": "cb_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "device_token",
+      "fieldtype": "Data",
+      "label": "Device Token",
+      "read_only": 1
+    },
+    {
+      "fieldname": "section_status",
+      "fieldtype": "Section Break",
+      "label": "Connection Status"
+    },
+    {
+      "fieldname": "last_connected",
+      "fieldtype": "Datetime",
+      "label": "Last Connected",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_ip_address",
+      "fieldtype": "Data",
+      "label": "Last IP Address",
+      "read_only": 1
+    },
+    {
+      "fieldname": "last_user_agent",
+      "fieldtype": "Small Text",
+      "label": "Last User Agent",
+      "read_only": 1
+    },
+    {
+      "default": "0",
+      "fieldname": "connection_count",
+      "fieldtype": "Int",
+      "label": "Connection Count",
+      "read_only": 1
+    },
+    {
+      "fieldname": "cb_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "device_notes",
+      "fieldtype": "Small Text",
+      "label": "Device Notes"
+    }
+  ],
+  "links": [],
+  "modified": "2023-09-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Kiosk Device",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}
