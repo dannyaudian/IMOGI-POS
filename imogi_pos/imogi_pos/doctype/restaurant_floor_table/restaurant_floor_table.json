@@ -1,0 +1,56 @@
+{
+    "actions": [],
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "table",
+        "table_number",
+        "status",
+        "current_pos_order"
+    ],
+    "fields": [
+        {
+            "fieldname": "table",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Table",
+            "options": "Restaurant Table",
+            "read_only": 1
+        },
+        {
+            "fieldname": "table_number",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Table Number",
+            "read_only": 1
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Available\nOccupied\nReserved\nDirty\nInactive",
+            "read_only": 1
+        },
+        {
+            "fieldname": "current_pos_order",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Current POS Order",
+            "options": "POS Order",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Restaurant Floor Table",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

@@ -1,0 +1,181 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:kitchen_name",
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "kitchen_name",
+        "branch",
+        "description",
+        "is_active",
+        "section_break_4",
+        "default_station",
+        "default_target_queue_time",
+        "default_target_prep_time",
+        "column_break_8",
+        "default_printer_interface",
+        "default_printer",
+        "default_printer_port",
+        "default_bt_device_name",
+        "default_bt_mac",
+        "default_bt_vendor_profile",
+        "section_break_15",
+        "stations"
+    ],
+    "fields": [
+        {
+            "fieldname": "kitchen_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Kitchen Name",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "fieldname": "branch",
+            "fieldtype": "Link",
+            "label": "Branch",
+            "options": "Branch",
+            "reqd": 1
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description"
+        },
+        {
+            "default": "1",
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Is Active"
+        },
+        {
+            "fieldname": "section_break_4",
+            "fieldtype": "Section Break",
+            "label": "Default Settings"
+        },
+        {
+            "fieldname": "default_station",
+            "fieldtype": "Link",
+            "label": "Default Station",
+            "options": "Kitchen Station"
+        },
+        {
+            "default": "5",
+            "description": "Target time in minutes for items to wait in queue before preparation",
+            "fieldname": "default_target_queue_time",
+            "fieldtype": "Int",
+            "label": "Default Target Queue Time (mins)"
+        },
+        {
+            "default": "10",
+            "description": "Target time in minutes for items to be prepared",
+            "fieldname": "default_target_prep_time",
+            "fieldtype": "Int",
+            "label": "Default Target Preparation Time (mins)"
+        },
+        {
+            "fieldname": "column_break_8",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "OS",
+            "fieldname": "default_printer_interface",
+            "fieldtype": "Select",
+            "label": "Default Printer Interface",
+            "options": "LAN\nBluetooth\nOS"
+        },
+        {
+            "depends_on": "eval:doc.default_printer_interface==\"LAN\"",
+            "fieldname": "default_printer",
+            "fieldtype": "Data",
+            "label": "Default Printer (LAN)"
+        },
+        {
+            "depends_on": "eval:doc.default_printer_interface==\"LAN\"",
+            "fieldname": "default_printer_port",
+            "fieldtype": "Int",
+            "label": "Default Printer Port"
+        },
+        {
+            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
+            "fieldname": "default_bt_device_name",
+            "fieldtype": "Data",
+            "label": "Default Bluetooth Device Name"
+        },
+        {
+            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
+            "fieldname": "default_bt_mac",
+            "fieldtype": "Data",
+            "label": "Default Bluetooth MAC Address"
+        },
+        {
+            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
+            "fieldname": "default_bt_vendor_profile",
+            "fieldtype": "Select",
+            "label": "Default Bluetooth Vendor Profile",
+            "options": "ESC/POS\nCPCL\nZPL"
+        },
+        {
+            "fieldname": "section_break_15",
+            "fieldtype": "Section Break",
+            "label": "Kitchen Stations"
+        },
+        {
+            "fieldname": "stations",
+            "fieldtype": "Table",
+            "label": "Stations",
+            "options": "Kitchen Station Link",
+            "read_only": 1
+        }
+    ],
+    "links": [
+        {
+            "link_doctype": "Kitchen Station",
+            "link_fieldname": "kitchen",
+            "group": "Kitchen Stations"
+        },
+        {
+            "link_doctype": "KOT Ticket",
+            "link_fieldname": "kitchen",
+            "group": "KOT Tickets"
+        }
+    ],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Kitchen",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Restaurant Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 0,
+            "delete": 0,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Kitchen Staff",
+            "share": 0,
+            "write": 0
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

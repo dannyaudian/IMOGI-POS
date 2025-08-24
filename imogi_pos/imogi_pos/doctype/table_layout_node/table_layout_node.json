@@ -1,0 +1,147 @@
+{
+    "actions": [],
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "node_type",
+        "table",
+        "label",
+        "position_section",
+        "position_x",
+        "position_y",
+        "width",
+        "height",
+        "rotation",
+        "column_break_9",
+        "appearance_section",
+        "shape",
+        "color",
+        "background_color",
+        "custom_class",
+        "custom_data",
+        "floor"
+    ],
+    "fields": [
+        {
+            "fieldname": "node_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Node Type",
+            "options": "table\nwall\nentrance\ntext\nimage\ncustom",
+            "reqd": 1
+        },
+        {
+            "depends_on": "eval:doc.node_type==\"table\"",
+            "fieldname": "table",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Table",
+            "options": "Restaurant Table"
+        },
+        {
+            "fieldname": "label",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Label"
+        },
+        {
+            "fieldname": "position_section",
+            "fieldtype": "Section Break",
+            "label": "Position"
+        },
+        {
+            "default": "0",
+            "fieldname": "position_x",
+            "fieldtype": "Int",
+            "label": "Position X",
+            "reqd": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "position_y",
+            "fieldtype": "Int",
+            "label": "Position Y",
+            "reqd": 1
+        },
+        {
+            "default": "100",
+            "fieldname": "width",
+            "fieldtype": "Int",
+            "label": "Width",
+            "reqd": 1
+        },
+        {
+            "default": "100",
+            "fieldname": "height",
+            "fieldtype": "Int",
+            "label": "Height",
+            "reqd": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "rotation",
+            "fieldtype": "Int",
+            "label": "Rotation"
+        },
+        {
+            "fieldname": "column_break_9",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "appearance_section",
+            "fieldtype": "Section Break",
+            "label": "Appearance"
+        },
+        {
+            "default": "rectangle",
+            "fieldname": "shape",
+            "fieldtype": "Select",
+            "label": "Shape",
+            "options": "rectangle\nround\ncircle\ncustom"
+        },
+        {
+            "default": "#000000",
+            "fieldname": "color",
+            "fieldtype": "Color",
+            "label": "Color"
+        },
+        {
+            "default": "#FFFFFF",
+            "fieldname": "background_color",
+            "fieldtype": "Color",
+            "label": "Background Color"
+        },
+        {
+            "fieldname": "custom_class",
+            "fieldtype": "Data",
+            "label": "Custom CSS Class"
+        },
+        {
+            "fieldname": "custom_data",
+            "fieldtype": "Code",
+            "label": "Custom Data",
+            "options": "JSON"
+        },
+        {
+            "depends_on": "eval:doc.node_type==\"table\"",
+            "fetch_from": "table.floor",
+            "fieldname": "floor",
+            "fieldtype": "Link",
+            "label": "Floor",
+            "options": "Restaurant Floor",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Table Layout Node",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

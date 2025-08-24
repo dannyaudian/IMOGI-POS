@@ -1,0 +1,66 @@
+{
+    "actions": [],
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "block_type",
+        "display_order",
+        "grid_span",
+        "grid_height",
+        "column_break_5",
+        "properties"
+    ],
+    "fields": [
+        {
+            "fieldname": "block_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Block Type",
+            "options": "summary\npayment\nticker\nad",
+            "reqd": 1
+        },
+        {
+            "default": "10",
+            "fieldname": "display_order",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Display Order"
+        },
+        {
+            "default": "1",
+            "fieldname": "grid_span",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Grid Span"
+        },
+        {
+            "default": "1",
+            "fieldname": "grid_height",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Grid Height"
+        },
+        {
+            "fieldname": "column_break_5",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "properties",
+            "fieldtype": "Code",
+            "label": "Properties",
+            "options": "JSON"
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Customer Display Block",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

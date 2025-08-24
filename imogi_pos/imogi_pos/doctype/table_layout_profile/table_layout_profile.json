@@ -1,0 +1,144 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:profile_name",
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "profile_name",
+        "branch",
+        "default_floor",
+        "is_active",
+        "section_break_4",
+        "grid_settings_section",
+        "grid_size",
+        "grid_snap",
+        "column_break_8",
+        "canvas_width",
+        "canvas_height",
+        "show_grid",
+        "section_break_12",
+        "nodes"
+    ],
+    "fields": [
+        {
+            "fieldname": "profile_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Profile Name",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "fieldname": "branch",
+            "fieldtype": "Link",
+            "label": "Branch",
+            "options": "Branch",
+            "reqd": 1
+        },
+        {
+            "fieldname": "default_floor",
+            "fieldtype": "Link",
+            "label": "Default Floor",
+            "options": "Restaurant Floor"
+        },
+        {
+            "default": "1",
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Is Active"
+        },
+        {
+            "fieldname": "section_break_4",
+            "fieldtype": "Section Break"
+        },
+        {
+            "fieldname": "grid_settings_section",
+            "fieldtype": "Section Break",
+            "label": "Grid Settings"
+        },
+        {
+            "default": "20",
+            "description": "Size of grid cells in pixels",
+            "fieldname": "grid_size",
+            "fieldtype": "Int",
+            "label": "Grid Size"
+        },
+        {
+            "default": "1",
+            "fieldname": "grid_snap",
+            "fieldtype": "Check",
+            "label": "Snap to Grid"
+        },
+        {
+            "fieldname": "column_break_8",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "1200",
+            "fieldname": "canvas_width",
+            "fieldtype": "Int",
+            "label": "Canvas Width"
+        },
+        {
+            "default": "800",
+            "fieldname": "canvas_height",
+            "fieldtype": "Int",
+            "label": "Canvas Height"
+        },
+        {
+            "default": "1",
+            "fieldname": "show_grid",
+            "fieldtype": "Check",
+            "label": "Show Grid"
+        },
+        {
+            "fieldname": "section_break_12",
+            "fieldtype": "Section Break",
+            "label": "Layout Nodes"
+        },
+        {
+            "fieldname": "nodes",
+            "fieldtype": "Table",
+            "label": "Nodes",
+            "options": "Table Layout Node"
+        }
+    ],
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Table Layout Profile",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Restaurant Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 0,
+            "delete": 0,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Waiter",
+            "share": 0,
+            "write": 0
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

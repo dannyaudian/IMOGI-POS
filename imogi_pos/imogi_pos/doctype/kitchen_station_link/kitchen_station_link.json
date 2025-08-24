@@ -1,0 +1,38 @@
+{
+    "actions": [],
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "kitchen_station",
+        "station_name"
+    ],
+    "fields": [
+        {
+            "fieldname": "kitchen_station",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Kitchen Station",
+            "options": "Kitchen Station",
+            "read_only": 1
+        },
+        {
+            "fieldname": "station_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Station Name",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Kitchen Station Link",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

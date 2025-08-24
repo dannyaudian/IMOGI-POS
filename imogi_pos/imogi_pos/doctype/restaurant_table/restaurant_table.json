@@ -1,0 +1,177 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:table_number",
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "table_number",
+        "floor",
+        "branch",
+        "section_break_3",
+        "status",
+        "current_pos_order",
+        "shape",
+        "color",
+        "is_active",
+        "column_break_9",
+        "minimum_seating",
+        "maximum_seating",
+        "description",
+        "section_break_13",
+        "qr_slug",
+        "qr_section",
+        "qr_image"
+    ],
+    "fields": [
+        {
+            "fieldname": "table_number",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Table Number",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "fieldname": "floor",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Floor",
+            "options": "Restaurant Floor",
+            "reqd": 1
+        },
+        {
+            "fieldname": "branch",
+            "fieldtype": "Link",
+            "label": "Branch",
+            "options": "Branch",
+            "reqd": 1,
+            "fetch_from": "floor.branch"
+        },
+        {
+            "fieldname": "section_break_3",
+            "fieldtype": "Section Break",
+            "label": "Status"
+        },
+        {
+            "default": "Available",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Available\nOccupied\nReserved\nDirty\nInactive"
+        },
+        {
+            "fieldname": "current_pos_order",
+            "fieldtype": "Link",
+            "label": "Current POS Order",
+            "options": "POS Order",
+            "read_only": 1
+        },
+        {
+            "default": "Rectangle",
+            "fieldname": "shape",
+            "fieldtype": "Select",
+            "label": "Shape",
+            "options": "Rectangle\nRound\nCustom"
+        },
+        {
+            "default": "#4CAF50",
+            "fieldname": "color",
+            "fieldtype": "Color",
+            "label": "Color"
+        },
+        {
+            "default": "1",
+            "fieldname": "is_active",
+            "fieldtype": "Check",
+            "label": "Is Active"
+        },
+        {
+            "fieldname": "column_break_9",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "1",
+            "fieldname": "minimum_seating",
+            "fieldtype": "Int",
+            "label": "Minimum Seating"
+        },
+        {
+            "default": "4",
+            "fieldname": "maximum_seating",
+            "fieldtype": "Int",
+            "label": "Maximum Seating"
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description"
+        },
+        {
+            "fieldname": "section_break_13",
+            "fieldtype": "Section Break",
+            "label": "Self-Order QR"
+        },
+        {
+            "fieldname": "qr_slug",
+            "fieldtype": "Data",
+            "label": "QR Slug",
+            "description": "Token/Slug for Self-Order QR code. Generated automatically when using Self-Order feature."
+        },
+        {
+            "fieldname": "qr_section",
+            "fieldtype": "Section Break",
+            "label": "QR Code"
+        },
+        {
+            "fieldname": "qr_image",
+            "fieldtype": "HTML",
+            "label": "QR Image",
+            "options": "<div id=\"qr-code-container\"></div>\n<script>\n    frappe.ui.form.on('Restaurant Table', {\n        refresh: function(frm) {\n            if (frm.doc.qr_slug) {\n                // Generate and display QR code\n                const qrContainer = document.getElementById('qr-code-container');\n                qrContainer.innerHTML = '';\n                \n                // Create a button to refresh QR code\n                const refreshBtn = document.createElement('button');\n                refreshBtn.className = 'btn btn-sm btn-default';\n                refreshBtn.innerHTML = 'Refresh QR Code';\n                refreshBtn.onclick = function() {\n                    frappe.call({\n                        method: 'imogi_pos.utils.qr.refresh_table_qr_token',\n                        args: {\n                            table_name: frm.doc.name\n                        },\n                        callback: function(r) {\n                            if (r.message) {\n                                frm.reload_doc();\n                            }\n                        }\n                    });\n                };\n                qrContainer.appendChild(refreshBtn);\n                \n                // Add a print button\n                const printBtn = document.createElement('button');\n                printBtn.className = 'btn btn-sm btn-primary ml-2';\n                printBtn.innerHTML = 'Print QR Sheet';\n                printBtn.onclick = function() {\n                    frappe.model.with_doc('POS Profile', function() {\n                        var profiles = frappe.get_list('POS Profile', {filters: {imogi_pos_domain: 'Restaurant'}});\n                        if (profiles && profiles.length > 0) {\n                            var pos_profile = profiles[0].name;\n                            var format = frappe.get_value('POS Profile', pos_profile, 'imogi_self_order_qr_sheet_format');\n                            \n                            if (format) {\n                                frappe.set_route('print', 'Restaurant Table', frm.doc.name, format);\n                            } else {\n                                frappe.msgprint('No QR Sheet print format defined in POS Profile');\n                            }\n                        } else {\n                            frappe.msgprint('No Restaurant POS Profile found');\n                        }\n                    });\n                };\n                qrContainer.appendChild(printBtn);\n                \n                // Add spacing\n                qrContainer.appendChild(document.createElement('hr'));\n                \n                // Display QR code\n                const qrImg = document.createElement('div');\n                qrImg.id = 'qr-code';\n                qrContainer.appendChild(qrImg);\n                \n                const qrUrl = window.location.origin + '/so/' + frm.doc.qr_slug;\n                const qrText = document.createElement('p');\n                qrText.className = 'text-muted small';\n                qrText.innerHTML = 'URL: ' + qrUrl;\n                qrContainer.appendChild(qrText);\n                \n                // Generate QR code using a library (using a placeholder here)\n                // In actual implementation, you would use a QR code library\n                qrImg.innerHTML = '<img src=\"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrUrl) + '\" alt=\"QR Code\" />';\n            } else {\n                // Show a message to generate QR\n                const qrContainer = document.getElementById('qr-code-container');\n                qrContainer.innerHTML = '<p>No QR slug assigned. Generate one using the button below.</p>';\n                \n                const genBtn = document.createElement('button');\n                genBtn.className = 'btn btn-sm btn-primary';\n                genBtn.innerHTML = 'Generate QR Code';\n                genBtn.onclick = function() {\n                    frappe.call({\n                        method: 'imogi_pos.utils.qr.refresh_table_qr_token',\n                        args: {\n                            table_name: frm.doc.name\n                        },\n                        callback: function(r) {\n                            if (r.message) {\n                                frm.reload_doc();\n                            }\n                        }\n                    });\n                };\n                qrContainer.appendChild(genBtn);\n            }\n        }\n    });\n</script>"
+        }
+    ],
+    "links": [
+        {
+            "link_doctype": "POS Order",
+            "link_fieldname": "table",
+            "group": "Orders"
+        }
+    ],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "Restaurant Table",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Restaurant Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 0,
+            "delete": 0,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Waiter",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}
