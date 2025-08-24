@@ -1,0 +1,8 @@
+# Format for adding patches:
+# imogi_pos.patches.[folder].[module_name].[function_name]
+#
+# Example:
+# imogi_pos.patches.v1_0.update_pos_profiles.migrate_domain_settings
+#
+# Patches execute in order, from top to bottom
+# Each successful patch execution is recorded in the database to prevent rerunning

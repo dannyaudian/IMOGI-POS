@@ -1,0 +1,35 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include LICENSE
+include CHANGELOG.md
+
+recursive-include imogi_pos *.css
+recursive-include imogi_pos *.csv
+recursive-include imogi_pos *.html
+recursive-include imogi_pos *.ico
+recursive-include imogi_pos *.js
+recursive-include imogi_pos *.json
+recursive-include imogi_pos *.md
+recursive-include imogi_pos *.png
+recursive-include imogi_pos *.py
+recursive-include imogi_pos *.svg
+recursive-include imogi_pos *.txt
+recursive-include imogi_pos/fixtures *.json
+
+recursive-include imogi_pos/imogi_pos/public *
+recursive-include imogi_pos/imogi_pos/www *.html
+recursive-include imogi_pos/imogi_pos/www *.js
+recursive-include imogi_pos/imogi_pos/www *.css
+
+recursive-exclude * *.py[cod]
+recursive-exclude node_modules *
+recursive-exclude imogi_pos/imogi_pos/node_modules *
+recursive-exclude .cache *
+recursive-exclude __pycache__ *
+recursive-exclude *.so
+recursive-exclude *.log
+recursive-exclude *.temp
+recursive-exclude *.tmp
