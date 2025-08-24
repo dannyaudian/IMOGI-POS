@@ -1,0 +1,87 @@
+{
+    "actions": [],
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "item_code",
+        "item_name",
+        "qty",
+        "description",
+        "column_break_5",
+        "workflow_state",
+        "pos_order_item",
+        "notes",
+        "last_edited_by"
+    ],
+    "fields": [
+        {
+            "fieldname": "item_code",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Item Code",
+            "options": "Item",
+            "reqd": 1
+        },
+        {
+            "fieldname": "item_name",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Item Name"
+        },
+        {
+            "default": "1",
+            "fieldname": "qty",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Quantity",
+            "reqd": 1
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Text",
+            "label": "Description"
+        },
+        {
+            "fieldname": "column_break_5",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "workflow_state",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "Queued\nPreparing\nReady\nServed\nCancelled",
+            "default": "Queued"
+        },
+        {
+            "fieldname": "pos_order_item",
+            "fieldtype": "Data",
+            "label": "POS Order Item",
+            "description": "Reference to the original POS Order Item"
+        },
+        {
+            "fieldname": "notes",
+            "fieldtype": "Small Text",
+            "label": "Notes"
+        },
+        {
+            "fieldname": "last_edited_by",
+            "fieldtype": "Link",
+            "label": "Last Edited By",
+            "options": "User",
+            "read_only": 1
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "KOT Item",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "track_changes": 1
+}

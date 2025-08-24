@@ -1,0 +1,217 @@
+{
+    "actions": [],
+    "allow_rename": 0,
+    "autoname": "KOT-.#####",
+    "creation": "2023-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "pos_order",
+        "branch",
+        "table",
+        "floor",
+        "order_type",
+        "customer",
+        "column_break_7",
+        "workflow_state",
+        "kitchen",
+        "kitchen_station",
+        "creation_time",
+        "created_by",
+        "section_break_13",
+        "items",
+        "section_break_15",
+        "reprint_logs",
+        "last_edited_by"
+    ],
+    "fields": [
+        {
+            "fieldname": "pos_order",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "POS Order",
+            "options": "POS Order",
+            "reqd": 1
+        },
+        {
+            "fieldname": "branch",
+            "fieldtype": "Link",
+            "label": "Branch",
+            "options": "Branch",
+            "reqd": 1
+        },
+        {
+            "fieldname": "table",
+            "fieldtype": "Link",
+            "label": "Table",
+            "options": "Restaurant Table"
+        },
+        {
+            "fieldname": "floor",
+            "fieldtype": "Link",
+            "label": "Floor",
+            "options": "Restaurant Floor"
+        },
+        {
+            "fieldname": "order_type",
+            "fieldtype": "Select",
+            "label": "Order Type",
+            "options": "Dine-in\nTakeaway\nKiosk"
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "label": "Customer",
+            "options": "Customer"
+        },
+        {
+            "fieldname": "column_break_7",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "workflow_state",
+            "fieldtype": "Data",
+            "label": "Workflow State",
+            "read_only": 1,
+            "default": "Queued",
+            "no_copy": 1
+        },
+        {
+            "fieldname": "kitchen",
+            "fieldtype": "Link",
+            "label": "Kitchen",
+            "options": "Kitchen"
+        },
+        {
+            "fieldname": "kitchen_station",
+            "fieldtype": "Link",
+            "label": "Kitchen Station",
+            "options": "Kitchen Station",
+            "reqd": 1
+        },
+        {
+            "fieldname": "creation_time",
+            "fieldtype": "Datetime",
+            "label": "Creation Time",
+            "read_only": 1
+        },
+        {
+            "fieldname": "created_by",
+            "fieldtype": "Link",
+            "label": "Created By",
+            "options": "User",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_break_13",
+            "fieldtype": "Section Break",
+            "label": "Items"
+        },
+        {
+            "fieldname": "items",
+            "fieldtype": "Table",
+            "label": "Items",
+            "options": "KOT Item",
+            "reqd": 1
+        },
+        {
+            "fieldname": "section_break_15",
+            "fieldtype": "Section Break",
+            "label": "Reprint Logs"
+        },
+        {
+            "fieldname": "reprint_logs",
+            "fieldtype": "Table",
+            "label": "Reprint Logs",
+            "options": "KOT Reprint Log"
+        },
+        {
+            "fieldname": "last_edited_by",
+            "fieldtype": "Link",
+            "label": "Last Edited By",
+            "options": "User",
+            "read_only": 1
+        }
+    ],
+    "links": [
+        {
+            "link_doctype": "POS Order",
+            "link_fieldname": "name",
+            "group": "POS Order"
+        }
+    ],
+    "modified": "2023-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "IMOGI POS",
+    "name": "KOT Ticket",
+    "name_case": "",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Restaurant Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 0,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Kitchen Staff",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 0,
+            "delete": 0,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Waiter",
+            "share": 0,
+            "write": 0
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [
+        {
+            "color": "Blue",
+            "title": "Queued",
+            "doc_status": 0
+        },
+        {
+            "color": "Orange",
+            "title": "Preparing",
+            "doc_status": 0
+        },
+        {
+            "color": "Green", 
+            "title": "Ready",
+            "doc_status": 0
+        },
+        {
+            "color": "Purple",
+            "title": "Served",
+            "doc_status": 0
+        },
+        {
+            "color": "Red",
+            "title": "Cancelled",
+            "doc_status": 0
+        }
+    ],
+    "track_changes": 1
+}
