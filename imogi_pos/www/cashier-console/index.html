@@ -259,7 +259,14 @@
   </div>
   <div class="header-center">
     {% if branding.logo %}
-    <img src="{{ branding.logo }}" alt="{{ branding.name|default("IMOGI POS") }}" class="brand-logo">
+      {% if branding.logo_dark %}
+      <picture>
+        <source srcset="{{ branding.logo_dark }}" media="(prefers-color-scheme: dark)">
+        <img src="{{ branding.logo }}" alt="{{ branding.name|default("IMOGI POS") }}" class="brand-logo">
+      </picture>
+      {% else %}
+      <img src="{{ branding.logo }}" alt="{{ branding.name|default("IMOGI POS") }}" class="brand-logo">
+      {% endif %}
     {% else %}
     <span class="brand-name">{{ branding.name|default("IMOGI POS") }}</span>
     {% endif %}
