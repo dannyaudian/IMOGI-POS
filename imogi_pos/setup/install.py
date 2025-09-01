@@ -1,10 +1,4 @@
 """Installation helpers for IMOGI POS."""
 
-import frappe
+# This module can include installation-related helpers in the future.
 
-
-def load_fixtures():
-    """Load fixtures after migration.
-
-    This is a placeholder for fixture loading logic."""
-    pass
