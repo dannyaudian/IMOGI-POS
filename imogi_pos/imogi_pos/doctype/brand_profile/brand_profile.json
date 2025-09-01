@@ -5,7 +5,7 @@
  "creation": "2023-10-25 12:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "brand_name",
   "brand_code",
   "description",
@@ -17,15 +17,9 @@
   "column_break_9",
   "primary_color",
   "accent_color",
-  "header_bg_color",
-  "section_break_13",
-  "brand_url",
-  "brand_slogan",
-  "typography",
-  "advanced_section",
-  "custom_css"
- ],
- "fields": [
+  "header_bg_color"
+  ],
+  "fields": [
   {
    "fieldname": "brand_name",
    "fieldtype": "Data",
@@ -88,43 +82,8 @@
    "fieldname": "header_bg_color",
    "fieldtype": "Color",
    "label": "Header Background Color"
-  },
-  {
-   "fieldname": "section_break_13",
-   "fieldtype": "Section Break",
-   "label": "Additional Details"
-  },
-  {
-   "fieldname": "brand_url",
-   "fieldtype": "Data",
-   "label": "Brand URL",
-   "options": "URL"
-  },
-  {
-   "fieldname": "brand_slogan",
-   "fieldtype": "Data",
-   "label": "Brand Slogan"
-  },
-  {
-   "default": "System Default",
-   "fieldname": "typography",
-   "fieldtype": "Select",
-   "label": "Typography",
-   "options": "System Default\nSans-serif\nSerif\nModern"
-  },
-  {
-   "collapsible": 1,
-   "fieldname": "advanced_section",
-   "fieldtype": "Section Break",
-   "label": "Advanced Settings"
-  },
-  {
-   "fieldname": "custom_css",
-   "fieldtype": "Code",
-   "label": "Custom CSS Variables",
-   "options": "CSS"
-  }
- ],
+ }
+  ],
  "index_web_pages_for_search": 1,
  "links": [],
  "modified": "2023-10-25 12:00:00.000000",
