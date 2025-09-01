@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
     install_requires = f.read().strip().split("\n")
 
 # get version from __version__ variable in imogi_pos/__init__.py
-from imogi_pos.imogi_pos.__init__ import __version__ as version
+from imogi_pos import __version__ as version
 
 setup(
     name="imogi_pos",
