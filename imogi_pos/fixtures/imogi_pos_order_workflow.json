@@ -1,6 +1,7 @@
 {
   "doctype": "Workflow",
   "workflow_name": "IMOGI POS Order",
+  "name": "IMOGI POS Order",
   "document_type": "POS Order",
   "is_active": 1,
   "override_status": 0,
