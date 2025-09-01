@@ -1,4 +1,16 @@
 frappe.ready(function() {
+    // Check if required variables are defined
+    if (!POS_PROFILE) {
+        frappe.msgprint(__('No POS Profile found. Please contact your administrator.'));
+        return;
+    }
+
+    // Ensure the FRAPPE_CSRF_TOKEN is available
+    if (!FRAPPE_CSRF_TOKEN) {
+        console.error("CSRF token not available. Authentication may have failed.");
+        // Continue anyway as frappe might handle this
+    }
+
     const orderList = document.getElementById('order-list');
     const orderTabs = document.querySelectorAll('.order-tab');
     const checkoutItems = document.getElementById('checkout-items');
