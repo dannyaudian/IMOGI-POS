@@ -15,11 +15,11 @@ app_license = "MIT"
 
 # Include JS/CSS assets in desk and web
 app_include_js = [
-    "public/js/branch.js",
-    "public/js/print/service.js",
-    "public/js/print/adapter_bluetooth.js",
-    "public/js/print/adapter_bridge.js",
-    "public/js/print/adapter_spool.js",
+  'imogi_pos/public/js/branch.js',
+  'imogi_pos/public/js/print/service.js',
+  'imogi_pos/public/js/print/adapter_bluetooth.js',
+  'imogi_pos/public/js/print/adapter_bridge.js',
+  'imogi_pos/public/js/print/adapter_spool.js'
 ]
 app_include_css = []
 
@@ -54,9 +54,6 @@ doc_events = {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
     }
 }
-
-# Hook for loading fixtures after migration
-after_migrate = ["imogi_pos.setup.install.load_fixtures"]
 
 # Fixtures to be synced on bench update or migrate
 fixtures = [

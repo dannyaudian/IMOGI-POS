@@ -3,9 +3,11 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
+import copy
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
+from imogi_pos.utils.permissions import validate_branch_access
 
 def check_restaurant_domain(pos_profile):
     """
@@ -22,20 +24,6 @@ def check_restaurant_domain(pos_profile):
         frappe.throw(_("This operation is only available for Restaurant domain"), 
                     frappe.ValidationError)
 
-def validate_branch_access(branch):
-    """
-    Validates that the current user has access to the specified branch.
-    
-    Args:
-        branch (str): Branch name
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access to the branch
-    """
-    # User permission check for branch access
-    if not frappe.has_permission("Branch", doc=branch):
-        frappe.throw(_("You don't have access to branch: {0}").format(branch), 
-                    frappe.PermissionError)
 
 @frappe.whitelist()
 def create_order(order_type, branch, pos_profile, table=None):
@@ -60,20 +48,44 @@ def create_order(order_type, branch, pos_profile, table=None):
         frappe.throw(_("Table is required for Dine-in orders"), frappe.ValidationError)
     
     # For restaurant-specific features like table assignment
+    table_doc = None
     if table:
         check_restaurant_domain(pos_profile)
-    
-    # STUB: Create POS Order logic will go here
-    # For now, return a minimal success response
-    return {
-        "name": f"POS-ORD-STUB-{frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}",
-        "order_type": order_type,
-        "branch": branch,
-        "pos_profile": pos_profile,
-        "table": table,
-        "status": "Draft",
-        "creation": now_datetime()
-    }
+        table_doc = frappe.get_doc("Restaurant Table", table)
+
+        # Table must belong to branch and be available
+        if table_doc.branch != branch:
+            frappe.throw(
+                _("Table {0} does not belong to branch {1}").format(table, branch),
+                frappe.ValidationError,
+            )
+
+        if table_doc.status == "Occupied" and table_doc.current_pos_order:
+            frappe.throw(
+                _("Table {0} is already occupied").format(table),
+                frappe.ValidationError,
+            )
+
+    # Create POS Order document
+    order_doc = frappe.new_doc("POS Order")
+    order_doc.update(
+        {
+            "order_type": order_type,
+            "branch": branch,
+            "pos_profile": pos_profile,
+            "table": table,
+            "workflow_state": "Draft",
+        }
+    )
+    if table_doc:
+        order_doc.floor = table_doc.floor
+
+    order_doc.insert()
+
+    if table_doc:
+        table_doc.set_status("Occupied", pos_order=order_doc.name)
+
+    return order_doc.as_dict()
 
 @frappe.whitelist()
 def open_or_create_for_table(table, floor, pos_profile):
@@ -125,19 +137,28 @@ def switch_table(pos_order, from_table, to_table):
     
     # Validate that the from_table matches the order's current table
     if order_doc.table != from_table:
-        frappe.throw(_("Order is not currently at table {0}").format(from_table), 
+        frappe.throw(_("Order is not currently at table {0}").format(from_table),
                     frappe.ValidationError)
-    
-    # STUB: Check if destination table is available
-    # STUB: Update table assignments and references
-    
-    return {
-        "name": pos_order,
-        "table": to_table,
-        "previous_table": from_table,
-        "status": order_doc.workflow_state,
-        "switched_at": now_datetime()
-    }
+
+    # Check destination table availability
+    to_table_doc = frappe.get_doc("Restaurant Table", to_table)
+    if to_table_doc.status == "Occupied" and to_table_doc.current_pos_order:
+        frappe.throw(
+            _("Table {0} is already occupied").format(to_table),
+            frappe.ValidationError,
+        )
+
+    from_table_doc = frappe.get_doc("Restaurant Table", from_table)
+
+    # Update order and table assignments
+    order_doc.table = to_table
+    order_doc.floor = to_table_doc.floor
+    order_doc.save()
+
+    from_table_doc.set_status("Available")
+    to_table_doc.set_status("Occupied", pos_order=order_doc.name)
+
+    return order_doc.as_dict()
 
 @frappe.whitelist()
 def merge_tables(target_table, source_tables):
@@ -162,26 +183,58 @@ def merge_tables(target_table, source_tables):
     if not source_tables or len(source_tables) == 0:
         frappe.throw(_("No source tables provided for merge"), frappe.ValidationError)
     
-    # STUB: Get orders for each table
-    # STUB: Check if any order has items in Ready state (should prevent merge)
-    # STUB: Perform merge operation
-    
-    # Get one order to check domain and branch access
-    # In actual implementation, we'd check all orders
-    target_order = frappe.get_value("Restaurant Table", target_table, "current_pos_order")
-    if not target_order:
+    target_order_name = frappe.db.get_value(
+        "Restaurant Table", target_table, "current_pos_order"
+    )
+    if not target_order_name:
         frappe.throw(_("No open order found for target table"), frappe.ValidationError)
-    
-    order_doc = frappe.get_doc("POS Order", target_order)
-    check_restaurant_domain(order_doc.pos_profile)
-    validate_branch_access(order_doc.branch)
-    
+
+    target_order = frappe.get_doc("POS Order", target_order_name)
+    check_restaurant_domain(target_order.pos_profile)
+    validate_branch_access(target_order.branch)
+
+    target_table_doc = frappe.get_doc("Restaurant Table", target_table)
+
+    for table in source_tables:
+        if table == target_table:
+            frappe.throw(_("Source table list cannot include the target table"), frappe.ValidationError)
+
+        source_order_name = frappe.db.get_value(
+            "Restaurant Table", table, "current_pos_order"
+        )
+        if not source_order_name:
+            frappe.throw(
+                _("No open order found for table {0}").format(table),
+                frappe.ValidationError,
+            )
+
+        source_order = frappe.get_doc("POS Order", source_order_name)
+
+        if any(
+            getattr(item, "workflow_state", None) == "Ready"
+            for item in getattr(source_order, "items", [])
+        ):
+            frappe.throw(
+                _("Cannot merge table {0} with items in Ready state").format(table),
+                frappe.ValidationError,
+            )
+
+        for item in getattr(source_order, "items", []):
+            target_order.append("items", copy.deepcopy(item))
+        target_order.save()
+
+        frappe.db.set_value("POS Order", source_order_name, "workflow_state", "Merged")
+        source_table_doc = frappe.get_doc("Restaurant Table", table)
+        source_table_doc.set_status("Available")
+
+    target_table_doc.set_status("Occupied", pos_order=target_order.name)
+
     return {
-        "name": f"MERGED-{target_order}",
+        "name": target_order.name,
         "target_table": target_table,
         "source_tables": source_tables,
         "merged_at": now_datetime(),
-        "status": "Merged"
+        "status": "Merged",
     }
 
 @frappe.whitelist()

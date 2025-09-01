@@ -1,6 +1,7 @@
 {
   "doctype": "Workflow",
   "workflow_name": "IMOGI KOT Ticket",
+  "name": "IMOGI KOT Ticket",
   "document_type": "KOT Ticket",
   "is_active": 1,
   "override_status": 0,

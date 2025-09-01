@@ -1,0 +1,7 @@
+{
+  "use_esbuild": true,
+  "js": [
+    "imogi_pos/public/js/branch.js"
+  ],
+  "css": []
+}
