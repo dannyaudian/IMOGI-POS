@@ -80,18 +80,20 @@ def get_branding(pos_profile=None):
                 
         except frappe.DoesNotExistError:
             frappe.log_error(f"POS Profile {pos_profile} not found for branding")
-    
+
     # Fallback to Restaurant Settings if POS Profile doesn't have branding
     if not result["logo"]:
         try:
             restaurant_settings = frappe.get_doc("Restaurant Settings")
             if restaurant_settings.get("imogi_brand_logo"):
                 result["logo"] = restaurant_settings.imogi_brand_logo
-                
+
             if restaurant_settings.get("imogi_brand_logo_dark"):
                 result["logo_dark"] = restaurant_settings.imogi_brand_logo_dark
-        except:
-            pass
+        except frappe.DoesNotExistError:
+            frappe.log_error("Restaurant Settings not found for branding")
+        except Exception as err:
+            frappe.log_error(f"Unexpected error loading Restaurant Settings for branding: {err}")
     
     # Final fallback to company logo
     if not result["logo"]:
