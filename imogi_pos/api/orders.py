@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
+from imogi_pos.utils.permissions import validate_branch_access
 
 def check_restaurant_domain(pos_profile):
     """
@@ -22,20 +23,6 @@ def check_restaurant_domain(pos_profile):
         frappe.throw(_("This operation is only available for Restaurant domain"), 
                     frappe.ValidationError)
 
-def validate_branch_access(branch):
-    """
-    Validates that the current user has access to the specified branch.
-    
-    Args:
-        branch (str): Branch name
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access to the branch
-    """
-    # User permission check for branch access
-    if not frappe.has_permission("Branch", doc=branch):
-        frappe.throw(_("You don't have access to branch: {0}").format(branch), 
-                    frappe.PermissionError)
 
 @frappe.whitelist()
 def create_order(order_type, branch, pos_profile, table=None):
