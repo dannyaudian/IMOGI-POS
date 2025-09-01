@@ -1,0 +1,29 @@
+{% extends "templates/web.html" %}
+
+{% block style %}
+<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<style>
+  :root {
+    --primary-color: {{ branding.primary_color }};
+    --accent-color: {{ branding.accent_color }};
+    --header-bg: {{ branding.header_bg }};
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="waiter-order"></div>
+{% endblock %}
+
+{% block script %}
+<script>
+  const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
+  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
+  const DOMAIN = '{{ domain }}';
+  const BRANDING = {{ branding | tojson }};
+</script>
+<script src="/assets/imogi_pos/js/nav.js"></script>
+<script src="/assets/imogi_pos/js/branch.js"></script>
+<script src="/assets/imogi_pos/www/waiter_order/index.js"></script>
+{% endblock %}
