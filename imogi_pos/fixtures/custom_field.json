@@ -1,0 +1,900 @@
+{
+  "custom_fields": [
+    {
+      "fieldname": "imogi_pos_domain",
+      "fieldtype": "Select",
+      "label": "IMOGI POS Domain",
+      "options": "Restaurant\nRetail\nService",
+      "default": "Restaurant",
+      "description": "Controls which features are enabled in the POS system",
+      "insert_after": "company",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_mode",
+      "fieldtype": "Select",
+      "label": "Operation Mode",
+      "options": "Table\nCounter\nKiosk\nSelf-Order",
+      "default": "Table",
+      "description": "Determines how this POS Profile behaves",
+      "insert_after": "imogi_pos_domain",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_branch",
+      "fieldtype": "Link",
+      "label": "Branch",
+      "options": "Branch",
+      "description": "Default branch for this POS Profile",
+      "insert_after": "imogi_mode",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_use_table_display",
+      "fieldtype": "Check",
+      "label": "Use Table Display",
+      "default": 1,
+      "insert_after": "imogi_branch",
+      "depends_on": "eval:doc.imogi_pos_domain==\"Restaurant\"",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enable_kot",
+      "fieldtype": "Check",
+      "label": "Enable KOT",
+      "default": 1,
+      "insert_after": "imogi_use_table_display",
+      "depends_on": "eval:doc.imogi_pos_domain==\"Restaurant\"",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_default_floor",
+      "fieldtype": "Link",
+      "label": "Default Floor",
+      "options": "Restaurant Floor",
+      "insert_after": "imogi_enable_kot",
+      "depends_on": "eval:doc.imogi_pos_domain==\"Restaurant\"",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_default_layout_profile",
+      "fieldtype": "Link",
+      "label": "Default Layout Profile",
+      "options": "Table Layout Profile",
+      "insert_after": "imogi_default_floor",
+      "depends_on": "eval:doc.imogi_pos_domain==\"Restaurant\"",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_branding_section",
+      "fieldtype": "Section Break",
+      "label": "Branding",
+      "insert_after": "imogi_default_layout_profile",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_logo",
+      "fieldtype": "Attach Image",
+      "label": "Brand Logo",
+      "insert_after": "imogi_branding_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_logo_dark",
+      "fieldtype": "Attach Image",
+      "label": "Brand Logo (Dark Mode)",
+      "insert_after": "imogi_brand_logo",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_name",
+      "fieldtype": "Data",
+      "label": "Brand Name",
+      "insert_after": "imogi_brand_logo_dark",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_home_url",
+      "fieldtype": "Data",
+      "label": "Brand Home URL",
+      "insert_after": "imogi_brand_name",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_branding_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_brand_home_url",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_show_header_on_pages",
+      "fieldtype": "Check",
+      "label": "Show Header on Web Pages",
+      "default": 1,
+      "insert_after": "imogi_branding_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_color_primary",
+      "fieldtype": "Color",
+      "label": "Primary Brand Color",
+      "insert_after": "imogi_show_header_on_pages",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_color_accent",
+      "fieldtype": "Color",
+      "label": "Accent Color",
+      "insert_after": "imogi_brand_color_primary",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_header_bg",
+      "fieldtype": "Color",
+      "label": "Header Background Color",
+      "insert_after": "imogi_brand_color_accent",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_typography",
+      "fieldtype": "Select",
+      "label": "Typography",
+      "options": "System Default\nSans-serif\nSerif\nModern",
+      "default": "System Default",
+      "insert_after": "imogi_brand_header_bg",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_brand_css_vars",
+      "fieldtype": "Code",
+      "label": "Custom CSS Variables",
+      "description": "Additional CSS variables for theming",
+      "insert_after": "imogi_brand_typography",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_section",
+      "fieldtype": "Section Break",
+      "label": "Self Order",
+      "insert_after": "imogi_brand_css_vars",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enable_self_order",
+      "fieldtype": "Check",
+      "label": "Enable Self Order",
+      "default": 0,
+      "insert_after": "imogi_self_order_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_mode",
+      "fieldtype": "Select",
+      "label": "Self Order Mode",
+      "options": "Table\nTakeaway",
+      "default": "Table",
+      "depends_on": "eval:doc.imogi_enable_self_order",
+      "insert_after": "imogi_enable_self_order",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_require_payment",
+      "fieldtype": "Check",
+      "label": "Require Payment",
+      "default": 0,
+      "depends_on": "eval:doc.imogi_enable_self_order && doc.imogi_self_order_mode==\"Takeaway\"",
+      "insert_after": "imogi_self_order_mode",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_self_order_require_payment",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_allow_guest",
+      "fieldtype": "Check",
+      "label": "Allow Guest Access",
+      "default": 1,
+      "depends_on": "eval:doc.imogi_enable_self_order",
+      "insert_after": "imogi_self_order_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_token_ttl",
+      "fieldtype": "Int",
+      "label": "Token Expiry (minutes)",
+      "default": 60,
+      "depends_on": "eval:doc.imogi_enable_self_order",
+      "insert_after": "imogi_self_order_allow_guest",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_regenerate_on_close",
+      "fieldtype": "Check",
+      "label": "Regenerate QR on Order Close",
+      "default": 0,
+      "depends_on": "eval:doc.imogi_enable_self_order",
+      "insert_after": "imogi_self_order_token_ttl",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_settings_section",
+      "fieldtype": "Section Break",
+      "label": "Self Order Additional Settings",
+      "depends_on": "eval:doc.imogi_enable_self_order",
+      "insert_after": "imogi_self_order_regenerate_on_close",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_brand_profile",
+      "fieldtype": "Link",
+      "label": "Brand Profile",
+      "options": "Self Order Brand Profile",
+      "insert_after": "imogi_self_order_settings_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_disclaimer",
+      "fieldtype": "Small Text",
+      "label": "Disclaimer Text",
+      "insert_after": "imogi_self_order_brand_profile",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_rate_limit",
+      "fieldtype": "Int",
+      "label": "Rate Limit (orders/min)",
+      "default": 10,
+      "insert_after": "imogi_self_order_disclaimer",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_pos_session_section",
+      "fieldtype": "Section Break",
+      "label": "POS Session",
+      "insert_after": "imogi_self_order_rate_limit",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_require_pos_session",
+      "fieldtype": "Check",
+      "label": "Require POS Session",
+      "default": 0,
+      "insert_after": "imogi_pos_session_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_pos_session_scope",
+      "fieldtype": "Select",
+      "label": "Session Scope",
+      "options": "User\nDevice\nPOS Profile",
+      "default": "User",
+      "depends_on": "eval:doc.imogi_require_pos_session",
+      "insert_after": "imogi_require_pos_session",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_session_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_pos_session_scope",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enforce_session_on_cashier",
+      "fieldtype": "Check",
+      "label": "Enforce on Cashier",
+      "default": 1,
+      "depends_on": "eval:doc.imogi_require_pos_session",
+      "insert_after": "imogi_session_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enforce_session_on_kiosk",
+      "fieldtype": "Check",
+      "label": "Enforce on Kiosk",
+      "default": 1,
+      "depends_on": "eval:doc.imogi_require_pos_session",
+      "insert_after": "imogi_enforce_session_on_cashier",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enforce_session_on_counter",
+      "fieldtype": "Check",
+      "label": "Enforce on Counter",
+      "default": 1,
+      "depends_on": "eval:doc.imogi_require_pos_session",
+      "insert_after": "imogi_enforce_session_on_kiosk",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_payment_gateway_section",
+      "fieldtype": "Section Break",
+      "label": "Payment Gateway",
+      "insert_after": "imogi_enforce_session_on_counter",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_enable_payment_gateway",
+      "fieldtype": "Check",
+      "label": "Enable Payment Gateway",
+      "default": 0,
+      "insert_after": "imogi_payment_gateway_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_payment_gateway_account",
+      "fieldtype": "Link",
+      "label": "Payment Gateway Account",
+      "options": "Payment Gateway Account",
+      "depends_on": "eval:doc.imogi_enable_payment_gateway",
+      "insert_after": "imogi_enable_payment_gateway",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_checkout_payment_mode",
+      "fieldtype": "Select",
+      "label": "Checkout Payment Mode",
+      "options": "Prompt QR\nCash Only\nMixed",
+      "default": "Mixed",
+      "depends_on": "eval:doc.imogi_enable_payment_gateway",
+      "insert_after": "imogi_payment_gateway_account",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_payment_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_checkout_payment_mode",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_show_payment_qr_on_customer_display",
+      "fieldtype": "Check",
+      "label": "Show Payment QR on Customer Display",
+      "default": 1,
+      "depends_on": "eval:doc.imogi_enable_payment_gateway",
+      "insert_after": "imogi_payment_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_payment_timeout_seconds",
+      "fieldtype": "Int",
+      "label": "Payment Timeout (seconds)",
+      "default": 300,
+      "depends_on": "eval:doc.imogi_enable_payment_gateway",
+      "insert_after": "imogi_show_payment_qr_on_customer_display",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_kiosk_cashless_only",
+      "fieldtype": "Check",
+      "label": "Kiosk Cashless Only",
+      "default": 0,
+      "depends_on": "eval:doc.imogi_enable_payment_gateway",
+      "insert_after": "imogi_payment_timeout_seconds",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printing_section",
+      "fieldtype": "Section Break",
+      "label": "Printing Settings",
+      "insert_after": "imogi_kiosk_cashless_only",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printer_cashier_interface",
+      "fieldtype": "Select",
+      "label": "Cashier Printer Interface",
+      "options": "LAN\nBluetooth\nOS",
+      "default": "OS",
+      "insert_after": "imogi_printing_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printer_kitchen_interface",
+      "fieldtype": "Select",
+      "label": "Kitchen Printer Interface",
+      "options": "LAN\nBluetooth\nOS",
+      "default": "OS",
+      "insert_after": "imogi_printer_cashier_interface",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_lan_printer_column",
+      "fieldtype": "Column Break",
+      "label": "LAN Printer Settings",
+      "insert_after": "imogi_printer_kitchen_interface",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printer_cashier",
+      "fieldtype": "Data",
+      "label": "Cashier Printer IP/Hostname",
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"LAN\"",
+      "insert_after": "imogi_lan_printer_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printer_kitchen",
+      "fieldtype": "Data",
+      "label": "Kitchen Printer IP/Hostname",
+      "depends_on": "eval:doc.imogi_printer_kitchen_interface==\"LAN\"",
+      "insert_after": "imogi_printer_cashier",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printer_port",
+      "fieldtype": "Int",
+      "label": "Printer Port",
+      "default": 9100,
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"LAN\" || doc.imogi_printer_kitchen_interface==\"LAN\"",
+      "insert_after": "imogi_printer_kitchen",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bluetooth_printer_section",
+      "fieldtype": "Section Break",
+      "label": "Bluetooth Printer Settings",
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"Bluetooth\" || doc.imogi_printer_kitchen_interface==\"Bluetooth\"",
+      "insert_after": "imogi_printer_port",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_cashier_device_name",
+      "fieldtype": "Data",
+      "label": "Cashier BT Printer Name",
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bluetooth_printer_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_kitchen_device_name",
+      "fieldtype": "Data",
+      "label": "Kitchen BT Printer Name",
+      "depends_on": "eval:doc.imogi_printer_kitchen_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bt_cashier_device_name",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_bt_kitchen_device_name",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_cashier_vendor_profile",
+      "fieldtype": "Select",
+      "label": "Cashier BT Printer Profile",
+      "options": "ESC/POS\nCPCL\nZPL",
+      "default": "ESC/POS",
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bt_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_kitchen_vendor_profile",
+      "fieldtype": "Select",
+      "label": "Kitchen BT Printer Profile",
+      "options": "ESC/POS\nCPCL\nZPL",
+      "default": "ESC/POS",
+      "depends_on": "eval:doc.imogi_printer_kitchen_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bt_cashier_vendor_profile",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bt_retry",
+      "fieldtype": "Int",
+      "label": "Bluetooth Retry Attempts",
+      "default": 3,
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"Bluetooth\" || doc.imogi_printer_kitchen_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bt_kitchen_vendor_profile",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_bridge_section",
+      "fieldtype": "Section Break",
+      "label": "Print Bridge Settings",
+      "depends_on": "eval:doc.imogi_printer_cashier_interface==\"Bluetooth\" || doc.imogi_printer_kitchen_interface==\"Bluetooth\"",
+      "insert_after": "imogi_bt_retry",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_print_bridge_url",
+      "fieldtype": "Data",
+      "label": "Print Bridge URL",
+      "default": "http://localhost:9200",
+      "insert_after": "imogi_bridge_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_print_bridge_token",
+      "fieldtype": "Password",
+      "label": "Print Bridge Token",
+      "insert_after": "imogi_print_bridge_url",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_print_formats_section",
+      "fieldtype": "Section Break",
+      "label": "Print Formats",
+      "insert_after": "imogi_print_bridge_token",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_receipt_format",
+      "fieldtype": "Link",
+      "label": "Receipt Format",
+      "options": "Print Format",
+      "default": "Payment Receipt",
+      "insert_after": "imogi_print_formats_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_customer_bill_format",
+      "fieldtype": "Link",
+      "label": "Customer Bill Format",
+      "options": "Print Format",
+      "default": "Customer Bill",
+      "insert_after": "imogi_receipt_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_kot_format",
+      "fieldtype": "Link",
+      "label": "KOT Format",
+      "options": "Print Format",
+      "default": "KOT Ticket",
+      "insert_after": "imogi_customer_bill_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_kiosk_receipt_format",
+      "fieldtype": "Link",
+      "label": "Kiosk Receipt Format",
+      "options": "Print Format",
+      "default": "Kiosk Receipt",
+      "insert_after": "imogi_kot_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_queue_format",
+      "fieldtype": "Link",
+      "label": "Queue Ticket Format",
+      "options": "Print Format",
+      "default": "Kiosk Queue Ticket",
+      "insert_after": "imogi_kiosk_receipt_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printing_options_column",
+      "fieldtype": "Column Break",
+      "insert_after": "imogi_queue_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_self_order_qr_sheet_format",
+      "fieldtype": "Link",
+      "label": "Self-Order QR Sheet Format",
+      "options": "Print Format",
+      "default": "Self Order QR Sheet",
+      "insert_after": "imogi_printing_options_column",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_receipt_copies",
+      "fieldtype": "Int",
+      "label": "Receipt Copies",
+      "default": 1,
+      "insert_after": "imogi_self_order_qr_sheet_format",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_kot_copies",
+      "fieldtype": "Int",
+      "label": "KOT Copies",
+      "default": 1,
+      "insert_after": "imogi_receipt_copies",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_customer_bill_copies",
+      "fieldtype": "Int",
+      "label": "Customer Bill Copies",
+      "default": 1,
+      "insert_after": "imogi_kot_copies",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_printing_notes_section",
+      "fieldtype": "Section Break",
+      "label": "Printing Notes Settings",
+      "insert_after": "imogi_customer_bill_copies",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_print_notes_on_receipt",
+      "fieldtype": "Check",
+      "label": "Print Notes on Receipt",
+      "default": 1,
+      "insert_after": "imogi_printing_notes_section",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_print_notes_on_kiosk_receipt",
+      "fieldtype": "Check",
+      "label": "Print Notes on Kiosk Receipt",
+      "default": 1,
+      "insert_after": "imogi_print_notes_on_receipt",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_hide_notes_on_table_bill",
+      "fieldtype": "Check",
+      "label": "Hide Notes on Table Bill",
+      "default": 1,
+      "insert_after": "imogi_print_notes_on_kiosk_receipt",
+      "doctype": "POS Profile",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_pos_order",
+      "fieldtype": "Link",
+      "label": "POS Order",
+      "options": "POS Order",
+      "read_only": 1,
+      "insert_after": "pos_profile",
+      "doctype": "Sales Invoice",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "table",
+      "fieldtype": "Link",
+      "label": "Table",
+      "options": "Restaurant Table",
+      "read_only": 1,
+      "insert_after": "imogi_pos_order",
+      "doctype": "Sales Invoice",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "floor",
+      "fieldtype": "Link",
+      "label": "Floor",
+      "options": "Restaurant Floor",
+      "read_only": 1,
+      "insert_after": "table",
+      "doctype": "Sales Invoice",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "label": "Branch",
+      "options": "Branch",
+      "read_only": 1,
+      "insert_after": "floor",
+      "doctype": "Sales Invoice",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "pos_session",
+      "fieldtype": "Link",
+      "label": "POS Session",
+      "options": "POS Session",
+      "read_only": 1,
+      "insert_after": "branch",
+      "doctype": "Sales Invoice",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "menu_category",
+      "fieldtype": "Select",
+      "label": "Menu Category",
+      "options": "\nAppetizer\nMain Course\nDessert\nBeverage\nSpecial",
+      "insert_after": "item_group",
+      "doctype": "Item",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "photo",
+      "fieldtype": "Attach Image",
+      "label": "Menu Photo",
+      "insert_after": "menu_category",
+      "doctype": "Item",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "imogi_kitchen_routing_section",
+      "fieldtype": "Section Break",
+      "label": "Kitchen Routing",
+      "insert_after": "photo",
+      "depends_on": "eval:frappe.boot.imogi_pos_settings && frappe.boot.imogi_pos_settings.domain == 'Restaurant'",
+      "doctype": "Item",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "default_kitchen",
+      "fieldtype": "Link",
+      "label": "Default Kitchen",
+      "options": "Kitchen",
+      "insert_after": "imogi_kitchen_routing_section",
+      "doctype": "Item",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    },
+    {
+      "fieldname": "default_kitchen_station",
+      "fieldtype": "Link",
+      "label": "Default Kitchen Station",
+      "options": "Kitchen Station",
+      "insert_after": "default_kitchen",
+      "doctype": "Item",
+      "is_system_generated": 0,
+      "module": "IMOGI POS"
+    }
+  ]
+}

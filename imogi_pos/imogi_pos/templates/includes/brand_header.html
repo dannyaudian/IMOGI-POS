@@ -1,0 +1,116 @@
+{% set profile = frappe.get_doc("POS Profile", pos_profile) if pos_profile else None %}
+{% set brand_name = profile.imogi_brand_name if profile and profile.imogi_brand_name else frappe.defaults.get_global_default('company') %}
+{% set home_url = profile.imogi_brand_home_url if profile and profile.imogi_brand_home_url else "/" %}
+{% set logo_path = profile.imogi_brand_logo if profile and profile.imogi_brand_logo else frappe.db.get_value('Website Settings', 'Website Settings', 'brand_html') %}
+{% set logo_dark_path = profile.imogi_brand_logo_dark if profile and profile.imogi_brand_logo_dark else logo_path %}
+{% set primary_color = profile.imogi_brand_color_primary if profile and profile.imogi_brand_color_primary else "#4d7aed" %}
+{% set accent_color = profile.imogi_brand_color_accent if profile and profile.imogi_brand_color_accent else "#f98181" %}
+{% set header_bg = profile.imogi_brand_header_bg if profile and profile.imogi_brand_header_bg else "#ffffff" %}
+
+<style>
+  :root {
+    --brand-primary: {{ primary_color }};
+    --brand-accent: {{ accent_color }};
+    --header-bg: {{ header_bg }};
+    --text-on-header: {{ header_bg|contrast_color }};
+    
+    {% if profile and profile.imogi_brand_css_vars %}
+    {{ profile.imogi_brand_css_vars }}
+    {% endif %}
+  }
+  
+  .imogi-brand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: var(--header-bg);
+    color: var(--text-on-header);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .imogi-brand-logo {
+    height: 40px;
+    max-width: 180px;
+    object-fit: contain;
+  }
+  
+  .imogi-brand-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+  }
+  
+  .imogi-brand-left {
+    display: flex;
+    align-items: center;
+  }
+  
+  .imogi-brand-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .imogi-brand-logo.has-dark {
+      display: none;
+    }
+    .imogi-brand-logo.dark {
+      display: block;
+    }
+  }
+  
+  @media (prefers-color-scheme: light) {
+    .imogi-brand-logo.has-dark {
+      display: block;
+    }
+    .imogi-brand-logo.dark {
+      display: none;
+    }
+  }
+</style>
+
+<header class="imogi-brand-header">
+  <div class="imogi-brand-left">
+    <a href="{{ home_url }}">
+      {% if logo_path %}
+        {% if logo_dark_path and logo_dark_path != logo_path %}
+          <img src="{{ logo_path }}" alt="{{ brand_name }}" class="imogi-brand-logo has-dark">
+          <img src="{{ logo_dark_path }}" alt="{{ brand_name }}" class="imogi-brand-logo dark">
+        {% else %}
+          <img src="{{ logo_path }}" alt="{{ brand_name }}" class="imogi-brand-logo">
+        {% endif %}
+      {% else %}
+        <span class="imogi-brand-name">{{ brand_name }}</span>
+      {% endif %}
+    </a>
+  </div>
+  
+  <div class="imogi-brand-right">
+    {% if not hide_actions %}
+      {% if show_back_button %}
+        <button class="btn btn-sm btn-default imogi-back-btn">
+          <i class="fa fa-arrow-left"></i> Back
+        </button>
+      {% endif %}
+      
+      {% if frappe.session.user != 'Guest' %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+            {{ frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user }}
+            <span class="caret"></span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="/app">Dashboard</a></li>
+            <li><a href="/app/user-profile">Profile</a></li>
+            <li class="divider"></li>
+            <li><a href="/api/method/logout">Logout</a></li>
+          </ul>
+        </div>
+      {% else %}
+        <a href="/login" class="btn btn-sm btn-primary">Login</a>
+      {% endif %}
+    {% endif %}
+  </div>
+</header>
