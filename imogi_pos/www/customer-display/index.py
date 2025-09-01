@@ -1,6 +1,11 @@
 import frappe
 from frappe import _
 from frappe.utils import cint, get_datetime, now_datetime
+from imogi_pos.utils.branding import (
+    PRIMARY_COLOR,
+    ACCENT_COLOR,
+    HEADER_BG_COLOR,
+)
 
 def get_context(context):
     """
@@ -147,9 +152,9 @@ def get_branding_info():
     branding = {
         "logo": None,
         "name": "IMOGI POS",
-        "primary_color": "#4c5a67",
-        "accent_color": "#2490ef",
-        "background_color": "#ffffff"
+        "primary_color": PRIMARY_COLOR,
+        "accent_color": ACCENT_COLOR,
+        "background_color": HEADER_BG_COLOR,
     }
     
     try:

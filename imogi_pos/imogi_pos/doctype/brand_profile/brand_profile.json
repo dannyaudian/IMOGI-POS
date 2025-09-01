@@ -75,19 +75,16 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "#4c5a67",
    "fieldname": "primary_color",
    "fieldtype": "Color",
    "label": "Primary Color"
   },
   {
-   "default": "#2490ef",
    "fieldname": "accent_color",
    "fieldtype": "Color",
    "label": "Accent Color"
   },
   {
-   "default": "#ffffff",
    "fieldname": "header_bg_color",
    "fieldtype": "Color",
    "label": "Header Background Color"

@@ -25,7 +25,7 @@ def setup_module(module):
 
     frappe.has_permission = has_permission
     sys.modules['frappe'] = frappe
-
+    sys.modules.pop("imogi_pos.utils.permissions", None)
     module.perms = importlib.import_module("imogi_pos.utils.permissions")
 
 def test_validate_branch_access_allowed():
