@@ -1,0 +1,23 @@
+{
+  "doc_type": "POS Order",
+  "docstatus": 0,
+  "doctype": "Print Format",
+  "font": "Default",
+  "format_data": null,
+  "html": "<div class=\"queue-ticket\">\n    <div class=\"ticket-header\">\n        <h2>{{ frappe.db.get_value(\"Company\", frappe.defaults.get_user_default(\"company\"), \"company_name\") }}</h2>\n        <h1 class=\"queue-number\">{{ doc.name.split(\"-\")[-1] }}</h1>\n        <h3>ORDER NUMBER</h3>\n    </div>\n    <div class=\"ticket-info\">\n        <p>Date: {{ frappe.utils.formatdate(doc.creation, \"medium\") }}</p>\n        <p>Time: {{ frappe.utils.formatdate(doc.creation, \"hh:mm:ss\") }}</p>\n        <p>Items: {{ doc.items|length }}</p>\n    </div>\n    <div class=\"ticket-items\">\n        <ul>\n            {% for item in doc.items %}\n            <li>{{ item.qty }} x {{ item.item_name }}</li>\n            {% endfor %}\n        </ul>\n    </div>\n    <div class=\"ticket-footer\">\n        <p>Please wait for your number to be called</p>\n        <p>Order Status: {{ doc.workflow_state }}</p>\n        <p>Estimated Wait: {% if doc.items|length <= 3 %}5-10 min{% elif doc.items|length <= 6 %}10-15 min{% else %}15-20 min{% endif %}</p>\n    </div>\n</div>",
+  "line_breaks": 0,
+  "margin_bottom": 15,
+  "margin_left": 15,
+  "margin_right": 15,
+  "margin_top": 15,
+  "modified": "2023-09-01 00:00:00.000000",
+  "module": "IMOGI POS",
+  "name": "Kiosk Queue Ticket",
+  "page_number": "Hide",
+  "print_format_builder": 0,
+  "print_format_builder_beta": 0,
+  "print_format_type": "Jinja",
+  "raw_printing": 1,
+  "show_section_headings": 0,
+  "standard": "Yes"
+}
