@@ -319,12 +319,11 @@ def request_payment(sales_invoice):
         
         # Try to use IMOGI Xendit Connect for payment
         xendit_payload = None
-        try:
-            # Check if the IMOGI Xendit Connect app is available
-            if frappe.get_doc("Module Def", "imogi_xendit_connect"):
+        if frappe.db.exists("Module Def", "imogi_xendit_connect"):
+            try:
                 # Import the method from the app if available
                 from imogi_xendit_connect.api import create_payment_qr
-                
+
                 # Create payment QR through Xendit
                 xendit_payload = create_payment_qr(
                     payment_request=payment_request.name,
@@ -333,10 +332,10 @@ def request_payment(sales_invoice):
                     description=f"Payment for {sales_invoice}",
                     expiry=expiry
                 )
-        except ImportError:
-            frappe.log_error("IMOGI Xendit Connect module not found for payment processing")
-        except Exception as e:
-            frappe.log_error(f"Error creating Xendit payment: {str(e)}")
+            except Exception as e:
+                frappe.log_error(f"Error creating Xendit payment: {str(e)}")
+        else:
+            raise frappe.ValidationError(_("IMOGI Xendit Connect module is not installed"))
         
         # If Xendit integration failed or not available, create a fallback
         if not xendit_payload:
