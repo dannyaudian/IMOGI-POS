@@ -1,0 +1,50 @@
+<div class="row">
+  <div class="col-md-6">
+    {% if doc.logo %}
+    <div class="brand-preview-logo">
+      <img src="{{ doc.logo }}" alt="{{ doc.brand_name }}">
+    </div>
+    {% endif %}
+  </div>
+  <div class="col-md-6">
+    <div class="brand-preview-colors">
+      <div class="color-sample" style="background-color: {{ doc.primary_color }}">
+        <span>Primary Color</span>
+      </div>
+      <div class="color-sample" style="background-color: {{ doc.accent_color }}">
+        <span>Accent Color</span>
+      </div>
+      <div class="color-sample" style="background-color: {{ doc.header_bg_color }}; color: #333;">
+        <span>Header Background</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .brand-preview-logo {
+    padding: 20px;
+    background-color: {{ doc.header_bg_color }};
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .brand-preview-logo img {
+    max-width: 200px;
+    max-height: 80px;
+  }
+  
+  .brand-preview-colors {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .color-sample {
+    padding: 15px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+  }
+</style>

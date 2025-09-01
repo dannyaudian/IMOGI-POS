@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 from . import __version__ as app_version
 from frappe import _
 
-# Standard app config
 app_name = "imogi_pos"
 app_title = "IMOGI POS"
 app_publisher = "IMOGI"
@@ -13,7 +11,6 @@ app_color = "#4287f5"
 app_email = "support@imogi.com"
 app_license = "MIT"
 
-# Include JS/CSS assets in desk and web
 app_include_js = [
   'imogi_pos/public/js/branch.js',
   'imogi_pos/public/js/print/service.js',
@@ -23,12 +20,18 @@ app_include_js = [
 ]
 app_include_css = []
 
-# DocType JavaScript extensions
+web_include_js = [
+    "js/branch.js",
+    "js/auth.js",
+    "js/print/service.js",
+    "js/print/adapter_bluetooth.js",
+    "js/print/adapter_bridge.js",
+    "js/print/adapter_spool.js"
+]
+
 doctype_js = {
     "POS Order": "public/js/doctype/pos_order.js",
 }
-
-# Custom Document hooks for tracking editors
 doc_events = {
     "POS Order": {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
@@ -52,10 +55,9 @@ doc_events = {
     },
     "Table Layout Node": {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
-    }
+}
 }
 
-# Fixtures to be synced on bench update or migrate
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Property Setter", "filters": [["module", "=", "IMOGI POS"]]},
@@ -68,7 +70,6 @@ fixtures = [
     {"dt": "Page", "filters": [["module", "=", "IMOGI POS"]]}
 ]
 
-# Scheduled Tasks
 scheduler_events = {
     "hourly": [
         "imogi_pos.kitchen.sla.process_hourly_metrics"
@@ -78,9 +79,9 @@ scheduler_events = {
     ]
 }
 
-# Domain specific context providers
 jinja = {
     "methods": [
         "imogi_pos.utils.branding.get_brand_context"
     ]
 }
+
