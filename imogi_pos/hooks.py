@@ -55,9 +55,6 @@ doc_events = {
     }
 }
 
-# Hook for loading fixtures after migration
-after_migrate = ["imogi_pos.setup.install.load_fixtures"]
-
 # Fixtures to be synced on bench update or migrate
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "IMOGI POS"]]},
