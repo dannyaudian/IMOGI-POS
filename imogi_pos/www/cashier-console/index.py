@@ -69,19 +69,7 @@ def get_context(context):
         context.branch = None
     
     return context
-    
-    # Set branding information
-    context.branding = get_branding_info(pos_profile)
-    
-    # Set branch information
-    context.branch = get_current_branch(pos_profile)
-    
-    # UI configuration
-    context.title = _("Cashier Console")
-    context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
-    context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1)) if pos_profile else 1
-    
-    return context
+
 
 def get_pos_profile():
     """Get active POS profile for current user."""
@@ -108,6 +96,7 @@ def get_pos_profile():
         frappe.log_error(f"Error fetching POS Profile: {str(e)}")
         return None
 
+
 def check_active_pos_session(pos_profile_name):
     """Check if there's an active POS session for the user and profile."""
     try:
@@ -129,6 +118,7 @@ def check_active_pos_session(pos_profile_name):
     except Exception as e:
         frappe.log_error(f"Error checking active POS session: {str(e)}")
         return None
+
 
 def get_branding_info(pos_profile):
     """Get branding information from profile or settings."""
@@ -173,6 +163,7 @@ def get_branding_info(pos_profile):
         frappe.log_error(f"Error fetching branding info: {str(e)}")
     
     return branding
+
 
 def get_current_branch(pos_profile):
     """Get current branch from context or POS Profile."""
