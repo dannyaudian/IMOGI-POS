@@ -7,9 +7,9 @@
 
 <style>
   :root {
-    --primary-color: {{ branding.primary_color|default("#4c5a67") }};
-    --accent-color: {{ branding.accent_color|default("#2490ef") }};
-    --header-bg: {{ branding.header_bg|default("#ffffff") }};
+    --primary-color: {{ branding.primary_color|default(frappe.get_attr('imogi_pos.utils.branding.PRIMARY_COLOR')) }};
+    --accent-color: {{ branding.accent_color|default(frappe.get_attr('imogi_pos.utils.branding.ACCENT_COLOR')) }};
+    --header-bg: {{ branding.header_bg|default(frappe.get_attr('imogi_pos.utils.branding.HEADER_BG_COLOR')) }};
   }
   
   .cashier-console {

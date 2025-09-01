@@ -6,6 +6,11 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import now, get_url
+from imogi_pos.utils.branding import (
+    PRIMARY_COLOR,
+    ACCENT_COLOR,
+    HEADER_BG_COLOR,
+)
 
 @frappe.whitelist(allow_guest=True)
 def health():
@@ -38,9 +43,9 @@ def get_branding(pos_profile=None):
         "brand_name": frappe.defaults.get_global_default('company') or "IMOGI POS",
         "logo": None,
         "logo_dark": None,
-        "primary_color": "#4287f5",  # Default blue
-        "accent_color": "#ff6b6b",   # Default red
-        "header_bg": "#ffffff",      # Default white
+        "primary_color": PRIMARY_COLOR,
+        "accent_color": ACCENT_COLOR,
+        "header_bg": HEADER_BG_COLOR,
         "show_header": True,
         "home_url": get_url(),
         "css_vars": ""

@@ -3,9 +3,9 @@
 {% set home_url = profile.imogi_brand_home_url if profile and profile.imogi_brand_home_url else "/" %}
 {% set logo_path = profile.imogi_brand_logo if profile and profile.imogi_brand_logo else frappe.db.get_value('Website Settings', 'Website Settings', 'brand_html') %}
 {% set logo_dark_path = profile.imogi_brand_logo_dark if profile and profile.imogi_brand_logo_dark else logo_path %}
-{% set primary_color = profile.imogi_brand_color_primary if profile and profile.imogi_brand_color_primary else "#4d7aed" %}
-{% set accent_color = profile.imogi_brand_color_accent if profile and profile.imogi_brand_color_accent else "#f98181" %}
-{% set header_bg = profile.imogi_brand_header_bg if profile and profile.imogi_brand_header_bg else "#ffffff" %}
+{% set primary_color = profile.imogi_brand_color_primary if profile and profile.imogi_brand_color_primary else frappe.get_attr('imogi_pos.utils.branding.PRIMARY_COLOR') %}
+{% set accent_color = profile.imogi_brand_color_accent if profile and profile.imogi_brand_color_accent else frappe.get_attr('imogi_pos.utils.branding.ACCENT_COLOR') %}
+{% set header_bg = profile.imogi_brand_header_bg if profile and profile.imogi_brand_header_bg else frappe.get_attr('imogi_pos.utils.branding.HEADER_BG_COLOR') %}
 
 <style>
   :root {

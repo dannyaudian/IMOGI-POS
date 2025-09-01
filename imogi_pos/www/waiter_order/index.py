@@ -1,5 +1,10 @@
 import frappe
 from frappe import _
+from imogi_pos.utils.branding import (
+    PRIMARY_COLOR,
+    ACCENT_COLOR,
+    HEADER_BG_COLOR,
+)
 
 
 def get_context(context):
@@ -39,9 +44,9 @@ def get_branding_info(pos_profile):
     branding = {
         "logo": None,
         "name": "IMOGI POS",
-        "primary_color": "#4c5a67",
-        "accent_color": "#2490ef",
-        "header_bg": "#ffffff",
+        "primary_color": PRIMARY_COLOR,
+        "accent_color": ACCENT_COLOR,
+        "header_bg": HEADER_BG_COLOR,
     }
 
     try:
