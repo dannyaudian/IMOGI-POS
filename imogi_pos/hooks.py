@@ -15,11 +15,11 @@ app_license = "MIT"
 
 # Include JS/CSS assets in desk and web
 app_include_js = [
-    "public/js/branch.js",
-    "public/js/print/service.js",
-    "public/js/print/adapter_bluetooth.js",
-    "public/js/print/adapter_bridge.js",
-    "public/js/print/adapter_spool.js",
+  'imogi_pos/public/js/branch.js',
+  'imogi_pos/public/js/print/service.js',
+  'imogi_pos/public/js/print/adapter_bluetooth.js',
+  'imogi_pos/public/js/print/adapter_bridge.js',
+  'imogi_pos/public/js/print/adapter_spool.js'
 ]
 app_include_css = []
 

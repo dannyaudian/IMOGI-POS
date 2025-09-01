@@ -513,3 +513,11 @@ def get_station_daily_performance(station_name, date=None):
     """Module-level wrapper to get daily performance metrics for a kitchen station"""
     sla = KitchenSLA(station_name)
     return sla.calculate_daily_performance(station_name, date)
+
+def process_hourly_metrics():
+    # TODO: implement real job
+    pass
+
+def generate_daily_report():
+    # TODO: implement real job
+    pass
