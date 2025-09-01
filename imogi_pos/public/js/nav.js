@@ -233,11 +233,25 @@ const IMOGINav = {
             logoContainer.className = 'imogi-logo-container';
             
             if (this.branding.logo) {
-                const logo = document.createElement('img');
-                logo.src = this.branding.logo;
-                logo.alt = this.branding.name || 'IMOGI POS';
-                logo.className = 'imogi-logo';
-                logoContainer.appendChild(logo);
+                if (this.branding.logo_dark) {
+                    const picture = document.createElement('picture');
+                    const source = document.createElement('source');
+                    source.srcset = this.branding.logo_dark;
+                    source.media = '(prefers-color-scheme: dark)';
+                    const logo = document.createElement('img');
+                    logo.src = this.branding.logo;
+                    logo.alt = this.branding.name || 'IMOGI POS';
+                    logo.className = 'imogi-logo';
+                    picture.appendChild(source);
+                    picture.appendChild(logo);
+                    logoContainer.appendChild(picture);
+                } else {
+                    const logo = document.createElement('img');
+                    logo.src = this.branding.logo;
+                    logo.alt = this.branding.name || 'IMOGI POS';
+                    logo.className = 'imogi-logo';
+                    logoContainer.appendChild(logo);
+                }
             } else if (this.branding.name) {
                 const textLogo = document.createElement('span');
                 textLogo.className = 'imogi-text-logo';

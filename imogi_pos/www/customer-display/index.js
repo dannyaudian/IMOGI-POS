@@ -91,9 +91,11 @@ frappe.ready(function() {
         renderBrandingBlock: function() {
             return `
                 <div class="branding-container">
-                    ${this.branding.logo ? 
-                        `<img src="${this.branding.logo}" alt="${this.branding.name}" class="brand-logo">` : 
-                        `<div class="brand-name">${this.branding.name}</div>`}
+                    ${this.branding.logo ?
+                        (this.branding.logo_dark ?
+                            `<picture><source srcset="${this.branding.logo_dark}" media="(prefers-color-scheme: dark)"><img src="${this.branding.logo}" alt="${this.branding.name}" class="brand-logo"></picture>` :
+                            `<img src="${this.branding.logo}" alt="${this.branding.name}" class="brand-logo">`)
+                        : `<div class="brand-name">${this.branding.name}</div>`}
                 </div>
             `;
         },

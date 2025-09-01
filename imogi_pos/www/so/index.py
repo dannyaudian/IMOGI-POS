@@ -260,6 +260,7 @@ def get_branding_info(pos_profile):
     """Get branding information from profile or settings."""
     branding = {
         "logo": None,
+        "logo_dark": None,
         "name": "IMOGI POS",
         "primary_color": "#4c5a67",
         "accent_color": "#2490ef",
@@ -276,6 +277,8 @@ def get_branding_info(pos_profile):
         if brand_profile:
             if brand_profile.logo:
                 branding["logo"] = brand_profile.logo
+            if brand_profile.logo_dark:
+                branding["logo_dark"] = brand_profile.logo_dark
             if brand_profile.brand_name:
                 branding["name"] = brand_profile.brand_name
             if brand_profile.primary_color:
@@ -289,6 +292,8 @@ def get_branding_info(pos_profile):
         elif pos_profile:
             if pos_profile.get("imogi_brand_logo"):
                 branding["logo"] = pos_profile.imogi_brand_logo
+            if pos_profile.get("imogi_brand_logo_dark"):
+                branding["logo_dark"] = pos_profile.imogi_brand_logo_dark
             if pos_profile.get("imogi_brand_name"):
                 branding["name"] = pos_profile.imogi_brand_name
             if pos_profile.get("imogi_brand_color_primary"):
@@ -303,6 +308,8 @@ def get_branding_info(pos_profile):
             restaurant_settings = frappe.get_cached_doc("Restaurant Settings")
             if hasattr(restaurant_settings, "imogi_brand_logo") and restaurant_settings.imogi_brand_logo:
                 branding["logo"] = restaurant_settings.imogi_brand_logo
+            if hasattr(restaurant_settings, "imogi_brand_logo_dark") and restaurant_settings.imogi_brand_logo_dark:
+                branding["logo_dark"] = restaurant_settings.imogi_brand_logo_dark
             if hasattr(restaurant_settings, "imogi_brand_name") and restaurant_settings.imogi_brand_name:
                 branding["name"] = restaurant_settings.imogi_brand_name
         

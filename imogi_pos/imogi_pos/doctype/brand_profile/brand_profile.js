@@ -13,9 +13,11 @@ frappe.ui.form.on('Brand Profile', {
                     fieldname: 'preview',
                     options: `
                         <div style="padding: 20px; background-color: ${frm.doc.header_bg_color || '#ffffff'}; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-                            ${frm.doc.logo ? `<img src="${frm.doc.logo}" alt="${frm.doc.brand_name}" style="max-width: 200px; max-height: 80px;">` : 
+                            ${frm.doc.logo ? `<img src="${frm.doc.logo}" alt="${frm.doc.brand_name}" style="max-width: 200px; max-height: 80px;">` :
                             `<div style="font-size: 24px; font-weight: bold; color: ${frm.doc.primary_color || '#4c5a67'};">${frm.doc.brand_name}</div>`}
                         </div>
+
+                        ${frm.doc.logo_dark ? `<div style="padding: 20px; background-color: #1a1a1a; border-radius: 8px; margin-bottom: 20px; text-align: center;"><img src="${frm.doc.logo_dark}" alt="${frm.doc.brand_name}" style="max-width: 200px; max-height: 80px;"></div>` : ''}
                         
                         <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                             <div style="flex: 1; padding: 15px; border-radius: 4px; background-color: ${frm.doc.primary_color || '#4c5a67'}; color: white; font-weight: bold; text-align: center;">
