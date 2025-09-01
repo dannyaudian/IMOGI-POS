@@ -2,38 +2,73 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
+
 def get_context(context):
     """Get context for cashier console page."""
-    # Check if user is logged in and has required roles
-    if frappe.session.user == "Guest":
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/cashier-console"
-        raise frappe.Redirect
-    
-    # Check for required roles (Cashier or Manager)
-    user_roles = frappe.get_roles(frappe.session.user)
-    required_roles = ["Cashier", "Restaurant Manager", "System Manager"]
-    if not any(role in user_roles for role in required_roles):
-        frappe.throw(_("Access denied: Requires Cashier or Manager role"))
-    
-    # Check active POS session if required
-    pos_profile = get_pos_profile()
-    if pos_profile:
-        context.pos_profile = pos_profile
-        context.require_pos_session = cint(pos_profile.get("imogi_require_pos_session", 0))
-        context.enforce_session_on_cashier = cint(pos_profile.get("imogi_enforce_session_on_cashier", 0))
+    try:
+        # Check if user is logged in and has required roles
+        if frappe.session.user == "Guest":
+            frappe.local.flags.redirect_location = "/imogi-login?redirect=/cashier-console"
+            raise frappe.Redirect
         
-        # Check if session enforcement is enabled
-        if context.require_pos_session and context.enforce_session_on_cashier:
-            active_session = check_active_pos_session(pos_profile.name)
-            context.has_active_session = bool(active_session)
-            context.active_pos_session = active_session
+        # Check for required roles (Cashier or Manager)
+        user_roles = frappe.get_roles(frappe.session.user)
+        required_roles = ["Cashier", "Restaurant Manager", "System Manager"]
+        if not any(role in user_roles for role in required_roles):
+            frappe.throw(_("Access denied: Requires Cashier or Manager role"))
+        
+        # Check active POS session if required
+        pos_profile = get_pos_profile()
+        if pos_profile:
+            context.pos_profile = pos_profile
+            context.require_pos_session = cint(pos_profile.get("imogi_require_pos_session", 0))
+            context.enforce_session_on_cashier = cint(pos_profile.get("imogi_enforce_session_on_cashier", 0))
+            
+            # Check if session enforcement is enabled
+            if context.require_pos_session and context.enforce_session_on_cashier:
+                active_session = check_active_pos_session(pos_profile.name)
+                context.has_active_session = bool(active_session)
+                context.active_pos_session = active_session
+            else:
+                context.has_active_session = True
+                context.active_pos_session = None
+                
+            # Set branding information
+            context.branding = get_branding_info(pos_profile)
+            
+            # Set branch information
+            context.branch = get_current_branch(pos_profile)
+            
+            # UI configuration
+            context.title = _("Cashier Console")
+            context.domain = pos_profile.get("imogi_pos_domain", "Restaurant")
+            context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1))
         else:
-            context.has_active_session = True
+            # Handle the case when no pos_profile is found
+            context.pos_profile = None
+            context.require_pos_session = 0
+            context.has_active_session = False
             context.active_pos_session = None
-    else:
+            context.branding = get_branding_info(None)
+            context.branch = None
+            context.title = _("Cashier Console")
+            context.domain = "Restaurant"
+            context.show_header = 1
+            
+            # Add an error message
+            context.error_message = _("No POS Profile found. Please contact your administrator.")
+    
+    except Exception as e:
+        frappe.log_error(f"Error in cashier console: {str(e)}")
+        context.error_message = _("An error occurred. Please try again or contact support.")
         context.pos_profile = None
-        context.require_pos_session = 0
-        context.has_active_session = True
+        context.show_header = 1
+        context.branding = get_branding_info(None)
+        context.title = _("Cashier Console")
+        context.domain = "Restaurant"
+        context.branch = None
+    
+    return context
     
     # Set branding information
     context.branding = get_branding_info(pos_profile)

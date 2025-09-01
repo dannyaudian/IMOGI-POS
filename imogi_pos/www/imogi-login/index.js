@@ -37,10 +37,19 @@ frappe.ready(function() {
           showError('Login failed. Please check your credentials.');
           console.error(response.exc);
           setFormDisabled(false);
+        } else if (response.message && response.message.message) {
+          // Show message from server if any
+          showError(response.message.message);
+          setFormDisabled(false);
         } else {
           // Login successful, redirect
-          const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
-          window.location.href = redirectTo;
+          try {
+            const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
+            window.location.href = redirectTo;
+          } catch (e) {
+            console.error("Redirect error:", e);
+            window.location.href = '/cashier-console';
+          }
         }
       },
       error: function(xhr, textStatus) {

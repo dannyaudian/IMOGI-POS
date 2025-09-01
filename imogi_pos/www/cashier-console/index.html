@@ -7,9 +7,9 @@
 
 <style>
   :root {
-    --primary-color: {{ branding.primary_color }};
-    --accent-color: {{ branding.accent_color }};
-    --header-bg: {{ branding.header_bg }};
+    --primary-color: {{ branding.primary_color|default:'#4c5a67' }};
+    --accent-color: {{ branding.accent_color|default:'#2490ef' }};
+    --header-bg: {{ branding.header_bg|default:'#ffffff' }};
   }
   
   .cashier-console {
@@ -226,6 +226,15 @@
     text-align: center;
   }
   
+  .error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  
   .disabled {
     opacity: 0.6;
     pointer-events: none;
@@ -250,9 +259,9 @@
   </div>
   <div class="header-center">
     {% if branding.logo %}
-    <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+    <img src="{{ branding.logo }}" alt="{{ branding.name|default:'IMOGI POS' }}" class="brand-logo">
     {% else %}
-    <span class="brand-name">{{ branding.name }}</span>
+    <span class="brand-name">{{ branding.name|default:"IMOGI POS" }}</span>
     {% endif %}
   </div>
   <div class="header-right">
@@ -269,13 +278,18 @@
 </header>
 {% endif %}
 
-{% if require_pos_session and enforce_session_on_cashier and not has_active_session %}
+{% if error_message %}
+<div class="error-message">
+  {{ error_message }}
+</div>
+{% elif require_pos_session and enforce_session_on_cashier and not has_active_session %}
 <div class="session-warning">
   {{ _("No active POS Session. Please open a session to continue.") }}
   <a href="/desk#pos-session/new-pos-session-1" class="btn btn-sm btn-primary ml-2">{{ _("Open Session") }}</a>
 </div>
 {% endif %}
 
+{% if not error_message %}
 <div class="cashier-console {% if require_pos_session and enforce_session_on_cashier and not has_active_session %}disabled{% endif %}">
   <div class="order-list-container">
     <div class="order-header">
@@ -355,6 +369,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {% endblock %}
 
@@ -366,7 +381,8 @@
   const ACTIVE_POS_SESSION = {{ active_pos_session.name | tojson if active_pos_session else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
   const CURRENCY_SYMBOL = '{{ frappe.get_doc("Currency", frappe.defaults.get_global_default("currency")).symbol }}';
-  const DOMAIN = '{{ domain }}';
+  const DOMAIN = '{{ domain|default:"Restaurant" }}';
+  const HAS_ERROR = {{ error_message | tojson if error_message else 'false' }};
 </script>
 
 <script src="/assets/imogi_pos/js/nav.js"></script>
