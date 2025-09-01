@@ -342,7 +342,7 @@
     "fieldname": "imogi_self_order_brand_profile",
     "fieldtype": "Link",
     "label": "Brand Profile",
-    "options": "Self Order Brand Profile",
+    "options": "Brand Profile",
     "insert_after": "imogi_self_order_settings_section",
     "is_system_generated": 0,
     "module": "IMOGI POS",
