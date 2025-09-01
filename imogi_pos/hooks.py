@@ -14,7 +14,13 @@ app_email = "support@imogi.com"
 app_license = "MIT"
 
 # Include JS/CSS assets in desk and web
-app_include_js = []
+app_include_js = [
+    "public/js/branch.js",
+    "public/js/print/service.js",
+    "public/js/print/adapter_bluetooth.js",
+    "public/js/print/adapter_bridge.js",
+    "public/js/print/adapter_spool.js",
+]
 app_include_css = []
 
 # DocType JavaScript extensions
