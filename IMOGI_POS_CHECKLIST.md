@@ -8,7 +8,7 @@ This document serves as a guide for deploying and verifying the IMOGI POS system
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-organization/imogi_pos.git
+git clone https://github.com/dannyaudian/imogi_pos.git
 
 # Navigate to your bench directory
 cd frappe-bench
