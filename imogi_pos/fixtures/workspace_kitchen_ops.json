@@ -53,32 +53,7 @@
     }
   ],
   "charts": [],
-  "content": [
-    {
-      "type": "header",
-      "data": {
-        "text": "Kitchen Reports",
-        "level": 4,
-        "description": "Performance metrics"
-      }
-    },
-    {
-      "type": "card",
-      "data": {
-        "label": "KOT Performance",
-        "items": [
-          {
-            "label": "KOT SLA Report",
-            "url": "/app/query-report/KOT SLA"
-          },
-          {
-            "label": "Kitchen Throughput",
-            "url": "/app/query-report/Kitchen Throughput"
-          }
-        ]
-      }
-    }
-  ],
+  "content": "[{\"type\": \"header\", \"data\": {\"text\": \"Kitchen Reports\", \"level\": 4, \"description\": \"Performance metrics\"}}, {\"type\": \"card\", \"data\": {\"label\": \"KOT Performance\", \"items\": [{\"label\": \"KOT SLA Report\", \"url\": \"/app/query-report/KOT SLA\"}, {\"label\": \"Kitchen Throughput\", \"url\": \"/app/query-report/Kitchen Throughput\"}]}}]",
   "roles": [
     {
       "role": "Kitchen Staff"
