@@ -68,7 +68,9 @@ def get_context(context):
         context.title = _("Cashier Console")
         context.domain = "Restaurant"
         context.branch = None
-    
+
+    # Add currency symbol for use in templates
+    context.currency_symbol = get_currency_symbol()
     return context
 
 
@@ -124,9 +126,17 @@ def get_current_branch(pos_profile):
     """Get current branch from context or POS Profile."""
     # First check if branch is stored in session
     branch = frappe.cache().hget("imogi_pos_branch", frappe.session.user)
-    
+
     # If not in session, check POS Profile
     if not branch and pos_profile and pos_profile.get("imogi_branch"):
         branch = pos_profile.imogi_branch
 
     return branch
+
+
+def get_currency_symbol():
+    """Get the default currency symbol."""
+    currency = frappe.db.get_default("currency")
+    if currency:
+        return frappe.db.get_value("Currency", currency, "symbol") or currency
+    return ""
