@@ -87,14 +87,18 @@ frappe.ready(function() {
     
     function loadOrders() {
         showLoading();
-        
+
+        const args = {
+            branch: CURRENT_BRANCH,
+            pos_profile: POS_PROFILE
+        };
+        if (currentTab !== 'All') {
+            args.status = currentTab;
+        }
+
         frappe.call({
             method: 'imogi_pos.api.billing.list_orders_for_cashier',
-            args: {
-                status: currentTab,
-                branch: CURRENT_BRANCH,
-                pos_profile: POS_PROFILE
-            },
+            args: args,
             callback: function(response) {
                 if (response.message) {
                     currentOrders = response.message;
