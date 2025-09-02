@@ -8,6 +8,7 @@
   "icon": "cooking",
   "module": "IMOGI POS",
   "label": "Kitchen Ops",
+  "title": "Kitchen Ops",
   "links": [
     {
       "label": "Kitchen Management",

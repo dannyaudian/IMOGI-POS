@@ -8,6 +8,7 @@
   "icon": "money-cash",
   "module": "IMOGI POS",
   "label": "Cashier Ops",
+  "title": "Cashier Ops",
   "links": [
     {
       "label": "Billing",

@@ -8,6 +8,7 @@
   "icon": "table",
   "module": "IMOGI POS",
   "label": "Table Service",
+  "title": "Table Service",
   "links": [
     {
       "label": "Floor Management",
