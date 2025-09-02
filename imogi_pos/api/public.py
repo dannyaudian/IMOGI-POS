@@ -11,6 +11,14 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.permissions import validate_branch_access
+
+__all__ = [
+    "health",
+    "get_branding",
+    "get_active_branch",
+    "set_active_branch",
+]
 
 @frappe.whitelist(allow_guest=True)
 def health():
@@ -111,8 +119,51 @@ def get_branding(pos_profile=None):
     # Format URLs for logo paths
     if result["logo"] and not result["logo"].startswith(("http:", "https:", "/")):
         result["logo"] = get_url(result["logo"])
-        
+
     if result["logo_dark"] and not result["logo_dark"].startswith(("http:", "https:", "/")):
         result["logo_dark"] = get_url(result["logo_dark"])
-    
+
     return result
+
+
+@frappe.whitelist()
+def get_active_branch():
+    """Return the active branch for the current user.
+
+    Checks the user's default branch setting and falls back to the branch
+    associated with their default POS Profile.
+
+    Returns:
+        str | None: Branch name if available.
+    """
+
+    branch = frappe.defaults.get_user_default("imogi_branch")
+    if branch:
+        return branch
+
+    pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
+    if pos_profile:
+        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+        if branch:
+            return branch
+
+    return None
+
+
+@frappe.whitelist()
+def set_active_branch(branch):
+    """Persist the user's active branch after verifying access rights.
+
+    Args:
+        branch (str): Branch name to set as active.
+
+    Returns:
+        str | None: The branch that was set, or ``None`` if input was falsy.
+    """
+
+    if not branch:
+        return None
+
+    validate_branch_access(branch)
+    frappe.defaults.set_user_default("imogi_branch", branch)
+    return branch
