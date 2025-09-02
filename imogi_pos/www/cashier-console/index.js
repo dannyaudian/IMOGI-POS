@@ -93,7 +93,7 @@ frappe.ready(function() {
             pos_profile: POS_PROFILE
         };
         if (currentTab !== 'All') {
-            args.status = currentTab;
+            args.workflow_state = currentTab;
         }
 
         frappe.call({
