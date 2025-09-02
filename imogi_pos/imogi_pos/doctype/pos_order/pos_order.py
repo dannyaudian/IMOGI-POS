@@ -43,19 +43,24 @@ class POSOrder(Document):
             return
             
         # Get current table status
-        table_status = frappe.db.get_value("Restaurant Table", self.table, ["status", "current_pos_order"])
+        table_status = frappe.db.get_value(
+            "Restaurant Table",
+            self.table,
+            ["status", "current_pos_order"],
+            as_dict=True,
+        )
         
         # Only update if this is a new order or status has changed
         workflow_closed_states = ["Closed", "Cancelled", "Returned"]
         
         if self.workflow_state in workflow_closed_states:
             # If order is closed/cancelled/returned, clear table if it's still linked to this order
-            if table_status and table_status[1] == self.name:
+            if table_status and table_status.get("current_pos_order") == self.name:
                 frappe.db.set_value("Restaurant Table", self.table, {
                     "status": "Available",
                     "current_pos_order": None
                 })
-        elif table_status and (not table_status[1] or table_status[1] == self.name):
+        elif table_status and (not table_status.get("current_pos_order") or table_status.get("current_pos_order") == self.name):
             # Link table to this order if not already linked to another order
             frappe.db.set_value("Restaurant Table", self.table, {
                 "status": "Occupied",
