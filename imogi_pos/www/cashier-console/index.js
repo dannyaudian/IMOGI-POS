@@ -100,10 +100,12 @@ frappe.ready(function() {
             method: 'imogi_pos.api.billing.list_orders_for_cashier',
             args: args,
             callback: function(response) {
+                if (response.exc) {
+                    console.error("Backend error:", response.exc);
+                }
                 if (response.message) {
                     currentOrders = response.message;
                     renderOrders();
-                    hideLoading();
                 } else {
                     showError("Failed to load orders");
                 }
@@ -111,8 +113,9 @@ frappe.ready(function() {
             error: function(err) {
                 console.error("Error loading orders:", err);
                 showError("Failed to load orders: " + err.message);
-                hideLoading();
             }
+        }).always(() => {
+            hideLoading();
         });
     }
     
