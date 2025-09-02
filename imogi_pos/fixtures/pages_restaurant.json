@@ -1,5 +1,4 @@
-{
-  "pages": [
+[
     {
       "doctype": "Page",
       "name": "table-display",
@@ -108,5 +107,4 @@
       "custom_javascript": "imogi_pos.public.js.customer_display_editor",
       "content": "<div class=\"display-editor-container\">\n  <div class=\"editor-controls\">\n    <div class=\"profile-selector\">\n      <select class=\"display-profile-select\"></select>\n      <button class=\"btn btn-sm btn-default new-profile-btn\">New</button>\n    </div>\n    \n    <div class=\"action-buttons\">\n      <button class=\"btn btn-sm btn-primary save-layout-btn\">Save Layout</button>\n      <button class=\"btn btn-sm btn-default preview-btn\">Preview</button>\n      <button class=\"btn btn-sm btn-default reset-btn\">Reset</button>\n    </div>\n  </div>\n  \n  <div class=\"editor-main\">\n    <div class=\"blocks-toolbox\">\n      <h4>Blocks</h4>\n      <div class=\"block block-branding\" data-block=\"branding\">Branding</div>\n      <div class=\"block block-order-summary\" data-block=\"order-summary\">Order Summary</div>\n      <div class=\"block block-payment\" data-block=\"payment\">Payment</div>\n      <div class=\"block block-ticker\" data-block=\"ticker\">Ticker</div>\n      <div class=\"block block-promo\" data-block=\"promo\">Promotion</div>\n    </div>\n    \n    <div class=\"canvas-container\">\n      <div class=\"display-canvas\"></div>\n    </div>\n    \n    <div class=\"block-properties\">\n      <h4>Properties</h4>\n      <div class=\"property-form\"></div>\n    </div>\n  </div>\n</div>"
     }
-  ]
-}
+]
