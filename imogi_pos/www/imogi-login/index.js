@@ -41,7 +41,10 @@ frappe.ready(function() {
           // Show message from server if any
           showError(response.message.message);
           setFormDisabled(false);
-        } else if (response.message === 'Logged In') {
+        } else if (
+          response.message === 'Logged In' ||
+          (frappe.session && frappe.session.user && frappe.session.user !== 'Guest')
+        ) {
           // Login successful, redirect
           try {
             let sid = (frappe.session && frappe.session.sid);
@@ -54,11 +57,11 @@ frappe.ready(function() {
               localStorage.setItem('imogi_sid', sid);
             }
             const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
-            window.location.replace(redirectTo);
+            window.location.href = redirectTo;
             localStorage.removeItem('login_redirect');
           } catch (e) {
             console.error("Redirect error:", e);
-            window.location.replace('/cashier-console');
+            window.location.href = '/cashier-console';
             localStorage.removeItem('login_redirect');
           }
         } else {
