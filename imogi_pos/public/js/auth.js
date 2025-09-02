@@ -6,7 +6,13 @@
  * - Session validation
  * - Guest redirection to /imogi-login
  * - Token-based access for guest-allowed pages
- */
+*/
+
+// Restore session ID from local storage if available
+const _storedSid = localStorage.getItem('imogi_sid');
+if (_storedSid) {
+    frappe.sid = _storedSid;
+}
 
 const IMOGIAuth = {
     /**
@@ -217,17 +223,28 @@ const IMOGIAuth = {
                     if (data.message === 'Logged In') {
                         // Update frappe session user
                         frappe.session.user = username;
-                        
+
+                        // Store session id for future requests
+                        let sid = (frappe.session && frappe.session.sid);
+                        if (!sid) {
+                            const match = document.cookie.match(/(^|;)\s*sid=([^;]+)/);
+                            sid = match ? decodeURIComponent(match[2]) : null;
+                        }
+                        if (sid) {
+                            frappe.sid = sid;
+                            localStorage.setItem('imogi_sid', sid);
+                        }
+
                         // Call success callback
                         if (typeof this.options.onLogin === 'function') {
                             this.options.onLogin(username);
                         }
-                        
+
                         // Redirect if specified
                         if (redirect) {
                             window.location.href = redirect;
                         }
-                        
+
                         resolve(username);
                     } else {
                         reject(new Error('Login failed'));

@@ -1192,7 +1192,8 @@ imogi_pos.table_layout_editor = {
                         method: 'POST',
                         body: formData,
                         headers: {
-                            'X-Frappe-CSRF-Token': frappe.csrf_token
+                            'X-Frappe-CSRF-Token': frappe.csrf_token,
+                            'X-Frappe-Sid': localStorage.getItem('imogi_sid') || frappe.sid
                         }
                     })
                     .then(response => response.json())
