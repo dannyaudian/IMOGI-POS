@@ -9,6 +9,7 @@
   "module": "IMOGI POS",
   "label": "Kitchen Ops",
   "title": "Kitchen Ops",
+  "type": "Workspace",
   "links": [
     {
       "label": "Kitchen Management",

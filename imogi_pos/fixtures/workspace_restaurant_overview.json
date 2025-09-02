@@ -9,6 +9,7 @@
   "module": "IMOGI POS",
   "label": "IMOGI POS",
   "title": "IMOGI POS",
+  "type": "Workspace",
   "links": [
     {
       "label": "Orders",
