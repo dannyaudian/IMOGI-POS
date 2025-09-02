@@ -5,6 +5,12 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 
 <style>
+  :root {
+    --primary-color: {{ branding.primary_color }};
+    --accent-color: {{ branding.accent_color }};
+    --header-bg: {{ branding.header_bg }};
+  }
+
   .login-wrapper {
     display: flex;
     justify-content: center;
@@ -46,7 +52,7 @@
   }
   
   .login-btn {
-    background-color: var(--primary-color, {{ frappe.get_attr('imogi_pos.utils.branding.PRIMARY_COLOR') }});
+    background-color: var(--primary-color);
     color: white;
     border: none;
     border-radius: 4px;
@@ -73,10 +79,10 @@
 <div class="login-wrapper">
   <div class="login-card">
     <div class="login-header">
-      {% if brand_info.logo %}
-      <img src="{{ brand_info.logo }}" alt="{{ brand_info.name }}" class="brand-logo">
+      {% if branding.logo %}
+      <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
       {% endif %}
-      <h2>{{ brand_info.name }}</h2>
+      <h2>{{ branding.name }}</h2>
     </div>
     
     <form id="login-form">

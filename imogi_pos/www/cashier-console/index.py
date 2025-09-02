@@ -1,11 +1,7 @@
 import frappe
 from frappe import _
-from imogi_pos.utils.branding import (
-    PRIMARY_COLOR,
-    ACCENT_COLOR,
-    HEADER_BG_COLOR,
-)
 from frappe.utils import cint
+from imogi_pos.utils.branding import get_brand_context
 
 
 def get_context(context):
@@ -39,7 +35,7 @@ def get_context(context):
                 context.active_pos_session = None
                 
             # Set branding information
-            context.branding = get_branding_info(pos_profile)
+            context.branding = get_brand_context(pos_profile)
             
             # Set branch information
             context.branch = get_current_branch(pos_profile)
@@ -54,7 +50,7 @@ def get_context(context):
             context.require_pos_session = 0
             context.has_active_session = False
             context.active_pos_session = None
-            context.branding = get_branding_info(None)
+            context.branding = get_brand_context()
             context.branch = None
             context.title = _("Cashier Console")
             context.domain = "Restaurant"
@@ -68,7 +64,7 @@ def get_context(context):
         context.error_message = _("An error occurred. Please try again or contact support.")
         context.pos_profile = None
         context.show_header = 1
-        context.branding = get_branding_info(None)
+        context.branding = get_brand_context()
         context.title = _("Cashier Console")
         context.domain = "Restaurant"
         context.branch = None
@@ -124,52 +120,6 @@ def check_active_pos_session(pos_profile_name):
         frappe.log_error(f"Error checking active POS session: {str(e)}")
         return None
 
-
-def get_branding_info(pos_profile):
-    """Get branding information from profile or settings."""
-    branding = {
-        "logo": None,
-        "name": "IMOGI POS",
-        "primary_color": PRIMARY_COLOR,
-        "accent_color": ACCENT_COLOR,
-        "header_bg": HEADER_BG_COLOR,
-    }
-    
-    try:
-        # Get from POS Profile first
-        if pos_profile:
-            if pos_profile.get("imogi_brand_logo"):
-                branding["logo"] = pos_profile.imogi_brand_logo
-            if pos_profile.get("imogi_brand_name"):
-                branding["name"] = pos_profile.imogi_brand_name
-            if pos_profile.get("imogi_brand_color_primary"):
-                branding["primary_color"] = pos_profile.imogi_brand_color_primary
-            if pos_profile.get("imogi_brand_color_accent"):
-                branding["accent_color"] = pos_profile.imogi_brand_color_accent
-            if pos_profile.get("imogi_brand_header_bg"):
-                branding["header_bg"] = pos_profile.imogi_brand_header_bg
-        
-        # Fallback to Restaurant Settings
-        if not branding["logo"]:
-            restaurant_settings = frappe.get_doc("Restaurant Settings")
-            if hasattr(restaurant_settings, "imogi_brand_logo") and restaurant_settings.imogi_brand_logo:
-                branding["logo"] = restaurant_settings.imogi_brand_logo
-            if hasattr(restaurant_settings, "imogi_brand_name") and restaurant_settings.imogi_brand_name:
-                branding["name"] = restaurant_settings.imogi_brand_name
-        
-        # Final fallback to company
-        if not branding["logo"]:
-            company = frappe.defaults.get_user_default("Company")
-            if company:
-                company_doc = frappe.get_doc("Company", company)
-                if company_doc.company_logo:
-                    branding["logo"] = company_doc.company_logo
-    except Exception as e:
-        frappe.log_error(f"Error fetching branding info: {str(e)}")
-    
-    return branding
-
-
 def get_current_branch(pos_profile):
     """Get current branch from context or POS Profile."""
     # First check if branch is stored in session
@@ -178,5 +128,5 @@ def get_current_branch(pos_profile):
     # If not in session, check POS Profile
     if not branch and pos_profile and pos_profile.get("imogi_branch"):
         branch = pos_profile.imogi_branch
-    
+
     return branch
