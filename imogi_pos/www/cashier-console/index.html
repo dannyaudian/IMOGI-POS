@@ -1,5 +1,7 @@
+{% extends "templates/web.html" %}
+
 {% block style %}
-{# Tipografi Inter (opsional). Kalau nggak mau, hapus link fonts ini #}
+{# Tipografi Inter (opsional). Hapus 2 baris di bawah kalau tidak diperlukan #}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
@@ -118,6 +120,11 @@
     padding: 20px;
     max-width: 1440px;
     margin-inline:auto;
+  }
+  .cashier-console.disabled{
+    filter: saturate(.6);
+    pointer-events: none;
+    user-select: none;
   }
   @media (max-width: 1100px){
     .cashier-console{ grid-template-columns: 1fr; }
@@ -289,19 +296,18 @@
 </style>
 {% endblock %}
 
-
 {% block page_content %}
 
 {% if show_header %}
 <header class="app-header">
   <div class="header-left">
     <a href="/" class="home-link" aria-label="Home">
-      <i class="fa fa-home"></i>
+      <i class="fa fa-home" aria-hidden="true"></i>
     </a>
     <h1 class="page-title">{{ _("Cashier Console") }}</h1>
   </div>
 
-  <div class="header-center">
+  <div class="header-center" aria-label="Brand">
     {% if branding.logo %}
       {% if branding.logo_dark %}
       <picture>
@@ -318,13 +324,13 @@
 
   <div class="header-right">
     {% if branch %}
-    <div class="branch-selector">
+    <div class="branch-selector" role="status" aria-live="polite">
       <span class="branch-label">{{ _("Branch") }}:</span>
       <span class="branch-value badge">{{ branch }}</span>
     </div>
     {% endif %}
     <div class="user-menu">
-      <span class="user-name badge"><i class="fa fa-user"></i>&nbsp;{{ frappe.session.user }}</span>
+      <span class="user-name badge"><i class="fa fa-user" aria-hidden="true"></i>&nbsp;{{ frappe.session.user }}</span>
     </div>
   </div>
 </header>
@@ -335,35 +341,38 @@
     {{ error_message }}
   </div></div>
 {% elif require_pos_session and enforce_session_on_cashier and not has_active_session %}
-  <div class="session-warning card"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-    <span>{{ _("No active POS Session. Please open a session to continue.") }}</span>
-    <a href="/desk#pos-session/new-pos-session-1" class="btn btn-primary">{{ _("Open Session") }}</a>
-  </div></div>
+  <div class="session-warning card">
+    <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <span>{{ _("No active POS Session. Please open a session to continue.") }}</span>
+      <a href="/desk#pos-session/new-pos-session-1" class="btn btn-primary">{{ _("Open Session") }}</a>
+    </div>
+  </div>
 {% endif %}
 
 {% if not error_message %}
 <div class="cashier-console {% if require_pos_session and enforce_session_on_cashier and not has_active_session %}disabled{% endif %}">
   <!-- Order list -->
-  <section class="order-list-container card">
+  <section class="order-list-container card" aria-labelledby="orders-heading">
     <div class="order-header">
-      <h2 class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
-      <button id="refresh-orders" class="btn btn-default">
-        <i class="fa fa-rotate"></i>&nbsp;{{ _("Refresh") }}
+      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
+      <button id="refresh-orders" class="btn btn-default" type="button">
+        <i class="fa fa-rotate" aria-hidden="true"></i>&nbsp;{{ _("Refresh") }}
       </button>
     </div>
 
-    <div class="order-tabs">
-      <div class="order-tab active" data-status="Ready">{{ _("Ready") }}</div>
-      <div class="order-tab" data-status="Served">{{ _("Served") }}</div>
-      <div class="order-tab" data-status="All">{{ _("All") }}</div>
+    <div class="order-tabs" role="tablist" aria-label="{{ _('Order filters') }}">
+      <div class="order-tab active" role="tab" aria-selected="true" tabindex="0" data-status="Ready">{{ _("Ready") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Served">{{ _("Served") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="All">{{ _("All") }}</div>
     </div>
 
     <div class="search-container">
-      <input type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}" aria-label="{{ _('Search Orders') }}">
+      <label class="sr-only" for="order-search">{{ _('Search Orders') }}</label>
+      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}" aria-label="{{ _('Search Orders') }}">
     </div>
 
     <div id="order-list" class="order-list">
-      <div class="empty-state">
+      <div class="empty-state" aria-live="polite">
         <div>
           <strong>{{ _("Loading orders…") }}</strong>
           <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch recent orders.") }}</div>
@@ -373,15 +382,15 @@
   </section>
 
   <!-- Checkout -->
-  <aside class="checkout-panel card">
-    <div class="checkout-panel-header">{{ _("Checkout") }}</div>
+  <aside class="checkout-panel card" aria-labelledby="checkout-heading">
+    <div class="checkout-panel-header" id="checkout-heading">{{ _("Checkout") }}</div>
 
-    <div class="customer-info">
+    <div class="customer-info" aria-labelledby="customer-heading">
       <div class="customer-info-header">
-        <span>{{ _("Customer") }}:
+        <span id="customer-heading">{{ _("Customer") }}:
           <span id="customer-name" class="badge">{{ _("Walk-in Customer") }}</span>
         </span>
-        <span class="customer-search-btn" id="find-customer">{{ _("Find / Create") }}</span>
+        <button class="customer-search-btn" id="find-customer" type="button" aria-describedby="customer-heading">{{ _("Find / Create") }}</button>
       </div>
       <div id="customer-details" class="customer-details" style="font-size:13px; color:var(--muted)"></div>
     </div>
@@ -403,9 +412,9 @@
     </div>
 
     <div class="checkout-actions">
-      <button id="btn-generate-invoice" class="btn btn-primary" disabled>{{ _("Generate Invoice") }}</button>
-      <button id="btn-request-payment" class="btn btn-accent" disabled>{{ _("Request Payment") }}</button>
-      <button id="btn-print-bill" class="btn btn-ghost" disabled>{{ _("Print Bill") }}</button>
+      <button id="btn-generate-invoice" class="btn btn-primary" type="button" disabled>{{ _("Generate Invoice") }}</button>
+      <button id="btn-request-payment" class="btn btn-accent" type="button" disabled>{{ _("Request Payment") }}</button>
+      <button id="btn-print-bill" class="btn btn-ghost" type="button" disabled>{{ _("Print Bill") }}</button>
     </div>
   </aside>
 </div>
@@ -416,12 +425,38 @@
 <script>
   // Pass context to JS
   const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
-  const POS_PROFILE        = {{ pos_profile.name         | tojson if pos_profile        else 'null' }};
-  const ACTIVE_POS_SESSION = {{ active_pos_session.name  | tojson if active_pos_session else 'null' }};
-  const CURRENT_BRANCH     = {{ branch                   | tojson if branch             else 'null' }};
+  const POS_PROFILE        = {{ pos_profile?.name         | tojson if pos_profile        else 'null' }};
+  const ACTIVE_POS_SESSION = {{ active_pos_session?.name  | tojson if active_pos_session else 'null' }};
+  const CURRENT_BRANCH     = {{ branch                    | tojson if branch             else 'null' }};
   const CURRENCY_SYMBOL    = '{{ currency_symbol }}';
   const DOMAIN             = '{{ domain|default("Restaurant") }}';
   const HAS_ERROR          = {{ error_message | tojson if error_message else 'false' }};
+
+  // Minor UX: toggle active class on tabs with keyboard support
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = Array.from(document.querySelectorAll('.order-tab'));
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => setActive(tab));
+      tab.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(tab); }
+      });
+    });
+    function setActive(el){
+      tabs.forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      el.setAttribute('aria-selected', 'true');
+      tabs.filter(t=>t!==el).forEach(t=>t.setAttribute('aria-selected','false'));
+      // TODO: hook filter logic by data-status here if needed
+    }
+
+    // Keep header shadow subtle on scroll (optional polish)
+    const header = document.querySelector('.app-header');
+    if (header) {
+      const onScroll = () => header.style.boxShadow = window.scrollY > 6 ? 'var(--shadow-md)' : 'var(--shadow-sm)';
+      document.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+  });
 </script>
 
 {# IMPORTANT: include_script meng-output <script> tag, jadi JANGAN dipakai di dalam src="" #}
