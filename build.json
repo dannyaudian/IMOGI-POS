@@ -1,7 +1,16 @@
 {
   "use_esbuild": true,
   "js": [
-    "imogi_pos/public/js/branch.js"
+    "imogi_pos/public/js/nav.js",
+    "imogi_pos/public/js/auth.js",
+    "imogi_pos/public/js/branch.js",
+    "imogi_pos/public/js/print/service.js",
+    "imogi_pos/public/js/print/adapter_bluetooth.js",
+    "imogi_pos/public/js/print/adapter_bridge.js",
+    "imogi_pos/public/js/print/adapter_spool.js",
+    "imogi_pos/public/js/print/adapter_lan.js",
+    "imogi_pos/public/js/doctype/pos_order.js",
+    "imogi_pos/public/js/restaurant_table_qr.js"
   ],
   "css": []
 }
