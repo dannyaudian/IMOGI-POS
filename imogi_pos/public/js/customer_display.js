@@ -364,7 +364,7 @@ imogi_pos.customer_display = {
                     `).join('') : ''}
                     <div class="total-row grand-total">
                         <div class="total-label">Grand Total</div>
-                        <div class="total-value">${this.formatCurrency(order.grand_total || 0)}</div>
+                        <div class="total-value">${this.formatCurrency(order.totals || 0)}</div>
                     </div>
                 </div>
             </div>

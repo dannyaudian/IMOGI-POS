@@ -154,7 +154,7 @@ def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
             "order_type",
             "table",
             "workflow_state",
-            "grand_total",
+            "totals",
             "creation",
         ],
         order_by="creation desc",

@@ -144,7 +144,7 @@ frappe.ready(function() {
                             <strong>${order.table ? 'Table ' + order.table : order.order_type}</strong>
                             ${order.customer !== 'Walk-in Customer' ? ' • ' + order.customer_name : ''}
                         </div>
-                        <div class="order-amount">${formatCurrency(order.grand_total)}</div>
+                        <div class="order-amount">${formatCurrency(order.totals)}</div>
                     </div>
                     <div class="order-items">
                         ${order.items.length} item(s) • ${order.workflow_state}
@@ -250,7 +250,7 @@ frappe.ready(function() {
         subtotalEl.textContent = formatCurrency(order.net_total);
         taxAmountEl.textContent = formatCurrency(order.total_taxes_and_charges || 0);
         discountAmountEl.textContent = formatCurrency(order.discount_amount || 0);
-        grandTotalEl.textContent = formatCurrency(order.grand_total);
+        grandTotalEl.textContent = formatCurrency(order.totals);
     }
     
     function generateInvoice() {

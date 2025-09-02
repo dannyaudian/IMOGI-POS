@@ -119,7 +119,7 @@ def get_linked_order(device_id):
             "name": order.name,
             "table": order.table,
             "customer": order.customer_name or order.customer,
-            "total": order.grand_total,
+            "total": order.totals,
             "currency": frappe.defaults.get_global_default("currency"),
             "items": [],
             "status": order.workflow_state,
