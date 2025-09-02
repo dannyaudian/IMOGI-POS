@@ -8,6 +8,7 @@
   "icon": "point-of-sale",
   "module": "IMOGI POS",
   "label": "IMOGI POS",
+  "title": "IMOGI POS",
   "links": [
     {
       "label": "Orders",
