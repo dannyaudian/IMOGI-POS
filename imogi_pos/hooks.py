@@ -31,6 +31,7 @@ web_include_js = [
 
 doctype_js = {
     "POS Order": "public/js/doctype/pos_order.js",
+    "Restaurant Table": "public/js/restaurant_table_qr.js",
 }
 doc_events = {
     "POS Order": {
