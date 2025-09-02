@@ -44,6 +44,15 @@ frappe.ready(function() {
         } else if (response.message === 'Logged In') {
           // Login successful, redirect
           try {
+            let sid = (frappe.session && frappe.session.sid);
+            if (!sid) {
+              const match = document.cookie.match(/(^|;)\s*sid=([^;]+)/);
+              sid = match ? decodeURIComponent(match[2]) : null;
+            }
+            if (sid) {
+              frappe.sid = sid;
+              localStorage.setItem('imogi_sid', sid);
+            }
             const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
             window.location.replace(redirectTo);
             localStorage.removeItem('login_redirect');
