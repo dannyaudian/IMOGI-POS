@@ -6,399 +6,312 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/cashier_console.css">
 
 <style>
-  :root {
-    --primary-color: {{ branding.primary_color }};
-    --accent-color: {{ branding.accent_color }};
-    --header-bg: {{ branding.header_bg }};
+  /* ===============================
+     Design tokens & base
+  ==================================*/
+  :root{
+    --primary: {{ branding.primary_color or '#2563eb' }};
+    --accent:  {{ branding.accent_color  or '#22c55e' }};
+    --header-bg: {{ branding.header_bg or '#0f172a' }};
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --border: #e5e7eb;
+    --muted: #6b7280;
+    --text: #0f172a;
+    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 6px 20px rgba(2,6,23,.08);
+    --gap: 16px;
   }
-  
-  .cashier-console {
-    display: grid;
-    grid-template-columns: 1fr 350px;
-    gap: 20px;
-    height: calc(100vh - 60px);
-    padding: 1rem;
-    background-color: #f5f7fa;
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background: var(--surface-2);
+    color: var(--text);
   }
-  
-  .order-list-container {
-    overflow-y: auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 1rem;
+  ::selection{background: color-mix(in oklab, var(--primary) 20%, white);}
+
+  /* ===============================
+     Header
+  ==================================*/
+  .app-header{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    gap: var(--gap);
+    padding: 14px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    position: sticky; top: 0; z-index: 10;
   }
-  
-  .checkout-panel {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
+  .header-left, .header-right{display:flex; align-items:center; gap:12px;}
+  .header-left .home-link{
+    display:grid; place-items:center; width:36px; height:36px;
+    border:1px solid var(--border); border-radius:10px; color:var(--text);
   }
-  
-  .order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eee;
+  .page-title{margin:0; font-size:18px; font-weight:700;}
+  .brand-logo{height:28px; object-fit:contain}
+  .brand-name{font-weight:700; letter-spacing:.2px}
+  .header-center{display:flex; justify-content:center}
+  .branch-selector{display:flex; gap:6px; align-items:center; font-size:13px; color:var(--muted);}
+
+  /* ===============================
+     Layout
+  ==================================*/
+  .cashier-console{
+    display:grid; gap: var(--gap);
+    grid-template-columns: minmax(0,1fr) 360px;
+    padding: 18px;
+    max-width: 1400px; margin-inline:auto;
   }
-  
-  .order-tabs {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
+  @media (max-width: 992px){
+    .cashier-console{grid-template-columns:1fr}
   }
-  
-  .order-tab {
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
+
+  /* Panels */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
   }
-  
-  .order-tab.active {
-    background-color: var(--primary-color);
-    color: white;
+  .card-body{padding: 14px;}
+  .section-title{
+    margin:0 0 10px 0; padding-bottom:10px;
+    border-bottom:1px dashed var(--border);
+    font-weight:700;
   }
-  
-  .order-card {
-    padding: 1rem;
-    border: 1px solid #eee;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
+
+  /* ===============================
+     Order list
+  ==================================*/
+  .order-list-container{display:flex; flex-direction:column;}
+  .order-header{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 14px; border-bottom:1px solid var(--border);
   }
-  
-  .order-card:hover {
-    border-color: var(--accent-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  .order-tabs{display:flex; gap:8px; padding: 10px 14px 0 14px; flex-wrap:wrap;}
+  .order-tab{
+    padding:8px 12px; border:1px solid var(--border); border-radius:999px; cursor:pointer;
+    font-weight:600; font-size:13px; color:var(--muted); background:var(--surface);
+    transition: all .18s ease;
   }
-  
-  .order-card.selected {
-    border-color: var(--accent-color);
-    background-color: rgba(36, 144, 239, 0.05);
+  .order-tab:hover{border-color: color-mix(in oklab, var(--primary) 30%, var(--border)); color: var(--text);}
+  .order-tab.active{background: color-mix(in oklab, var(--primary) 14%, white); color: var(--text); border-color: color-mix(in oklab, var(--primary) 35%, var(--border));}
+
+  .search-container{padding: 12px 14px;}
+  .search-input{
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; outline:0;
   }
-  
-  .order-meta {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    color: #666;
+  .order-list{padding: 6px 14px 14px 14px; overflow:auto; min-height:340px;}
+  .order-card{
+    border:1px solid var(--border); border-radius:12px; padding:12px;
+    margin-top:12px; background:var(--surface);
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
   }
-  
-  .order-items {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
+  .order-card:hover{transform:translateY(-1px); box-shadow: var(--shadow-md);}
+  .order-card.selected{border-color: color-mix(in oklab, var(--accent) 50%, var(--border)); background: color-mix(in oklab, var(--accent) 6%, white);}
+  .order-meta{display:flex; justify-content:space-between; gap:10px; color:var(--muted); font-size:12px; margin-bottom:6px;}
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-size:12px;
+    background: var(--surface-2); border:1px solid var(--border); color:var(--text);
   }
-  
-  .checkout-panel-header {
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eee;
+  .order-items{font-size:13px; color:#111827}
+
+  .empty-state{
+    display:grid; place-items:center; text-align:center; gap:6px;
+    color:var(--muted); padding:24px; border:1px dashed var(--border); border-radius:12px;
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
   }
-  
-  .checkout-items {
-    flex: 1;
-    overflow-y: auto;
-    margin-bottom: 1rem;
+
+  /* ===============================
+     Checkout panel
+  ==================================*/
+  .checkout-panel{display:flex; flex-direction:column;}
+  .checkout-panel-header{padding:14px; border-bottom:1px solid var(--border); font-weight:700;}
+  .customer-info{margin:14px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2);}
+  .customer-info-header{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;}
+  .customer-search-btn{color:var(--primary); font-weight:600; cursor:pointer}
+  .checkout-items{flex:1; margin:0 14px 14px 14px; overflow:auto;}
+  .checkout-item{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed var(--border); font-size:14px;}
+  .checkout-totals{margin:0 14px 14px 14px; padding-top:12px; border-top:1px solid var(--border)}
+  .total-row{display:flex; justify-content:space-between; margin:6px 0; color:var(--text)}
+  .grand-total{font-size:18px; font-weight:800}
+
+  /* Buttons */
+  .btn{
+    display:inline-flex; justify-content:center; align-items:center; gap:8px;
+    padding:10px 12px; border-radius:10px; border:1px solid transparent; cursor:pointer; font-weight:700;
+    transition: transform .06s ease, filter .12s ease, background .12s ease, border-color .12s ease;
   }
-  
-  .checkout-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f5f5f5;
+  .btn:active{transform:translateY(1px)}
+  .btn-default{background:var(--surface-2); border-color:var(--border); color:var(--text)}
+  .btn-default:hover{filter:brightness(.98)}
+  .btn-primary{background:var(--primary); color:white}
+  .btn-primary:hover{filter:brightness(.96)}
+  .btn-accent{background:var(--accent); color:white}
+  .btn-accent:hover{filter:brightness(.96)}
+  .btn-ghost{background:#f3f4f6; color:#111827; border:1px solid var(--border)}
+
+  .checkout-actions{display:flex; flex-direction:column; gap:8px; margin:0 14px 16px 14px}
+  .session-warning, .error-message{
+    margin: 16px auto; max-width: 960px;
+    border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border);
   }
-  
-  .checkout-totals {
-    margin-top: auto;
-    border-top: 1px solid #eee;
-    padding-top: 1rem;
-  }
-  
-  .total-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-  }
-  
-  .grand-total {
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-    border-top: 1px solid #eee;
-  }
-  
-  .checkout-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-  
-  .btn-checkout {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.75rem;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  
-  .btn-checkout:hover {
-    background-color: #3a4651;
-  }
-  
-  .btn-payment {
-    background-color: var(--accent-color);
-    color: white;
-    border: none;
-    padding: 0.75rem;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  
-  .btn-payment:hover {
-    background-color: #1a7fd1;
-  }
-  
-  .btn-print {
-    background-color: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
-    padding: 0.75rem;
-    border-radius: 4px;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  
-  .btn-print:hover {
-    background-color: #e9e9e9;
-  }
-  
-  .search-container {
-    margin-bottom: 1rem;
-  }
-  
-  .search-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  }
-  
-  .customer-info {
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    font-size: 0.9rem;
-  }
-  
-  .customer-info-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-  }
-  
-  .customer-search-btn {
-    color: var(--accent-color);
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  
-  .session-warning {
-    background-color: #fff3cd;
-    color: #856404;
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
-  
-  .error-message {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
-  
-  .disabled {
-    opacity: 0.6;
-    pointer-events: none;
-  }
-  
-  @media (max-width: 768px) {
-    .cashier-console {
-      grid-template-columns: 1fr;
-    }
-  }
+  .session-warning{background:#fff8e1; color:#8f5b00}
+  .error-message{background:#fee2e2; color:#991b1b}
+
+  /* Subtle scrollbar (Chromium) */
+  .order-list::-webkit-scrollbar,
+  .checkout-items::-webkit-scrollbar{height:10px;width:10px}
+  .order-list::-webkit-scrollbar-thumb,
+  .checkout-items::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}
 </style>
 {% endblock %}
 
 {% block page_content %}
+
 {% if show_header %}
 <header class="app-header">
   <div class="header-left">
-    <a href="/" class="home-link">
+    <a href="/" class="home-link" aria-label="Home">
       <i class="fa fa-home"></i>
     </a>
     <h1 class="page-title">{{ _("Cashier Console") }}</h1>
   </div>
+
   <div class="header-center">
     {% if branding.logo %}
       {% if branding.logo_dark %}
       <picture>
         <source srcset="{{ branding.logo_dark }}" media="(prefers-color-scheme: dark)">
-        <img src="{{ branding.logo }}" alt="{{ branding.name|default("IMOGI POS") }}" class="brand-logo">
+        <img src="{{ branding.logo }}" alt="{{ branding.name|default('IMOGI POS') }}" class="brand-logo">
       </picture>
       {% else %}
-      <img src="{{ branding.logo }}" alt="{{ branding.name|default("IMOGI POS") }}" class="brand-logo">
+      <img src="{{ branding.logo }}" alt="{{ branding.name|default('IMOGI POS') }}" class="brand-logo">
       {% endif %}
     {% else %}
-    <span class="brand-name">{{ branding.name|default("IMOGI POS") }}</span>
+      <span class="brand-name">{{ branding.name|default("IMOGI POS") }}</span>
     {% endif %}
   </div>
+
   <div class="header-right">
     {% if branch %}
     <div class="branch-selector">
       <span class="branch-label">{{ _("Branch") }}:</span>
-      <span class="branch-value">{{ branch }}</span>
+      <span class="branch-value badge">{{ branch }}</span>
     </div>
     {% endif %}
     <div class="user-menu">
-      <span class="user-name">{{ frappe.session.user }}</span>
+      <span class="user-name badge"><i class="fa fa-user"></i>&nbsp;{{ frappe.session.user }}</span>
     </div>
   </div>
 </header>
 {% endif %}
 
 {% if error_message %}
-<div class="error-message">
-  {{ error_message }}
-</div>
+  <div class="error-message card"><div class="card-body">
+    {{ error_message }}
+  </div></div>
 {% elif require_pos_session and enforce_session_on_cashier and not has_active_session %}
-<div class="session-warning">
-  {{ _("No active POS Session. Please open a session to continue.") }}
-  <a href="/desk#pos-session/new-pos-session-1" class="btn btn-sm btn-primary ml-2">{{ _("Open Session") }}</a>
-</div>
+  <div class="session-warning card"><div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <span>{{ _("No active POS Session. Please open a session to continue.") }}</span>
+    <a href="/desk#pos-session/new-pos-session-1" class="btn btn-primary">{{ _("Open Session") }}</a>
+  </div></div>
 {% endif %}
 
 {% if not error_message %}
 <div class="cashier-console {% if require_pos_session and enforce_session_on_cashier and not has_active_session %}disabled{% endif %}">
-  <div class="order-list-container">
+  <!-- Order list -->
+  <section class="order-list-container card">
     <div class="order-header">
-      <h2>{{ _("Orders") }}</h2>
-      <div class="header-actions">
-        <button id="refresh-orders" class="btn btn-sm btn-default">
-          <i class="fa fa-refresh"></i> {{ _("Refresh") }}
-        </button>
-      </div>
+      <h2 class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
+      <button id="refresh-orders" class="btn btn-default">
+        <i class="fa fa-rotate"></i>&nbsp;{{ _("Refresh") }}
+      </button>
     </div>
-    
+
     <div class="order-tabs">
       <div class="order-tab active" data-status="Ready">{{ _("Ready") }}</div>
       <div class="order-tab" data-status="Served">{{ _("Served") }}</div>
       <div class="order-tab" data-status="All">{{ _("All") }}</div>
     </div>
-    
+
     <div class="search-container">
-      <input type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}">
+      <input type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}" aria-label="{{ _('Search Orders') }}">
     </div>
-    
+
     <div id="order-list" class="order-list">
-      <!-- Orders will be populated here -->
       <div class="empty-state">
-        <p>{{ _("Loading orders...") }}</p>
+        <div>
+          <strong>{{ _("Loading orders…") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch recent orders.") }}</div>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <div class="checkout-panel">
+  </section>
+
+  <!-- Checkout -->
+  <aside class="checkout-panel card">
     <div class="checkout-panel-header">{{ _("Checkout") }}</div>
-    
+
     <div class="customer-info">
       <div class="customer-info-header">
-        <span>{{ _("Customer") }}: <span id="customer-name">{{ _("Walk-in Customer") }}</span></span>
+        <span>{{ _("Customer") }}:
+          <span id="customer-name" class="badge">{{ _("Walk-in Customer") }}</span>
+        </span>
         <span class="customer-search-btn" id="find-customer">{{ _("Find / Create") }}</span>
       </div>
-      <div id="customer-details" class="customer-details"></div>
+      <div id="customer-details" class="customer-details" style="font-size:13px; color:var(--muted)"></div>
     </div>
-    
+
     <div id="checkout-items" class="checkout-items">
-      <!-- Checkout items will be populated here -->
       <div class="empty-state">
-        <p>{{ _("Select an order to checkout") }}</p>
+        <div>
+          <strong>{{ _("Select an order to checkout") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Choose an item on the left to see details here.") }}</div>
+        </div>
       </div>
     </div>
-    
+
     <div class="checkout-totals">
-      <div class="total-row">
-        <span>{{ _("Subtotal") }}</span>
-        <span id="subtotal">0.00</span>
-      </div>
-      <div class="total-row">
-        <span>{{ _("Tax") }}</span>
-        <span id="tax-amount">0.00</span>
-      </div>
-      <div class="total-row">
-        <span>{{ _("Discount") }}</span>
-        <span id="discount-amount">0.00</span>
-      </div>
-      <div class="grand-total total-row">
-        <span>{{ _("Total") }}</span>
-        <span id="grand-total">0.00</span>
-      </div>
+      <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="subtotal">0.00</span></div>
+      <div class="total-row"><span>{{ _("Tax") }}</span><span id="tax-amount">0.00</span></div>
+      <div class="total-row"><span>{{ _("Discount") }}</span><span id="discount-amount">0.00</span></div>
+      <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="grand-total">0.00</span></div>
     </div>
-    
+
     <div class="checkout-actions">
-      <button id="btn-generate-invoice" class="btn-checkout" disabled>
-        {{ _("Generate Invoice") }}
-      </button>
-      <button id="btn-request-payment" class="btn-payment" disabled>
-        {{ _("Request Payment") }}
-      </button>
-      <button id="btn-print-bill" class="btn-print" disabled>
-        {{ _("Print Bill") }}
-      </button>
+      <button id="btn-generate-invoice" class="btn btn-primary" disabled>{{ _("Generate Invoice") }}</button>
+      <button id="btn-request-payment" class="btn btn-accent" disabled>{{ _("Request Payment") }}</button>
+      <button id="btn-print-bill" class="btn btn-ghost" disabled>{{ _("Print Bill") }}</button>
     </div>
-  </div>
+  </aside>
 </div>
 {% endif %}
-
 {% endblock %}
 
 {% block script %}
 <script>
-  // Pass important context variables to the frontend
+  // Pass context to JS
   const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
-  const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
-  const ACTIVE_POS_SESSION = {{ active_pos_session.name | tojson if active_pos_session else 'null' }};
-  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
-  const CURRENCY_SYMBOL = '{{ currency_symbol }}';
-  const DOMAIN = '{{ domain|default("Restaurant") }}';
-  const HAS_ERROR = {{ error_message | tojson if error_message else 'false' }};
+  const POS_PROFILE        = {{ pos_profile.name         | tojson if pos_profile        else 'null' }};
+  const ACTIVE_POS_SESSION = {{ active_pos_session.name  | tojson if active_pos_session else 'null' }};
+  const CURRENT_BRANCH     = {{ branch                   | tojson if branch             else 'null' }};
+  const CURRENCY_SYMBOL    = '{{ currency_symbol }}';
+  const DOMAIN             = '{{ domain|default("Restaurant") }}';
+  const HAS_ERROR          = {{ error_message | tojson if error_message else 'false' }};
 </script>
 
-<script src="{{ include_script('imogi_pos/js/nav.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/auth.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/branch.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_bridge.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_spool.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_lan.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/service.js') }}"></script>
-<script src="../cashier-console/index.js"></script>
+{# IMPORTANT: include_script meng-output <script> tag, jadi JANGAN dipakai di dalam src="" #}
+{{ include_script('imogi_pos/js/nav.js') }}
+{{ include_script('imogi_pos/js/auth.js') }}
+{{ include_script('imogi_pos/js/branch.js') }}
+{{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}
+{{ include_script('imogi_pos/js/print/adapter_bridge.js') }}
+{{ include_script('imogi_pos/js/print/adapter_spool.js') }}
+
+{# Index JS khusus halaman ini ada di folder yang sama (www/cashier-console/index.js) #}
+<script src="./index.js"></script>
 {% endblock %}
