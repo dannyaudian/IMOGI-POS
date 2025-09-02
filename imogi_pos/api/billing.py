@@ -135,26 +135,35 @@ def list_orders_for_cashier(branch=None, status=None, floor=None):
     elif isinstance(status, str):
         status = [status]
     
-    # STUB: Query to get orders
-    # In actual implementation, this would be a proper query to POS Order
-    orders = []
-    
-    # Mock data for now
-    orders.append({
-        "name": f"POS-ORD-SAMPLE-{frappe.utils.now_datetime().strftime('%Y%m%d%H%M')}",
-        "customer": "Walk-in Customer",
-        "order_type": "Dine-in",
-        "table": "Table 1" if floor else None,
-        "floor": floor,
-        "status": "Ready",
-        "total_items": 3,
-        "total_amount": 150.0,
-        "creation": frappe.utils.add_to_date(now_datetime(), minutes=-30),
-        "has_notes": True,
-        "branch": branch,
-        "unpaid": True
-    })
-    
+    # Build filters
+    filters = {"branch": branch, "status": ["in", status]}
+    if floor:
+        filters["floor"] = floor
+
+    # Query POS Orders
+    orders = frappe.get_all(
+        "POS Order",
+        filters=filters,
+        fields=[
+            "name",
+            "customer",
+            "order_type",
+            "table",
+            "status",
+            "grand_total",
+        ],
+        order_by="creation desc",
+    )
+
+    # Fetch items for each order
+    for order in orders:
+        order["items"] = frappe.get_all(
+            "POS Order Item",
+            filters={"parent": order["name"]},
+            fields=["item_code", "item_name", "qty", "rate", "amount"],
+            order_by="idx",
+        )
+
     return orders
 
 @frappe.whitelist()
