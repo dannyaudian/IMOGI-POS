@@ -240,7 +240,7 @@ def get_pos_order(order_name):
             "name": order.name,
             "table": order.table,
             "customer": order.customer_name or order.customer,
-            "total": order.grand_total,
+            "total": order.totals,
             "status": order.workflow_state,
             "items": []
         }

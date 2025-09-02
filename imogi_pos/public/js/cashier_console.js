@@ -612,7 +612,7 @@ imogi_pos.cashier_console = {
                         <div class="order-time">Created: ${this.formatTime(order.creation)}</div>
                     </div>
                     <div class="order-total">
-                        <div class="total-amount">${this.formatCurrency(order.grand_total || 0)}</div>
+                        <div class="total-amount">${this.formatCurrency(order.totals || 0)}</div>
                         <div class="items-count">${order.item_count || 0} items</div>
                     </div>
                 </div>
@@ -797,7 +797,7 @@ imogi_pos.cashier_console = {
                 `).join('') : ''}
                 <div class="total-row grand-total">
                     <div class="total-label">Grand Total</div>
-                    <div class="total-value">${this.formatCurrency(order.grand_total || 0)}</div>
+                    <div class="total-value">${this.formatCurrency(order.totals || 0)}</div>
                 </div>
             </div>
             
@@ -1481,7 +1481,7 @@ imogi_pos.cashier_console = {
                 <div class="split-bill-card">
                     <div class="split-bill-header">
                         <h4>Bill ${index + 1}</h4>
-                        <div class="split-bill-total">${this.formatCurrency(bill.grand_total || 0)}</div>
+                        <div class="split-bill-total">${this.formatCurrency(bill.totals || 0)}</div>
                     </div>
                     <div class="split-bill-items">
             `;
@@ -1520,7 +1520,7 @@ imogi_pos.cashier_console = {
                         `).join('') : ''}
                         <div class="total-row grand-total">
                             <div class="total-label">Grand Total</div>
-                            <div class="total-value">${this.formatCurrency(bill.grand_total || 0)}</div>
+                            <div class="total-value">${this.formatCurrency(bill.totals || 0)}</div>
                         </div>
                     </div>
                 </div>
