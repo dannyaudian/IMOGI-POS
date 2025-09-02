@@ -41,8 +41,8 @@ frappe.ready(function() {
           // Show message from server if any
           showError(response.message.message);
           setFormDisabled(false);
-        } else {
-          // Login successful, store session id and redirect
+        } else if (response.message === 'Logged In') {
+          // Login successful, redirect
           try {
             let sid = (frappe.session && frappe.session.sid);
             if (!sid) {
@@ -54,11 +54,17 @@ frappe.ready(function() {
               localStorage.setItem('imogi_sid', sid);
             }
             const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
-            window.location.href = redirectTo;
+            window.location.replace(redirectTo);
+            localStorage.removeItem('login_redirect');
           } catch (e) {
             console.error("Redirect error:", e);
-            window.location.href = '/cashier-console';
+            window.location.replace('/cashier-console');
+            localStorage.removeItem('login_redirect');
           }
+        } else {
+          // Show error message if login did not succeed
+          showError('Login failed. Please check your credentials.');
+          setFormDisabled(false);
         }
       },
       error: function(xhr, textStatus) {
