@@ -19,7 +19,13 @@
           "label": "POS Orders (To Bill)",
           "description": "View orders ready for billing",
           "filters": {
-            "status": ["in", ["Ready", "Served"]]
+            "status": [
+              "in",
+              [
+                "Ready",
+                "Served"
+              ]
+            ]
           }
         },
         {
@@ -28,7 +34,10 @@
           "label": "Sales Invoices (Today)",
           "description": "View today's invoices",
           "filters": {
-            "creation": [">=", "today"],
+            "creation": [
+              ">=",
+              "today"
+            ],
             "is_pos": 1
           }
         }
@@ -70,7 +79,13 @@
       "icon": "list",
       "color": "blue",
       "filters": {
-        "status": ["in", ["Ready", "Served"]]
+        "status": [
+          "in",
+          [
+            "Ready",
+            "Served"
+          ]
+        ]
       }
     },
     {
@@ -81,42 +96,16 @@
       "icon": "invoice",
       "color": "orange",
       "filters": {
-        "creation": [">=", "today"],
+        "creation": [
+          ">=",
+          "today"
+        ],
         "is_pos": 1
       }
     }
   ],
   "charts": [],
-  "content": [
-    {
-      "type": "header",
-      "data": {
-        "text": "Sales Reports",
-        "level": 4,
-        "description": "Sales and payment reports"
-      }
-    },
-    {
-      "type": "card",
-      "data": {
-        "label": "Daily Reports",
-        "items": [
-          {
-            "label": "POS Sales",
-            "url": "/app/query-report/POS Sales"
-          },
-          {
-            "label": "Payments",
-            "url": "/app/query-report/Payments"
-          },
-          {
-            "label": "Refunds",
-            "url": "/app/query-report/Refunds"
-          }
-        ]
-      }
-    }
-  ],
+  "content": "[{\"type\": \"header\", \"data\": {\"text\": \"Sales Reports\", \"level\": 4, \"description\": \"Sales and payment reports\"}}, {\"type\": \"card\", \"data\": {\"label\": \"Daily Reports\", \"items\": [{\"label\": \"POS Sales\", \"url\": \"/app/query-report/POS Sales\"}, {\"label\": \"Payments\", \"url\": \"/app/query-report/Payments\"}, {\"label\": \"Refunds\", \"url\": \"/app/query-report/Refunds\"}]}}]",
   "roles": [
     {
       "role": "Cashier"
