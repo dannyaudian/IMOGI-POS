@@ -1,110 +1,116 @@
 [
-    {
-      "doctype": "Page",
-      "name": "table-display",
-      "module": "IMOGI POS",
-      "title": "Table Display",
-      "description": "Restaurant floor plan with table status and order management",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        },
-        {
-          "role": "Waiter"
-        }
-      ],
-      "icon": "table",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.table_display",
-      "content": "<div class=\"table-display-container\">\n  <div class=\"floor-selector-bar\">\n    <select class=\"floor-selector\"></select>\n    <div class=\"layout-controls\">\n      <button class=\"btn btn-sm btn-default layout-btn\">Switch Layout</button>\n    </div>\n  </div>\n  \n  <div class=\"table-display-main\">\n    <div class=\"floor-layout-container\"></div>\n    \n    <div class=\"table-details-panel hidden\">\n      <div class=\"panel-header\">\n        <h3 class=\"table-name\"></h3>\n        <button class=\"btn btn-sm btn-default close-panel-btn\">×</button>\n      </div>\n      \n      <div class=\"table-status\"></div>\n      \n      <div class=\"table-actions\">\n        <button class=\"btn btn-primary open-table-btn\">Take Order</button>\n        <button class=\"btn btn-default print-bill-btn\">Print Bill</button>\n        <button class=\"btn btn-default reprint-kot-btn\">Reprint KOT</button>\n        <button class=\"btn btn-default table-ops-btn\">Table Operations</button>\n      </div>\n      \n      <div class=\"order-summary\"></div>\n    </div>\n  </div>\n</div>"
-    },
-    {
-      "doctype": "Page",
-      "name": "kitchen-display",
-      "module": "IMOGI POS",
-      "title": "Kitchen Display",
-      "description": "Kitchen display for managing orders and KOT status",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        },
-        {
-          "role": "Kitchen Staff"
-        }
-      ],
-      "icon": "cooking",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.kitchen_display",
-      "content": "<div class=\"kitchen-display-container\">\n  <div class=\"kitchen-controls\">\n    <div class=\"station-selector\">\n      <label>Station:</label>\n      <select class=\"station-select\"></select>\n    </div>\n    \n    <div class=\"view-controls\">\n      <button class=\"btn btn-sm btn-default refresh-btn\">Refresh</button>\n      <button class=\"btn btn-sm btn-default toggle-view-btn\">Toggle View</button>\n    </div>\n  </div>\n  \n  <div class=\"orders-container\">\n    <div class=\"column queued-column\">\n      <h3>Queued</h3>\n      <div class=\"order-cards queued-orders\"></div>\n    </div>\n    \n    <div class=\"column preparing-column\">\n      <h3>Preparing</h3>\n      <div class=\"order-cards preparing-orders\"></div>\n    </div>\n    \n    <div class=\"column ready-column\">\n      <h3>Ready</h3>\n      <div class=\"order-cards ready-orders\"></div>\n    </div>\n  </div>\n</div>"
-    },
-    {
-      "doctype": "Page",
-      "name": "waiter-order",
-      "module": "IMOGI POS",
-      "title": "Waiter Order",
-      "description": "Order entry for waiters with template-first catalog",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        },
-        {
-          "role": "Waiter"
-        }
-      ],
-      "icon": "edit",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.waiter_order",
-      "content": "<div class=\"waiter-order-container\">\n  <div class=\"order-header\">\n    <div class=\"back-button\">\n      <button class=\"btn btn-sm btn-default\">Back</button>\n    </div>\n    \n    <div class=\"table-info\">\n      <h3 class=\"table-name\"></h3>\n      <div class=\"order-meta\">\n        <span class=\"order-id\"></span>\n        <span class=\"seated-time\"></span>\n      </div>\n    </div>\n    \n    <div class=\"customer-selector\">\n      <div class=\"input-group\">\n        <input type=\"text\" class=\"form-control customer-search\" placeholder=\"Search customer by phone...\">\n        <div class=\"input-group-append\">\n          <button class=\"btn btn-default new-customer-btn\">New</button>\n        </div>\n      </div>\n    </div>\n  </div>\n  \n  <div class=\"order-main\">\n    <div class=\"catalog-container\">\n      <div class=\"category-filters\"></div>\n      <div class=\"search-bar\">\n        <input type=\"text\" class=\"form-control item-search\" placeholder=\"Search items...\">\n      </div>\n      <div class=\"item-grid\"></div>\n    </div>\n    \n    <div class=\"order-panel\">\n      <div class=\"order-items\">\n        <div class=\"order-items-list\"></div>\n      </div>\n      \n      <div class=\"order-actions\">\n        <button class=\"btn btn-lg btn-primary send-kot-btn\">Send to Kitchen</button>\n        <button class=\"btn btn-default hold-btn\">Hold</button>\n        <button class=\"btn btn-default serve-btn\">Mark Served</button>\n        <button class=\"btn btn-default switch-table-btn\">Switch Table</button>\n      </div>\n    </div>\n  </div>\n</div>"
-    },
-    {
-      "doctype": "Page",
-      "name": "table-layout-editor",
-      "module": "IMOGI POS",
-      "title": "Table Layout Editor",
-      "description": "Drag and drop editor for restaurant floor layouts",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        }
-      ],
-      "icon": "edit",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.table_layout_editor",
-      "content": "<div class=\"layout-editor-container\">\n  <div class=\"editor-controls\">\n    <div class=\"profile-selector\">\n      <select class=\"layout-profile-select\"></select>\n      <button class=\"btn btn-sm btn-default new-profile-btn\">New</button>\n    </div>\n    \n    <div class=\"floor-selector\">\n      <select class=\"floor-select\"></select>\n    </div>\n    \n    <div class=\"action-buttons\">\n      <button class=\"btn btn-sm btn-primary save-layout-btn\">Save Layout</button>\n      <button class=\"btn btn-sm btn-default reset-layout-btn\">Reset</button>\n    </div>\n  </div>\n  \n  <div class=\"editor-main\">\n    <div class=\"toolbox\">\n      <div class=\"table-shapes\">\n        <h4>Add Tables</h4>\n        <div class=\"shape shape-rect\" data-shape=\"rect\">Rectangle</div>\n        <div class=\"shape shape-circle\" data-shape=\"circle\">Circle</div>\n        <div class=\"shape shape-custom\" data-shape=\"custom\">Custom</div>\n      </div>\n      \n      <div class=\"object-properties\">\n        <h4>Properties</h4>\n        <div class=\"property-form\"></div>\n      </div>\n    </div>\n    \n    <div class=\"canvas-container\">\n      <div class=\"layout-canvas\"></div>\n    </div>\n  </div>\n</div>"
-    },
-    {
-      "doctype": "Page",
-      "name": "customer-display",
-      "module": "IMOGI POS",
-      "title": "Customer Display",
-      "description": "Customer-facing display management",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        },
-        {
-          "role": "Cashier"
-        }
-      ],
-      "icon": "monitor",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.customer_display",
-      "content": "<div class=\"customer-display-container\">\n  <div class=\"display-controls\">\n    <div class=\"device-selector\">\n      <select class=\"device-select\"></select>\n      <button class=\"btn btn-sm btn-default register-device-btn\">Register New</button>\n    </div>\n    \n    <div class=\"display-actions\">\n      <button class=\"btn btn-sm btn-primary link-to-order-btn\">Link to Order</button>\n      <button class=\"btn btn-sm btn-default test-display-btn\">Test Display</button>\n      <button class=\"btn btn-sm btn-default edit-layout-btn\">Edit Layout</button>\n    </div>\n  </div>\n  \n  <div class=\"display-main\">\n    <div class=\"preview-container\">\n      <h4>Preview</h4>\n      <div class=\"display-preview\"></div>\n    </div>\n    \n    <div class=\"linked-content\">\n      <h4>Linked Content</h4>\n      <div class=\"linked-orders\"></div>\n      <div class=\"linked-payment\"></div>\n    </div>\n  </div>\n</div>"
-    },
-    {
-      "doctype": "Page",
-      "name": "customer-display-editor",
-      "module": "IMOGI POS",
-      "title": "Customer Display Editor",
-      "description": "Editor for customer display layouts and blocks",
-      "roles": [
-        {
-          "role": "Restaurant Manager"
-        }
-      ],
-      "icon": "edit",
-      "standard": "Yes",
-      "custom_javascript": "imogi_pos.public.js.customer_display_editor",
-      "content": "<div class=\"display-editor-container\">\n  <div class=\"editor-controls\">\n    <div class=\"profile-selector\">\n      <select class=\"display-profile-select\"></select>\n      <button class=\"btn btn-sm btn-default new-profile-btn\">New</button>\n    </div>\n    \n    <div class=\"action-buttons\">\n      <button class=\"btn btn-sm btn-primary save-layout-btn\">Save Layout</button>\n      <button class=\"btn btn-sm btn-default preview-btn\">Preview</button>\n      <button class=\"btn btn-sm btn-default reset-btn\">Reset</button>\n    </div>\n  </div>\n  \n  <div class=\"editor-main\">\n    <div class=\"blocks-toolbox\">\n      <h4>Blocks</h4>\n      <div class=\"block block-branding\" data-block=\"branding\">Branding</div>\n      <div class=\"block block-order-summary\" data-block=\"order-summary\">Order Summary</div>\n      <div class=\"block block-payment\" data-block=\"payment\">Payment</div>\n      <div class=\"block block-ticker\" data-block=\"ticker\">Ticker</div>\n      <div class=\"block block-promo\" data-block=\"promo\">Promotion</div>\n    </div>\n    \n    <div class=\"canvas-container\">\n      <div class=\"display-canvas\"></div>\n    </div>\n    \n    <div class=\"block-properties\">\n      <h4>Properties</h4>\n      <div class=\"property-form\"></div>\n    </div>\n  </div>\n</div>"
-    }
+  {
+    "doctype": "Page",
+    "name": "table-display",
+    "module": "IMOGI POS",
+    "title": "Table Display",
+    "description": "Restaurant floor plan with table status and order management",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      },
+      {
+        "role": "Waiter"
+      }
+    ],
+    "icon": "table",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.table_display",
+    "content": "<div class=\"table-display-container\">\n  <div class=\"floor-selector-bar\">\n    <select class=\"floor-selector\"></select>\n    <div class=\"layout-controls\">\n      <button class=\"btn btn-sm btn-default layout-btn\">Switch Layout</button>\n    </div>\n  </div>\n  \n  <div class=\"table-display-main\">\n    <div class=\"floor-layout-container\"></div>\n    \n    <div class=\"table-details-panel hidden\">\n      <div class=\"panel-header\">\n        <h3 class=\"table-name\"></h3>\n        <button class=\"btn btn-sm btn-default close-panel-btn\">×</button>\n      </div>\n      \n      <div class=\"table-status\"></div>\n      \n      <div class=\"table-actions\">\n        <button class=\"btn btn-primary open-table-btn\">Take Order</button>\n        <button class=\"btn btn-default print-bill-btn\">Print Bill</button>\n        <button class=\"btn btn-default reprint-kot-btn\">Reprint KOT</button>\n        <button class=\"btn btn-default table-ops-btn\">Table Operations</button>\n      </div>\n      \n      <div class=\"order-summary\"></div>\n    </div>\n  </div>\n</div>",
+    "page_name": "table-display"
+  },
+  {
+    "doctype": "Page",
+    "name": "kitchen-display",
+    "module": "IMOGI POS",
+    "title": "Kitchen Display",
+    "description": "Kitchen display for managing orders and KOT status",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      },
+      {
+        "role": "Kitchen Staff"
+      }
+    ],
+    "icon": "cooking",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.kitchen_display",
+    "content": "<div class=\"kitchen-display-container\">\n  <div class=\"kitchen-controls\">\n    <div class=\"station-selector\">\n      <label>Station:</label>\n      <select class=\"station-select\"></select>\n    </div>\n    \n    <div class=\"view-controls\">\n      <button class=\"btn btn-sm btn-default refresh-btn\">Refresh</button>\n      <button class=\"btn btn-sm btn-default toggle-view-btn\">Toggle View</button>\n    </div>\n  </div>\n  \n  <div class=\"orders-container\">\n    <div class=\"column queued-column\">\n      <h3>Queued</h3>\n      <div class=\"order-cards queued-orders\"></div>\n    </div>\n    \n    <div class=\"column preparing-column\">\n      <h3>Preparing</h3>\n      <div class=\"order-cards preparing-orders\"></div>\n    </div>\n    \n    <div class=\"column ready-column\">\n      <h3>Ready</h3>\n      <div class=\"order-cards ready-orders\"></div>\n    </div>\n  </div>\n</div>",
+    "page_name": "kitchen-display"
+  },
+  {
+    "doctype": "Page",
+    "name": "waiter-order",
+    "module": "IMOGI POS",
+    "title": "Waiter Order",
+    "description": "Order entry for waiters with template-first catalog",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      },
+      {
+        "role": "Waiter"
+      }
+    ],
+    "icon": "edit",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.waiter_order",
+    "content": "<div class=\"waiter-order-container\">\n  <div class=\"order-header\">\n    <div class=\"back-button\">\n      <button class=\"btn btn-sm btn-default\">Back</button>\n    </div>\n    \n    <div class=\"table-info\">\n      <h3 class=\"table-name\"></h3>\n      <div class=\"order-meta\">\n        <span class=\"order-id\"></span>\n        <span class=\"seated-time\"></span>\n      </div>\n    </div>\n    \n    <div class=\"customer-selector\">\n      <div class=\"input-group\">\n        <input type=\"text\" class=\"form-control customer-search\" placeholder=\"Search customer by phone...\">\n        <div class=\"input-group-append\">\n          <button class=\"btn btn-default new-customer-btn\">New</button>\n        </div>\n      </div>\n    </div>\n  </div>\n  \n  <div class=\"order-main\">\n    <div class=\"catalog-container\">\n      <div class=\"category-filters\"></div>\n      <div class=\"search-bar\">\n        <input type=\"text\" class=\"form-control item-search\" placeholder=\"Search items...\">\n      </div>\n      <div class=\"item-grid\"></div>\n    </div>\n    \n    <div class=\"order-panel\">\n      <div class=\"order-items\">\n        <div class=\"order-items-list\"></div>\n      </div>\n      \n      <div class=\"order-actions\">\n        <button class=\"btn btn-lg btn-primary send-kot-btn\">Send to Kitchen</button>\n        <button class=\"btn btn-default hold-btn\">Hold</button>\n        <button class=\"btn btn-default serve-btn\">Mark Served</button>\n        <button class=\"btn btn-default switch-table-btn\">Switch Table</button>\n      </div>\n    </div>\n  </div>\n</div>",
+    "page_name": "waiter-order"
+  },
+  {
+    "doctype": "Page",
+    "name": "table-layout-editor",
+    "module": "IMOGI POS",
+    "title": "Table Layout Editor",
+    "description": "Drag and drop editor for restaurant floor layouts",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      }
+    ],
+    "icon": "edit",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.table_layout_editor",
+    "content": "<div class=\"layout-editor-container\">\n  <div class=\"editor-controls\">\n    <div class=\"profile-selector\">\n      <select class=\"layout-profile-select\"></select>\n      <button class=\"btn btn-sm btn-default new-profile-btn\">New</button>\n    </div>\n    \n    <div class=\"floor-selector\">\n      <select class=\"floor-select\"></select>\n    </div>\n    \n    <div class=\"action-buttons\">\n      <button class=\"btn btn-sm btn-primary save-layout-btn\">Save Layout</button>\n      <button class=\"btn btn-sm btn-default reset-layout-btn\">Reset</button>\n    </div>\n  </div>\n  \n  <div class=\"editor-main\">\n    <div class=\"toolbox\">\n      <div class=\"table-shapes\">\n        <h4>Add Tables</h4>\n        <div class=\"shape shape-rect\" data-shape=\"rect\">Rectangle</div>\n        <div class=\"shape shape-circle\" data-shape=\"circle\">Circle</div>\n        <div class=\"shape shape-custom\" data-shape=\"custom\">Custom</div>\n      </div>\n      \n      <div class=\"object-properties\">\n        <h4>Properties</h4>\n        <div class=\"property-form\"></div>\n      </div>\n    </div>\n    \n    <div class=\"canvas-container\">\n      <div class=\"layout-canvas\"></div>\n    </div>\n  </div>\n</div>",
+    "page_name": "table-layout-editor"
+  },
+  {
+    "doctype": "Page",
+    "name": "customer-display",
+    "module": "IMOGI POS",
+    "title": "Customer Display",
+    "description": "Customer-facing display management",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      },
+      {
+        "role": "Cashier"
+      }
+    ],
+    "icon": "monitor",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.customer_display",
+    "content": "<div class=\"customer-display-container\">\n  <div class=\"display-controls\">\n    <div class=\"device-selector\">\n      <select class=\"device-select\"></select>\n      <button class=\"btn btn-sm btn-default register-device-btn\">Register New</button>\n    </div>\n    \n    <div class=\"display-actions\">\n      <button class=\"btn btn-sm btn-primary link-to-order-btn\">Link to Order</button>\n      <button class=\"btn btn-sm btn-default test-display-btn\">Test Display</button>\n      <button class=\"btn btn-sm btn-default edit-layout-btn\">Edit Layout</button>\n    </div>\n  </div>\n  \n  <div class=\"display-main\">\n    <div class=\"preview-container\">\n      <h4>Preview</h4>\n      <div class=\"display-preview\"></div>\n    </div>\n    \n    <div class=\"linked-content\">\n      <h4>Linked Content</h4>\n      <div class=\"linked-orders\"></div>\n      <div class=\"linked-payment\"></div>\n    </div>\n  </div>\n</div>",
+    "page_name": "customer-display"
+  },
+  {
+    "doctype": "Page",
+    "name": "customer-display-editor",
+    "module": "IMOGI POS",
+    "title": "Customer Display Editor",
+    "description": "Editor for customer display layouts and blocks",
+    "roles": [
+      {
+        "role": "Restaurant Manager"
+      }
+    ],
+    "icon": "edit",
+    "standard": "Yes",
+    "custom_javascript": "imogi_pos.public.js.customer_display_editor",
+    "content": "<div class=\"display-editor-container\">\n  <div class=\"editor-controls\">\n    <div class=\"profile-selector\">\n      <select class=\"display-profile-select\"></select>\n      <button class=\"btn btn-sm btn-default new-profile-btn\">New</button>\n    </div>\n    \n    <div class=\"action-buttons\">\n      <button class=\"btn btn-sm btn-primary save-layout-btn\">Save Layout</button>\n      <button class=\"btn btn-sm btn-default preview-btn\">Preview</button>\n      <button class=\"btn btn-sm btn-default reset-btn\">Reset</button>\n    </div>\n  </div>\n  \n  <div class=\"editor-main\">\n    <div class=\"blocks-toolbox\">\n      <h4>Blocks</h4>\n      <div class=\"block block-branding\" data-block=\"branding\">Branding</div>\n      <div class=\"block block-order-summary\" data-block=\"order-summary\">Order Summary</div>\n      <div class=\"block block-payment\" data-block=\"payment\">Payment</div>\n      <div class=\"block block-ticker\" data-block=\"ticker\">Ticker</div>\n      <div class=\"block block-promo\" data-block=\"promo\">Promotion</div>\n    </div>\n    \n    <div class=\"canvas-container\">\n      <div class=\"display-canvas\"></div>\n    </div>\n    \n    <div class=\"block-properties\">\n      <h4>Properties</h4>\n      <div class=\"property-form\"></div>\n    </div>\n  </div>\n</div>",
+    "page_name": "customer-display-editor"
+  }
 ]
