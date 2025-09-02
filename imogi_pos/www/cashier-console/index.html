@@ -9,97 +9,174 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/cashier_console.css">
 
 <style>
+  /* ===== Monochrome, Light-Only ===== */
   :root{
-    --primary: #000;     /* hitam */
-    --accent:  #333;     /* abu gelap */
-    --surface: #fff;     /* putih */
-    --surface-2: #f7f7f7;
-    --border:  #ddd;
-    --text:    #111;
-    --muted:   #666;
+    color-scheme: light;            /* paksa light theme */
+    --ink: #111;                    /* teks utama (hitam) */
+    --ink-2: #3f3f46;               /* teks sekunder (abu tua) */
+    --muted: #6b7280;               /* placeholder/label */
+    --bg: #f5f6f7;                  /* latar halaman */
+    --surface: #fff;                /* kartu/panel */
+    --line: #e6e7eb;                /* garis/border */
+    --line-soft: #ededf0;
 
     --radius: 12px;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
-    --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+    --shadow-md: 0 6px 18px rgba(0,0,0,.08);
+
+    --gap: 18px;
+    --sidebar-w: min(420px, 32vw);
   }
 
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  html{font-size: clamp(14px, 0.35vw + 12px, 16px)}
   body{
-    font-family: "Ubuntu", "Poppins", sans-serif;
-    background: var(--surface-2);
-    color: var(--text);
+    font-family: "Ubuntu", "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Header */
+  /* ===== Header (bersih, tipis) ===== */
   .app-header{
+    display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+    gap: 16px; padding: 14px 20px;
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 20px;
-    display:grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items:center;
+    border-bottom: 1px solid var(--line);
     box-shadow: var(--shadow-sm);
+    position: sticky; top:0; z-index:10;
   }
-  .page-title{font-weight:700;font-size:18px;margin:0;}
+  .page-title{margin:0;font-weight:700;font-size:18px}
+  .header-left, .header-right{display:flex;align-items:center;gap:10px}
+  .home-link{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
+  .brand-logo{height:26px}
 
-  /* Card */
+  /* ===== Layout ===== */
+  .cashier-console{
+    display:grid; gap: 22px;
+    grid-template-columns: minmax(0,1fr) var(--sidebar-w);
+    padding: 20px; max-width: 1360px; margin-inline:auto;
+  }
+  @media (max-width: 1100px){ .cashier-console{ grid-template-columns: 1fr } }
+  .cashier-console.disabled{ filter:saturate(.75); pointer-events:none; user-select:none }
+
+  /* ===== Card ===== */
   .card{
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
   }
-  .card-body{padding:16px;}
+  .card-body{padding:16px}
+  .section-title{margin:0 0 10px 0;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);font-weight:700}
 
-  /* Input */
-  input, .search-input{
-    width:100%;
-    padding:10px 12px;
-    border:1px solid var(--border);
-    border-radius:10px;
-    background: var(--surface);
-    color: var(--text);         /* isi teks hitam */
+  /* ===== Order List ===== */
+  .order-header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding: 16px 18px; border-bottom:1px solid var(--line);
   }
-  input::placeholder{color: var(--muted);} /* placeholder abu */
 
-  /* Button */
-  .btn{
-    border:1px solid var(--border);
-    border-radius:10px;
-    padding:10px 14px;
-    cursor:pointer;
-    background: var(--surface-2);
-    color: var(--text);
-    font-weight:600;
-    transition:.2s;
-  }
-  .btn:hover{background:#eaeaea;}
-  .btn-primary{background:var(--text);color:#fff;}
-  .btn-primary:hover{background:#000;}
-
-  /* Tab */
+  .order-tabs{display:flex;gap:8px; padding:10px 18px 0; flex-wrap:wrap}
   .order-tab{
-    border:1px solid var(--border);
-    border-radius:999px;
-    padding:6px 12px;
-    font-size:13px;
-    color: var(--muted);
-    background: var(--surface);
-    cursor:pointer;
+    padding:8px 12px;
+    border:1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink-2);
+    font-weight:600; font-size:13px; cursor:pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
   }
-  .order-tab.active{background:#000;color:#fff;border-color:#000;}
+  .order-tab:hover{ background:#f2f3f5; border-color:#dcdfe4; color:var(--ink) }
+  .order-tab.active{
+    background:#1f1f1f; color:#fff; border-color:#1f1f1f;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04);
+  }
 
-  /* Total section */
-  .grand-total{font-size:18px;font-weight:700;}
+  .search-container{ padding: 12px 18px 8px }
+  .search-input{
+    width:100%; padding:11px 12px;
+    border:1px solid var(--line); border-radius: 10px;
+    background: #fff;
+    color: var(--ink);                /* teks input hitam */
+    outline: none;
+  }
+  .search-input::placeholder{ color: var(--muted) }
+  .search-input:focus{ border-color:#cfd3d9; box-shadow: 0 0 0 3px rgba(0,0,0,.06) }
 
-  /* Empty state */
+  .order-list{ padding: 8px 18px 18px; min-height:420px; overflow:auto }
+  .order-card{
+    border:1px solid var(--line); border-radius:12px; background:#fff;
+    padding:12px; margin-top:12px;
+    transition: transform .1s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .order-card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); border-color:#dfe2e6 }
+  .order-card.selected{ background:#fafafa; border-color:#cfd3d9 }
+  .order-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .order-items{font-size:13px;color:var(--ink)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;font-size:12px;
+    background:#fff;border:1px solid var(--line);color:var(--ink-2)
+  }
+
   .empty-state{
-    text-align:center;
-    color:var(--muted);
-    border:1px dashed var(--border);
-    border-radius:12px;
-    padding:20px;
-    background: var(--surface);
+    display:grid;place-items:center;text-align:center;gap:6px;
+    color:var(--muted); padding:22px; border:1px dashed var(--line); border-radius:12px; background:#fff;
   }
+
+  /* ===== Checkout ===== */
+  .checkout-panel{ display:flex; flex-direction:column; min-height:560px }
+  .checkout-panel-header{ padding:16px 18px; border-bottom:1px solid var(--line); font-weight:700 }
+
+  .customer-info{
+    margin:16px 18px 12px; padding:12px;
+    border:1px solid var(--line); border-radius:12px; background:#fff;
+  }
+  .customer-info-header{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px }
+  .customer-search-btn{ color:#111; font-weight:700; border:1px solid var(--line); background:#fff; padding:6px 10px; border-radius:8px; cursor:pointer }
+  .customer-search-btn:hover{ background:#f2f3f5 }
+
+  .checkout-items{ flex:1; margin:0 18px 14px; overflow:auto }
+  .checkout-item{ display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px dashed var(--line); font-size:14px }
+
+  .checkout-totals{ margin:0 18px 16px; padding-top:12px; border-top:1px solid var(--line) }
+  .total-row{ display:flex; justify-content:space-between; margin:6px 0; color:var(--ink) }
+  .grand-total{ font-size:18px; font-weight:800 }
+
+  /* ===== Buttons (monochrome) ===== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-height:40px; padding:10px 14px;
+    border-radius:10px; border:1px solid var(--line);
+    background:#fff; color:var(--ink); font-weight:700; cursor:pointer;
+    transition: background .15s ease, border-color .15s ease, transform .05s ease;
+  }
+  .btn:hover{ background:#f2f3f5; border-color:#dcdfe4 }
+  .btn:active{ transform: translateY(1px) }
+  .btn-primary{ background:#111; color:#fff; border-color:#111 }
+  .btn-primary:hover{ background:#000 }
+
+  .btn-accent{ background:#2b2b2b; color:#fff; border-color:#2b2b2b }
+  .btn-accent:hover{ background:#1f1f1f }
+  .btn-ghost{ background:#f7f7f7; border-color:var(--line); color:#111 }
+
+  .checkout-actions{ display:flex; flex-direction:column; gap:10px; margin:0 18px 18px }
+
+  .session-warning, .error-message{
+    margin:16px auto; max-width:1080px; border-radius:12px; padding:12px 14px; border:1px solid var(--line);
+  }
+  .session-warning{ background:#fffdf5; color:#6b5a00 }
+  .error-message{ background:#fff5f5; color:#8a1b1b }
+
+  /* Scrollbar halus (Chromium) */
+  .order-list::-webkit-scrollbar,
+  .checkout-items::-webkit-scrollbar{ height:10px; width:10px }
+  .order-list::-webkit-scrollbar-thumb,
+  .checkout-items::-webkit-scrollbar-thumb{ background:#d6d7db; border-radius:999px }
 </style>
 {% endblock %}
 
