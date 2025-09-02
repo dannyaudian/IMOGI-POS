@@ -9,6 +9,7 @@
   "module": "IMOGI POS",
   "label": "Table Service",
   "title": "Table Service",
+  "type": "Workspace",
   "links": [
     {
       "label": "Floor Management",
