@@ -12,11 +12,11 @@ app_email = "support@imogi.com"
 app_license = "MIT"
 
 app_include_js = [
-  'imogi_pos/public/js/branch.js',
-  'imogi_pos/public/js/print/service.js',
-  'imogi_pos/public/js/print/adapter_bluetooth.js',
-  'imogi_pos/public/js/print/adapter_bridge.js',
-  'imogi_pos/public/js/print/adapter_spool.js'
+  'js/branch.js',
+  'js/print/service.js',
+  'js/print/adapter_bluetooth.js',
+  'js/print/adapter_bridge.js',
+  'js/print/adapter_spool.js'
 ]
 app_include_css = []
 
