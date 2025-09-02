@@ -151,7 +151,6 @@ def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
         fields=[
             "name",
             "customer",
-            "customer_name",
             "order_type",
             "table",
             "workflow_state",
@@ -161,8 +160,13 @@ def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
         order_by="creation desc",
     )
 
-    # Fetch items for each order
+    # Fetch customer names and items for each order
     for order in orders:
+        order["customer_name"] = (
+            frappe.db.get_value("Customer", order["customer"], "customer_name")
+            if order.get("customer")
+            else "Walk-in Customer"
+        )
         order["items"] = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
