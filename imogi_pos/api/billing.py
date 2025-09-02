@@ -109,13 +109,13 @@ def generate_invoice(pos_order):
     return invoice
 
 @frappe.whitelist()
-def list_orders_for_cashier(branch=None, status=None, floor=None):
+def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
     """
     Lists POS Orders that are ready for billing in the cashier console.
     
     Args:
         branch (str, optional): Branch filter
-        status (str, optional): Status filter (Ready/Served)
+        workflow_state (str, optional): Workflow state filter (Ready/Served)
         floor (str, optional): Floor filter
     
     Returns:
@@ -129,18 +129,18 @@ def list_orders_for_cashier(branch=None, status=None, floor=None):
     if branch:
         validate_branch_access(branch)
 
-    # Treat explicit 'All' status as no filter
-    if status == "All":
-        status = None
+    # Treat explicit 'All' workflow_state as no filter
+    if workflow_state == "All":
+        workflow_state = None
 
     # Default filter for cashier (typically want Ready or Served orders)
-    if not status:
-        status = ["Ready", "Served"]
-    elif isinstance(status, str):
-        status = [status]
-    
+    if not workflow_state:
+        workflow_state = ["Ready", "Served"]
+    elif isinstance(workflow_state, str):
+        workflow_state = [workflow_state]
+
     # Build filters
-    filters = {"branch": branch, "status": ["in", status]}
+    filters = {"branch": branch, "workflow_state": ["in", workflow_state]}
     if floor:
         filters["floor"] = floor
 
@@ -151,10 +151,12 @@ def list_orders_for_cashier(branch=None, status=None, floor=None):
         fields=[
             "name",
             "customer",
+            "customer_name",
             "order_type",
             "table",
-            "status",
+            "workflow_state",
             "grand_total",
+            "creation",
         ],
         order_by="creation desc",
     )
