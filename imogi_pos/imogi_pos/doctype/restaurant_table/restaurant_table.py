@@ -63,8 +63,8 @@ class RestaurantTable(Document):
             floor.update_tables_list()
         except Exception as e:
             frappe.log_error(
-                f"Error updating floor tables: {str(e)}",
-                "Restaurant Table Update Error"
+                title="Restaurant Table Update Error",
+                message=f"Error updating floor tables: {e}"
             )
     
     def set_status(self, status, pos_order=None):
