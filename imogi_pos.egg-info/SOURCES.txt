@@ -5,12 +5,14 @@ LICENSE
 MANIFEST.in
 README.md
 app.json
+build.json
 canvas.md
 requirements.txt
 setup.cfg
 setup.py
 imogi_pos/__init__.py
 imogi_pos/hooks.py
+imogi_pos/modules.txt
 imogi_pos/patches.txt
 imogi_pos.egg-info/PKG-INFO
 imogi_pos.egg-info/SOURCES.txt
