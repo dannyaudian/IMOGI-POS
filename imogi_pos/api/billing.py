@@ -85,28 +85,60 @@ def generate_invoice(pos_order):
         is_template = frappe.db.get_value("Item", item.item_code, "has_variants")
         if is_template:
             frappe.throw(_("Cannot create invoice with template item. Please select a variant for: {0}").format(item.item_code))
-    
-    # STUB: Create Sales Invoice logic will go here
-    # For now, create a minimal response
-    invoice = {
-        "name": f"SINV-{frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}",
-        "pos_order": pos_order,
-        "is_pos": 1,
-        "customer": order_doc.customer,
-        "branch": order_doc.branch,
-        "pos_profile": order_doc.pos_profile,
-        "pos_session": pos_session,
-        "total": 0.0,  # Will be calculated from items
-        "order_type": order_doc.order_type,
-        "creation": now_datetime()
-    }
-    
-    # STUB: Copy Line Notes to SI Item Description for Counter/Kiosk
-    # This will be done in prepare_invoice_draft()
-    
-    # STUB: Update POS Order with invoice link
-    
-    return invoice
+    try:
+        # Determine POS mode for handling item notes
+        profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
+        mode = profile_doc.get("imogi_mode", "Counter")
+
+        # Build invoice items and copy notes where applicable
+        invoice_items = []
+        for item in order_doc.items:
+            description = item.item_name
+            if mode in ["Counter", "Kiosk", "Self-Order"] and getattr(item, "notes", None):
+                description = f"{item.item_name}\n{item.notes}"
+
+            invoice_items.append({
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "qty": item.qty,
+                "rate": item.rate,
+                "amount": item.amount,
+                "description": description,
+            })
+
+        # Create Sales Invoice document
+        invoice_doc = frappe.get_doc({
+            "doctype": "Sales Invoice",
+            "is_pos": 1,
+            "pos_profile": order_doc.pos_profile,
+            "customer": order_doc.customer,
+            "branch": order_doc.branch,
+            "items": invoice_items,
+            "imogi_pos_order": pos_order,
+            "order_type": order_doc.order_type,
+            "pos_session": pos_session,
+        })
+
+        # Include table info if present
+        if getattr(order_doc, "table", None):
+            invoice_doc.table = order_doc.table
+            invoice_doc.floor = frappe.db.get_value(
+                "Restaurant Table", order_doc.table, "floor"
+            )
+
+        invoice_doc.insert(ignore_permissions=True)
+        invoice_doc.submit()
+
+        # Link invoice back to POS Order
+        frappe.db.set_value("POS Order", pos_order, "sales_invoice", invoice_doc.name)
+
+        return invoice_doc.as_dict()
+
+    except Exception as e:
+        frappe.log_error(
+            f"Invoice generation failed for POS Order {pos_order}: {str(e)}"
+        )
+        frappe.throw(_("Failed to generate invoice: {0}").format(str(e)))
 
 @frappe.whitelist()
 def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
