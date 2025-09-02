@@ -18,22 +18,52 @@
 // Import adapters conditionally to avoid errors in unsupported environments
 let BluetoothAdapter, BridgeAdapter, SpoolerAdapter, LANAdapter;
 
-// We'll dynamically import these based on browser support
-try {
-    if (typeof require !== 'undefined') {
-        BluetoothAdapter = require('./adapter_bluetooth');
-        BridgeAdapter = require('./adapter_bridge');
-        SpoolerAdapter = require('./adapter_spool');
-        LANAdapter = require('./adapter_lan');
-    } else {
-        // In browser, we'll assume these are loaded via <script> tags
-        BluetoothAdapter = window.IMOGIPrintBluetoothAdapter;
-        BridgeAdapter = window.IMOGIPrintBridgeAdapter;
-        SpoolerAdapter = window.IMOGIPrintSpoolerAdapter;
-        LANAdapter = window.IMOGIPrintLANAdapter;
+// We'll dynamically import these based on environment support
+if (typeof require !== 'undefined') {
+    try {
+        BluetoothAdapter = require('./adapter_bluetooth.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Bluetooth adapter not loaded', e);
     }
-} catch (e) {
-    console.warn('IMOGI Print Service: Failed to import adapters', e);
+
+    try {
+        BridgeAdapter = require('./adapter_bridge.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Bridge adapter not loaded', e);
+    }
+
+    try {
+        SpoolerAdapter = require('./adapter_spool.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Spooler adapter not loaded', e);
+    }
+
+    try {
+        LANAdapter = require('./adapter_lan.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: LAN adapter not loaded', e);
+    }
+} else {
+    // In browser, we'll assume these are loaded via <script> tags
+    BluetoothAdapter = window.IMOGIPrintBluetoothAdapter;
+    if (!BluetoothAdapter) {
+        console.error('IMOGI Print Service: Bluetooth adapter not detected. Include adapter_bluetooth.js');
+    }
+
+    BridgeAdapter = window.IMOGIPrintBridgeAdapter;
+    if (!BridgeAdapter) {
+        console.error('IMOGI Print Service: Bridge adapter not detected. Include adapter_bridge.js');
+    }
+
+    SpoolerAdapter = window.IMOGIPrintSpoolerAdapter;
+    if (!SpoolerAdapter) {
+        console.error('IMOGI Print Service: Spooler adapter not detected. Include adapter_spool.js');
+    }
+
+    LANAdapter = window.IMOGIPrintLANAdapter;
+    if (!LANAdapter) {
+        console.error('IMOGI Print Service: LAN adapter not detected. Include adapter_lan.js');
+    }
 }
 
 const IMOGIPrintService = {
