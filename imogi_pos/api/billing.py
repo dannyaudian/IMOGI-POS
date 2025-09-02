@@ -128,7 +128,11 @@ def list_orders_for_cashier(branch=None, status=None, floor=None):
     
     if branch:
         validate_branch_access(branch)
-    
+
+    # Treat explicit 'All' status as no filter
+    if status == "All":
+        status = None
+
     # Default filter for cashier (typically want Ready or Served orders)
     if not status:
         status = ["Ready", "Served"]
