@@ -9,7 +9,7 @@
   "module": "IMOGI POS",
   "label": "Cashier Ops",
   "title": "Cashier Ops",
-  "type": "Workspace",
+  "type": "Module",
   "links": [
     {
       "label": "Billing",
