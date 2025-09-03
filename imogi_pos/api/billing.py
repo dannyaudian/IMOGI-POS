@@ -168,11 +168,12 @@ def generate_invoice(pos_order):
         frappe.throw(_("Failed to generate invoice: {0}").format(str(e)))
 
 @frappe.whitelist()
-def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
+def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, floor=None):
     """
     Lists POS Orders that are ready for billing in the cashier console.
     
     Args:
+        pos_profile (str, optional): POS Profile name
         branch (str, optional): Branch filter
         workflow_state (str, optional): Workflow state filter (Ready/Served)
         floor (str, optional): Floor filter
@@ -181,16 +182,19 @@ def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
         list: POS Orders with summarized details
     """
     if not branch:
-        pos_profile = frappe.db.get_value(
-            "POS Profile User", {"user": frappe.session.user}, "parent"
-        )
-        if not pos_profile:
-            frappe.throw(
-                _("No POS Profile found for user: {0}").format(
-                    frappe.session.user
-                )
+        if pos_profile:
+            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+        else:
+            pos_profile = frappe.db.get_value(
+                "POS Profile User", {"user": frappe.session.user}, "parent"
             )
-        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+            if not pos_profile:
+                frappe.throw(
+                    _("No POS Profile found for user: {0}").format(
+                        frappe.session.user
+                    )
+                )
+            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     
     if branch:
         validate_branch_access(branch)
