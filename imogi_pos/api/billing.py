@@ -281,8 +281,28 @@ def prepare_invoice_draft(pos_order):
     if order_doc.table:
         draft_invoice["table"] = order_doc.table
         draft_invoice["floor"] = frappe.db.get_value("Restaurant Table", order_doc.table, "floor")
-    
+
     return draft_invoice
+
+@frappe.whitelist()
+def check_pos_session(pos_profile=None):
+    """Check whether POS Session feature is available and active."""
+
+    exists = bool(frappe.db.exists("DocType", "POS Session"))
+    active_session = None
+
+    if exists:
+        try:
+            active_session = get_active_pos_session()
+        except Exception:
+            active_session = None
+
+    return {
+        "exists": exists,
+        "active": bool(active_session),
+        "pos_session": active_session,
+    }
+
 
 @frappe.whitelist()
 def get_active_pos_session(context_scope=None):

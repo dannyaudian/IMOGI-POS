@@ -237,12 +237,18 @@ imogi_pos.kiosk = {
      */
     checkActivePOSSession: function() {
         frappe.call({
-            method: 'imogi_pos.api.billing.get_active_pos_session',
+            method: 'imogi_pos.api.billing.check_pos_session',
             args: {
                 pos_profile: this.settings.posProfile
             },
             callback: (response) => {
-                if (!response.message || !response.message.pos_session) {
+                const info = response.message || {};
+
+                if (!info.exists) {
+                    // POS Session feature not available
+                    this.hidePOSSessionUI();
+                    this.showError('POS Session feature is unavailable. Continuing without session.');
+                } else if (!info.active) {
                     // No active session
                     this.showError(
                         'No active POS Session found. Please open a POS Session first.',
@@ -253,6 +259,15 @@ imogi_pos.kiosk = {
                     );
                 }
             }
+        });
+    },
+
+    /**
+     * Hide POS-session related UI elements
+     */
+    hidePOSSessionUI: function() {
+        document.querySelectorAll('.pos-session-required').forEach(el => {
+            el.classList.add('hidden');
         });
     },
     
