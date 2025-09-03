@@ -144,14 +144,8 @@ class TableLayoutService:
         if not self.profile or self.profile.name != profile_name:
             self.load_profile(profile_name)
         
-        # Validate domain
-        pos_profile = frappe.db.get_value(
-            "Table Layout Profile", 
-            profile_name, 
-            "default_pos_profile"
-        )
-        if pos_profile:
-            self._validate_restaurant_domain(pos_profile)
+        # Table layout profiles no longer reference a default POS Profile,
+        # so domain validation based on it has been removed.
         
         # Track created/updated nodes
         created = []
