@@ -10,6 +10,8 @@ def billing_module():
     sys.path.insert(0, '.')
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = lambda: datetime.datetime(2023, 1, 1, 0, 0, 0)
+    utils.nowdate = lambda: "2023-01-01"
+    utils.get_datetime = lambda x=None: datetime.datetime(2023, 1, 1, 0, 0, 0)
     utils.cint = int
     utils.add_to_date = lambda dt, **kw: dt
     utils.get_url = lambda path=None: path or ""
@@ -37,10 +39,13 @@ def billing_module():
     class DB:
         def __init__(self):
             self.set_calls = []
+            self.exists_map = {}
         def get_value(self, doctype, name=None, fieldname=None):
             return 0
         def set_value(self, doctype, name, field, value):
             self.set_calls.append((doctype, name, field, value))
+        def exists(self, doctype, name):
+            return self.exists_map.get((doctype, name), True)
     frappe.db = DB()
     frappe.utils = utils
 
@@ -210,3 +215,71 @@ def test_prepare_invoice_draft_includes_notes(billing_module):
 
     assert draft['items'][0]['description'] == 'Item 1\nNo onions'
     assert draft['items'][0]['has_notes'] is True
+
+
+def test_validate_pos_session_skips_if_doctype_missing(billing_module):
+    billing, frappe = billing_module
+    frappe.db.exists_map[("DocType", "POS Session")] = False
+    assert billing.validate_pos_session("P1") is None
+
+
+def test_get_active_pos_session_returns_none_if_doctype_missing(billing_module):
+    billing, frappe = billing_module
+    frappe.db.exists_map[("DocType", "POS Session")] = False
+    assert billing.get_active_pos_session() is None
+
+
+def test_generate_invoice_omits_pos_session_when_none(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item_code = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+    profile = Profile()
+
+    class InvoiceDoc(types.SimpleNamespace):
+        def insert(self, ignore_permissions=True):
+            self.name = 'SINV-1'
+            return self
+        def submit(self):
+            self.submitted = True
+        def as_dict(self):
+            return self.__dict__
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+    frappe.db.get_value = lambda doctype, name=None, fieldname=None: {'Item': 0, 'Restaurant Table': 'F1'}.get(doctype, 0)
+
+    frappe.db.exists_map[("DocType", "POS Session")] = False
+
+    result = billing.generate_invoice('POS-1')
+
+    assert 'pos_session' not in result
