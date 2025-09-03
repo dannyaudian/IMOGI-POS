@@ -15,10 +15,19 @@ def get_context(context):
     """Get context for Self-Order page accessed via token/slug."""
     context.title = _("Self-Order")
     
-    # Get token or slug from URL
+    # Get token or slug from URL or route
     token = frappe.form_dict.get("token") or frappe.form_dict.get("slug")
     if not token:
-        frappe.throw(_("Invalid token or slug"), frappe.AuthenticationError)
+        # Parse from route path when query params are absent
+        path_parts = frappe.request.path.strip("/").split("/")
+        if path_parts and path_parts[0] == "so" and len(path_parts) > 1:
+            # Use the first part after /so/
+            token = path_parts[1]
+
+    if not token:
+        # Redirect to 404 instead of throwing authentication error
+        frappe.local.flags.redirect_location = "/404"
+        raise frappe.Redirect
     
     # Verify token and get session data
     session_data = verify_token(token)
