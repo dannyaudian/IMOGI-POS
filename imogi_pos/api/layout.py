@@ -10,26 +10,35 @@ from imogi_pos.utils.permissions import validate_branch_access
 
 def check_restaurant_domain(pos_profile=None):
     """
-    Validates that the POS Profile has Restaurant domain enabled.
-    If no POS Profile is provided, checks the user's default profile.
-    
+    Validate that the user's POS Profile has the Restaurant domain enabled.
+
+    If ``pos_profile`` is not provided the profile is looked up from
+    ``POS Profile User`` for the current session user.
+
     Args:
-        pos_profile (str, optional): POS Profile name. Defaults to None.
-    
+        pos_profile (str, optional): POS Profile name.
+
     Raises:
-        frappe.ValidationError: If domain is not Restaurant
+        frappe.ValidationError: If no profile is found or the profile is not for the
+            Restaurant domain.
     """
     if not pos_profile:
-        pos_profile = frappe.db.get_value("POS Profile", {"user": frappe.session.user}, "name")
-        
+        pos_profile = frappe.db.get_value(
+            "POS Profile User", {"user": frappe.session.user}, "parent"
+        )
+
     if not pos_profile:
-        frappe.throw(_("No POS Profile found. Please configure a POS Profile for the user."), 
-                    frappe.ValidationError)
-        
+        frappe.throw(
+            _("No POS Profile found. Please configure a POS Profile for the user."),
+            frappe.ValidationError,
+        )
+
     domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain")
     if domain != "Restaurant":
-        frappe.throw(_("Table layout features are only available for Restaurant domain"), 
-                    frappe.ValidationError)
+        frappe.throw(
+            _("Table layout features are only available for Restaurant domain"),
+            frappe.ValidationError,
+        )
 
 
 @frappe.whitelist()
