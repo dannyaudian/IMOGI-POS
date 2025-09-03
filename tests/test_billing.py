@@ -283,3 +283,45 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
     result = billing.generate_invoice('POS-1')
 
     assert 'pos_session' not in result
+
+
+def test_list_orders_for_cashier_resolves_branch(billing_module):
+    billing, frappe = billing_module
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'POS Profile User':
+            return 'P1'
+        if doctype == 'POS Profile' and name == 'P1' and fieldname == 'imogi_branch':
+            return 'BR-1'
+        return None
+
+    frappe.db.get_value = get_value
+
+    called = {}
+
+    def get_all(doctype, filters=None, fields=None, order_by=None):
+        if doctype == 'POS Order':
+            called['branch'] = filters.get('branch')
+            return []
+        return []
+
+    frappe.get_all = get_all
+
+    assert billing.list_orders_for_cashier() == []
+    assert called['branch'] == 'BR-1'
+
+
+def test_list_orders_for_cashier_errors_without_profile(billing_module):
+    billing, frappe = billing_module
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'POS Profile User':
+            return None
+        return None
+
+    frappe.db.get_value = get_value
+
+    with pytest.raises(Exception) as exc:
+        billing.list_orders_for_cashier()
+
+    assert 'No POS Profile found' in str(exc.value)

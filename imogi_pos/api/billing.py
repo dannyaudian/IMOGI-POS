@@ -181,9 +181,16 @@ def list_orders_for_cashier(branch=None, workflow_state=None, floor=None):
         list: POS Orders with summarized details
     """
     if not branch:
-        branch = frappe.db.get_value("POS Profile", 
-                                    {"user": frappe.session.user}, 
-                                    "imogi_branch")
+        pos_profile = frappe.db.get_value(
+            "POS Profile User", {"user": frappe.session.user}, "parent"
+        )
+        if not pos_profile:
+            frappe.throw(
+                _("No POS Profile found for user: {0}").format(
+                    frappe.session.user
+                )
+            )
+        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     
     if branch:
         validate_branch_access(branch)
