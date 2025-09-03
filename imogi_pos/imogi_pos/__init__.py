@@ -6,4 +6,4 @@ multi-mode support (Table/Counter/Kiosk/Self-Order) and plans for retail/service
 variants in future phases.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

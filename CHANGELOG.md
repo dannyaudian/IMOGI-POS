@@ -21,3 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - First release, no fixes to note
+
+## [0.1.1] - 2024-05-20
+
+### Added
+- Declared ERPNext dependency via `app_requires`
+
+### Changed
+- Documented ERPNext installation and migration requirement in README
