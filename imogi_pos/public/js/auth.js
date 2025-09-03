@@ -8,11 +8,10 @@
  * - Token-based access for guest-allowed pages
 */
 
-// Restore session ID from local storage if available
-const _storedSid = localStorage.getItem('imogi_sid');
-if (_storedSid) {
-    frappe.sid = _storedSid;
-}
+// Remove any legacy session ID stored in localStorage.
+// Session IDs are now managed by secure, HTTP-only cookies and kept only in
+// memory via `frappe.sid` to mitigate XSS risks.
+localStorage.removeItem('imogi_sid');
 
 const IMOGIAuth = {
     /**
@@ -224,7 +223,8 @@ const IMOGIAuth = {
                         // Update frappe session user
                         frappe.session.user = username;
 
-                        // Store session id for future requests
+                        // Store session id only in memory; persistence is handled by
+                        // the server via HTTP-only cookies.
                         let sid = (frappe.session && frappe.session.sid);
                         if (!sid) {
                             const match = document.cookie.match(/(^|;)\s*sid=([^;]+)/);
@@ -232,7 +232,6 @@ const IMOGIAuth = {
                         }
                         if (sid) {
                             frappe.sid = sid;
-                            localStorage.setItem('imogi_sid', sid);
                         }
 
                         // Call success callback

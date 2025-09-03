@@ -2,10 +2,14 @@ frappe.ready(function() {
   const loginForm = document.getElementById('login-form');
   const errorMessage = document.getElementById('error-message');
   
+  // Clear legacy session storage. Session persistence now relies on
+  // secure, HTTP-only cookies set by the server.
+  localStorage.removeItem('imogi_sid');
+
   // Get redirect URL from query parameter or set default
   const urlParams = new URLSearchParams(window.location.search);
   const redirect = urlParams.get('redirect') || '/cashier-console';
-  
+
   // Save the redirect URL for after login
   localStorage.setItem('login_redirect', redirect);
   
@@ -53,8 +57,9 @@ frappe.ready(function() {
               sid = match ? decodeURIComponent(match[2]) : null;
             }
             if (sid) {
+              // Store session id only in memory; persistence is handled by
+              // server-managed HTTP-only cookies.
               frappe.sid = sid;
-              localStorage.setItem('imogi_sid', sid);
             }
             const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
             window.location.href = redirectTo;

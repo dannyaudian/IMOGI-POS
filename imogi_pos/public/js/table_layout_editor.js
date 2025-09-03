@@ -1193,7 +1193,9 @@ imogi_pos.table_layout_editor = {
                         body: formData,
                         headers: {
                             'X-Frappe-CSRF-Token': frappe.csrf_token,
-                            'X-Frappe-Sid': localStorage.getItem('imogi_sid') || frappe.sid
+                            // Session ID sourced from in-memory frappe.sid; legacy
+                            // localStorage storage has been removed for security.
+                            'X-Frappe-Sid': frappe.sid
                         }
                     })
                     .then(response => response.json())
