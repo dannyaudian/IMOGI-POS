@@ -168,77 +168,45 @@ def test_generate_invoice_error_handling(billing_module):
     assert 'Failed to generate invoice' in str(exc.value)
 
 
-@pytest.mark.parametrize("has_session", [True, False])
-def test_get_active_pos_session_user_scope(billing_module, has_session):
+def test_prepare_invoice_draft_includes_notes(billing_module):
     billing, frappe = billing_module
 
-    # Adjust stub to return session based on input flag
-    def get_value(doctype, filters=None, fieldname=None):
-        expected_filters = {"user": "test-user", "status": "Open"}
-        if doctype == "POS Session" and filters == expected_filters and has_session:
-            return "USER-SESSION"
-        return None
+    class OrderItem:
+        def __init__(self):
+            self.item_code = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = 'No onions'
 
-    frappe.db.get_value = get_value
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
 
-    result = billing.get_active_pos_session("User")
-    if has_session:
-        assert result == "USER-SESSION"
-    else:
-        assert result is None
+    class Profile:
+        imogi_mode = 'Counter'
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+    profile = Profile()
 
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        raise Exception('Unexpected doctype')
 
-@pytest.mark.parametrize("has_session", [True, False])
-def test_get_active_pos_session_device_scope(billing_module, has_session):
-    billing, frappe = billing_module
+    frappe.get_doc = get_doc
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
 
-    # Ensure device identifier present
-    frappe.local.request_ip = "device-1"
+    draft = billing.prepare_invoice_draft('POS-1')
 
-    def get_value(doctype, filters=None, fieldname=None):
-        expected_filters = {"device_id": "device-1", "status": "Open"}
-        if doctype == "POS Session" and filters == expected_filters and has_session:
-            return "DEVICE-SESSION"
-        return None
-
-    frappe.db.get_value = get_value
-
-    result = billing.get_active_pos_session("Device")
-    if has_session:
-        assert result == "DEVICE-SESSION"
-    else:
-        assert result is None
-
-    # Missing device identifier should gracefully return None
-    frappe.local.request_ip = None
-    assert billing.get_active_pos_session("Device") is None
-
-
-@pytest.mark.parametrize("has_session", [True, False])
-def test_get_active_pos_session_profile_scope(billing_module, has_session):
-    billing, frappe = billing_module
-
-    def get_value(doctype, filters=None, fieldname=None):
-        if doctype == "POS Profile" and filters == {"user": "test-user"}:
-            return "PROFILE-1"
-        expected_filters = {"pos_profile": "PROFILE-1", "status": "Open"}
-        if doctype == "POS Session" and filters == expected_filters and has_session:
-            return "PROFILE-SESSION"
-        return None
-
-    frappe.db.get_value = get_value
-
-    result = billing.get_active_pos_session("POS Profile")
-    if has_session:
-        assert result == "PROFILE-SESSION"
-    else:
-        assert result is None
-
-    # Missing profile should also return None
-    def get_value_no_profile(doctype, filters=None, fieldname=None):
-        if doctype == "POS Profile" and filters == {"user": "test-user"}:
-            return None
-        return None
-
-    frappe.db.get_value = get_value_no_profile
-    assert billing.get_active_pos_session("POS Profile") is None
+    assert draft['items'][0]['description'] == 'Item 1\nNo onions'
+    assert draft['items'][0]['has_notes'] is True

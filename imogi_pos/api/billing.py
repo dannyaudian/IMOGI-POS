@@ -54,10 +54,40 @@ def validate_pos_session(pos_profile, enforce_session=None):
     active_session = get_active_pos_session(scope)
     
     if not active_session and require_session:
-        frappe.throw(_("No active POS Session found. Please open a POS Session first."), 
+        frappe.throw(_("No active POS Session found. Please open a POS Session first."),
                     frappe.ValidationError)
-    
+
     return active_session
+
+
+def build_invoice_items(order_doc, mode):
+    """Builds Sales Invoice Item dictionaries from a POS Order.
+
+    Args:
+        order_doc (Document): POS Order document
+        mode (str): POS mode (Counter/Kiosk/Self-Order/Table)
+
+    Returns:
+        list: List of item dictionaries with descriptions and optional notes flag
+    """
+    invoice_items = []
+    for item in order_doc.items:
+        invoice_item = {
+            "item_code": item.item_code,
+            "item_name": item.item_name,
+            "qty": item.qty,
+            "rate": item.rate,
+            "amount": item.amount,
+            "description": item.item_name,
+        }
+
+        if mode in ["Counter", "Kiosk", "Self-Order"] and getattr(item, "notes", None):
+            invoice_item["description"] = f"{item.item_name}\n{item.notes}"
+            invoice_item["has_notes"] = True
+
+        invoice_items.append(invoice_item)
+
+    return invoice_items
 
 @frappe.whitelist()
 def generate_invoice(pos_order):
@@ -91,20 +121,10 @@ def generate_invoice(pos_order):
         mode = profile_doc.get("imogi_mode", "Counter")
 
         # Build invoice items and copy notes where applicable
-        invoice_items = []
-        for item in order_doc.items:
-            description = item.item_name
-            if mode in ["Counter", "Kiosk", "Self-Order"] and getattr(item, "notes", None):
-                description = f"{item.item_name}\n{item.notes}"
-
-            invoice_items.append({
-                "item_code": item.item_code,
-                "item_name": item.item_name,
-                "qty": item.qty,
-                "rate": item.rate,
-                "amount": item.amount,
-                "description": description,
-            })
+        invoice_items = build_invoice_items(order_doc, mode)
+        # Remove helper-only flags before creating invoice document
+        for item in invoice_items:
+            item.pop("has_notes", None)
 
         # Create Sales Invoice document
         invoice_doc = frappe.get_doc({
@@ -231,25 +251,7 @@ def prepare_invoice_draft(pos_order):
     mode = profile_doc.get("imogi_mode", "Counter")
     
     # Prepare draft invoice items
-    invoice_items = []
-    for item in order_doc.items:
-        # Create item entry
-        invoice_item = {
-            "item_code": item.item_code,
-            "item_name": item.item_name,
-            "qty": item.qty,
-            "rate": item.rate,
-            "amount": item.amount,
-            "description": item.item_name
-        }
-        
-        # Copy notes to description for Counter/Kiosk modes (not for Table mode)
-        if mode in ["Counter", "Kiosk", "Self-Order"] and item.notes:
-            # In Counter/Kiosk mode, include notes in the description
-            invoice_item["description"] = f"{item.item_name}\n{item.notes}"
-            invoice_item["has_notes"] = True
-        
-        invoice_items.append(invoice_item)
+    invoice_items = build_invoice_items(order_doc, mode)
     
     # Prepare draft invoice
     draft_invoice = {
