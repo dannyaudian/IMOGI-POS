@@ -17,7 +17,6 @@
         "workflow_state",
         "posting_date",
         "posting_time",
-        "pos_session",
         "sales_invoice",
         "section_break_11",
         "items",
@@ -94,13 +93,6 @@
             "fieldtype": "Time",
             "label": "Posting Time",
             "default": "now"
-        },
-        {
-            "fieldname": "pos_session",
-            "fieldtype": "Link",
-            "label": "POS Session",
-            "options": "POS Session",
-            "read_only": 1
         },
         {
             "fieldname": "sales_invoice",
