@@ -18,6 +18,9 @@ __all__ = [
     "get_branding",
     "get_active_branch",
     "set_active_branch",
+    "check_session",
+    "get_current_user_info",
+    "check_permission",
 ]
 
 @frappe.whitelist(allow_guest=True)
@@ -167,3 +170,63 @@ def set_active_branch(branch):
     validate_branch_access(branch)
     frappe.defaults.set_user_default("imogi_branch", branch)
     return branch
+
+
+@frappe.whitelist(allow_guest=True)
+def check_session():
+    """Check if the current session is valid.
+
+    Returns:
+        dict: Session information with validity flag.
+    """
+
+    user = getattr(frappe.session, "user", "Guest")
+    if user and user != "Guest":
+        return {
+            "valid": True,
+            "user": user,
+        }
+
+    return {
+        "valid": False,
+        "user": "Guest",
+    }
+
+
+@frappe.whitelist()
+def get_current_user_info():
+    """Return information about the currently logged-in user.
+
+    Returns:
+        dict: User details including full name and roles.
+    """
+
+    user = frappe.session.user
+    if not user or user == "Guest":
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+    user_doc = frappe.get_doc("User", user)
+    return {
+        "user": user,
+        "full_name": user_doc.full_name,
+        "email": user_doc.email,
+        "roles": frappe.get_roles(user),
+    }
+
+
+@frappe.whitelist()
+def check_permission(doctype, perm_type="read"):
+    """Check if current user has the given permission on a DocType.
+
+    Args:
+        doctype (str): DocType to check.
+        perm_type (str): Permission type like read, write, create, etc.
+
+    Returns:
+        bool: ``True`` if user has permission, else ``False``.
+    """
+
+    if frappe.session.user == "Guest":
+        return False
+
+    return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
