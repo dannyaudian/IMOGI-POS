@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    
+
     <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
     <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
     <link rel="stylesheet" href="/assets/imogi_pos/css/customer_display.css">
-    
+
     <style>
         :root {
             --primary-color: {{ branding.primary_color }};
             --accent-color: {{ branding.accent_color }};
             --background-color: {{ branding.background_color }};
         }
-        
+
         html, body {
             margin: 0;
             padding: 0;
@@ -25,7 +25,7 @@
             color: #333;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
         }
-        
+
         .customer-display {
             display: flex;
             flex-direction: column;
@@ -33,13 +33,13 @@
             width: 100vw;
             position: relative;
         }
-        
+
         .display-block {
             padding: 1rem;
             position: relative;
             overflow: hidden;
         }
-        
+
         /* Block Types */
         .block-branding {
             display: flex;
@@ -50,24 +50,24 @@
             background-color: var(--primary-color);
             color: white;
         }
-        
+
         .brand-logo {
             max-height: 80%;
             max-width: 80%;
             object-fit: contain;
         }
-        
+
         .brand-name {
             font-size: 2rem;
             font-weight: bold;
             margin-top: 0.5rem;
         }
-        
+
         .block-order-summary {
             padding: 1.5rem;
             background-color: #f9f9f9;
         }
-        
+
         .order-header {
             display: flex;
             justify-content: space-between;
@@ -75,42 +75,42 @@
             padding-bottom: 0.5rem;
             border-bottom: 1px solid #eee;
         }
-        
+
         .order-title {
             font-size: 1.5rem;
             font-weight: bold;
         }
-        
+
         .order-meta {
             display: flex;
             gap: 1rem;
         }
-        
+
         .order-meta-item {
             padding: 0.25rem 0.5rem;
             background-color: rgba(0,0,0,0.05);
             border-radius: 4px;
             font-size: 0.9rem;
         }
-        
+
         .order-items {
             margin-bottom: 1rem;
             max-height: 50%;
             overflow-y: auto;
         }
-        
+
         .order-item {
             display: flex;
             justify-content: space-between;
             padding: 0.5rem 0;
             border-bottom: 1px solid #f0f0f0;
         }
-        
+
         .item-name-qty {
             display: flex;
             gap: 0.5rem;
         }
-        
+
         .item-qty {
             background-color: var(--primary-color);
             color: white;
@@ -118,7 +118,7 @@
             padding: 0.1rem 0.4rem;
             font-size: 0.9rem;
         }
-        
+
         .order-total {
             display: flex;
             justify-content: space-between;
@@ -128,7 +128,7 @@
             padding-top: 0.5rem;
             border-top: 1px solid #eee;
         }
-        
+
         .block-payment {
             display: flex;
             flex-direction: column;
@@ -136,7 +136,7 @@
             justify-content: center;
             text-align: center;
         }
-        
+
         .payment-container {
             display: flex;
             flex-direction: column;
@@ -145,41 +145,41 @@
             width: 100%;
             height: 100%;
         }
-        
+
         .payment-header {
             font-size: 1.5rem;
             margin-bottom: 1rem;
         }
-        
+
         .payment-instructions {
             margin-bottom: 1rem;
             max-width: 400px;
         }
-        
+
         .payment-qr {
             width: 200px;
             height: 200px;
             max-width: 80%;
             margin: 1rem 0;
         }
-        
+
         .payment-link {
             margin-top: 1rem;
             color: var(--accent-color);
             word-break: break-all;
         }
-        
+
         .payment-amount {
             font-size: 2rem;
             font-weight: bold;
             margin: 1rem 0;
         }
-        
+
         .payment-expires {
             font-size: 0.9rem;
             color: #777;
         }
-        
+
         .block-ticker {
             background-color: #333;
             color: white;
@@ -188,30 +188,30 @@
             overflow: hidden;
             white-space: nowrap;
         }
-        
+
         .ticker-content {
             display: inline-block;
             padding-left: 100%;
             animation: ticker 20s linear infinite;
             font-size: 1.25rem;
         }
-        
+
         @keyframes ticker {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
         }
-        
+
         .block-promotion {
             position: relative;
             overflow: hidden;
         }
-        
+
         .promotion-container {
             height: 100%;
             width: 100%;
             position: relative;
         }
-        
+
         .promotion-slide {
             position: absolute;
             top: 0;
@@ -226,27 +226,27 @@
             justify-content: center;
             text-align: center;
         }
-        
+
         .promotion-slide.active {
             opacity: 1;
         }
-        
+
         .promotion-image {
             max-height: 80%;
             max-width: 80%;
             object-fit: contain;
         }
-        
+
         .promotion-title {
             font-size: 1.5rem;
             font-weight: bold;
             margin: 0.5rem 0;
         }
-        
+
         .promotion-content {
             font-size: 1.25rem;
         }
-        
+
         .registration-container {
             display: flex;
             flex-direction: column;
@@ -256,13 +256,13 @@
             text-align: center;
             padding: 2rem;
         }
-        
+
         .registration-qr {
             width: 200px;
             height: 200px;
             margin: 2rem 0;
         }
-        
+
         .device-id {
             font-family: monospace;
             background-color: #f0f0f0;
@@ -270,25 +270,15 @@
             border-radius: 4px;
             margin: 1rem 0;
         }
-        
+
         /* Positioning classes */
-        .block-top {
-            flex: 0 0 auto;
-        }
-        
-        .block-middle {
-            flex: 1 1 auto;
-        }
-        
-        .block-bottom {
-            flex: 0 0 auto;
-        }
-        
+        .block-top { flex: 0 0 auto; }
+        .block-middle { flex: 1 1 auto; }
+        .block-bottom { flex: 0 0 auto; }
+
         /* Hide initially, JS will show when ready */
-        .customer-display {
-            display: none;
-        }
-        
+        .customer-display { display: none; }
+
         .loading-screen {
             position: fixed;
             top: 0;
@@ -302,7 +292,7 @@
             justify-content: center;
             z-index: 1000;
         }
-        
+
         .loading-spinner {
             width: 50px;
             height: 50px;
@@ -311,12 +301,12 @@
             border-radius: 50%;
             animation: spin 2s linear infinite;
         }
-        
+
         .loading-text {
             margin-top: 1rem;
             font-size: 1.25rem;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -329,14 +319,14 @@
         <div class="loading-spinner"></div>
         <div class="loading-text">Initializing Display...</div>
     </div>
-    
+
     {% if show_registration %}
     <div class="registration-container">
         <h1>Customer Display Registration</h1>
         <p>This device is not registered. Please register it in the IMOGI POS system.</p>
-        
+
         <div class="device-id">Device ID: {{ device_id }}</div>
-        
+
         <div class="registration-instructions">
             <p>To register this display:</p>
             <ol>
@@ -352,7 +342,7 @@
         <!-- Blocks will be dynamically rendered here based on config -->
     </div>
     {% endif %}
-    
+
     <!-- Pass important variables to the frontend -->
     <script>
         const DEVICE_ID = "{{ device_id }}";
@@ -363,9 +353,9 @@
         const TICKER_MESSAGE = {{ ticker_message | tojson }};
         const PROMOTIONAL_CONTENT = {{ promotional_content | tojson }};
         const BRANDING = {{ branding | tojson }};
-        const CURRENCY_SYMBOL = "{{ frappe.get_doc('Currency', frappe.defaults.get_global_default('currency')).symbol }}";
+        const CURRENCY_SYMBOL = "{{ currency_symbol }}";
     </script>
-    
+
     <script src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
     <script src="/assets/js/frappe-web.min.js"></script>
     <script src="/assets/imogi_pos/www/customer-display/index.js"></script>
