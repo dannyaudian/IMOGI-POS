@@ -16,7 +16,8 @@ app_include_js = [
   'js/print/service.js',
   'js/print/adapter_bluetooth.js',
   'js/print/adapter_bridge.js',
-  'js/print/adapter_spool.js'
+  'js/print/adapter_spool.js',
+  'js/print/adapter_lan.js'
 ]
 app_include_css = []
 
@@ -26,7 +27,8 @@ web_include_js = [
     "js/print/service.js",
     "js/print/adapter_bluetooth.js",
     "js/print/adapter_bridge.js",
-    "js/print/adapter_spool.js"
+    "js/print/adapter_spool.js",
+    "js/print/adapter_lan.js"
 ]
 
 doctype_js = {
