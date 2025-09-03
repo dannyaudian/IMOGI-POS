@@ -86,7 +86,7 @@
       "state": "Draft",
       "action": "Send to Kitchen",
       "next_state": "Sent to Kitchen",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -94,7 +94,7 @@
       "state": "Sent to Kitchen",
       "action": "Start Preparing",
       "next_state": "In Progress",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -102,7 +102,7 @@
       "state": "In Progress",
       "action": "Mark as Ready",
       "next_state": "Ready",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -110,7 +110,7 @@
       "state": "Ready",
       "action": "Mark as Served",
       "next_state": "Served",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -118,7 +118,7 @@
       "state": "Served",
       "action": "Close Order",
       "next_state": "Closed",
-      "allowed": "Restaurant Manager,Cashier",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
