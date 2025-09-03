@@ -18,7 +18,10 @@ def get_context(context):
     # Get token or slug from URL
     token = frappe.form_dict.get("token") or frappe.form_dict.get("slug")
     if not token:
-        frappe.throw(_("Invalid token or slug"), frappe.AuthenticationError)
+        frappe.log_error("Invalid token or slug in self-order request")
+        frappe.msgprint(_("Your access link is invalid or has expired."))
+        frappe.local.flags.redirect_location = "/404"
+        raise frappe.Redirect
     
     # Verify token and get session data
     session_data = verify_token(token)
