@@ -4,6 +4,7 @@ from frappe.utils import cint, get_datetime, now_datetime
 import json
 import hashlib
 import hmac
+import base64
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
@@ -173,8 +174,45 @@ def verify_token(token):
             }
             
         # Finally, try to verify if it's a signed token
-        # This would be a more complex implementation using cryptographic verification
-        # For simplicity, we'll just return None for now
+        if "." in token:
+            try:
+                payload_b64, signature = token.rsplit(".", 1)
+                padding = "=" * (-len(payload_b64) % 4)
+                payload_json = base64.urlsafe_b64decode(payload_b64 + padding).decode()
+                payload = json.loads(payload_json)
+            except Exception:
+                return None
+
+            secret = (
+                frappe.conf.get("self_order_token_secret")
+                or frappe.get_site_config().get("encryption_key")
+            )
+            if not secret:
+                return None
+
+            expected_signature = hmac.new(
+                secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256
+            ).hexdigest()
+
+            if not hmac.compare_digest(signature, expected_signature):
+                return None
+
+            expires_on = payload.get("expires_on")
+            if expires_on and get_datetime(expires_on) < now_datetime():
+                return None
+
+            return {
+                "session_id": None,
+                "token": payload.get("token") or token,
+                "branch": payload.get("branch"),
+                "table": payload.get("table"),
+                "pos_profile": payload.get("pos_profile"),
+                "expires_on": payload.get("expires_on"),
+                "order_linkage": None,
+                "is_guest": payload.get("is_guest", 1),
+                "data": payload.get("data", {}),
+            }
+
         return None
     
     except Exception as e:
