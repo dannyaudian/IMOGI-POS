@@ -322,7 +322,7 @@ imogi_pos.cashier_console = {
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
-                status: this.state.filterStatus
+                workflow_state: this.state.filterStatus
             },
             callback: (response) => {
                 this.showLoading(false);
@@ -351,7 +351,7 @@ imogi_pos.cashier_console = {
         
         this.state.filteredOrders = this.state.orderList.filter(order => {
             // Filter by status if set
-            if (this.state.filterStatus && order.status !== this.state.filterStatus) {
+            if (this.state.filterStatus && order.workflow_state !== this.state.filterStatus) {
                 return false;
             }
             
@@ -613,13 +613,13 @@ imogi_pos.cashier_console = {
         let html = '';
         this.state.filteredOrders.forEach(order => {
             const isSelected = this.state.currentOrder && this.state.currentOrder.name === order.name;
-            const statusClass = order.status.toLowerCase().replace(' ', '-');
+            const statusClass = (order.workflow_state || '').toLowerCase().replace(' ', '-');
             
             html += `
                 <div class="order-card ${isSelected ? 'selected' : ''} ${statusClass}" data-order="${order.name}">
                     <div class="order-header">
                         <div class="order-name">${order.name}</div>
-                        <div class="order-status ${statusClass}">${order.status}</div>
+                        <div class="order-status ${statusClass}">${order.workflow_state}</div>
                     </div>
                     <div class="order-info">
                         ${order.table_name ? `<div class="order-table">Table: ${order.table_name}</div>` : ''}
@@ -770,7 +770,7 @@ imogi_pos.cashier_console = {
                 <div class="order-info-main">
                     <h3>${order.name}</h3>
                     <div class="order-meta">
-                        <span class="order-status ${order.workflow_state ? order.workflow_state.toLowerCase().replace(' ', '-') : ''}">${order.workflow_state || order.status}</span>
+                        <span class="order-status ${order.workflow_state ? order.workflow_state.toLowerCase().replace(' ', '-') : ''}">${order.workflow_state}</span>
                         ${order.table ? `<span class="order-table">Table: ${order.table}</span>` : ''}
                         <span class="order-time">Created: ${this.formatDateTime(order.creation)}</span>
                     </div>
