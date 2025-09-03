@@ -140,29 +140,44 @@ def find_customer_by_phone(phone):
     return combined_results
 
 @frappe.whitelist()
-def quick_create_customer_with_contact(name, phone, email=None, customer_group=None, territory=None):
+def quick_create_customer_with_contact(
+    customer_name=None,
+    mobile_no=None,
+    email_id=None,
+    name=None,
+    phone=None,
+    email=None,
+    customer_group=None,
+    territory=None,
+):
     """
     Quickly creates a Customer and associated Contact in one operation.
-    
+
     Args:
-        name (str): Customer name
-        phone (str): Phone number
-        email (str, optional): Email address. Defaults to None.
+        customer_name (str): Customer name.
+        mobile_no (str): Phone number.
+        email_id (str, optional): Email address. Defaults to None.
         customer_group (str, optional): Customer Group. Defaults to None.
         territory (str, optional): Territory. Defaults to None.
-    
+        name, phone, email: Backward compatible aliases for the above fields.
+
     Returns:
         dict: Created Customer details
-    
+
     Raises:
         frappe.ValidationError: If required fields are missing or validation fails
     """
+    # Backward compatibility for old parameter names
+    name = customer_name or name
+    phone = mobile_no or phone
+    email = email_id or email
+
     if not name:
         frappe.throw(_("Customer name is required"), frappe.ValidationError)
-        
+
     if not phone:
         frappe.throw(_("Phone number is required"), frappe.ValidationError)
-    
+
     # Normalize phone
     normalized_phones = normalize_phone_number(phone)
     if not normalized_phones:

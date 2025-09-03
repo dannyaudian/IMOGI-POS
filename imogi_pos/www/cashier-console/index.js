@@ -550,7 +550,7 @@ frappe.ready(function () {
 
     frappe.call({
       method: 'imogi_pos.api.customers.quick_create_customer_with_contact',
-      args: { phone, customer_name: 'New Customer' }
+      args: { mobile_no: phone, customer_name: 'New Customer' }
     })
     .then((r) => {
       if (r && r.message) {
