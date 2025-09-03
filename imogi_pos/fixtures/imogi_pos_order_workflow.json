@@ -142,7 +142,7 @@
       "state": "In Progress",
       "action": "Return to Kitchen",
       "next_state": "Sent to Kitchen",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -150,7 +150,7 @@
       "state": "Ready",
       "action": "Return to Kitchen",
       "next_state": "In Progress",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
