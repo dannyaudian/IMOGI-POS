@@ -2,6 +2,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 from imogi_pos.utils.branding import get_brand_context
+from imogi_pos.utils.currency import get_currency_symbol
 
 
 def get_context(context):
@@ -134,9 +135,3 @@ def get_current_branch(pos_profile):
     return branch
 
 
-def get_currency_symbol():
-    """Get the default currency symbol."""
-    currency = frappe.db.get_default("currency")
-    if currency:
-        return frappe.db.get_value("Currency", currency, "symbol") or currency
-    return ""

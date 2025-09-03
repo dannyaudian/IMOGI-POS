@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import cint, get_formatted_currency, get_datetime, now_datetime
+from frappe.utils import cint, get_datetime, now_datetime
 import json
 import hashlib
 import hmac
@@ -9,6 +9,7 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.currency import get_currency_symbol
 
 def get_context(context):
     """Get context for Self-Order page accessed via token/slug."""
@@ -71,7 +72,7 @@ def get_context(context):
     }
     
     # Currency information
-    context.currency_symbol = get_formatted_currency(0).replace('0', '')
+    context.currency_symbol = get_currency_symbol()
     context.default_currency = frappe.get_cached_doc("Company", frappe.defaults.get_user_default("Company")).default_currency
     
     # Item categories for filtering
