@@ -164,3 +164,47 @@ def test_generate_invoice_error_handling(billing_module):
         billing.generate_invoice('POS-1')
 
     assert 'Failed to generate invoice' in str(exc.value)
+
+
+def test_prepare_invoice_draft_includes_notes(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item_code = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = 'No onions'
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+    profile = Profile()
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    draft = billing.prepare_invoice_draft('POS-1')
+
+    assert draft['items'][0]['description'] == 'Item 1\nNo onions'
+    assert draft['items'][0]['has_notes'] is True
