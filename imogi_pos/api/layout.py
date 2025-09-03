@@ -61,11 +61,11 @@ def get_table_layout(floor):
     
     # Check restaurant domain
     check_restaurant_domain()
-    
+
     # Get active layout profile for this floor
-    layout_profile = frappe.db.get_value("Table Layout Profile", 
-                                       {"floor": floor, "is_active": 1}, 
-                                       "name")
+    layout_profile = frappe.db.get_value(
+        "Table Layout Profile", {"default_floor": floor, "is_active": 1}, "name"
+    )
     
     # If no active profile, return basic layout
     if not layout_profile:
@@ -133,7 +133,7 @@ def get_table_layout(floor):
         "tables": tables_data,
         "layout": {
             "name": profile_doc.name,
-            "title": profile_doc.title,
+            "profile_name": profile_doc.profile_name,
             "is_active": profile_doc.is_active,
             "canvas_width": profile_doc.canvas_width,
             "canvas_height": profile_doc.canvas_height,
@@ -152,7 +152,7 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
         floor (str): Restaurant Floor name
         layout_json (str): JSON string with layout data
         profile_name (str, optional): Table Layout Profile to update. Defaults to None.
-        title (str, optional): Title for new profile. Defaults to None.
+        title (str, optional): Name for new profile. Defaults to None.
     
     Returns:
         dict: Saved layout profile details
@@ -194,9 +194,9 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     if profile_name:
         try:
             profile_doc = frappe.get_doc("Table Layout Profile", profile_name)
-            
+
             # Verify floor matches
-            if profile_doc.floor != floor:
+            if profile_doc.default_floor != floor:
                 frappe.throw(_("Profile does not match the specified floor"), frappe.ValidationError)
             
             # Update canvas settings
@@ -204,10 +204,10 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
             profile_doc.canvas_height = canvas_height
             profile_doc.background_image = background_image
             profile_doc.scale = scale
-            
+
             # If title provided, update it
             if title:
-                profile_doc.title = title
+                profile_doc.profile_name = title
             
             # Remove existing nodes (we'll add new ones)
             profile_doc.nodes = []
@@ -218,8 +218,8 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
         # Create new profile
         profile_title = title or f"{floor_doc.floor_name} Layout"
         profile_doc = frappe.new_doc("Table Layout Profile")
-        profile_doc.floor = floor
-        profile_doc.title = profile_title
+        profile_doc.default_floor = floor
+        profile_doc.profile_name = profile_title
         profile_doc.canvas_width = canvas_width
         profile_doc.canvas_height = canvas_height
         profile_doc.background_image = background_image
@@ -252,7 +252,7 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
         frappe.db.sql("""
             UPDATE `tabTable Layout Profile`
             SET is_active = 0
-            WHERE floor = %s AND name != %s
+            WHERE default_floor = %s AND name != %s
         """, (floor, profile_doc.name))
     
     # Save the profile
@@ -261,7 +261,7 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     # Return saved profile
     return {
         "profile": profile_doc.name,
-        "title": profile_doc.title,
+        "profile_name": profile_doc.profile_name,
         "is_active": profile_doc.is_active,
         "floor": floor,
         "tables_positioned": len(profile_doc.nodes)
