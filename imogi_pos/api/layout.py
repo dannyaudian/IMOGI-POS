@@ -138,7 +138,7 @@ def get_table_layout(floor):
             "canvas_width": profile_doc.canvas_width,
             "canvas_height": profile_doc.canvas_height,
             "background_image": profile_doc.background_image,
-            "scale": profile_doc.scale
+            "scale": profile_doc.scale,
         }
     }
 
