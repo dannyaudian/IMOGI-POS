@@ -63,9 +63,11 @@ def get_table_layout(floor):
     check_restaurant_domain()
     
     # Get active layout profile for this floor
-    layout_profile = frappe.db.get_value("Table Layout Profile", 
-                                       {"floor": floor, "is_active": 1}, 
-                                       "name")
+    layout_profile = frappe.db.get_value(
+        "Table Layout Profile",
+        {"default_floor": floor, "is_active": 1},
+        "name",
+    )
     
     # If no active profile, return basic layout
     if not layout_profile:
@@ -133,12 +135,12 @@ def get_table_layout(floor):
         "tables": tables_data,
         "layout": {
             "name": profile_doc.name,
-            "title": profile_doc.title,
+            "title": profile_doc.profile_name,
             "is_active": profile_doc.is_active,
             "canvas_width": profile_doc.canvas_width,
             "canvas_height": profile_doc.canvas_height,
             "background_image": profile_doc.background_image,
-            "scale": profile_doc.scale
+            "scale": profile_doc.scale,
         }
     }
 
