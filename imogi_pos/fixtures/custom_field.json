@@ -1001,9 +1001,8 @@
   },
   {
     "fieldname": "pos_session",
-    "fieldtype": "Link",
+    "fieldtype": "Data",
     "label": "POS Session",
-    "options": "POS Session",
     "read_only": 1,
     "insert_after": "branch",
     "is_system_generated": 0,
