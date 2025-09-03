@@ -36,6 +36,10 @@ def validate_pos_session(pos_profile, enforce_session=None):
     Raises:
         frappe.ValidationError: If session is required but not active
     """
+    # Skip validation completely if POS Session DocType is unavailable
+    if not frappe.db.exists("DocType", "POS Session"):
+        return None
+
     # Get POS Profile settings
     profile_doc = frappe.get_doc("POS Profile", pos_profile)
     
@@ -127,7 +131,7 @@ def generate_invoice(pos_order):
             item.pop("has_notes", None)
 
         # Create Sales Invoice document
-        invoice_doc = frappe.get_doc({
+        invoice_data = {
             "doctype": "Sales Invoice",
             "is_pos": 1,
             "pos_profile": order_doc.pos_profile,
@@ -136,8 +140,11 @@ def generate_invoice(pos_order):
             "items": invoice_items,
             "imogi_pos_order": pos_order,
             "order_type": order_doc.order_type,
-            "pos_session": pos_session,
-        })
+        }
+        if pos_session:
+            invoice_data["pos_session"] = pos_session
+
+        invoice_doc = frappe.get_doc(invoice_data)
 
         # Include table info if present
         if getattr(order_doc, "table", None):
@@ -253,6 +260,9 @@ def prepare_invoice_draft(pos_order):
     # Prepare draft invoice items
     invoice_items = build_invoice_items(order_doc, mode)
     
+    # Determine active session if required
+    pos_session = validate_pos_session(order_doc.pos_profile)
+
     # Prepare draft invoice
     draft_invoice = {
         "doctype": "Sales Invoice",
@@ -263,8 +273,9 @@ def prepare_invoice_draft(pos_order):
         "items": invoice_items,
         "imogi_pos_order": pos_order,
         "order_type": order_doc.order_type,
-        "pos_session": validate_pos_session(order_doc.pos_profile)
     }
+    if pos_session:
+        draft_invoice["pos_session"] = pos_session
     
     # Add table information for Dine-in orders
     if order_doc.table:
@@ -285,6 +296,9 @@ def get_active_pos_session(context_scope=None):
     Returns:
         str: POS Session name if active, None otherwise
     """
+    if not frappe.db.exists("DocType", "POS Session"):
+        return None
+
     if not context_scope:
         context_scope = "User"
 

@@ -42,10 +42,16 @@ def build_sales_invoice_from_pos_order(
     
     # Get active POS session if required
     pos_session = None
-    if frappe.db.get_value("POS Profile", pos_order.pos_profile, "imogi_require_pos_session"):
+    if frappe.db.exists("DocType", "POS Session") and frappe.db.get_value(
+        "POS Profile", pos_order.pos_profile, "imogi_require_pos_session"
+    ):
         pos_session = get_active_pos_session(pos_order.pos_profile)
         if not pos_session:
-            frappe.throw(_("No active POS Session found. Please open a session before creating an invoice."))
+            frappe.throw(
+                _(
+                    "No active POS Session found. Please open a session before creating an invoice."
+                )
+            )
     
     # Determine notes handling based on POS Profile settings and order type
     should_include_notes = _should_include_notes_in_description(
@@ -154,6 +160,9 @@ def get_active_pos_session(pos_profile: str) -> Optional[str]:
     Returns:
         Name of the active POS Session or None
     """
+    if not frappe.db.exists("DocType", "POS Session"):
+        return None
+
     scope = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_session_scope") or "User"
     
     filters = {
