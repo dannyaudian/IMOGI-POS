@@ -5,7 +5,8 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from frappe.utils import cint, get_formatted_currency
+from frappe.utils import cint
+from imogi_pos.utils.currency import get_currency_symbol
 
 def get_context(context):
     """Get context for kiosk page."""
@@ -52,7 +53,7 @@ def get_context(context):
     }
     
     # Currency information
-    context.currency_symbol = get_formatted_currency(0).replace('0', '')
+    context.currency_symbol = get_currency_symbol()
     context.default_currency = frappe.get_cached_doc("Company", frappe.defaults.get_user_default("Company")).default_currency
     
     # Item categories for filtering
