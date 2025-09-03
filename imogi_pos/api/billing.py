@@ -287,28 +287,30 @@ def get_active_pos_session(context_scope=None):
     """
     if not context_scope:
         context_scope = "User"
-    
+
     user = frappe.session.user
-    
-    # STUB: Logic to get active POS Session based on scope
+
+    filters = {"status": "Open"}
+
     if context_scope == "User":
-        # Check if user has an active session
-        active_session = frappe.db.get_value("POS Session", 
-                                           {"user": user, "status": "Open"}, 
-                                           "name")
+        # Session is tied to current user
+        filters["user"] = user
     elif context_scope == "Device":
-        # In actual implementation, would use device ID
-        active_session = None
+        # Identify device by request_ip (or any identifier stored on frappe.local)
+        device_id = getattr(getattr(frappe, "local", object()), "request_ip", None)
+        if not device_id:
+            return None
+        filters["device_id"] = device_id
     elif context_scope == "POS Profile":
-        # Get user's POS Profile, then check for any open session with that profile
+        # Sessions shared per POS Profile
         pos_profile = frappe.db.get_value("POS Profile", {"user": user}, "name")
-        if pos_profile:
-            active_session = frappe.db.get_value("POS Session", 
-                                               {"pos_profile": pos_profile, "status": "Open"}, 
-                                               "name")
+        if not pos_profile:
+            return None
+        filters["pos_profile"] = pos_profile
     else:
-        active_session = None
-    
+        return None
+
+    active_session = frappe.db.get_value("POS Session", filters, "name")
     return active_session
 
 @frappe.whitelist()

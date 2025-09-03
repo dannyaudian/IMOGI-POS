@@ -31,6 +31,8 @@ def billing_module():
         raise (exc or Exception)(msg)
     frappe.throw = throw
     frappe.realtime = types.SimpleNamespace(publish_realtime=lambda *a, **k: None)
+    frappe.session = types.SimpleNamespace(user="test-user")
+    frappe.local = types.SimpleNamespace(request_ip="test-device")
 
     class DB:
         def __init__(self):
