@@ -23,7 +23,7 @@
   const DOMAIN = '{{ domain }}';
   const BRANDING = {{ branding | tojson }};
 </script>
-<script src="/assets/imogi_pos/js/nav.js"></script>
-<script src="/assets/imogi_pos/js/branch.js"></script>
-<script src="/assets/imogi_pos/www/table_layout_editor/index.js"></script>
+{{ include_script('imogi_pos/js/nav.js') }}
+{{ include_script('imogi_pos/js/branch.js') }}
+{{ include_script('imogi_pos/www/table_layout_editor/index.js') }}
 {% endblock %}

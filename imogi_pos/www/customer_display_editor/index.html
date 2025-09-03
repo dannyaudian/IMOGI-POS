@@ -23,13 +23,13 @@
   const DOMAIN = '{{ domain }}';
   const BRANDING = {{ branding | tojson }};
 </script>
-<script src="{{ include_script('imogi_pos/js/nav.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/auth.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/branch.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_bridge.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_spool.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/print/adapter_lan.js') }}"></script>
-<script src="{{ include_script('imogi_pos/js/service.js') }}"></script>
-<script src="../customer_display_editor/index.js"></script>
+{{ include_script('imogi_pos/js/nav.js') }}
+{{ include_script('imogi_pos/js/auth.js') }}
+{{ include_script('imogi_pos/js/branch.js') }}
+{{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}
+{{ include_script('imogi_pos/js/print/adapter_bridge.js') }}
+{{ include_script('imogi_pos/js/print/adapter_spool.js') }}
+{{ include_script('imogi_pos/js/print/adapter_lan.js') }}
+{{ include_script('imogi_pos/js/service.js') }}
+{{ include_script('imogi_pos/www/customer_display_editor/index.js') }}
 {% endblock %}
