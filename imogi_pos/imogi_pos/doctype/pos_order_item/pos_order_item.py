@@ -8,6 +8,7 @@ from frappe.model.document import Document
 
 class POSOrderItem(Document):
     def validate(self):
+        self.init_counters()
         self.set_amount()
         self.validate_item()
         self.set_last_edited_by()
