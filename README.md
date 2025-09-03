@@ -54,6 +54,8 @@ imogi_pos/
 - ERPNext v15
 - Frappe Bench environment
 
+Before installing IMOGI POS, ensure ERPNext is installed on your site and that the site has been migrated (`bench --site your-site.local migrate`).
+
 ### Installation Steps
 
 1. Get the app from GitHub:

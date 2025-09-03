@@ -2,9 +2,10 @@
   "app_name": "imogi_pos",
   "app_title": "IMOGI POS",
   "app_publisher": "IMOGI",
-  "app_version": "0.1.0",
+  "app_version": "0.1.1",
   "app_email": "support@imogi.com",
   "app_license": "MIT",
+  "app_requires": ["erpnext"],
   "hide_in_installer": 0,
   "developer_mode": 0
 }
