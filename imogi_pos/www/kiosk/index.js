@@ -627,9 +627,7 @@ frappe.ready(function() {
                 const paymentResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.request_payment',
                     args: {
-                        invoice: invoice.name,
-                        amount: invoice.grand_total,
-                        customer: invoice.customer
+                        sales_invoice: invoice.name
                     }
                 });
                 
