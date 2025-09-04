@@ -84,6 +84,7 @@ def kot_module():
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = utils
     sys.modules['frappe.realtime'] = realtime
+    sys.modules.pop('imogi_pos.utils.permissions', None)
 
     kot = importlib.import_module('imogi_pos.api.kot')
     importlib.reload(kot)

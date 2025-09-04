@@ -128,11 +128,22 @@ def generate_invoice(pos_order):
                     "Cannot create invoice with template item. Please select a variant for: {0}"
                 ).format(item.item)
             )
-    try:
-        # Determine POS mode for handling item notes
-        profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
-        mode = profile_doc.get("imogi_mode", "Counter")
+    # Determine POS mode for handling item notes
+    profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
+    mode = profile_doc.get("imogi_mode", "Counter")
 
+    # Ensure all items are marked as sales items
+    for item in order_doc.items:
+        is_sales_item = frappe.db.get_value("Item", item.item, "is_sales_item")
+        if not is_sales_item:
+            frappe.throw(
+                _(
+                    "Cannot generate invoice for non-sales item: {0}"
+                ).format(item.item),
+                frappe.ValidationError,
+            )
+
+    try:
         # Build invoice items and copy notes where applicable
         invoice_items = build_invoice_items(order_doc, mode)
         # Remove helper-only flags before creating invoice document
