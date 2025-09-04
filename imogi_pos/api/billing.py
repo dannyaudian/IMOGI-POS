@@ -246,12 +246,18 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             if order.get("customer")
             else "Walk-in Customer"
         )
-        order["items"] = frappe.get_all(
+        order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
             fields=["item", "item_name", "qty", "rate", "amount"],
             order_by="idx",
         )
+
+        # Attach item names
+        for item in order_items:
+            item["item_name"] = frappe.db.get_value("Item", item["item"], "item_name")
+
+        order["items"] = order_items
 
     return orders
 
