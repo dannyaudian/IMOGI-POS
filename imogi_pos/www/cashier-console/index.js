@@ -35,6 +35,7 @@ frappe.ready(function () {
   const generateInvoiceBtn = document.getElementById('btn-generate-invoice');
   const requestPaymentBtn  = document.getElementById('btn-request-payment');
   const printBillBtn       = document.getElementById('btn-print-bill');
+  const paymentModeSelect  = document.getElementById('payment-mode');
 
   // ====== State ======
   // Map label tab → nama state di DB (SAMAKAN dengan Workflow kamu)
@@ -304,14 +305,22 @@ frappe.ready(function () {
   function generateInvoice() {
     if (!selectedOrder) return;
 
+    const mop = paymentModeSelect?.value;
+    if (!mop) {
+      showError(__('Please select a mode of payment'));
+      return;
+    }
+
     showLoading('Generating invoice…');
 
     frappe.call({
       method: 'imogi_pos.api.billing.generate_invoice',
       args: {
-        pos_order  : selectedOrder.name,
-        pos_profile: POS_PROFILE,
-        pos_session: ACTIVE_POS_SESSION || null  // kirim null kalau tidak ada
+        pos_order     : selectedOrder.name,
+        pos_profile   : POS_PROFILE,
+        pos_session   : ACTIVE_POS_SESSION || null,  // kirim null kalau tidak ada
+        mode_of_payment: mop,
+        amount        : safeTotal(selectedOrder)
       }
     })
     .then((r) => {

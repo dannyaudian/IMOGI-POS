@@ -603,6 +603,7 @@ frappe.ready(function() {
             
             try {
                 // Create draft invoice first
+                const totals = this.calculateTotals();
                 const invoiceResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.generate_invoice',
                     args: {
@@ -610,7 +611,9 @@ frappe.ready(function() {
                         pos_profile: POS_PROFILE,
                         customer: 'Walk-in Customer',
                         pos_session: ACTIVE_POS_SESSION,
-                        branch: CURRENT_BRANCH
+                        branch: CURRENT_BRANCH,
+                        mode_of_payment: 'Online',
+                        amount: totals.total
                     }
                 });
                 
@@ -833,6 +836,7 @@ frappe.ready(function() {
                     invoice = { name: this.paymentRequest.invoice };
                 } else {
                     // Create new invoice
+                    const totals = this.calculateTotals();
                     const response = await frappe.call({
                         method: 'imogi_pos.api.billing.generate_invoice',
                         args: {
@@ -841,8 +845,8 @@ frappe.ready(function() {
                             customer: 'Walk-in Customer',
                             pos_session: ACTIVE_POS_SESSION,
                             branch: CURRENT_BRANCH,
-                            payment_method: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
-                            paid_amount: this.paymentMethod === 'cash' ? this.cashAmount : undefined
+                            mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
+                            amount: totals.total
                         }
                     });
                     

@@ -114,6 +114,9 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
     Raises:
         frappe.ValidationError: If any selected item is a template (not a variant)
     """
+    if not mode_of_payment or amount is None:
+        frappe.throw(_("Mode of payment and amount are required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)

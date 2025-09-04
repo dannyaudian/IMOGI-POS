@@ -209,6 +209,12 @@ def test_generate_invoice_validates_payment_amount(billing_module):
         billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=5)
 
 
+def test_generate_invoice_requires_payment_details(billing_module):
+    billing, frappe = billing_module
+    with pytest.raises(frappe.ValidationError):
+        billing.generate_invoice('POS-1')
+
+
 def test_generate_invoice_error_handling(billing_module):
     billing, frappe = billing_module
 
@@ -264,7 +270,7 @@ def test_generate_invoice_error_handling(billing_module):
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
     with pytest.raises(Exception) as exc:
-        billing.generate_invoice('POS-1')
+        billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
 
     assert 'Failed to generate invoice' in str(exc.value)
 
@@ -322,7 +328,7 @@ def test_generate_invoice_validates_sales_item_strict(billing_module):
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
     with pytest.raises(frappe.ValidationError) as exc:
-        billing.generate_invoice('POS-1')
+        billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
 
     assert 'ITEM-1' in str(exc.value)
 
@@ -357,6 +363,10 @@ def test_generate_invoice_skips_non_sales_items_when_allowed(billing_module):
     profile = Profile()
 
     class InvoiceDoc(types.SimpleNamespace):
+        def append(self, field, value):
+            lst = getattr(self, field, [])
+            lst.append(value)
+            setattr(self, field, lst)
         def insert(self, ignore_permissions=True):
             self.name = 'SINV-1'
             return self
@@ -392,7 +402,7 @@ def test_generate_invoice_skips_non_sales_items_when_allowed(billing_module):
 
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
-    result = billing.generate_invoice('POS-1')
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
     assert len(result['items']) == 1
     assert result['items'][0]['item_code'] == 'ITEM-1'
 
@@ -483,6 +493,10 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
     profile = Profile()
 
     class InvoiceDoc(types.SimpleNamespace):
+        def append(self, field, value):
+            lst = getattr(self, field, [])
+            lst.append(value)
+            setattr(self, field, lst)
         def insert(self, ignore_permissions=True):
             self.name = 'SINV-1'
             return self
@@ -517,7 +531,7 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
 
     frappe.db.exists_map[("DocType", "POS Session")] = False
 
-    result = billing.generate_invoice('POS-1')
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
 
     assert 'pos_session' not in result
 
