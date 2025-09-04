@@ -9,6 +9,23 @@ from frappe import _
 from frappe.utils import now_datetime
 from imogi_pos.utils.permissions import validate_branch_access
 
+def validate_item_is_sales_item(doc, method=None):
+    """Ensure the linked Item is a sales item before saving POS Order Item.
+
+    Args:
+        doc: POS Order Item document being saved
+        method: Frappe hook method (unused)
+
+    Raises:
+        frappe.ValidationError: If the Item is not marked as a sales item
+    """
+    is_sales_item = frappe.db.get_value("Item", doc.item, "is_sales_item")
+    if not is_sales_item:
+        frappe.throw(
+            _("Item {0} is not a sales item").format(doc.item),
+            frappe.ValidationError,
+        )
+
 def check_restaurant_domain(pos_profile):
     """
     Validates that the POS Profile has Restaurant domain enabled.
