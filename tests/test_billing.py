@@ -196,7 +196,6 @@ def test_generate_invoice_error_handling(billing_module):
 
 def test_generate_invoice_validates_sales_item(billing_module):
     billing, frappe = billing_module
-
     class OrderItem:
         def __init__(self):
             self.item = 'ITEM-1'
@@ -221,7 +220,6 @@ def test_generate_invoice_validates_sales_item(billing_module):
         def get(self, field, default=None):
             return getattr(self, field, default)
     profile = Profile()
-
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
             return order

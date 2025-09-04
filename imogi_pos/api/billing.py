@@ -182,8 +182,14 @@ def generate_invoice(pos_order):
         return invoice_doc.as_dict()
 
     except Exception as e:
+        message = f"POS Order {pos_order}: {e}"
+        # Truncate to avoid CharacterLengthExceededError in Error Log
+        max_length = 1000
+        if len(message) > max_length:
+            message = message[:max_length]
         frappe.log_error(
-            f"Invoice generation failed for POS Order {pos_order}: {str(e)}"
+            title="Invoice generation failed",
+            message=message,
         )
         frappe.throw(_("Failed to generate invoice: {0}").format(str(e)))
 
