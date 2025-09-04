@@ -70,7 +70,7 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -127,7 +127,7 @@ def test_generate_invoice_error_handling(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -178,7 +178,7 @@ def test_prepare_invoice_draft_includes_notes(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -234,7 +234,7 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
