@@ -327,15 +327,12 @@ frappe.ready(function () {
       hideLoading();
       if (r && r.message) {
         invoiceDoc = r.message;
+        selectedOrder.sales_invoice = invoiceDoc.name;
         showSuccess(__('Invoice generated successfully'));
         requestPaymentBtn.disabled = false;
 
-        // refresh order list (mungkin SI ter-link)
-        if (selectedOrder.sales_invoice) {
-          loadLinkedInvoice(selectedOrder.sales_invoice);
-        } else {
-          loadOrders();
-        }
+        // refresh linked invoice without resetting selection
+        loadLinkedInvoice(invoiceDoc.name);
       } else {
         showError(__('Failed to generate invoice'));
       }
@@ -378,6 +375,8 @@ frappe.ready(function () {
         const paymentRequest = r.message;
         sendToCustomerDisplay(paymentRequest);
         showSuccess(__('Payment request created successfully'));
+        // refresh orders for UI consistency
+        loadOrders();
       } else {
         showError(__('Failed to create payment request'));
       }
