@@ -249,7 +249,7 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
-            fields=["item", "item_name", "qty", "rate", "amount"],
+            fields=["item", "qty", "rate", "amount"],
             order_by="idx",
         )
 
