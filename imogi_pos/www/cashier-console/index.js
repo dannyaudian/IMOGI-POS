@@ -364,9 +364,7 @@ frappe.ready(function () {
     frappe.call({
       method: 'imogi_pos.api.billing.request_payment',
       args: {
-        invoice : invoiceDoc.name,
-        amount  : invoiceDoc.grand_total || invoiceDoc.rounded_total || invoiceDoc.total,
-        customer: invoiceDoc.customer
+        sales_invoice: invoiceDoc.name
       }
     })
     .then((r) => {
