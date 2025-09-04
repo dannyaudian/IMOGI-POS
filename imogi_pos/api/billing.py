@@ -99,16 +99,18 @@ def build_invoice_items(order_doc, mode):
     return invoice_items
 
 @frappe.whitelist()
-def generate_invoice(pos_order):
+def generate_invoice(pos_order, mode_of_payment=None, amount=None):
     """
     Creates a Sales Invoice (is_pos=1) from a POS Order.
-    
+
     Args:
         pos_order (str): POS Order name
-    
+        mode_of_payment (str, optional): Mode of payment to record against the invoice
+        amount (float, optional): Payment amount
+
     Returns:
         dict: Created Sales Invoice details
-    
+
     Raises:
         frappe.ValidationError: If any selected item is a template (not a variant)
     """
@@ -179,6 +181,28 @@ def generate_invoice(pos_order):
                 "Restaurant Table", order_doc.table, "floor"
             )
 
+        # Add payment details if provided
+        if mode_of_payment and amount is not None:
+            invoice_doc.append(
+                "payments",
+                {"mode_of_payment": mode_of_payment, "amount": amount},
+            )
+            grand_total = getattr(
+                invoice_doc,
+                "grand_total",
+                sum(item.get("amount", 0) for item in invoice_doc.items),
+            )
+            payments_total = sum(
+                p.get("amount", 0) for p in getattr(invoice_doc, "payments", [])
+            )
+            if round(payments_total, 2) != round(grand_total, 2):
+                frappe.throw(
+                    _(
+                        "Total payment {0} does not match Grand Total {1}"
+                    ).format(payments_total, grand_total),
+                    frappe.ValidationError,
+                )
+
         invoice_doc.insert(ignore_permissions=True)
         invoice_doc.submit()
 
@@ -187,6 +211,8 @@ def generate_invoice(pos_order):
 
         return invoice_doc.as_dict()
 
+    except frappe.ValidationError:
+        raise
     except Exception as e:
         message = f"POS Order {pos_order}: {e}"
         # Truncate to avoid CharacterLengthExceededError in Error Log
