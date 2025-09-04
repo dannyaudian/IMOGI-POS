@@ -1282,8 +1282,9 @@ imogi_pos.kiosk = {
             },
             callback: (response) => {
                 if (response.message && response.message.name) {
-                    // Generate invoice
-                    this.generateInvoice(response.message.name);
+                    // Generate invoice with chosen payment mode
+                    const mop = prompt('Enter payment mode (e.g., Cash, Card, Online)', 'Cash');
+                    this.generateInvoice(response.message.name, mop || 'Cash');
                 } else {
                     this.showLoading(false);
                     this.showError('Failed to create order');
@@ -1300,12 +1301,15 @@ imogi_pos.kiosk = {
      * Generate invoice for order
      * @param {string} orderName - POS Order name
      */
-    generateInvoice: function(orderName) {
+    generateInvoice: function(orderName, modeOfPayment = 'Cash') {
+        const amount = this.state.cart.reduce((sum, item) => sum + (item.amount || 0), 0);
         frappe.call({
             method: 'imogi_pos.api.billing.generate_invoice',
             args: {
                 pos_order: orderName,
-                pos_profile: this.settings.posProfile
+                pos_profile: this.settings.posProfile,
+                mode_of_payment: modeOfPayment,
+                amount: amount
             },
             callback: (response) => {
                 if (response.message && response.message.name) {

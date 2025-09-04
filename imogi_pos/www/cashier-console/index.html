@@ -296,6 +296,12 @@
     </div>
 
     <div class="checkout-actions">
+      <select id="payment-mode" class="btn" style="margin-right:8px">
+        <option value="">{{ _("Mode of Payment") }}</option>
+        <option value="Cash">{{ _("Cash") }}</option>
+        <option value="Card">{{ _("Card") }}</option>
+        <option value="Online">{{ _("Online") }}</option>
+      </select>
       <button id="btn-generate-invoice" class="btn btn-primary" type="button" disabled>{{ _("Generate Invoice") }}</button>
       <button id="btn-request-payment" class="btn btn-accent" type="button" disabled>{{ _("Request Payment") }}</button>
       <button id="btn-print-bill" class="btn btn-ghost" type="button" disabled>{{ _("Print Bill") }}</button>

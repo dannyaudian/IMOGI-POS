@@ -856,8 +856,16 @@ imogi_pos.cashier_console = {
         }
         
         const generateInvoiceBtn = this.container.querySelector('#generate-invoice-btn');
+        const paymentModeSelect = this.container.querySelector('#payment-mode');
         if (generateInvoiceBtn) {
-            generateInvoiceBtn.addEventListener('click', () => this.generateInvoice());
+            generateInvoiceBtn.addEventListener('click', () => {
+                const mop = paymentModeSelect ? paymentModeSelect.value : '';
+                if (!mop) {
+                    this.showError('Please select a payment mode');
+                    return;
+                }
+                this.generateInvoice(false, mop);
+            });
         }
     },
     
@@ -1625,7 +1633,7 @@ imogi_pos.cashier_console = {
         }
         
         // Generate invoice first
-        this.generateInvoice(true).then(invoice => {
+        this.generateInvoice(true, 'Online').then(invoice => {
             // Request payment
             frappe.call({
                 method: 'imogi_pos.api.billing.request_payment',
@@ -1795,7 +1803,7 @@ imogi_pos.cashier_console = {
             }
             
             // Need to generate invoice first
-            return this.generateInvoice(true).then(invoice => {
+            return this.generateInvoice(true, 'Cash').then(invoice => {
                 this.processCashPaymentForInvoice(invoice);
             }).catch(error => {
                 this.showError('Failed to generate invoice: ' + error.message);
@@ -1996,7 +2004,7 @@ imogi_pos.cashier_console = {
             }
             
             // Need to generate invoice first
-            return this.generateInvoice(true).then(invoice => {
+            return this.generateInvoice(true, 'Card').then(invoice => {
                 this.processCardPaymentForInvoice(invoice);
             }).catch(error => {
                 this.showError('Failed to generate invoice: ' + error.message);
@@ -2189,40 +2197,45 @@ imogi_pos.cashier_console = {
      * @param {boolean} [silent=false] - Whether to show success message
      * @returns {Promise<string>} Promise resolving to invoice name
      */
-    generateInvoice: function(silent = false) {
+    generateInvoice: function(silent = false, modeOfPayment) {
         return new Promise((resolve, reject) => {
             if (!this.state.currentOrder) {
                 reject(new Error('No order selected'));
                 return;
             }
-            
-            // Check if order already has an invoice
+
+            if (!modeOfPayment) {
+                reject(new Error('Mode of payment is required'));
+                return;
+            }
+
             if (this.state.currentOrder.sales_invoice) {
                 resolve(this.state.currentOrder.sales_invoice);
                 return;
             }
-            
-            // Show loading indicator
+
             this.showLoading(true, 'Generating invoice...');
-            
-            // Generate invoice
+
+            const amount = this.state.currentOrder.grand_total || this.state.currentOrder.rounded_total || this.state.currentOrder.total;
+
             frappe.call({
                 method: 'imogi_pos.api.billing.generate_invoice',
                 args: {
                     pos_order: this.state.currentOrder.name,
-                    pos_profile: this.settings.posProfile
+                    pos_profile: this.settings.posProfile,
+                    mode_of_payment: modeOfPayment,
+                    amount: amount
                 },
                 callback: (response) => {
                     this.showLoading(false);
-                    
+
                     if (response.message && response.message.name) {
                         if (!silent) {
                             this.showToast('Invoice generated successfully');
                         }
-                        
-                        // Update order
+
                         this.selectOrder(this.state.currentOrder.name);
-                        
+
                         resolve(response.message.name);
                     } else {
                         reject(new Error('Failed to generate invoice: ' + (response._server_messages || 'Unknown error')));
