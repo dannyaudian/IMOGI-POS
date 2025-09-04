@@ -198,7 +198,7 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
     order_doc = frappe.get_doc("POS Order", pos_order)
     
     # Verify this is a template item
-    item_code = order_item.item_code
+    item_code = order_item.item
     is_template = frappe.db.get_value("Item", item_code, "has_variants")
     
     if not is_template:
@@ -273,7 +273,7 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
     original_notes = order_item.notes or ""
     
     # Update order item with variant details
-    order_item.item_code = variant.name
+    order_item.item = variant.name
     order_item.item_name = variant.item_name
     order_item.description = variant.description or variant.item_name
     

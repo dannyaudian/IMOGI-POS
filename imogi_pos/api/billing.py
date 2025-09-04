@@ -76,17 +76,22 @@ def build_invoice_items(order_doc, mode):
     """
     invoice_items = []
     for item in order_doc.items:
+        # Fetch item name in case it's not stored on the POS Order Item
+        item_name = getattr(item, "item_name", None) or frappe.db.get_value(
+            "Item", item.item, "item_name"
+        )
+
         invoice_item = {
-            "item_code": item.item_code,
-            "item_name": item.item_name,
+            "item_code": item.item,
+            "item_name": item_name,
             "qty": item.qty,
             "rate": item.rate,
             "amount": item.amount,
-            "description": item.item_name,
+            "description": item_name,
         }
 
         if mode in ["Counter", "Kiosk", "Self-Order"] and getattr(item, "notes", None):
-            invoice_item["description"] = f"{item.item_name}\n{item.notes}"
+            invoice_item["description"] = f"{item_name}\n{item.notes}"
             invoice_item["has_notes"] = True
 
         invoice_items.append(invoice_item)
@@ -116,9 +121,13 @@ def generate_invoice(pos_order):
     
     # Validate items for templates
     for item in order_doc.items:
-        is_template = frappe.db.get_value("Item", item.item_code, "has_variants")
+        is_template = frappe.db.get_value("Item", item.item, "has_variants")
         if is_template:
-            frappe.throw(_("Cannot create invoice with template item. Please select a variant for: {0}").format(item.item_code))
+            frappe.throw(
+                _(
+                    "Cannot create invoice with template item. Please select a variant for: {0}"
+                ).format(item.item)
+            )
     try:
         # Determine POS mode for handling item notes
         profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
@@ -237,12 +246,18 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             if order.get("customer")
             else "Walk-in Customer"
         )
-        order["items"] = frappe.get_all(
+        order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
-            fields=["item_code", "item_name", "qty", "rate", "amount"],
+            fields=["item", "qty", "rate", "amount"],
             order_by="idx",
         )
+
+        # Attach item names
+        for item in order_items:
+            item["item_name"] = frappe.db.get_value("Item", item["item"], "item_name")
+
+        order["items"] = order_items
 
     return orders
 
