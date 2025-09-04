@@ -70,7 +70,7 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -111,7 +111,17 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
         raise Exception('Unexpected doctype')
 
     frappe.get_doc = get_doc
-    frappe.db.get_value = lambda doctype, name=None, fieldname=None: {'Item': 0, 'Restaurant Table': 'F1'}.get(doctype, 0)
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+        if doctype == 'Restaurant Table':
+            return 'F1'
+        return 0
+
+    frappe.db.get_value = get_value
 
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
@@ -127,7 +137,7 @@ def test_generate_invoice_error_handling(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -178,7 +188,7 @@ def test_prepare_invoice_draft_includes_notes(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -209,6 +219,7 @@ def test_prepare_invoice_draft_includes_notes(billing_module):
         raise Exception('Unexpected doctype')
 
     frappe.get_doc = get_doc
+    frappe.db.get_value = lambda doctype, name=None, fieldname=None: 'Item 1' if doctype == 'Item' and fieldname == 'item_name' else 0
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
     draft = billing.prepare_invoice_draft('POS-1')
@@ -234,7 +245,7 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
 
     class OrderItem:
         def __init__(self):
-            self.item_code = 'ITEM-1'
+            self.item = 'ITEM-1'
             self.item_name = 'Item 1'
             self.qty = 1
             self.rate = 10
@@ -276,7 +287,17 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
         raise Exception('Unexpected doctype')
 
     frappe.get_doc = get_doc
-    frappe.db.get_value = lambda doctype, name=None, fieldname=None: {'Item': 0, 'Restaurant Table': 'F1'}.get(doctype, 0)
+    def get_value2(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+        if doctype == 'Restaurant Table':
+            return 'F1'
+        return 0
+
+    frappe.db.get_value = get_value2
 
     frappe.db.exists_map[("DocType", "POS Session")] = False
 

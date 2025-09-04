@@ -263,7 +263,7 @@ frappe.ready(function () {
     const html = (order.items || []).map(item => `
       <div class="checkout-item">
         <div class="item-details">
-          <div class="item-name">${escapeHtml(item.item_name || item.item_code || '')}</div>
+          <div class="item-name">${escapeHtml(item.item_name || item.item || '')}</div>
           ${item.notes ? `<div class="item-notes">${escapeHtml(item.notes)}</div>` : ''}
         </div>
         <div class="item-quantity-price">
