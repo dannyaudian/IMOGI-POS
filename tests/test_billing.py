@@ -194,7 +194,7 @@ def test_generate_invoice_error_handling(billing_module):
     assert 'Failed to generate invoice' in str(exc.value)
 
 
-def test_generate_invoice_validates_sales_item(billing_module):
+def test_generate_invoice_validates_sales_item_strict(billing_module):
     billing, frappe = billing_module
     class OrderItem:
         def __init__(self):
@@ -220,6 +220,7 @@ def test_generate_invoice_validates_sales_item(billing_module):
         def get(self, field, default=None):
             return getattr(self, field, default)
     profile = Profile()
+
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
             return order
@@ -249,6 +250,76 @@ def test_generate_invoice_validates_sales_item(billing_module):
         billing.generate_invoice('POS-1')
 
     assert 'ITEM-1' in str(exc.value)
+
+
+def test_generate_invoice_skips_non_sales_items_when_allowed(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self, code, name='Item'):
+            self.item = code
+            self.item_name = name
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem('ITEM-1', 'Item 1'), OrderItem('ITEM-2', 'Item 2')]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        imogi_allow_non_sales_items = 1
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+    profile = Profile()
+
+    class InvoiceDoc(types.SimpleNamespace):
+        def insert(self, ignore_permissions=True):
+            self.name = 'SINV-1'
+            return self
+        def submit(self):
+            self.submitted = True
+        def as_dict(self):
+            return self.__dict__
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value_with_item(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1' if name == 'ITEM-1' else 'Item 2'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1 if name == 'ITEM-1' else 0
+        if doctype == 'Restaurant Table':
+            return 'F1'
+        return 0
+
+    frappe.db.get_value = get_value_with_item
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    result = billing.generate_invoice('POS-1')
+    assert len(result['items']) == 1
+    assert result['items'][0]['item_code'] == 'ITEM-1'
 
 
 def test_prepare_invoice_draft_includes_notes(billing_module):

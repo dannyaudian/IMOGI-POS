@@ -86,7 +86,7 @@ The fixtures will automatically be loaded after migration due to the `after_migr
 
 ## Configuration
 
-1. **Set up POS Profiles**: Create profiles for different service modes (Table/Counter/Kiosk/Self-Order)
+1. **Set up POS Profiles**: Create profiles for different service modes (Table/Counter/Kiosk/Self-Order). Optionally enable `allow_non_sales_items` to skip items not marked as sales items during billing.
 2. **Configure Domain**: Set `imogi_pos_domain` in POS Profile to "Restaurant" (default)
 3. **Set up Kitchen Stations**: For restaurant operations, configure printers and item routing
 4. **Configure Tables and Floor Layout**: Use the Table Layout Editor
