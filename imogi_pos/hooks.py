@@ -41,7 +41,10 @@ doc_events = {
         "on_trash": "imogi_pos.utils.audit.log_deletion",
     },
     "POS Order Item": {
-        "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
+        "before_save": [
+            "imogi_pos.utils.audit.sync_last_edited_by",
+            "imogi_pos.api.orders.validate_item_is_sales_item",
+        ],
     },
     "KOT Ticket": {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",

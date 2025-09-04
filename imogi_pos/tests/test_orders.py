@@ -58,6 +58,8 @@ def frappe_env(monkeypatch):
                 return getattr(tables[name], field)
             if doctype == "POS Order":
                 return getattr(orders[name], field)
+            if doctype == "Item":
+                return getattr(items[name], field)
             return None
         def set_value(self, doctype, name, field, value):
             setattr(orders[name], field, value)
@@ -102,7 +104,7 @@ def frappe_env(monkeypatch):
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
-    global orders, tables, pos_profiles
+    global orders, tables, pos_profiles, items
     orders = {}
     tables = {
         "T1": StubTable("T1", "BR-1"),
@@ -110,6 +112,10 @@ def frappe_env(monkeypatch):
     }
     pos_profiles = {
         "P1": types.SimpleNamespace(imogi_pos_domain="Restaurant", imogi_branch="BR-1")
+    }
+    items = {
+        "SALES-ITEM": types.SimpleNamespace(is_sales_item=1),
+        "NON-SALES-ITEM": types.SimpleNamespace(is_sales_item=0),
     }
 
     import imogi_pos.api.orders as orders_module
@@ -141,3 +147,9 @@ def test_merge_tables_moves_items(frappe_env):
     assert len(orders[order1["name"]].items) == 2
     assert tables["T2"].status == "Available"
     assert orders[order2["name"]].workflow_state == "Merged"
+
+def test_non_sales_items_rejected(frappe_env):
+    frappe, orders_module = frappe_env
+    item_doc = types.SimpleNamespace(item="NON-SALES-ITEM")
+    with pytest.raises(frappe.ValidationError):
+        orders_module.validate_item_is_sales_item(item_doc)
