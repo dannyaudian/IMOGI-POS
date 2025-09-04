@@ -44,7 +44,23 @@ def test_log_sql_exception_handles_broken_pipe(error_module):
         # should not raise BrokenPipeError
         mod.log_sql_exception(exc)
 
-    # original exception logged before BrokenPipeError occurs
-    assert calls["log_error"], "log_error was not called"
+    # original exception logged and fallback log_error triggered
+    assert calls["log_error"][0][1] == "Database Error"
+    assert calls["log_error"][1] == ("SELECT * FROM table", "BrokenPipeError")
     # errprint was attempted even though it raised BrokenPipeError
     assert calls["errprint"] == ["SELECT * FROM table"]
+
+
+def test_safe_print_handles_broken_pipe(error_module, monkeypatch):
+    mod, calls = error_module
+
+    import builtins
+
+    def failing_print(*a, **k):
+        raise BrokenPipeError("pipe closed")
+
+    monkeypatch.setattr(builtins, "print", failing_print)
+
+    mod.safe_print("hello", "world")
+
+    assert calls["log_error"][-1] == ("hello world", "BrokenPipeError")
