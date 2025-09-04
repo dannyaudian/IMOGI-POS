@@ -26,16 +26,30 @@ def get_context(context):
             token = path_parts[1]
 
     if not token:
-        # Redirect to 404 instead of throwing authentication error
-        frappe.local.flags.redirect_location = "/404"
-        raise frappe.Redirect
-    
+        # No token provided
+        context.template = "invalid_token.html"
+        context.error_title = _("Missing Token")
+        context.error_message = _(
+            "No token was provided. Please scan the QR code again or use a valid link."
+        )
+        return context
+
     # Verify token and get session data
-    session_data = verify_token(token)
+    session_data, failure_reason = verify_token(token)
     if not session_data:
-        frappe.local.flags.redirect_location = "/404"
-        raise frappe.Redirect
-    
+        context.template = "invalid_token.html"
+        if failure_reason == "session_expired":
+            context.error_title = _("Session Expired")
+            context.error_message = _(
+                "Your self-order session has expired. Please scan the QR code again or request a new link."
+            )
+        else:
+            context.error_title = _("Invalid Token")
+            context.error_message = _(
+                "The self-order link is invalid. Please check the link or ask for a new one."
+            )
+        return context
+
     context.session_data = session_data
     context.token = token
     
@@ -107,24 +121,24 @@ def get_context(context):
     return context
 
 def verify_token(token):
-    """Verify the token/slug and return session data if valid."""
+    """Verify the token/slug and return session data and failure reason."""
     try:
         # Check if token exists in Self Order Session
         session = frappe.get_all(
             "Self Order Session",
             filters={"token": token, "status": "Active"},
-            fields=["name", "token", "branch", "table", "pos_profile", 
+            fields=["name", "token", "branch", "table", "pos_profile",
                     "expires_on", "order_linkage", "data", "is_guest"]
         )
-        
+
         if session:
             # Token found in Self Order Session
             session_data = session[0]
-            
+
             # Check if session has expired
             if session_data.get("expires_on") and get_datetime(session_data.get("expires_on")) < now_datetime():
-                return None
-            
+                return None, "session_expired"
+
             # Return session data
             data = session_data.get("data")
             if data and isinstance(data, str):
@@ -134,7 +148,7 @@ def verify_token(token):
                     data = {}
             else:
                 data = {}
-                
+
             return {
                 "session_id": session_data.get("name"),
                 "token": token,
@@ -145,21 +159,21 @@ def verify_token(token):
                 "order_linkage": session_data.get("order_linkage"),
                 "is_guest": session_data.get("is_guest"),
                 "data": data
-            }
-        
+            }, None
+
         # Check if it's a slug on Restaurant Table
         if frappe.db.exists("Restaurant Table", {"qr_slug": token}):
             table = frappe.get_doc("Restaurant Table", {"qr_slug": token})
-            
+
             # Get POS Profile
             pos_profile_name = frappe.db.get_value(
-                "Restaurant Settings", None, "default_pos_profile"
+                "Restaurant Settings", None, "default_pos_profile",
             )
-            
+
             # Get expiry time
             settings = frappe.get_cached_doc("Restaurant Settings")
             token_ttl = getattr(settings, "imogi_self_order_token_ttl", 60)  # default 60 minutes
-            
+
             # Return session data
             return {
                 "session_id": None,
@@ -170,9 +184,9 @@ def verify_token(token):
                 "expires_on": None,
                 "order_linkage": None,
                 "is_guest": 1,
-                "data": {}
-            }
-            
+                "data": {},
+            }, None
+
         # Finally, try to verify if it's a signed token
         if "." in token:
             try:
@@ -181,25 +195,25 @@ def verify_token(token):
                 payload_json = base64.urlsafe_b64decode(payload_b64 + padding).decode()
                 payload = json.loads(payload_json)
             except Exception:
-                return None
+                return None, "invalid_token"
 
             secret = (
                 frappe.conf.get("self_order_token_secret")
                 or frappe.get_site_config().get("encryption_key")
             )
             if not secret:
-                return None
+                return None, "invalid_token"
 
             expected_signature = hmac.new(
                 secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256
             ).hexdigest()
 
             if not hmac.compare_digest(signature, expected_signature):
-                return None
+                return None, "invalid_token"
 
             expires_on = payload.get("expires_on")
             if expires_on and get_datetime(expires_on) < now_datetime():
-                return None
+                return None, "session_expired"
 
             return {
                 "session_id": None,
@@ -211,13 +225,13 @@ def verify_token(token):
                 "order_linkage": None,
                 "is_guest": payload.get("is_guest", 1),
                 "data": payload.get("data", {}),
-            }
+            }, None
 
-        return None
-    
+        return None, "invalid_token"
+
     except Exception as e:
         frappe.log_error(f"Error verifying self-order token: {str(e)}")
-        return None
+        return None, "invalid_token"
 
 def get_or_create_self_order_session(token, session_data):
     """Get or create a Self Order Session for this token."""
