@@ -76,13 +76,13 @@ def build_invoice_items(order_doc, mode):
     """
     invoice_items = []
     for item in order_doc.items:
-        # Fetch item name in case it's not stored on the POS Order Item
+        item_code = item.item
         item_name = getattr(item, "item_name", None) or frappe.db.get_value(
-            "Item", item.item, "item_name"
+            "Item", item_code, "item_name"
         )
 
         invoice_item = {
-            "item_code": item.item,
+            "item_code": item_code,
             "item_name": item_name,
             "qty": item.qty,
             "rate": item.rate,
@@ -249,7 +249,7 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
-            fields=["item", "qty", "rate", "amount"],
+            fields=["item", "item_name", "qty", "rate", "amount"],
             order_by="idx",
         )
 
