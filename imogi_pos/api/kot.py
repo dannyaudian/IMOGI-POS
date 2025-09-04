@@ -109,10 +109,23 @@ def send_items_to_kitchen(pos_order, item_rows):
     
     # Validate items for templates
     for row_name in item_rows:
-        item_code = frappe.db.get_value("POS Order Item", row_name, "item_code")
-        is_template = frappe.db.get_value("Item", item_code, "has_variants")
+        # POS Order Item uses 'item' as the identifier. Older versions may
+        # still reference 'item_code', so fetch both and use whichever exists.
+        item_data = frappe.db.get_value(
+            "POS Order Item",
+            row_name,
+            ["item", "item_code"],
+            as_dict=True,
+        )
+        item_identifier = item_data.get("item") or item_data.get("item_code")
+
+        is_template = frappe.db.get_value("Item", item_identifier, "has_variants")
         if is_template:
-            frappe.throw(_("Cannot send template item to kitchen. Please select a variant for: {0}").format(item_code))
+            frappe.throw(
+                _(
+                    "Cannot send template item to kitchen. Please select a variant for: {0}"
+                ).format(item_identifier)
+            )
     
     # STUB: Create KOT Ticket logic will go here
     # For now, create a minimal response
