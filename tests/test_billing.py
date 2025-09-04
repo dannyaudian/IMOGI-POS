@@ -15,6 +15,7 @@ def billing_module():
     utils.cint = int
     utils.add_to_date = lambda dt, **kw: dt
     utils.get_url = lambda path=None: path or ""
+    utils.flt = float
 
     frappe = types.ModuleType("frappe")
     class FrappeException(Exception):
@@ -139,6 +140,77 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
     assert result['payments'][0]['amount'] == 10
     assert ('POS Order', 'POS-1', 'sales_invoice', 'SINV-1') in frappe.db.set_calls
 
+
+def test_generate_invoice_handles_string_amounts(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = '10'
+            self.amount = '10'
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+    profile = Profile()
+
+    class InvoiceDoc(types.SimpleNamespace):
+        def append(self, field, value):
+            lst = getattr(self, field, [])
+            lst.append(value)
+            setattr(self, field, lst)
+        def insert(self, ignore_permissions=True):
+            self.name = 'SINV-1'
+            return self
+        def submit(self):
+            self.submitted = True
+        def as_dict(self):
+            return self.__dict__
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        return 0
+
+    frappe.db.get_value = get_value
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount='10')
+
+    assert result['name'] == 'SINV-1'
+    assert result['payments'][0]['amount'] == '10'
 
 def test_generate_invoice_validates_payment_amount(billing_module):
     billing, frappe = billing_module

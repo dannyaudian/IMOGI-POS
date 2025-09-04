@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, cint, add_to_date, get_url
+from frappe.utils import now_datetime, cint, add_to_date, get_url, flt
 from frappe.realtime import publish_realtime
 
 def validate_branch_access(branch):
@@ -193,10 +193,11 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
             grand_total = getattr(
                 invoice_doc,
                 "grand_total",
-                sum(item.get("amount", 0) for item in invoice_doc.items),
+                sum(flt(item.get("amount", 0)) for item in invoice_doc.items),
             )
             payments_total = sum(
-                p.get("amount", 0) for p in getattr(invoice_doc, "payments", [])
+                flt(p.get("amount", 0))
+                for p in getattr(invoice_doc, "payments", [])
             )
             if round(payments_total, 2) != round(grand_total, 2):
                 frappe.throw(
