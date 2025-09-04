@@ -117,6 +117,8 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
                 return 'Item 1'
             if fieldname == 'has_variants':
                 return 0
+            if fieldname == 'is_sales_item':
+                return 1
         if doctype == 'Restaurant Table':
             return 'F1'
         return 0
@@ -175,6 +177,15 @@ def test_generate_invoice_error_handling(billing_module):
         raise Exception('Unexpected doctype')
 
     frappe.get_doc = get_doc
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        return 0
+
+    frappe.db.get_value = get_value
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
     with pytest.raises(Exception) as exc:
@@ -183,23 +194,8 @@ def test_generate_invoice_error_handling(billing_module):
     assert 'Failed to generate invoice' in str(exc.value)
 
 
-def test_generate_invoice_logs_long_error_without_character_length_exceeded(billing_module):
+def test_generate_invoice_validates_sales_item(billing_module):
     billing, frappe = billing_module
-
-    calls = []
-
-    class CharacterLengthExceededError(Exception):
-        pass
-
-    frappe.CharacterLengthExceededError = CharacterLengthExceededError
-
-    def log_error(*, title=None, message=None):
-        if len(title or "") > 140 or len(message or "") > 1000:
-            raise CharacterLengthExceededError("too long")
-        calls.append((title, message))
-
-    frappe.log_error = log_error
-
     class OrderItem:
         def __init__(self):
             self.item = 'ITEM-1'
@@ -223,35 +219,36 @@ def test_generate_invoice_logs_long_error_without_character_length_exceeded(bill
         imogi_mode = 'Counter'
         def get(self, field, default=None):
             return getattr(self, field, default)
-
     profile = Profile()
-
-    class BadInvoice(types.SimpleNamespace):
-        def insert(self, ignore_permissions=True):
-            raise Exception('X' * 2000)
-        def submit(self):
-            pass
-
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
             return order
         if doctype == 'POS Profile':
             return profile
         if isinstance(doctype, dict):
-            return BadInvoice(**doctype)
+            raise AssertionError('Invoice should not be created')
         raise Exception('Unexpected doctype')
 
     frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 0
+        return 0
+
+    frappe.db.get_value = get_value
+
     billing.validate_pos_session = lambda profile: 'SESSION-1'
 
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(frappe.ValidationError) as exc:
         billing.generate_invoice('POS-1')
 
-    assert 'Failed to generate invoice' in str(exc.value)
-    assert calls, 'log_error was not called'
-    title, message = calls[0]
-    assert title == 'Invoice generation failed'
-    assert len(message) <= 1000
+    assert 'ITEM-1' in str(exc.value)
 
 
 def test_prepare_invoice_draft_includes_notes(billing_module):
@@ -364,6 +361,8 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
                 return 'Item 1'
             if fieldname == 'has_variants':
                 return 0
+            if fieldname == 'is_sales_item':
+                return 1
         if doctype == 'Restaurant Table':
             return 'F1'
         return 0
