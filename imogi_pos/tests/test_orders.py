@@ -135,8 +135,8 @@ def test_merge_tables_moves_items(frappe_env):
     frappe, orders_module = frappe_env
     order1 = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
     order2 = orders_module.create_order("Dine-in", "BR-1", "P1", table="T2")
-    orders[order1["name"]].items = [types.SimpleNamespace(item_code="A")]
-    orders[order2["name"]].items = [types.SimpleNamespace(item_code="B")]
+    orders[order1["name"]].items = [types.SimpleNamespace(item="A")]
+    orders[order2["name"]].items = [types.SimpleNamespace(item="B")]
     orders_module.merge_tables("T1", ["T2"])
     assert len(orders[order1["name"]].items) == 2
     assert tables["T2"].status == "Available"
