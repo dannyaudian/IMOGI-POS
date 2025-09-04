@@ -183,6 +183,77 @@ def test_generate_invoice_error_handling(billing_module):
     assert 'Failed to generate invoice' in str(exc.value)
 
 
+def test_generate_invoice_logs_long_error_without_character_length_exceeded(billing_module):
+    billing, frappe = billing_module
+
+    calls = []
+
+    class CharacterLengthExceededError(Exception):
+        pass
+
+    frappe.CharacterLengthExceededError = CharacterLengthExceededError
+
+    def log_error(*, title=None, message=None):
+        if len(title or "") > 140 or len(message or "") > 1000:
+            raise CharacterLengthExceededError("too long")
+        calls.append((title, message))
+
+    frappe.log_error = log_error
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    class BadInvoice(types.SimpleNamespace):
+        def insert(self, ignore_permissions=True):
+            raise Exception('X' * 2000)
+        def submit(self):
+            pass
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return BadInvoice(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    with pytest.raises(Exception) as exc:
+        billing.generate_invoice('POS-1')
+
+    assert 'Failed to generate invoice' in str(exc.value)
+    assert calls, 'log_error was not called'
+    title, message = calls[0]
+    assert title == 'Invoice generation failed'
+    assert len(message) <= 1000
+
+
 def test_prepare_invoice_draft_includes_notes(billing_module):
     billing, frappe = billing_module
 
