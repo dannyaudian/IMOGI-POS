@@ -131,17 +131,23 @@ def generate_invoice(pos_order):
     # Determine POS mode for handling item notes
     profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
     mode = profile_doc.get("imogi_mode", "Counter")
+    allow_non_sales = cint(profile_doc.get("imogi_allow_non_sales_items", 0))
 
-    # Ensure all items are marked as sales items
+    # Ensure all items are marked as sales items unless explicitly allowed
+    valid_items = []
     for item in order_doc.items:
         is_sales_item = frappe.db.get_value("Item", item.item, "is_sales_item")
         if not is_sales_item:
+            if allow_non_sales:
+                continue
             frappe.throw(
                 _(
                     "Cannot generate invoice for non-sales item: {0}"
                 ).format(item.item),
                 frappe.ValidationError,
             )
+        valid_items.append(item)
+    order_doc.items = valid_items
 
     try:
         # Build invoice items and copy notes where applicable
