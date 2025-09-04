@@ -441,6 +441,9 @@ def request_payment(sales_invoice):
     Raises:
         frappe.ValidationError: If payment gateway is not properly configured
     """
+    if not sales_invoice:
+        frappe.throw(_("Missing Sales Invoice"), frappe.ValidationError)
+
     # Get Sales Invoice details
     invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
     validate_branch_access(invoice_doc.branch)

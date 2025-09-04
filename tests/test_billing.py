@@ -735,3 +735,12 @@ def test_list_orders_for_cashier_errors_without_profile(billing_module):
         billing.list_orders_for_cashier()
 
     assert 'No POS Profile found' in str(exc.value)
+
+
+def test_request_payment_requires_sales_invoice(billing_module):
+    billing, frappe = billing_module
+
+    with pytest.raises(frappe.ValidationError) as exc:
+        billing.request_payment(None)
+
+    assert 'Missing Sales Invoice' in str(exc.value)
