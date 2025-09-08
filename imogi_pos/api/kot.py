@@ -146,8 +146,10 @@ def send_items_to_kitchen(pos_order, item_rows):
     
     # Update POS Order workflow state if it's still in Draft
     if order_doc.workflow_state == "Draft":
-        # STUB: Update workflow state to "Sent to Kitchen"
-        pass
+        if hasattr(order_doc, "db_set"):
+            order_doc.db_set('workflow_state', 'In Progress', update_modified=False)
+        else:
+            order_doc.workflow_state = "In Progress"
     
     return kot_ticket
 
