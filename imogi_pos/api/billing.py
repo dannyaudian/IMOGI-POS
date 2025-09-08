@@ -154,6 +154,14 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
         valid_items.append(item)
     order_doc.items = valid_items
 
+    if not order_doc.items:
+        frappe.throw(
+            _(
+                "No sales items left to invoice after filtering non-sales items"
+            ),
+            frappe.ValidationError,
+        )
+
     try:
         # Build invoice items and copy notes where applicable
         invoice_items = build_invoice_items(order_doc, mode)
