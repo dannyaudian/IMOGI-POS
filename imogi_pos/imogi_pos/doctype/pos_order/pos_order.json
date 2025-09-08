@@ -1,219 +1,196 @@
 {
-  "actions": [],
-  "allow_rename": 0,
-  "autoname": "POS-ORD-.#####",
-  "creation": "2023-01-01 00:00:00.000000",
-  "doctype": "DocType",
-  "editable_grid": 1,
-  "engine": "InnoDB",
-  "field_order": [
-        "branch",
-        "table",
-        "floor",
-        "order_type",
-        "pos_profile",
-        "customer",
-        "column_break_7",
-        "workflow_state",
-        "posting_date",
-        "posting_time",
-        "sales_invoice",
-        "section_break_11",
-        "items",
-        "section_break_13",
-        "discount_percent",
-        "discount_amount",
-        "promo_code",
-        "totals",
-        "section_break_15",
-        "notes",
-        "last_edited_by"
-    ],
-    "fields": [
-        {
-            "fieldname": "branch",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "label": "Branch",
-            "options": "Branch",
-            "reqd": 1
-        },
-        {
-            "fieldname": "table",
-            "fieldtype": "Link",
-            "label": "Table",
-            "options": "Restaurant Table"
-        },
-        {
-            "fieldname": "floor",
-            "fieldtype": "Link",
-            "label": "Floor",
-            "options": "Restaurant Floor",
-            "fetch_from": "table.floor",
-            "read_only": 1
-        },
-        {
-            "fieldname": "order_type",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "label": "Order Type",
-            "options": "Dine-in\nTakeaway\nKiosk",
-            "reqd": 1
-        },
-        {
-            "fieldname": "pos_profile",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "label": "POS Profile",
-            "options": "POS Profile",
-            "reqd": 1
-        },
-        {
-            "fieldname": "customer",
-            "fieldtype": "Link",
-            "label": "Customer",
-            "options": "Customer"
-        },
-        {
-            "fieldname": "column_break_7",
-            "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "workflow_state",
-            "fieldtype": "Data",
-            "label": "Workflow State",
-            "read_only": 1,
-            "no_copy": 1
-        },
-        {
-            "fieldname": "posting_date",
-            "fieldtype": "Date",
-            "label": "Posting Date",
-            "default": "Today"
-        },
-        {
-            "fieldname": "posting_time",
-            "fieldtype": "Time",
-            "label": "Posting Time",
-            "default": "now"
-        },
-        {
-            "fieldname": "sales_invoice",
-            "fieldtype": "Link",
-            "label": "Sales Invoice",
-            "options": "Sales Invoice",
-            "read_only": 1
-        },
-        {
-            "fieldname": "section_break_11",
-            "fieldtype": "Section Break",
-            "label": "Items"
-        },
-        {
-            "fieldname": "items",
-            "fieldtype": "Table",
-            "label": "Items",
-            "options": "POS Order Item",
-            "reqd": 1
-        },
-        {
-            "fieldname": "section_break_13",
-            "fieldtype": "Section Break",
-            "label": "Totals"
-        },
-        {
-            "fieldname": "discount_percent",
-            "fieldtype": "Percent",
-            "label": "Discount Percent"
-        },
-        {
-            "fieldname": "discount_amount",
-            "fieldtype": "Currency",
-            "label": "Discount Amount"
-        },
-        {
-            "fieldname": "promo_code",
-            "fieldtype": "Data",
-            "label": "Promo Code"
-        },
-        {
-            "fieldname": "totals",
-            "fieldtype": "Currency",
-            "label": "Totals",
-            "read_only": 1
-        },
-        {
-            "fieldname": "section_break_15",
-            "fieldtype": "Section Break",
-            "label": "Additional Info"
-        },
-        {
-            "fieldname": "notes",
-            "fieldtype": "Small Text",
-            "label": "Notes"
-        },
-        {
-            "fieldname": "last_edited_by",
-            "fieldtype": "Link",
-            "label": "Last Edited By",
-            "options": "User",
-            "read_only": 1
-        }
-    ],
-    "links": [
-        {
-            "link_doctype": "Sales Invoice",
-            "link_fieldname": "imogi_pos_order"
-        },
-        {
-            "link_doctype": "KOT Ticket",
-            "link_fieldname": "pos_order"
-        }
-    ],
-    "modified": "2023-01-01 00:00:00.000000",
-    "modified_by": "Administrator",
-    "module": "IMOGI POS",
-    "name": "POS Order",
-    "naming_rule": "Expression",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Restaurant Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "delete": 0,
-            "email": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Waiter",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 0,
-            "delete": 0,
-            "email": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "Cashier",
-            "share": 0,
-            "write": 0
-        }
-    ],
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "states": [],
-    "track_changes": 1
+ "actions": [],
+ "autoname": "POS-ORD-.#####",
+ "creation": "2023-01-01 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "branch",
+  "table",
+  "floor",
+  "order_type",
+  "pos_profile",
+  "customer",
+  "column_break_7",
+  "workflow_state",
+  "posting_date",
+  "posting_time",
+  "sales_invoice",
+  "section_break_11",
+  "items",
+  "section_break_13",
+  "totals",
+  "section_break_15",
+  "notes",
+  "last_edited_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Branch",
+   "options": "Branch",
+   "reqd": 1
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Link",
+   "label": "Table",
+   "options": "Restaurant Table"
+  },
+  {
+   "fetch_from": "table.floor",
+   "fieldname": "floor",
+   "fieldtype": "Link",
+   "label": "Floor",
+   "options": "Restaurant Floor",
+   "read_only": 1
+  },
+  {
+   "fieldname": "order_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Order Type",
+   "options": "Dine-in\nTakeaway\nKiosk",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "POS Profile",
+   "options": "POS Profile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Data",
+   "label": "Workflow State",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date"
+  },
+  {
+   "default": "now",
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Posting Time"
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_11",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "POS Order Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "totals",
+   "fieldtype": "Currency",
+   "label": "Totals",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_15",
+   "fieldtype": "Section Break",
+   "label": "Additional Info"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "last_edited_by",
+   "fieldtype": "Link",
+   "label": "Last Edited By",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "links": [
+  {
+   "link_doctype": "Sales Invoice",
+   "link_fieldname": "imogi_pos_order"
+  },
+  {
+   "link_doctype": "KOT Ticket",
+   "link_fieldname": "pos_order"
+  }
+ ],
+ "modified": "2025-09-08 13:49:41.659232",
+ "modified_by": "Administrator",
+ "module": "IMOGI POS",
+ "name": "POS Order",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Restaurant Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Waiter",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Cashier"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
 }
