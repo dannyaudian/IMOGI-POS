@@ -14,6 +14,55 @@ import traceback
 from typing import Any
 
 import frappe
+import importlib.machinery
+import importlib.util
+import importlib.abc
+import sys
+import types
+
+# Provide minimal ``frappe.utils.response`` implementation for tests when the
+# real Frappe package isn't available.
+if "frappe.utils.response" not in sys.modules:
+    class _DummyLoader(importlib.abc.Loader):
+        def create_module(self, spec):  # pragma: no cover - default module
+            return None
+        def exec_module(self, module):  # pragma: no cover - nothing to exec
+            pass
+
+    loader = _DummyLoader()
+    utils_mod = types.ModuleType("frappe.utils")
+    utils_mod.__loader__ = loader
+    utils_mod.__spec__ = importlib.machinery.ModuleSpec("frappe.utils", loader, is_package=True)
+    utils_mod.__path__ = []
+    response_mod = types.ModuleType("frappe.utils.response")
+    response_mod.__loader__ = loader
+    response_mod.__spec__ = importlib.machinery.ModuleSpec("frappe.utils.response", loader)
+
+    def report_error():
+        frappe_mod = sys.modules.get("frappe")
+        tb = getattr(frappe_mod, "get_traceback", lambda: "")()
+        if hasattr(frappe_mod, "log_error"):
+            frappe_mod.log_error(tb)
+        try:
+            frappe_mod.errprint(tb)
+        except BrokenPipeError:
+            if hasattr(frappe_mod, "log_error"):
+                frappe_mod.log_error(tb, "BrokenPipeError")
+
+    response_mod.report_error = report_error
+    utils_mod.response = response_mod
+
+    class _FrappeFinder(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path, target=None):  # pragma: no cover - simple finder
+            if fullname == "frappe.utils":
+                return utils_mod.__spec__
+            if fullname == "frappe.utils.response":
+                return response_mod.__spec__
+            return None
+
+    sys.meta_path.insert(0, _FrappeFinder())
+    sys.modules["frappe.utils"] = utils_mod
+    sys.modules["frappe.utils.response"] = response_mod
 
 
 def safe_errprint(message: str | bytes, *args: Any, **kwargs: Any) -> None:

@@ -23,6 +23,15 @@ class KOTService:
         "SERVED": "Served",
         "CANCELLED": "Cancelled"
     }
+
+    # Allowed forward transitions for KOT Items
+    ALLOWED_ITEM_TRANSITIONS = {
+        STATES["QUEUED"]: {STATES["IN_PROGRESS"], STATES["CANCELLED"]},
+        STATES["IN_PROGRESS"]: {STATES["READY"], STATES["CANCELLED"]},
+        STATES["READY"]: {STATES["SERVED"], STATES["CANCELLED"]},
+        STATES["SERVED"]: set(),
+        STATES["CANCELLED"]: set(),
+    }
     
     def __init__(self, pos_order=None):
         """
@@ -156,14 +165,29 @@ class KOTService:
         
         user = user or frappe.session.user
         item = frappe.get_doc("KOT Item", kot_item)
-        
+
         # Get ticket and validate it's not cancelled
         ticket = frappe.get_doc("KOT Ticket", item.parent)
         if ticket.workflow_state == self.STATES["CANCELLED"]:
             frappe.throw(_("Cannot update item state for a cancelled KOT"))
-        
-        # Update item state
+
+        # Validate state transition
         old_state = item.workflow_state
+        if new_state == old_state:
+            return {
+                "kot_item": item.name,
+                "ticket": ticket.name,
+                "old_state": old_state,
+                "new_state": new_state,
+            }
+
+        allowed = self.ALLOWED_ITEM_TRANSITIONS.get(old_state, set())
+        if new_state not in allowed:
+            frappe.throw(
+                _(f"Invalid state transition from {old_state} to {new_state}")
+            )
+
+        # Update item state
         item.workflow_state = new_state
         item.last_edited_by = user
         item.save()
@@ -263,38 +287,22 @@ class KOTService:
         
         user = user or frappe.session.user
         updated_items = []
+        failed_items = []
         affected_tickets = set()
-        
+
         for kot_item in kot_items:
-            item = frappe.get_doc("KOT Item", kot_item)
-            
-            # Skip if already in target state
-            if item.workflow_state == new_state:
-                continue
-                
-            # Update item state
-            item.workflow_state = new_state
-            item.last_edited_by = user
-            item.save()
-            
-            # Update corresponding POS Order Item counters
-            if item.pos_order_item:
-                self._update_pos_item_counter(item.pos_order_item, new_state)
-            
-            updated_items.append(item.name)
-            affected_tickets.add(item.parent)
-            
-            # Send realtime update for this item
-            self._publish_kot_item_update(item)
-        
-        # Update ticket states if needed
-        for ticket_name in affected_tickets:
-            self._update_ticket_state_if_needed(ticket_name)
-        
+            try:
+                result = self.update_kot_item_state(kot_item, new_state, user)
+                updated_items.append(kot_item)
+                affected_tickets.add(result["ticket"])
+            except Exception as e:
+                failed_items.append({"item": kot_item, "error": str(e)})
+
         return {
             "updated_items": updated_items,
+            "failed_items": failed_items,
             "affected_tickets": list(affected_tickets),
-            "new_state": new_state
+            "new_state": new_state,
         }
     
     def cancel_kot_ticket(
