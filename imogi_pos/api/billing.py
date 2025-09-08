@@ -171,6 +171,7 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
             "items": invoice_items,
             "imogi_pos_order": pos_order,
             "order_type": order_doc.order_type,
+            "update_stock": profile_doc.get("update_stock"),
         }
         if pos_session:
             invoice_data["pos_session"] = pos_session
