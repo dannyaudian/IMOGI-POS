@@ -21,6 +21,7 @@ async function fetchMeta(doctype) {
 async function init() {
   const orderMeta = await fetchMeta('POS Order');
   if (orderMeta) {
+    window.orderMeta = orderMeta;
     renderOrderFields(orderMeta);
     const itemsField = orderMeta.fields.find(f => f.fieldname === 'items');
     if (itemsField) {
@@ -42,23 +43,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderOrderFields(meta) {
   const container = document.getElementById('order-fields');
-  const fields = ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
-  fields.forEach(fn => {
-    const df = meta.fields.find(f => f.fieldname === fn);
-    if (!df) return;
+  meta.fields.forEach(df => {
+    if (df.fieldtype === 'Table') return;
+
     const wrapper = document.createElement('div');
     wrapper.className = 'form-group';
+
     const label = document.createElement('label');
     label.textContent = df.label;
-    label.setAttribute('for', fn);
-    const input = document.createElement('input');
-    input.id = fn;
-    input.name = fn;
-    input.className = 'form-control';
-    input.type = df.fieldtype === 'Int' || df.fieldtype === 'Float' ? 'number' : 'text';
-    if (df.reqd) input.required = true;
+    label.setAttribute('for', df.fieldname);
     wrapper.appendChild(label);
-    wrapper.appendChild(input);
+
+    if (df.fieldtype === 'Select') {
+      const select = document.createElement('select');
+      select.id = df.fieldname;
+      select.name = df.fieldname;
+      select.className = 'form-control';
+      if (df.reqd) select.required = true;
+      (df.options || '').split('\n').forEach(opt => {
+        if (!opt) return;
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        select.appendChild(option);
+      });
+      if (df.default) select.value = df.default;
+      wrapper.appendChild(select);
+    } else if (df.fieldtype === 'Link') {
+      const inputWrapper = document.createElement('div');
+      wrapper.appendChild(inputWrapper);
+      const control = frappe.ui.form.make_control({
+        df: df,
+        parent: inputWrapper,
+        only_input: true
+      });
+      control.refresh();
+    } else {
+      const input = document.createElement('input');
+      input.id = df.fieldname;
+      input.name = df.fieldname;
+      input.className = 'form-control';
+      if (['Int', 'Float', 'Currency'].includes(df.fieldtype)) {
+        input.type = 'number';
+      } else if (df.fieldtype === 'Date') {
+        input.type = 'date';
+      } else {
+        input.type = 'text';
+      }
+      if (df.reqd) input.required = true;
+      if (df.default) input.value = df.default;
+      wrapper.appendChild(input);
+    }
+
     container.appendChild(wrapper);
   });
 }
@@ -152,11 +188,13 @@ function submitOrder() {
   const formData = new FormData(form);
 
   const args = {};
-  ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
-    .forEach(key => {
-      const val = formData.get(key);
-      if (val) args[key] = val;
+  if (window.orderMeta) {
+    window.orderMeta.fields.forEach(df => {
+      if (df.fieldtype === 'Table') return;
+      const val = formData.get(df.fieldname);
+      if (val) args[df.fieldname] = val;
     });
+  }
 
   const items = [];
   document.querySelectorAll('#items-table tbody tr').forEach(tr => {
