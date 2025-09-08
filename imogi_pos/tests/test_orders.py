@@ -38,7 +38,10 @@ def frappe_env(monkeypatch):
         def save(self):
             orders[self.name] = self
         def append(self, field, value):
+            if isinstance(value, dict):
+                value = types.SimpleNamespace(**value)
             getattr(self, field).append(value)
+            return value
         def as_dict(self):
             return {
                 "name": self.name,
@@ -130,6 +133,14 @@ def test_create_order_assigns_table(frappe_env):
     assert tables["T1"].status == "Occupied"
     assert tables["T1"].current_pos_order == result["name"]
 
+def test_create_order_stores_items(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order(
+        "Dine-in", "BR-1", "P1", table="T1", items={"item": "SALES-ITEM"}
+    )
+    assert len(orders[result["name"]].items) == 1
+    assert orders[result["name"]].items[0].item == "SALES-ITEM"
+
 def test_switch_table_moves_order(frappe_env):
     frappe, orders_module = frappe_env
     result = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
@@ -167,6 +178,7 @@ def test_after_create_order_hook_called(frappe_env):
 
 def test_non_sales_items_rejected(frappe_env):
     frappe, orders_module = frappe_env
-    item_doc = types.SimpleNamespace(item="NON-SALES-ITEM")
     with pytest.raises(frappe.ValidationError):
-        orders_module.validate_item_is_sales_item(item_doc)
+        orders_module.create_order(
+            "Dine-in", "BR-1", "P1", table="T1", items={"item": "NON-SALES-ITEM"}
+        )
