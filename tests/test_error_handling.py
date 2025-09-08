@@ -107,6 +107,26 @@ def response_module():
     sys.modules["frappe.utils"] = utils_mod
     sys.modules["frappe.utils.response"] = response_mod
 
+    # Create in-memory stub for frappe.utils.response
+    utils_mod = types.ModuleType("frappe.utils")
+
+    response_mod = types.ModuleType("frappe.utils.response")
+
+    def report_error():
+        traceback_msg = frappe.get_traceback()
+        frappe.log_error(traceback_msg)
+        try:
+            frappe.errprint(traceback_msg)
+        except BrokenPipeError:
+            frappe.log_error(traceback_msg, "BrokenPipeError")
+
+    response_mod.report_error = report_error
+
+    utils_mod.response = response_mod
+
+    sys.modules["frappe.utils"] = utils_mod
+    sys.modules["frappe.utils.response"] = response_mod
+
     err_mod = importlib.import_module("imogi_pos.utils.error")
     importlib.reload(err_mod)
 
