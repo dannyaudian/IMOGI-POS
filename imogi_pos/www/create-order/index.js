@@ -5,19 +5,27 @@
  */
 
 async function fetchMeta(doctype) {
-  const r = await frappe.call({
-    method: 'frappe.client.get_meta',
-    args: { doctype }
-  });
-  return r.message;
+  try {
+    const r = await frappe.call({
+      method: 'imogi_pos.api.utils.get_meta',
+      args: { doctype }
+    });
+    return r.message;
+  } catch (e) {
+    console.error(e);
+    frappe.msgprint(__('Unable to load metadata. Please refresh the page.'));
+    throw e;
+  }
 }
 
 async function init() {
   const orderMeta = await fetchMeta('POS Order');
-  renderOrderFields(orderMeta);
-  const itemsField = orderMeta.fields.find(f => f.fieldname === 'items');
-  if (itemsField) {
-    window.itemMeta = await fetchMeta(itemsField.options);
+  if (orderMeta) {
+    renderOrderFields(orderMeta);
+    const itemsField = orderMeta.fields.find(f => f.fieldname === 'items');
+    if (itemsField) {
+      window.itemMeta = await fetchMeta(itemsField.options);
+    }
   }
 }
 
@@ -120,16 +128,22 @@ function addItemRow() {
   itemInput.addEventListener('change', () => {
     const item_code = itemInput.value;
     if (!item_code) return;
-    frappe.client.get_value('Item', item_code, ['image','standard_rate']).then(r => {
-      if (r && r.message) {
-        if (r.message.standard_rate !== undefined) {
-          rateInput.value = r.message.standard_rate;
+    frappe.client
+      .get_value('Item', item_code, ['image', 'standard_rate'])
+      .then(r => {
+        if (r && r.message) {
+          if (r.message.standard_rate !== undefined) {
+            rateInput.value = r.message.standard_rate;
+          }
+          if (r.message.image) {
+            img.src = r.message.image;
+          }
         }
-        if (r.message.image) {
-          img.src = r.message.image;
-        }
-      }
-    });
+      })
+      .catch(err => {
+        console.error('Error fetching item details', err);
+        frappe.msgprint(__('Unable to fetch item details'));
+      });
   });
 }
 

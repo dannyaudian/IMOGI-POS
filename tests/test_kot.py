@@ -217,8 +217,10 @@ def kot_service_env():
     service._update_ticket_state_if_needed = lambda *a, **k: None
     service._update_pos_item_counter = lambda *a, **k: None
     service._publish_kot_item_update = lambda *a, **k: None
+    service._update_pos_order_state_if_needed = lambda *a, **k: None
+    service._publish_kot_updates = lambda *a, **k: None
 
-    yield service, items
+    yield service, items, tickets
 
     sys.modules.pop("frappe", None)
     sys.modules.pop("frappe.utils", None)
@@ -226,7 +228,7 @@ def kot_service_env():
 
 
 def test_update_kot_item_state_allows_forward_progress(kot_service_env):
-    service, items = kot_service_env
+    service, items, _ = kot_service_env
     service.update_kot_item_state("KOTI-1", "In Progress")
     assert items["KOTI-1"].workflow_state == "In Progress"
     service.update_kot_item_state("KOTI-1", "Ready")
@@ -234,16 +236,40 @@ def test_update_kot_item_state_allows_forward_progress(kot_service_env):
 
 
 def test_update_kot_item_state_blocks_invalid_transition(kot_service_env):
-    service, _ = kot_service_env
+    service, _, _ = kot_service_env
     with pytest.raises(Exception):
         service.update_kot_item_state("KOTI-1", "Ready")
 
 
 def test_bulk_update_kot_items_records_results(kot_service_env):
-    service, items = kot_service_env
+    service, items, _ = kot_service_env
     service.update_kot_item_state("KOTI-1", "In Progress")
     result = service.bulk_update_kot_items(["KOTI-1", "KOTI-2"], "Ready")
     assert result["updated_items"] == ["KOTI-1"]
     assert result["failed_items"][0]["item"] == "KOTI-2"
     assert items["KOTI-1"].workflow_state == "Ready"
     assert items["KOTI-2"].workflow_state == "Queued"
+
+
+def test_update_kot_ticket_state_allows_in_progress_to_served(kot_service_env):
+    service, _, tickets = kot_service_env
+    ticket = tickets["KT-1"]
+    ticket.workflow_state = "In Progress"
+    for item in ticket.items:
+        item.workflow_state = "In Progress"
+
+    service.update_kot_ticket_state("KT-1", "Served")
+
+    assert ticket.workflow_state == "Served"
+    assert all(item.workflow_state == "Served" for item in ticket.items)
+
+
+def test_update_kot_ticket_state_blocks_invalid_transition(kot_service_env):
+    service, _, tickets = kot_service_env
+    ticket = tickets["KT-1"]
+    ticket.workflow_state = "Served"
+    for item in ticket.items:
+        item.workflow_state = "Served"
+
+    with pytest.raises(Exception):
+        service.update_kot_ticket_state("KT-1", "In Progress")

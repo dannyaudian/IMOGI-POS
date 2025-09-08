@@ -1097,6 +1097,7 @@ imogi_pos.kitchen_display = {
                     </div>
                 </div>
                 <div class="kot-meta">
+                    ${kot.pos_order ? `<div class="kot-order">Order: ${kot.pos_order}</div>` : ''}
                     ${kot.table ? `<div class="kot-table">Table: ${kot.table}</div>` : ''}
                     ${kot.priority ? `<div class="kot-priority">Priority: ${kot.priority}</div>` : ''}
                 </div>
@@ -1118,8 +1119,8 @@ imogi_pos.kitchen_display = {
                         Mark Ready
                     </button>
                 ` : ''}
-                
-                ${kot.workflow_state === 'Ready' ? `
+
+                ${['In Progress', 'Ready'].includes(kot.workflow_state) ? `
                     <button class="kot-action-btn primary serve-btn" data-action="serve" data-kot="${kot.name}">
                         Mark Served
                     </button>
