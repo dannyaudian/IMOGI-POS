@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderOrderFields(meta) {
   const container = document.getElementById('order-fields');
-  const fields = ['order_type', 'branch', 'pos_profile', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
+  const fields = ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
   fields.forEach(fn => {
     const df = meta.fields.find(f => f.fieldname === fn);
     if (!df) return;
@@ -81,6 +81,15 @@ function addItemRow() {
   qtyTd.appendChild(qtyInput);
   tr.appendChild(qtyTd);
 
+  const rateTd = document.createElement('td');
+  const rateInput = document.createElement('input');
+  rateInput.type = 'number';
+  rateInput.name = 'items_rate';
+  rateInput.className = 'form-control';
+  rateInput.placeholder = 'Price';
+  rateTd.appendChild(rateInput);
+  tr.appendChild(rateTd);
+
   const discTd = document.createElement('td');
   const discInput = document.createElement('input');
   discInput.type = 'number';
@@ -89,6 +98,13 @@ function addItemRow() {
   discInput.placeholder = discDf ? discDf.label : 'Discount';
   discTd.appendChild(discInput);
   tr.appendChild(discTd);
+
+  const imgTd = document.createElement('td');
+  const img = document.createElement('img');
+  img.style.maxWidth = '50px';
+  img.style.maxHeight = '50px';
+  imgTd.appendChild(img);
+  tr.appendChild(imgTd);
 
   const removeTd = document.createElement('td');
   const btn = document.createElement('button');
@@ -100,6 +116,21 @@ function addItemRow() {
   tr.appendChild(removeTd);
 
   tbody.appendChild(tr);
+
+  itemInput.addEventListener('change', () => {
+    const item_code = itemInput.value;
+    if (!item_code) return;
+    frappe.client.get_value('Item', item_code, ['image','standard_rate']).then(r => {
+      if (r && r.message) {
+        if (r.message.standard_rate !== undefined) {
+          rateInput.value = r.message.standard_rate;
+        }
+        if (r.message.image) {
+          img.src = r.message.image;
+        }
+      }
+    });
+  });
 }
 
 function submitOrder() {
@@ -107,7 +138,7 @@ function submitOrder() {
   const formData = new FormData(form);
 
   const args = {};
-  ['order_type', 'branch', 'pos_profile', 'table', 'discount_amount', 'discount_percent', 'promo_code']
+  ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
     .forEach(key => {
       const val = formData.get(key);
       if (val) args[key] = val;
@@ -117,9 +148,10 @@ function submitOrder() {
   document.querySelectorAll('#items-table tbody tr').forEach(tr => {
     const item = tr.querySelector('input[name="items_item"]').value;
     const qty = tr.querySelector('input[name="items_qty"]').value;
+    const rate = tr.querySelector('input[name="items_rate"]').value;
     const discount = tr.querySelector('input[name="items_discount"]').value;
-    if (item || qty || discount) {
-      items.push({ item, qty, discount });
+    if (item || qty || discount || rate) {
+      items.push({ item, qty, discount, rate });
     }
   });
   if (items.length) {

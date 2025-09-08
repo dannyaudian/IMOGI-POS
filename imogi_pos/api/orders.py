@@ -51,7 +51,7 @@ def ensure_update_stock_enabled(pos_profile):
         )
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, items=None, discount_amount=0, discount_percent=0, promo_code=None):
+def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None):
     """
     Creates a new POS Order.
     
@@ -60,6 +60,7 @@ def create_order(order_type, branch, pos_profile, table=None, items=None, discou
         branch (str): Branch name
         pos_profile (str): POS Profile name
         table (str, optional): Restaurant Table name. Required for Dine-in.
+        customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
     
     Returns:
@@ -101,6 +102,7 @@ def create_order(order_type, branch, pos_profile, table=None, items=None, discou
             "branch": branch,
             "pos_profile": pos_profile,
             "table": table,
+            "customer": customer,
             "workflow_state": "Draft",
             "discount_amount": discount_amount,
             "discount_percent": discount_percent,
@@ -115,6 +117,8 @@ def create_order(order_type, branch, pos_profile, table=None, items=None, discou
             items = [items]
         for item in items:
             row = order_doc.append("items", item)
+            if item.get("rate") is not None:
+                row.rate = item.get("rate")
             validate_item_is_sales_item(row)
 
     order_doc.insert()
