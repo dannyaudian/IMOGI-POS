@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, get_datetime
+from frappe.utils import now_datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
@@ -231,9 +231,14 @@ class KOTService:
         
         user = user or frappe.session.user
         ticket = frappe.get_doc("KOT Ticket", kot_ticket)
-        
+
+        # Validate state transition
+        current_state = ticket.workflow_state
+        if new_state not in self.ALLOWED_TRANSITIONS.get(current_state, set()):
+            frappe.throw(_("Cannot change ticket state from {0} to {1}").format(current_state, new_state))
+
         # Update ticket state
-        old_state = ticket.workflow_state
+        old_state = current_state
         ticket.workflow_state = new_state
         ticket.last_edited_by = user
         ticket.save()

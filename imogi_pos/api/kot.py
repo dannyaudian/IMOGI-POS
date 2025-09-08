@@ -84,6 +84,53 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
     if payload["floor"]:
         publish_realtime(f"table_display:floor:{payload['floor']}", payload)
 
+
+@frappe.whitelist()
+def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+    """Get KOT tickets for a specific kitchen or station.
+
+    Args:
+        kitchen (str, optional): Kitchen name to filter by.
+        station (str, optional): Kitchen Station to filter by.
+        branch (str, optional): Branch to filter by.
+
+    Returns:
+        list: List of KOT tickets with their items, ordered by creation time.
+    """
+
+    filters = {}
+    if kitchen:
+        filters["kitchen"] = kitchen
+    if station:
+        filters["kitchen_station"] = station
+    if branch:
+        filters["branch"] = branch
+
+    tickets = frappe.get_all(
+        "KOT Ticket",
+        filters=filters,
+        fields=["name", "table", "workflow_state", "creation"],
+        order_by="creation asc",
+    )
+
+    for ticket in tickets:
+        ticket["items"] = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=[
+                "idx",
+                "item_code as item",
+                "item_name",
+                "workflow_state as status",
+                "qty",
+                "notes",
+            ],
+            order_by="idx asc",
+        )
+
+    return tickets
+
+
 @frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
     """
@@ -128,16 +175,46 @@ def send_items_to_kitchen(pos_order, item_rows):
                 ).format(item_identifier)
             )
     
-    # STUB: Create KOT Ticket logic will go here
-    # For now, create a minimal response
-    kot_ticket = {
-        "name": f"KOT-{frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}",
-        "pos_order": pos_order,
-        "status": "Queued",
-        "items": item_rows,
-        "branch": order_doc.branch,
-        "creation": now_datetime()
-    }
+    # Create KOT Ticket document
+    kot_doc = frappe.new_doc("KOT Ticket")
+    kot_doc.pos_order = pos_order
+    kot_doc.branch = order_doc.branch
+    kot_doc.table = getattr(order_doc, "table", None)
+    kot_doc.floor = getattr(order_doc, "floor", None)
+    kot_doc.order_type = getattr(order_doc, "order_type", None)
+    kot_doc.customer = getattr(order_doc, "customer", None)
+
+    # Build KOT Item records from selected POS Order Items
+    for row_name in item_rows:
+        item_details = frappe.db.get_value(
+            "POS Order Item",
+            row_name,
+            ["item", "qty", "notes", "kitchen", "kitchen_station"],
+            as_dict=True,
+        )
+
+        item_code = item_details.get("item")
+        item_name = frappe.db.get_value("Item", item_code, "item_name")
+
+        if not getattr(kot_doc, "kitchen_station", None):
+            kot_doc.kitchen_station = item_details.get("kitchen_station")
+        if not getattr(kot_doc, "kitchen", None):
+            kot_doc.kitchen = item_details.get("kitchen")
+
+        kot_doc.append(
+            "items",
+            {
+                "item_code": item_code,
+                "item_name": item_name,
+                "qty": item_details.get("qty"),
+                "pos_order_item": row_name,
+                "workflow_state": "Queued",
+                "notes": item_details.get("notes"),
+            },
+        )
+
+    kot_doc.insert()
+    kot_ticket = kot_doc.as_dict()
     
     # Publish updates to kitchen and table displays
     publish_kitchen_update(kot_ticket)
@@ -172,6 +249,7 @@ def update_kot_item_state(kot_item, state):
     # Get KOT Item details for validation context
     parent_kot = frappe.db.get_value("KOT Item", kot_item, "parent")
     kot_ticket = frappe.get_doc("KOT Ticket", parent_kot)
+    
     pos_order = frappe.get_doc("POS Order", kot_ticket.pos_order)
 
     check_restaurant_domain(pos_order.pos_profile)
@@ -229,43 +307,17 @@ def update_kot_status(kot_ticket, state):
     # Get KOT Ticket details
     ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
     pos_order = frappe.get_doc("POS Order", ticket_doc.pos_order)
-    
+
     check_restaurant_domain(pos_order.pos_profile)
     validate_branch_access(pos_order.branch)
-    
-    # STUB: Validate state transition
-    # STUB: Update KOT Ticket status
-    
-    # Prepare updated KOT Ticket data
-    updated_ticket = {
-        "name": kot_ticket,
-        "pos_order": ticket_doc.pos_order,
-        "previous_state": ticket_doc.status,
-        "new_state": state,
-        "updated_at": now_datetime()
+
+    service = KOTService()
+    result = service.update_kot_ticket_state(kot_ticket, state)
+
+    return {
+        "ticket": result["ticket"],
+        "old_state": result["old_state"],
+        "new_state": result["new_state"],
+        "updated_items": result.get("updated_items", [])
     }
-    
-    # Get kitchen/station info for targeted updates
-    kitchen = None
-    station = None
-    
-    # Get sample KOT Item to determine kitchen/station
-    kot_items = frappe.get_all("KOT Item", 
-                              filters={"parent": kot_ticket},
-                              fields=["kitchen", "kitchen_station"],
-                              limit=1)
-    
-    if kot_items:
-        kitchen = kot_items[0].kitchen
-        station = kot_items[0].kitchen_station
-    
-    # Publish updates
-    publish_kitchen_update(updated_ticket, kitchen=kitchen, station=station)
-    
-    if pos_order.table:
-        publish_table_update(pos_order.name, pos_order.table, "kot_status_update")
-    
-    # Update POS Order workflow state based on KOT status changes
-    # STUB: Implement workflow state transitions based on KOT status
-    
-    return updated_ticket
+
