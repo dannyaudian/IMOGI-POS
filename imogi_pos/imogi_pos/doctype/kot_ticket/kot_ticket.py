@@ -59,7 +59,7 @@ class KOTTicket(Document):
         
         # Map KOT states to POS Order states
         kot_to_pos_map = {
-            "Preparing": "In Progress",
+            "In Progress": "In Progress",
             "Ready": "Ready",
             "Served": "Served",
             "Cancelled": "Cancelled"  # Only if all KOTs are cancelled
@@ -77,11 +77,11 @@ class KOTTicket(Document):
         
         # If any KOT is ready and none are queued/preparing, mark order as ready
         elif any(kot.workflow_state == "Ready" for kot in all_kots) and \
-             not any(kot.workflow_state in ["Queued", "Preparing"] for kot in all_kots):
+             not any(kot.workflow_state in ["Queued", "In Progress"] for kot in all_kots):
             new_pos_state = "Ready"
         
         # If any KOT is preparing, mark order as in progress
-        elif any(kot.workflow_state == "Preparing" for kot in all_kots):
+        elif any(kot.workflow_state == "In Progress" for kot in all_kots):
             new_pos_state = "In Progress"
         
         # Only update if we have a new state to apply

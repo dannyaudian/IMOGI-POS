@@ -51,7 +51,7 @@
             "fieldname": "workflow_state",
             "fieldtype": "Select",
             "label": "Status",
-            "options": "Queued\nPreparing\nReady\nServed\nCancelled",
+            "options": "Queued\nIn Progress\nReady\nServed\nCancelled",
             "default": "Queued"
         },
         {

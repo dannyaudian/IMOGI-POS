@@ -158,7 +158,7 @@ def update_kot_item_state(kot_item, state):
     
     Args:
         kot_item (str): KOT Item name
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Updated KOT Item details
@@ -217,7 +217,7 @@ def bulk_update_kot_item_state(kot_items, state):
     
     Args:
         kot_items (list or str): List of KOT Item names
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Summary of updates
@@ -298,7 +298,7 @@ def update_kot_status(kot_ticket, state):
     
     Args:
         kot_ticket (str): KOT Ticket name
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Updated KOT Ticket details
