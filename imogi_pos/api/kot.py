@@ -83,6 +83,42 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
     if payload["floor"]:
         publish_realtime(f"table_display:floor:{payload['floor']}", payload)
 
+
+@frappe.whitelist()
+def get_kitchens_and_stations(branch=None):
+    """Get active kitchens and kitchen stations for the given branch.
+
+    Args:
+        branch (str, optional): Branch to filter results by. Defaults to None.
+
+    Returns:
+        dict: Dictionary containing lists of kitchens and stations with
+              their names and display labels.
+    """
+    kitchen_filters = {"is_active": 1}
+    station_filters = {"is_active": 1}
+
+    if branch:
+        validate_branch_access(branch)
+        kitchen_filters["branch"] = branch
+        station_filters["branch"] = branch
+
+    kitchens = frappe.get_all(
+        "Kitchen",
+        filters=kitchen_filters,
+        fields=["name", "kitchen_name"],
+        order_by="kitchen_name",
+    )
+
+    stations = frappe.get_all(
+        "Kitchen Station",
+        filters=station_filters,
+        fields=["name", "station_name"],
+        order_by="station_name",
+    )
+
+    return {"kitchens": kitchens, "stations": stations}
+
 @frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
     """
