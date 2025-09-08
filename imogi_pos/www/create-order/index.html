@@ -1,0 +1,23 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="page-card">
+  <h2>{{ _("Create POS Order") }}</h2>
+  <form id="create-order-form">
+    <div id="order-fields"></div>
+    <h4>{{ _("Items") }}</h4>
+    <table id="items-table" class="table table-bordered" style="width:100%">
+      <thead>
+        <tr><th>{{ _("Item") }}</th><th>{{ _("Qty") }}</th><th>{{ _("Discount") }}</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button type="button" id="add-item" class="btn btn-default">{{ _("Add Item") }}</button>
+    <button type="submit" class="btn btn-primary">{{ _("Create Order") }}</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="index.js"></script>
+{% endblock %}
