@@ -312,6 +312,7 @@ frappe.ready(function () {
      Actions
      ========================= */
   function openCreateOrderDialog() {
+    console.log('[openCreateOrderDialog] handler fired');
     const dialog = new frappe.ui.Dialog({
       title: __('Create Order'),
       fields: [
