@@ -282,12 +282,18 @@ frappe.ready(function () {
   function updateTotals(order) {
     const subtotal  = Number(order.net_total || order.total || 0);
     const taxes     = Number(order.total_taxes_and_charges || 0);
-    const discount  = Number(order.discount_amount || 0);
+    const discountAmt  = Number(order.discount_amount || 0);
+    const discountPct  = Number(order.discount_percent || 0);
+    const promoCode    = order.promo_code || '';
     const grand     = safeTotal(order);
+
+    let discountText = formatCurrency(discountAmt);
+    if (discountPct) discountText += ` (${discountPct}%)`;
+    if (promoCode) discountText += ` [${promoCode}]`;
 
     subtotalEl.textContent = formatCurrency(subtotal);
     taxAmountEl.textContent = formatCurrency(taxes);
-    discountAmountEl.textContent = formatCurrency(discount);
+    discountAmountEl.textContent = discountText;
     grandTotalEl.textContent = formatCurrency(grand);
   }
 
