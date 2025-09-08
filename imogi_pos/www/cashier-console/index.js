@@ -261,22 +261,23 @@ frappe.ready(function () {
     requestPaymentBtn.disabled = true;
   }
 
-  function renderCheckoutItems(order) {
-    if (!checkoutItems) return;
-    const html = (order.items || []).map(item => `
-      <div class="checkout-item">
-        <div class="item-details">
-          <div class="item-name">${escapeHtml(item.item_name || item.item || '')}</div>
-          ${item.notes ? `<div class="item-notes">${escapeHtml(item.notes)}</div>` : ''}
+    function renderCheckoutItems(order) {
+      if (!checkoutItems) return;
+      const html = (order.items || []).map(item => `
+        <div class="checkout-item">
+          ${item.image ? `<div class="item-image"><img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.item_name || item.item || '')}"></div>` : ''}
+          <div class="item-details">
+            <div class="item-name">${escapeHtml(item.item_name || item.item || '')}</div>
+            ${item.notes ? `<div class="item-notes">${escapeHtml(item.notes)}</div>` : ''}
+          </div>
+          <div class="item-quantity-price">
+            <span>${Number(item.qty || 0)}x</span>
+            <span>${formatCurrency(Number(item.amount || item.net_amount || 0))}</span>
+          </div>
         </div>
-        <div class="item-quantity-price">
-          <span>${Number(item.qty || 0)}x</span>
-          <span>${formatCurrency(Number(item.amount || item.net_amount || 0))}</span>
-        </div>
-      </div>
-    `).join('');
-    checkoutItems.innerHTML = html || '<div class="empty-state">No items</div>';
-  }
+      `).join('');
+      checkoutItems.innerHTML = html || '<div class="empty-state">No items</div>';
+    }
 
   function updateTotals(order) {
     const subtotal  = Number(order.net_total || order.total || 0);
