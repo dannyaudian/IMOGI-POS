@@ -111,6 +111,10 @@
   max-width: 500px;
 }
 
+.kitchen-column.collapsed {
+  display: none;
+}
+
 .column-header {
   background-color: var(--color-white);
   padding: var(--spacing-3);
@@ -327,7 +331,7 @@
   border-left: 4px solid var(--color-info);
 }
 
-.kot-card.preparing {
+.kot-card.in-progress {
   border-left: 4px solid var(--color-warning);
 }
 
