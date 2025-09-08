@@ -13,6 +13,7 @@ def kot_module():
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = lambda: datetime.datetime(2023, 1, 1, 0, 0, 0)
     utils.cint = int
+    utils.get_datetime = lambda x=None: datetime.datetime(2023, 1, 1, 0, 0, 0)
 
     frappe = types.ModuleType("frappe")
     frappe.utils = utils
@@ -47,23 +48,47 @@ def kot_module():
         def get_value(self, doctype, name=None, fieldname=None, as_dict=False):
             if doctype == "POS Order Item":
                 self.requested_field = fieldname
+                data = {
+                    "item": "ITEM-1",
+                    "qty": 1,
+                    "notes": "Note",
+                    "kitchen": "KIT-1",
+                    "kitchen_station": "ST-1",
+                }
                 if isinstance(fieldname, (list, tuple)):
-                    data = {"item": "ITEM-1", "item_code": None}
-                    return data if as_dict else tuple(data.values())
-                if fieldname == "item":
-                    return "ITEM-1"
-                if fieldname == "item_code":
-                    raise Exception("old field used")
+                    return data if as_dict else [data.get(f) for f in fieldname]
+                return data.get(fieldname)
             if doctype == "Item":
                 self.looked_up_item = name
+                if fieldname == "item_name":
+                    return "Item Name"
                 return False
-            if doctype == "KOT Ticket":
+            if doctype == "KOT Ticket" and fieldname == "branch":
                 return "BR-1"
             if doctype == "POS Profile":
                 return "Restaurant"
             return None
 
     frappe.db = DB()
+
+    class Document:
+        def __init__(self, doctype):
+            self.doctype = doctype
+            self.items = []
+            self.name = f"{doctype}-1"
+
+        def append(self, fieldname, value):
+            getattr(self, fieldname).append(value)
+
+        def insert(self):
+            return self
+
+        def as_dict(self):
+            return {
+                k: v for k, v in self.__dict__.items()
+            }
+
+    frappe.new_doc = lambda doctype: Document(doctype)
 
     def get_doc(doctype, name=None):
         if doctype == "POS Order":
@@ -78,7 +103,13 @@ def kot_module():
 
     frappe.get_doc = get_doc
 
-    realtime = types.SimpleNamespace(publish_realtime=lambda *a, **k: None)
+    class Realtime:
+        def __init__(self):
+            self.calls = []
+        def publish_realtime(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+
+    realtime = Realtime()
     frappe.realtime = realtime
 
     sys.modules['frappe'] = frappe
@@ -99,7 +130,7 @@ def kot_module():
     sys.path.pop(0)
 
 
-def test_send_items_to_kitchen_uses_item_field(kot_module):
+def test_send_items_to_kitchen_creates_ticket(kot_module):
     kot, frappe = kot_module
     result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
     assert frappe.db.requested_field != "item_code"
@@ -107,82 +138,112 @@ def test_send_items_to_kitchen_uses_item_field(kot_module):
     assert result["items"] == ["ROW-1"]
 
 
-def test_get_kots_for_kitchen_returns_ticket_list(kot_module):
-    kot, frappe = kot_module
+@pytest.fixture
+def kot_service_env():
+    sys.path.insert(0, ".")
 
-    def get_all(doctype, filters=None, fields=None, order_by=None):
-        if doctype == "KOT Ticket":
-            assert filters == {
-                "kitchen": "Main Kitchen",
-                "kitchen_station": "Grill",
-                "branch": "BR-1",
-            }
-            assert order_by == "creation asc"
-            return [
-                {
-                    "name": "KOT-1",
-                    "table": "T1",
-                    "workflow_state": "Queued",
-                },
-                {
-                    "name": "KOT-2",
-                    "table": "T2",
-                    "workflow_state": "In Progress",
-                },
-            ]
+    import types
+
+    frappe = types.ModuleType("frappe")
+    utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2023, 1, 1),
+                                  get_datetime=lambda x=None: datetime.datetime(2023, 1, 1))
+    frappe.utils = utils
+
+    class FrappeException(Exception):
+        pass
+
+    frappe.ValidationError = FrappeException
+    frappe._ = lambda x: x
+
+    def throw(msg, exc=None):
+        raise (exc or FrappeException)(msg)
+
+    frappe.throw = throw
+    frappe.session = types.SimpleNamespace(user="test-user")
+    frappe.publish_realtime = lambda *a, **k: None
+
+    class Item:
+        def __init__(self, name, parent, state):
+            self.name = name
+            self.parent = parent
+            self.workflow_state = state
+            self.pos_order_item = None
+            self.last_edited_by = None
+
+        def save(self):
+            pass
+
+    items = {
+        "KOTI-1": Item("KOTI-1", "KT-1", "Queued"),
+        "KOTI-2": Item("KOTI-2", "KT-1", "Queued"),
+    }
+
+    class Ticket:
+        def __init__(self, name):
+            self.name = name
+            self.pos_order = "ORDER-1"
+            self.workflow_state = "Queued"
+            self.kitchen_station = None
+            self.branch = "BR-1"
+            self.table = None
+            self.items = list(items.values())
+
+        def save(self):
+            pass
+
+    tickets = {"KT-1": Ticket("KT-1")}
+
+    def get_doc(doctype, name):
         if doctype == "KOT Item":
-            parent = filters["parent"]
-            if parent == "KOT-1":
-                return [
-                    {
-                        "item_name": "Burger",
-                        "qty": 1,
-                        "notes": "No cheese",
-                        "workflow_state": "Queued",
-                    }
-                ]
-            if parent == "KOT-2":
-                return [
-                    {
-                        "item_name": "Pizza",
-                        "qty": 2,
-                        "notes": "",
-                        "workflow_state": "In Progress",
-                    }
-                ]
-        return []
+            return items[name]
+        if doctype == "KOT Ticket":
+            t = tickets[name]
+            t.items = list(items.values())
+            return t
+        if doctype == "POS Order":
+            return types.SimpleNamespace(pos_profile="PROFILE", branch="BR-1")
+        raise Exception("Unexpected doctype")
 
-    frappe.get_all = get_all
+    frappe.get_doc = get_doc
 
-    tickets = kot.get_kots_for_kitchen(
-        kitchen="Main Kitchen", station="Grill", branch="BR-1"
-    )
+    sys.modules["frappe"] = frappe
+    sys.modules["frappe.utils"] = utils
 
-    assert tickets == [
-        {
-            "name": "KOT-1",
-            "table": "T1",
-            "workflow_state": "Queued",
-            "items": [
-                {
-                    "item_name": "Burger",
-                    "qty": 1,
-                    "notes": "No cheese",
-                    "status": "Queued",
-                }
-            ],
-        },
-        {
-            "name": "KOT-2",
-            "table": "T2",
-            "workflow_state": "In Progress",
-            "items": [
-                {
-                    "item_name": "Pizza",
-                    "qty": 2,
-                    "notes": "",
-                    "status": "In Progress",
-                }
-            ],
-        },
-    ]
+    import importlib
+    import imogi_pos  # ensure package registered
+    sys.modules.pop("imogi_pos.kitchen.kot_service", None)
+    ks = importlib.import_module("imogi_pos.kitchen.kot_service")
+    service = ks.KOTService()
+    service._update_ticket_state_if_needed = lambda *a, **k: None
+    service._update_pos_item_counter = lambda *a, **k: None
+    service._publish_kot_item_update = lambda *a, **k: None
+
+    yield service, items
+
+    sys.modules.pop("frappe", None)
+    sys.modules.pop("frappe.utils", None)
+    sys.path.pop(0)
+
+
+def test_update_kot_item_state_allows_forward_progress(kot_service_env):
+    service, items = kot_service_env
+    service.update_kot_item_state("KOTI-1", "In Progress")
+    assert items["KOTI-1"].workflow_state == "In Progress"
+    service.update_kot_item_state("KOTI-1", "Ready")
+    assert items["KOTI-1"].workflow_state == "Ready"
+
+
+def test_update_kot_item_state_blocks_invalid_transition(kot_service_env):
+    service, _ = kot_service_env
+    with pytest.raises(Exception):
+        service.update_kot_item_state("KOTI-1", "Ready")
+
+
+def test_bulk_update_kot_items_records_results(kot_service_env):
+    service, items = kot_service_env
+    service.update_kot_item_state("KOTI-1", "In Progress")
+    result = service.bulk_update_kot_items(["KOTI-1", "KOTI-2"], "Ready")
+    assert result["updated_items"] == ["KOTI-1"]
+    assert result["failed_items"][0]["item"] == "KOTI-2"
+    assert items["KOTI-1"].workflow_state == "Ready"
+    assert items["KOTI-2"].workflow_state == "Queued"

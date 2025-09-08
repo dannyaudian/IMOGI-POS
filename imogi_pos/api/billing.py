@@ -368,13 +368,16 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             fields=["item", "qty", "rate", "amount", "notes"],
             order_by="idx",
         )
-        # Attach item info from Item doctype
+        # Attach item info from Item doctype and ensure required fields exist
         for item in order_items:
-            item_details = frappe.db.get_value(
+            details = frappe.db.get_value(
                 "Item", item["item"], ["item_name", "image"], as_dict=True
-            )
-            if item_details:
-                item.update(item_details)
+            ) or {}
+
+            # Always include item_name, image, and rate in the payload
+            item["item_name"] = details.get("item_name") or item.get("item")
+            item["image"] = details.get("image")
+            item["rate"] = flt(item.get("rate"))
 
         order["items"] = order_items
 
