@@ -113,6 +113,23 @@ function submitOrder() {
       if (val) args[key] = val;
     });
 
+  const items = [];
+  document.querySelectorAll('#items-table tbody tr').forEach(tr => {
+    const item = tr.querySelector('input[name="items_item"]').value;
+    const qty = tr.querySelector('input[name="items_qty"]').value;
+    const discount = tr.querySelector('input[name="items_discount"]').value;
+    if (item || qty || discount) {
+      items.push({ item, qty, discount });
+    }
+  });
+  if (items.length) {
+    args.items = items;
+  }
+
+  if (args.items) {
+    args.items = JSON.stringify(args.items);
+  }
+
   frappe.call({
     method: 'imogi_pos.api.orders.create_order',
     args: args
