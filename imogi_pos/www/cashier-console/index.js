@@ -290,19 +290,21 @@ frappe.ready(function () {
     }
 
   function updateTotals(order) {
-    const subtotal  = Number(order.net_total || order.total || 0);
-    const taxes     = Number(order.total_taxes_and_charges || 0);
-    const discountAmt  = Number(order.discount_amount || 0);
-    const discountPct  = Number(order.discount_percent || 0);
-    const promoCode    = order.promo_code || '';
-    const grand     = safeTotal(order);
+    const items = Array.isArray(order.items) ? order.items : [];
+    const subtotal = items.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.rate || 0)), 0);
+    const tax = subtotal * 0.11;
+    const discountAmount = Number(order.discount_amount || 0);
+    const discountPercent = Number(order.discount_percent || 0);
+    const promoCode = order.promo_code || '';
+    const discount = (subtotal + tax) * (discountPercent / 100) + discountAmount;
+    const grand = subtotal + tax - discount;
 
-    let discountText = formatCurrency(discountAmt);
-    if (discountPct) discountText += ` (${discountPct}%)`;
+    let discountText = formatCurrency(discount);
+    if (discountPercent) discountText += ` (${discountPercent}%)`;
     if (promoCode) discountText += ` [${promoCode}]`;
 
     subtotalEl.textContent = formatCurrency(subtotal);
-    taxAmountEl.textContent = formatCurrency(taxes);
+    taxAmountEl.textContent = formatCurrency(tax);
     discountAmountEl.textContent = discountText;
     grandTotalEl.textContent = formatCurrency(grand);
   }

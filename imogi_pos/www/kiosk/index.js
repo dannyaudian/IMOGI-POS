@@ -12,6 +12,8 @@ frappe.ready(function() {
         selectedTemplateItem: null,
         selectedVariant: null,
         taxRate: 0,
+        discountPercent: 0,
+        discountAmount: 0,
         
         // Payment state
         paymentRequest: null,
@@ -26,6 +28,7 @@ frappe.ready(function() {
             cartItems: document.getElementById('cart-items'),
             cartSubtotal: document.getElementById('cart-subtotal'),
             cartTax: document.getElementById('cart-tax'),
+            cartDiscount: document.getElementById('cart-discount'),
             cartTotal: document.getElementById('cart-total'),
             checkoutBtn: document.getElementById('btn-checkout'),
             clearBtn: document.getElementById('btn-clear'),
@@ -411,9 +414,12 @@ frappe.ready(function() {
         
         updateCartTotals: function() {
             const totals = this.calculateTotals();
-            
+
             this.elements.cartSubtotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.subtotal)}`;
             this.elements.cartTax.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.tax)}`;
+            if (this.elements.cartDiscount) {
+                this.elements.cartDiscount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.discount)}`;
+            }
             this.elements.cartTotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
         },
         
@@ -990,11 +996,13 @@ frappe.ready(function() {
         calculateTotals: function() {
             const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
             const tax = subtotal * this.taxRate;
-            const total = subtotal + tax;
+            const discount = (subtotal + tax) * (this.discountPercent / 100) + this.discountAmount;
+            const total = subtotal + tax - discount;
 
             return {
                 subtotal,
                 tax,
+                discount,
                 total
             };
         },
