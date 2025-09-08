@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.kitchen.kot_service import KOTService
 
 def check_restaurant_domain(pos_profile):
     """
@@ -311,43 +312,16 @@ def update_kot_status(kot_ticket, state):
     # Get KOT Ticket details
     ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
     pos_order = frappe.get_doc("POS Order", ticket_doc.pos_order)
-    
+
     check_restaurant_domain(pos_order.pos_profile)
     validate_branch_access(pos_order.branch)
-    
-    # STUB: Validate state transition
-    # STUB: Update KOT Ticket status
-    
-    # Prepare updated KOT Ticket data
-    updated_ticket = {
-        "name": kot_ticket,
-        "pos_order": ticket_doc.pos_order,
-        "previous_state": ticket_doc.status,
-        "new_state": state,
-        "updated_at": now_datetime()
+
+    service = KOTService()
+    result = service.update_kot_ticket_state(kot_ticket, state)
+
+    return {
+        "ticket": result["ticket"],
+        "old_state": result["old_state"],
+        "new_state": result["new_state"],
+        "updated_items": result.get("updated_items", [])
     }
-    
-    # Get kitchen/station info for targeted updates
-    kitchen = None
-    station = None
-    
-    # Get sample KOT Item to determine kitchen/station
-    kot_items = frappe.get_all("KOT Item", 
-                              filters={"parent": kot_ticket},
-                              fields=["kitchen", "kitchen_station"],
-                              limit=1)
-    
-    if kot_items:
-        kitchen = kot_items[0].kitchen
-        station = kot_items[0].kitchen_station
-    
-    # Publish updates
-    publish_kitchen_update(updated_ticket, kitchen=kitchen, station=station)
-    
-    if pos_order.table:
-        publish_table_update(pos_order.name, pos_order.table, "kot_status_update")
-    
-    # Update POS Order workflow state based on KOT status changes
-    # STUB: Implement workflow state transitions based on KOT status
-    
-    return updated_ticket

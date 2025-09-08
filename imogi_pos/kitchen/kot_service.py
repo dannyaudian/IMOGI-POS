@@ -1,6 +1,6 @@
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, get_datetime
+from frappe.utils import now_datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
@@ -22,6 +22,15 @@ class KOTService:
         "READY": "Ready",
         "SERVED": "Served",
         "CANCELLED": "Cancelled"
+    }
+
+    # Allowed state transitions
+    ALLOWED_TRANSITIONS = {
+        STATES["QUEUED"]: {STATES["IN_PROGRESS"], STATES["CANCELLED"]},
+        STATES["IN_PROGRESS"]: {STATES["QUEUED"], STATES["READY"], STATES["CANCELLED"]},
+        STATES["READY"]: {STATES["IN_PROGRESS"], STATES["SERVED"]},
+        STATES["SERVED"]: set(),
+        STATES["CANCELLED"]: set(),
     }
     
     def __init__(self, pos_order=None):
@@ -156,14 +165,19 @@ class KOTService:
         
         user = user or frappe.session.user
         item = frappe.get_doc("KOT Item", kot_item)
-        
+
         # Get ticket and validate it's not cancelled
         ticket = frappe.get_doc("KOT Ticket", item.parent)
         if ticket.workflow_state == self.STATES["CANCELLED"]:
             frappe.throw(_("Cannot update item state for a cancelled KOT"))
-        
+
+        # Validate state transition
+        current_state = item.workflow_state
+        if new_state not in self.ALLOWED_TRANSITIONS.get(current_state, set()):
+            frappe.throw(_("Cannot change item state from {0} to {1}").format(current_state, new_state))
+
         # Update item state
-        old_state = item.workflow_state
+        old_state = current_state
         item.workflow_state = new_state
         item.last_edited_by = user
         item.save()
@@ -207,9 +221,14 @@ class KOTService:
         
         user = user or frappe.session.user
         ticket = frappe.get_doc("KOT Ticket", kot_ticket)
-        
+
+        # Validate state transition
+        current_state = ticket.workflow_state
+        if new_state not in self.ALLOWED_TRANSITIONS.get(current_state, set()):
+            frappe.throw(_("Cannot change ticket state from {0} to {1}").format(current_state, new_state))
+
         # Update ticket state
-        old_state = ticket.workflow_state
+        old_state = current_state
         ticket.workflow_state = new_state
         ticket.last_edited_by = user
         ticket.save()
