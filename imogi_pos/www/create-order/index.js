@@ -106,45 +106,83 @@ function addItemRow() {
 
   const itemDf = window.itemMeta.fields.find(f => f.fieldname === 'item');
   const qtyDf = window.itemMeta.fields.find(f => f.fieldname === 'qty');
-  const discDf = window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') || window.itemMeta.fields.find(f => f.fieldname === 'discount');
+  const rateDf = window.itemMeta.fields.find(f => f.fieldname === 'rate');
+  const discDf = window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') ||
+    window.itemMeta.fields.find(f => f.fieldname === 'discount');
 
+  let rateControl;
+  let img;
+
+  // Item column using Link control
   const itemTd = document.createElement('td');
-  const itemInput = document.createElement('input');
-  itemInput.name = 'items_item';
-  itemInput.className = 'form-control';
-  itemInput.placeholder = itemDf ? itemDf.label : 'Item';
-  itemTd.appendChild(itemInput);
+  const itemControl = frappe.ui.form.make_control({
+    df: Object.assign({}, itemDf || { fieldtype: 'Link', label: 'Item', options: 'Item' }, {
+      fieldname: 'items_item',
+      onchange: function () {
+        const item_code = this.get_value();
+        if (!item_code) return;
+        frappe.client
+          .get_value('Item', item_code, ['image', 'standard_rate'])
+          .then(r => {
+            if (r && r.message) {
+              if (r.message.standard_rate !== undefined && rateControl) {
+                rateControl.set_value(r.message.standard_rate);
+              }
+              if (r.message.image && img) {
+                img.src = r.message.image;
+              }
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching item details', err);
+            frappe.msgprint(__('Unable to fetch item details'));
+          });
+      }
+    }),
+    parent: itemTd,
+    render_input: true
+  });
+  itemControl.$input.attr('name', 'items_item');
   tr.appendChild(itemTd);
 
+  // Qty column control
   const qtyTd = document.createElement('td');
-  const qtyInput = document.createElement('input');
-  qtyInput.type = 'number';
-  qtyInput.name = 'items_qty';
-  qtyInput.className = 'form-control';
-  qtyInput.placeholder = qtyDf ? qtyDf.label : 'Qty';
-  qtyTd.appendChild(qtyInput);
+  const qtyControl = frappe.ui.form.make_control({
+    df: Object.assign({}, qtyDf || { fieldtype: 'Float', label: 'Qty' }, {
+      fieldname: 'items_qty'
+    }),
+    parent: qtyTd,
+    render_input: true
+  });
+  qtyControl.$input.attr('name', 'items_qty');
   tr.appendChild(qtyTd);
 
+  // Rate column control
   const rateTd = document.createElement('td');
-  const rateInput = document.createElement('input');
-  rateInput.type = 'number';
-  rateInput.name = 'items_rate';
-  rateInput.className = 'form-control';
-  rateInput.placeholder = 'Price';
-  rateTd.appendChild(rateInput);
+  rateControl = frappe.ui.form.make_control({
+    df: Object.assign({}, rateDf || { fieldtype: 'Currency', label: 'Rate' }, {
+      fieldname: 'items_rate'
+    }),
+    parent: rateTd,
+    render_input: true
+  });
+  rateControl.$input.attr('name', 'items_rate');
   tr.appendChild(rateTd);
 
+  // Discount column control
   const discTd = document.createElement('td');
-  const discInput = document.createElement('input');
-  discInput.type = 'number';
-  discInput.name = 'items_discount';
-  discInput.className = 'form-control';
-  discInput.placeholder = discDf ? discDf.label : 'Discount';
-  discTd.appendChild(discInput);
+  const discControl = frappe.ui.form.make_control({
+    df: Object.assign({}, discDf || { fieldtype: 'Float', label: 'Discount' }, {
+      fieldname: 'items_discount'
+    }),
+    parent: discTd,
+    render_input: true
+  });
+  discControl.$input.attr('name', 'items_discount');
   tr.appendChild(discTd);
 
   const imgTd = document.createElement('td');
-  const img = document.createElement('img');
+  img = document.createElement('img');
   img.style.maxWidth = '50px';
   img.style.maxHeight = '50px';
   imgTd.appendChild(img);
@@ -160,27 +198,6 @@ function addItemRow() {
   tr.appendChild(removeTd);
 
   tbody.appendChild(tr);
-
-  itemInput.addEventListener('change', () => {
-    const item_code = itemInput.value;
-    if (!item_code) return;
-    frappe.client
-      .get_value('Item', item_code, ['image', 'standard_rate'])
-      .then(r => {
-        if (r && r.message) {
-          if (r.message.standard_rate !== undefined) {
-            rateInput.value = r.message.standard_rate;
-          }
-          if (r.message.image) {
-            img.src = r.message.image;
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching item details', err);
-        frappe.msgprint(__('Unable to fetch item details'));
-      });
-  });
 }
 
 function submitOrder() {
