@@ -93,6 +93,13 @@ def build_sales_invoice_from_pos_order(
     # Copy tax/charging template from POS Profile
     if pos_profile.taxes_and_charges:
         si.taxes_and_charges = pos_profile.taxes_and_charges
+
+    if not pos_profile.taxes_and_charges:
+        si.append("taxes", {
+            "charge_type": "On Net Total",
+            "description": "PB1",
+            "rate": 11.0
+        })
     
     # Apply selling price list from POS Profile
     if pos_profile.selling_price_list:
