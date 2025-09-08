@@ -137,6 +137,7 @@ def test_get_kots_for_kitchen_returns_items(kot_module):
 
     frappe.get_all = get_all
 
+
     tickets = kot.get_kots_for_kitchen("K1", "S1", "B1")
 
     assert calls[0][1] == {
