@@ -21,6 +21,8 @@
         "section_break_11",
         "items",
         "section_break_13",
+        "subtotal",
+        "pb1_amount",
         "discount_percent",
         "discount_amount",
         "promo_code",
@@ -120,6 +122,18 @@
             "fieldname": "section_break_13",
             "fieldtype": "Section Break",
             "label": "Totals"
+        },
+        {
+            "fieldname": "subtotal",
+            "fieldtype": "Currency",
+            "label": "Subtotal",
+            "read_only": 1
+        },
+        {
+            "fieldname": "pb1_amount",
+            "fieldtype": "Currency",
+            "label": "PB1 Amount",
+            "read_only": 1
         },
         {
             "fieldname": "discount_percent",
