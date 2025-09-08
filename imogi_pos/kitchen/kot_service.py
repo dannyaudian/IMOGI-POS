@@ -32,6 +32,24 @@ class KOTService:
         STATES["SERVED"]: set(),
         STATES["CANCELLED"]: set(),
     }
+
+    # Allowed forward transitions for KOT Tickets
+    ALLOWED_TRANSITIONS = {
+        STATES["QUEUED"]: {
+            STATES["IN_PROGRESS"],
+            STATES["READY"],
+            STATES["SERVED"],
+            STATES["CANCELLED"],
+        },
+        STATES["IN_PROGRESS"]: {
+            STATES["READY"],
+            STATES["SERVED"],
+            STATES["CANCELLED"],
+        },
+        STATES["READY"]: {STATES["SERVED"], STATES["CANCELLED"]},
+        STATES["SERVED"]: set(),
+        STATES["CANCELLED"]: set(),
+    }
     
     def __init__(self, pos_order=None):
         """
@@ -234,8 +252,13 @@ class KOTService:
 
         # Validate state transition
         current_state = ticket.workflow_state
-        if new_state not in self.ALLOWED_TRANSITIONS.get(current_state, set()):
-            frappe.throw(_("Cannot change ticket state from {0} to {1}").format(current_state, new_state))
+        allowed_states = self.ALLOWED_TRANSITIONS.get(current_state, set())
+        if new_state not in allowed_states:
+            frappe.throw(
+                _("Cannot change ticket state from {0} to {1}").format(
+                    current_state, new_state
+                )
+            )
 
         # Update ticket state
         old_state = current_state
