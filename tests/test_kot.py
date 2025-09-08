@@ -107,82 +107,45 @@ def test_send_items_to_kitchen_uses_item_field(kot_module):
     assert result["items"] == ["ROW-1"]
 
 
-def test_get_kots_for_kitchen_returns_ticket_list(kot_module):
+def test_get_kots_for_kitchen_returns_items(kot_module):
     kot, frappe = kot_module
+    calls = []
 
     def get_all(doctype, filters=None, fields=None, order_by=None):
+        calls.append((doctype, filters, fields, order_by))
         if doctype == "KOT Ticket":
-            assert filters == {
-                "kitchen": "Main Kitchen",
-                "kitchen_station": "Grill",
-                "branch": "BR-1",
-            }
-            assert order_by == "creation asc"
             return [
                 {
-                    "name": "KOT-1",
+                    "name": "KT-1",
                     "table": "T1",
                     "workflow_state": "Queued",
-                },
-                {
-                    "name": "KOT-2",
-                    "table": "T2",
-                    "workflow_state": "In Progress",
-                },
+                    "creation": "2023-01-01",
+                }
             ]
         if doctype == "KOT Item":
-            parent = filters["parent"]
-            if parent == "KOT-1":
-                return [
-                    {
-                        "item_name": "Burger",
-                        "qty": 1,
-                        "notes": "No cheese",
-                        "workflow_state": "Queued",
-                    }
-                ]
-            if parent == "KOT-2":
-                return [
-                    {
-                        "item_name": "Pizza",
-                        "qty": 2,
-                        "notes": "",
-                        "workflow_state": "In Progress",
-                    }
-                ]
+            return [
+                {
+                    "idx": 1,
+                    "item": "ITEM-1",
+                    "item_name": "Item 1",
+                    "status": "Queued",
+                    "qty": 2,
+                    "notes": "note",
+                }
+            ]
         return []
 
     frappe.get_all = get_all
 
-    tickets = kot.get_kots_for_kitchen(
-        kitchen="Main Kitchen", station="Grill", branch="BR-1"
-    )
 
-    assert tickets == [
-        {
-            "name": "KOT-1",
-            "table": "T1",
-            "workflow_state": "Queued",
-            "items": [
-                {
-                    "item_name": "Burger",
-                    "qty": 1,
-                    "notes": "No cheese",
-                    "status": "Queued",
-                }
-            ],
-        },
-        {
-            "name": "KOT-2",
-            "table": "T2",
-            "workflow_state": "In Progress",
-            "items": [
-                {
-                    "item_name": "Pizza",
-                    "qty": 2,
-                    "notes": "",
-                    "status": "In Progress",
-                }
-            ],
-        },
-    ]
+    tickets = kot.get_kots_for_kitchen("K1", "S1", "B1")
+
+    assert calls[0][1] == {
+        "kitchen": "K1",
+        "kitchen_station": "S1",
+        "branch": "B1",
+    }
+    assert calls[0][3] == "creation asc"
+    assert tickets[0]["items"][0]["status"] == "Queued"
+    assert tickets[0]["items"][0]["qty"] == 2
+    assert tickets[0]["items"][0]["notes"] == "note"

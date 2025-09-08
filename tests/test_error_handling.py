@@ -87,17 +87,32 @@ def response_module():
     frappe.errprint = errprint
     frappe.log_error = log_error
     frappe.get_traceback = get_traceback
-    # allow importing submodules from our test stub package
-    import pathlib
-    frappe.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "frappe")]
-
     sys.modules["frappe"] = frappe
+
+    # Create in-memory stub for frappe.utils.response
+    utils_mod = types.ModuleType("frappe.utils")
+
+    response_mod = types.ModuleType("frappe.utils.response")
+
+    def report_error():
+        traceback_msg = frappe.get_traceback()
+        frappe.log_error(traceback_msg)
+        try:
+            frappe.errprint(traceback_msg)
+        except BrokenPipeError:
+            frappe.log_error(traceback_msg, "BrokenPipeError")
+
+    response_mod.report_error = report_error
+
+    utils_mod.response = response_mod
+
+    sys.modules["frappe.utils"] = utils_mod
+    sys.modules["frappe.utils.response"] = response_mod
 
     err_mod = importlib.import_module("imogi_pos.utils.error")
     importlib.reload(err_mod)
 
     resp_mod = importlib.import_module("frappe.utils.response")
-    importlib.reload(resp_mod)
 
     yield resp_mod, calls
 

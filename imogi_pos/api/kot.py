@@ -93,39 +93,50 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
 
 
 @frappe.whitelist()
-def get_kitchens_and_stations(branch=None):
-    """Get active kitchens and kitchen stations for the given branch.
+def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+    """Get KOT tickets for a specific kitchen or station.
 
     Args:
-        branch (str, optional): Branch to filter results by. Defaults to None.
+        kitchen (str, optional): Kitchen name to filter by.
+        station (str, optional): Kitchen Station to filter by.
+        branch (str, optional): Branch to filter by.
 
     Returns:
-        dict: Dictionary containing lists of kitchens and stations with
-              their names and display labels.
+        list: List of KOT tickets with their items, ordered by creation time.
     """
-    kitchen_filters = {"is_active": 1}
-    station_filters = {"is_active": 1}
 
+    filters = {}
+    if kitchen:
+        filters["kitchen"] = kitchen
+    if station:
+        filters["kitchen_station"] = station
     if branch:
-        validate_branch_access(branch)
-        kitchen_filters["branch"] = branch
-        station_filters["branch"] = branch
+        filters["branch"] = branch
 
-    kitchens = frappe.get_all(
-        "Kitchen",
-        filters=kitchen_filters,
-        fields=["name", "kitchen_name"],
-        order_by="kitchen_name",
+    tickets = frappe.get_all(
+        "KOT Ticket",
+        filters=filters,
+        fields=["name", "table", "workflow_state", "creation"],
+        order_by="creation asc",
     )
 
-    stations = frappe.get_all(
-        "Kitchen Station",
-        filters=station_filters,
-        fields=["name", "station_name"],
-        order_by="station_name",
-    )
+    for ticket in tickets:
+        ticket["items"] = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=[
+                "idx",
+                "item_code as item",
+                "item_name",
+                "workflow_state as status",
+                "qty",
+                "notes",
+            ],
+            order_by="idx asc",
+        )
 
-    return {"kitchens": kitchens, "stations": stations}
+    return tickets
+
 
 @frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
