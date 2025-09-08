@@ -105,3 +105,46 @@ def test_send_items_to_kitchen_uses_item_field(kot_module):
     assert frappe.db.requested_field != "item_code"
     assert frappe.db.looked_up_item == "ITEM-1"
     assert result["items"] == ["ROW-1"]
+
+
+def test_get_kots_for_kitchen_returns_items(kot_module):
+    kot, frappe = kot_module
+    calls = []
+
+    def get_all(doctype, filters=None, fields=None, order_by=None):
+        calls.append((doctype, filters, fields, order_by))
+        if doctype == "KOT Ticket":
+            return [
+                {
+                    "name": "KT-1",
+                    "table": "T1",
+                    "workflow_state": "Queued",
+                    "creation": "2023-01-01",
+                }
+            ]
+        if doctype == "KOT Item":
+            return [
+                {
+                    "idx": 1,
+                    "item": "ITEM-1",
+                    "item_name": "Item 1",
+                    "status": "Queued",
+                    "qty": 2,
+                    "notes": "note",
+                }
+            ]
+        return []
+
+    frappe.get_all = get_all
+
+    tickets = kot.get_kots_for_kitchen("K1", "S1", "B1")
+
+    assert calls[0][1] == {
+        "kitchen": "K1",
+        "kitchen_station": "S1",
+        "branch": "B1",
+    }
+    assert calls[0][3] == "creation asc"
+    assert tickets[0]["items"][0]["status"] == "Queued"
+    assert tickets[0]["items"][0]["qty"] == 2
+    assert tickets[0]["items"][0]["notes"] == "note"

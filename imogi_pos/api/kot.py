@@ -83,6 +83,53 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
     if payload["floor"]:
         publish_realtime(f"table_display:floor:{payload['floor']}", payload)
 
+
+@frappe.whitelist()
+def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+    """Get KOT tickets for a specific kitchen or station.
+
+    Args:
+        kitchen (str, optional): Kitchen name to filter by.
+        station (str, optional): Kitchen Station to filter by.
+        branch (str, optional): Branch to filter by.
+
+    Returns:
+        list: List of KOT tickets with their items, ordered by creation time.
+    """
+
+    filters = {}
+    if kitchen:
+        filters["kitchen"] = kitchen
+    if station:
+        filters["kitchen_station"] = station
+    if branch:
+        filters["branch"] = branch
+
+    tickets = frappe.get_all(
+        "KOT Ticket",
+        filters=filters,
+        fields=["name", "table", "workflow_state", "creation"],
+        order_by="creation asc",
+    )
+
+    for ticket in tickets:
+        ticket["items"] = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=[
+                "idx",
+                "item_code as item",
+                "item_name",
+                "workflow_state as status",
+                "qty",
+                "notes",
+            ],
+            order_by="idx asc",
+        )
+
+    return tickets
+
+
 @frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
     """
