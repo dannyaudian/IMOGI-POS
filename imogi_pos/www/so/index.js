@@ -9,6 +9,7 @@ frappe.ready(function() {
         searchQuery: '',
         selectedTemplateItem: null,
         selectedVariant: null,
+        taxRate: 0,
         
         // Payment state
         paymentRequest: null,
@@ -71,7 +72,9 @@ frappe.ready(function() {
             
             this.setupEventListeners();
             await this.loadItems();
+            await this.loadTaxTemplate();
             this.renderItems();
+            this.updateCartTotals();
             
             // Setup realtime updates if available
             if (frappe.realtime) {
@@ -220,7 +223,41 @@ frappe.ready(function() {
                 console.error("Error loading item rates:", error);
             }
         },
-        
+
+        loadTaxTemplate: async function() {
+            try {
+                const profileResp = await frappe.call({
+                    method: 'frappe.client.get',
+                    args: {
+                        doctype: 'POS Profile',
+                        name: POS_PROFILE
+                    }
+                });
+
+                const templateName = profileResp.message?.taxes_and_charges;
+                if (templateName) {
+                    const templateResp = await frappe.call({
+                        method: 'frappe.client.get',
+                        args: {
+                            doctype: 'Sales Taxes and Charges Template',
+                            name: templateName
+                        }
+                    });
+
+                    const taxes = templateResp.message?.taxes || [];
+                    const rate = taxes.reduce((sum, t) => sum + (t.rate || 0), 0);
+                    this.taxRate = rate / 100;
+                } else {
+                    this.taxRate = 0;
+                }
+            } catch (error) {
+                console.error('Error loading tax template:', error);
+                this.taxRate = 0;
+            }
+
+            this.updateCartTotals();
+        },
+
         loadVariantsForTemplate: async function(templateItem) {
             this.showLoading('Loading options...');
             
@@ -948,13 +985,9 @@ frappe.ready(function() {
         // Calculate cart totals
         calculateTotals: function() {
             const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
-            
-            // Calculate tax based on POS Profile
-            // This is a simplification - in a real app, we'd apply the actual tax rules
-            let taxRate = 0.1; // Assume 10% tax
-            const tax = subtotal * taxRate;
+            const tax = subtotal * this.taxRate;
             const total = subtotal + tax;
-            
+
             return {
                 subtotal,
                 tax,
