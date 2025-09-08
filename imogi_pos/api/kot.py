@@ -8,6 +8,7 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.kitchen.kot_service import KOTService
 
 __all__ = [
     "get_kitchens_and_stations",
@@ -423,85 +424,17 @@ def update_kot_status(kot_ticket, state):
     # Get KOT Ticket details
     ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
     pos_order = frappe.get_doc("POS Order", ticket_doc.pos_order)
-    
+
     check_restaurant_domain(pos_order.pos_profile)
     validate_branch_access(pos_order.branch)
 
-    # Validate state transition
-    current_state = ticket_doc.workflow_state
-    allowed_transitions = {
-        "Queued": ["In Progress", "Cancelled"],
-        "In Progress": ["Ready", "Cancelled"],
-        "Ready": ["Served", "Cancelled"],
-        "Served": [],
-        "Cancelled": []
+    service = KOTService()
+    result = service.update_kot_ticket_state(kot_ticket, state)
+
+    return {
+        "ticket": result["ticket"],
+        "old_state": result["old_state"],
+        "new_state": result["new_state"],
+        "updated_items": result.get("updated_items", [])
     }
 
-    if state not in allowed_transitions.get(current_state, []):
-        frappe.throw(
-            _("Invalid status transition from {0} to {1}").format(current_state, state)
-        )
-
-    # Update ticket status and save
-    ticket_doc.workflow_state = state
-    ticket_doc.save(ignore_permissions=True)
-
-    # Prepare updated KOT Ticket data
-    updated_ticket = {
-        "name": ticket_doc.name,
-        "pos_order": ticket_doc.pos_order,
-        "workflow_state": ticket_doc.workflow_state,
-        "updated_at": now_datetime()
-    }
-
-    # Get kitchen/station info for targeted updates
-    kitchen = None
-    station = None
-
-    kot_items = frappe.get_all(
-        "KOT Item",
-        filters={"parent": kot_ticket},
-        fields=["kitchen", "kitchen_station"],
-        limit=1
-    )
-    if kot_items:
-        kitchen = kot_items[0].kitchen
-        station = kot_items[0].kitchen_station
-
-    # Publish updates
-    publish_kitchen_update(updated_ticket, kitchen=kitchen, station=station)
-
-    if pos_order.table:
-        publish_table_update(pos_order.name, pos_order.table, "kot_status_update")
-# <<<<<<< codex/complete-update_kot_item_state-function
-    
-    # Update POS Order workflow state based on KOT status changes
-    # STUB: Implement workflow state transitions based on KOT status
-    
-# =======
-
-#     # Update POS Order workflow state based on all related KOTs
-#     tickets = frappe.get_all(
-#         "KOT Ticket",
-#         filters={"pos_order": ticket_doc.pos_order},
-#         pluck="workflow_state"
-#     )
-#     new_pos_state = None
-#     if tickets:
-#         if all(s == "Cancelled" for s in tickets):
-#             new_pos_state = "Cancelled"
-#         elif all(s == "Served" for s in tickets):
-#             new_pos_state = "Served"
-#         elif all(s in ["Ready", "Served"] for s in tickets):
-#             new_pos_state = "Ready"
-#         elif any(s == "In Progress" for s in tickets):
-#             new_pos_state = "In Progress"
-
-#     if new_pos_state and pos_order.workflow_state != new_pos_state:
-#         frappe.db.set_value(
-#             "POS Order", pos_order.name, "workflow_state", new_pos_state
-#         )
-#         pos_order.workflow_state = new_pos_state
-
-# >>>>>>> main
-    return updated_ticket
