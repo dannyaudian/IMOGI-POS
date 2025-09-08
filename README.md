@@ -14,6 +14,7 @@ IMOGI POS follows best practices for ERPNext v15 development with a focus on mod
 - **Template-first Catalog**: Streamlined item selection with variant support
 - **Branch-aware**: All objects carry branch information with UI filtering
 - **Single Billing Path**: Sales Invoice (is_pos=1) with appropriate payments
+- **Flexible Payments**: Supports partial payments with configurable rounding tolerance
 - **Native POS Session**: Optional enforcement with automatic linking
 
 ### Restaurant-specific Features
