@@ -23,6 +23,7 @@ frappe.ready(function () {
   const customerNameEl    = document.getElementById('customer-name');
   const customerDetailsEl = document.getElementById('customer-details');
   const refreshOrdersBtn  = document.getElementById('refresh-orders');
+  const createOrderBtn    = document.getElementById('create-order');
   const searchInput       = document.querySelector('.search-input'); // class di template
 
   // Checkout totals
@@ -76,6 +77,7 @@ frappe.ready(function () {
     });
 
     refreshOrdersBtn?.addEventListener('click', loadOrders);
+    createOrderBtn?.addEventListener('click', openCreateOrderDialog);
     findCustomerBtn?.addEventListener('click', openCustomerSearch);
     generateInvoiceBtn?.addEventListener('click', generateInvoice);
     requestPaymentBtn?.addEventListener('click', requestPayment);
@@ -302,6 +304,61 @@ frappe.ready(function () {
   /* =========================
      Actions
      ========================= */
+  function openCreateOrderDialog() {
+    const dialog = new frappe.ui.Dialog({
+      title: __('Create Order'),
+      fields: [
+        {
+          fieldname: 'order_type',
+          label: __('Order Type'),
+          fieldtype: 'Select',
+          options: ['Dine-in', 'Takeaway'],
+          reqd: 1
+        },
+        {
+          fieldname: 'table',
+          label: __('Table'),
+          fieldtype: 'Data',
+          depends_on: "eval:doc.order_type=='Dine-in'",
+          mandatory_depends_on: "eval:doc.order_type=='Dine-in'"
+        }
+      ],
+      primary_action_label: __('Create'),
+      primary_action(values) {
+        dialog.hide();
+        createOrder(values);
+      }
+    });
+    dialog.show();
+  }
+
+  function createOrder(values) {
+    showLoading('Creating order…');
+    frappe.call({
+      method: 'imogi_pos.api.orders.create_order',
+      args: {
+        order_type : values.order_type,
+        table      : values.table || null,
+        branch     : CURRENT_BRANCH,
+        pos_profile: POS_PROFILE
+      }
+    })
+    .then(r => {
+      hideLoading();
+      if (r && r.message) {
+        showSuccess(__('Order created successfully'));
+        loadOrders();
+      } else {
+        showError(__('Failed to create order'));
+      }
+    })
+    .fail(err => {
+      hideLoading();
+      console.error('[createOrder] error', err);
+      showError(__('Failed to create order'));
+    });
+  }
+
   function generateInvoice() {
     if (!selectedOrder) return;
 
