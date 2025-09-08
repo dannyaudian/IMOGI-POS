@@ -8,15 +8,7 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
-from imogi_pos.kitchen.kot_service import KOTService
-
-__all__ = [
-    "get_kitchens_and_stations",
-    "send_items_to_kitchen",
-    "update_kot_item_state",
-    "bulk_update_kot_item_state",
-    "update_kot_status",
-]
+from imogi_pos.kitchen.kot_service import update_kot_item_state as service_update_kot_item_state
 
 def check_restaurant_domain(pos_profile):
     """
@@ -254,92 +246,17 @@ def update_kot_item_state(kot_item, state):
     Raises:
         frappe.ValidationError: If the state transition is not allowed
     """
-    # Get KOT Item details including current state
-    item_details = frappe.db.get_value(
-        "KOT Item",
-        kot_item,
-        [
-            "parent",
-            "kitchen",
-            "kitchen_station",
-            "workflow_state",
-            "item_name",
-            "item_code",
-            "qty",
-        ],
-        as_dict=True,
-    )
-
-    kot_ticket = frappe.get_doc("KOT Ticket", item_details.parent)
+    # Get KOT Item details for validation context
+    parent_kot = frappe.db.get_value("KOT Item", kot_item, "parent")
+    kot_ticket = frappe.get_doc("KOT Ticket", parent_kot)
+    
     pos_order = frappe.get_doc("POS Order", kot_ticket.pos_order)
 
     check_restaurant_domain(pos_order.pos_profile)
     validate_branch_access(pos_order.branch)
 
-    current_state = item_details.workflow_state
-
-    # Allowable state transitions
-    valid_transitions = {
-        "Queued": ["In Progress", "Cancelled"],
-        "In Progress": ["Ready", "Cancelled"],
-        "Ready": ["Served", "Cancelled"],
-        "Served": [],
-        "Cancelled": [],
-    }
-
-    if state == current_state:
-        # No change needed
-        return {
-            "name": kot_item,
-            "kot_ticket": item_details.parent,
-            "previous_state": current_state,
-            "new_state": current_state,
-            "item_name": item_details.item_name,
-            "qty": item_details.qty,
-            "updated_at": now_datetime(),
-        }
-
-    if state not in valid_transitions.get(current_state, []):
-        frappe.throw(
-            _("Cannot change KOT Item from {0} to {1}").format(current_state, state)
-        )
-
-    # Update KOT Item state
-    item_doc = frappe.get_doc("KOT Item", kot_item)
-    old_state = item_doc.workflow_state
-    item_doc.workflow_state = state
-    item_doc.last_edited_by = frappe.session.user
-    item_doc.save()
-
-    # Prepare updated KOT Item data
-    updated_item = {
-        "name": kot_item,
-        "kot_ticket": item_details.parent,
-        "previous_state": old_state,
-        "new_state": state,
-        "item_name": item_details.item_name,
-        "qty": item_details.qty,
-        "updated_at": now_datetime(),
-    }
-
-    # Prepare KOT Ticket data for realtime updates
-    kot_ticket_data = {
-        "name": kot_ticket.name,
-        "pos_order": kot_ticket.pos_order,
-        "updated_items": [updated_item],
-    }
-
-    # Publish updates
-    publish_kitchen_update(
-        kot_ticket_data,
-        kitchen=item_details.kitchen,
-        station=item_details.kitchen_station,
-    )
-
-    if pos_order.table:
-        publish_table_update(pos_order.name, pos_order.table, "kot_item_update")
-
-    return updated_item
+    # Use service logic to perform the update and emit realtime events
+    return service_update_kot_item_state(kot_item, state)
 
 @frappe.whitelist()
 def bulk_update_kot_item_state(kot_items, state):
@@ -355,55 +272,21 @@ def bulk_update_kot_item_state(kot_items, state):
     """
     if isinstance(kot_items, str):
         kot_items = frappe.parse_json(kot_items)
-    
-    if not kot_items or len(kot_items) == 0:
+
+    if not kot_items:
         frappe.throw(_("No KOT items provided for update"))
-    
-    # Group items by KOT Ticket for efficient updates
-    items_by_kot = {}
-    
+
+    results = {"total": len(kot_items), "updated": [], "failed": []}
+
     for kot_item in kot_items:
-        parent = frappe.db.get_value("KOT Item", kot_item, "parent")
-        if not parent in items_by_kot:
-            items_by_kot[parent] = []
-        items_by_kot[parent].append(kot_item)
-    
-    results = {
-        "total": len(kot_items),
-        "updated": 0,
-        "failed": 0,
-        "tickets_affected": len(items_by_kot)
-    }
-    
-    # Process each group of items by KOT Ticket
-    for kot_ticket, items in items_by_kot.items():
         try:
-            # Get branch information for validation
-            pos_order = frappe.db.get_value("KOT Ticket", kot_ticket, "pos_order")
-            order_doc = frappe.get_doc("POS Order", pos_order)
-
-            check_restaurant_domain(order_doc.pos_profile)
-            validate_branch_access(order_doc.branch)
-
-            # Update individual items using single-item logic
-            for kot_item in items:
-                try:
-                    update_kot_item_state(kot_item, state)
-                    results["updated"] += 1
-                except Exception as item_exc:
-                    frappe.log_error(
-                        f"Error updating KOT item {kot_item}: {str(item_exc)}"
-                    )
-                    results["failed"] += 1
-
-            # Notify table display once per ticket if applicable
-            if order_doc.table:
-                publish_table_update(pos_order, order_doc.table, "kot_bulk_update")
-
+            update_kot_item_state(kot_item, state)
+            results["updated"].append(kot_item)
         except Exception as e:
-            frappe.log_error(f"Error updating KOT items: {str(e)}")
-            results["failed"] += len(items)
-            
+            results["failed"].append({"item": kot_item, "error": str(e)})
+
+    results["updated_count"] = len(results["updated"])
+    results["failed_count"] = len(results["failed"])
     return results
 
 @frappe.whitelist()

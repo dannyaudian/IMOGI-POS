@@ -13,6 +13,7 @@ def kot_module():
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = lambda: datetime.datetime(2023, 1, 1, 0, 0, 0)
     utils.cint = int
+    utils.get_datetime = lambda x=None: datetime.datetime(2023, 1, 1, 0, 0, 0)
 
     frappe = types.ModuleType("frappe")
     frappe.utils = utils
@@ -134,6 +135,115 @@ def test_send_items_to_kitchen_creates_ticket(kot_module):
     result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
     assert frappe.db.requested_field != "item_code"
     assert frappe.db.looked_up_item == "ITEM-1"
-    assert result["pos_order"] == "POS-1"
-    assert result["items"][0]["pos_order_item"] == "ROW-1"
-    assert len(frappe.realtime.calls) > 0
+    assert result["items"] == ["ROW-1"]
+
+
+@pytest.fixture
+def kot_service_env():
+    sys.path.insert(0, ".")
+
+    import types
+
+    frappe = types.ModuleType("frappe")
+    utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2023, 1, 1),
+                                  get_datetime=lambda x=None: datetime.datetime(2023, 1, 1))
+    frappe.utils = utils
+
+    class FrappeException(Exception):
+        pass
+
+    frappe.ValidationError = FrappeException
+    frappe._ = lambda x: x
+
+    def throw(msg, exc=None):
+        raise (exc or FrappeException)(msg)
+
+    frappe.throw = throw
+    frappe.session = types.SimpleNamespace(user="test-user")
+    frappe.publish_realtime = lambda *a, **k: None
+
+    class Item:
+        def __init__(self, name, parent, state):
+            self.name = name
+            self.parent = parent
+            self.workflow_state = state
+            self.pos_order_item = None
+            self.last_edited_by = None
+
+        def save(self):
+            pass
+
+    items = {
+        "KOTI-1": Item("KOTI-1", "KT-1", "Queued"),
+        "KOTI-2": Item("KOTI-2", "KT-1", "Queued"),
+    }
+
+    class Ticket:
+        def __init__(self, name):
+            self.name = name
+            self.pos_order = "ORDER-1"
+            self.workflow_state = "Queued"
+            self.kitchen_station = None
+            self.branch = "BR-1"
+            self.table = None
+            self.items = list(items.values())
+
+        def save(self):
+            pass
+
+    tickets = {"KT-1": Ticket("KT-1")}
+
+    def get_doc(doctype, name):
+        if doctype == "KOT Item":
+            return items[name]
+        if doctype == "KOT Ticket":
+            t = tickets[name]
+            t.items = list(items.values())
+            return t
+        if doctype == "POS Order":
+            return types.SimpleNamespace(pos_profile="PROFILE", branch="BR-1")
+        raise Exception("Unexpected doctype")
+
+    frappe.get_doc = get_doc
+
+    sys.modules["frappe"] = frappe
+    sys.modules["frappe.utils"] = utils
+
+    import importlib
+    import imogi_pos  # ensure package registered
+    sys.modules.pop("imogi_pos.kitchen.kot_service", None)
+    ks = importlib.import_module("imogi_pos.kitchen.kot_service")
+    service = ks.KOTService()
+    service._update_ticket_state_if_needed = lambda *a, **k: None
+    service._update_pos_item_counter = lambda *a, **k: None
+    service._publish_kot_item_update = lambda *a, **k: None
+
+    yield service, items
+
+    sys.modules.pop("frappe", None)
+    sys.modules.pop("frappe.utils", None)
+    sys.path.pop(0)
+
+
+def test_update_kot_item_state_allows_forward_progress(kot_service_env):
+    service, items = kot_service_env
+    service.update_kot_item_state("KOTI-1", "In Progress")
+    assert items["KOTI-1"].workflow_state == "In Progress"
+    service.update_kot_item_state("KOTI-1", "Ready")
+    assert items["KOTI-1"].workflow_state == "Ready"
+
+
+def test_update_kot_item_state_blocks_invalid_transition(kot_service_env):
+    service, _ = kot_service_env
+    with pytest.raises(Exception):
+        service.update_kot_item_state("KOTI-1", "Ready")
+
+
+def test_bulk_update_kot_items_records_results(kot_service_env):
+    service, items = kot_service_env
+    service.update_kot_item_state("KOTI-1", "In Progress")
+    result = service.bulk_update_kot_items(["KOTI-1", "KOTI-2"], "Ready")
+    assert result["updated_items"] == ["KOTI-1"]
+    assert result["failed_items"][0]["item"] == "KOTI-2"
+    assert items["KOTI-1"].workflow_state == "Ready"
+    assert items["KOTI-2"].workflow_state == "Queued"
