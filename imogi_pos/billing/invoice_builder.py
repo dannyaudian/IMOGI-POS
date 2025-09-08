@@ -97,10 +97,18 @@ def build_sales_invoice_from_pos_order(
     if not pos_profile.taxes_and_charges:
         si.append("taxes", {
             "charge_type": "On Net Total",
-            "description": "PB1",
+            "description": "PB1 11%",
             "rate": 11.0
         })
-    
+
+    # Apply order discount if any
+    if getattr(pos_order, "discount_amount", None) or getattr(pos_order, "discount_percent", None):
+        si.apply_discount_on = "Grand Total"
+        if getattr(pos_order, "discount_amount", None):
+            si.discount_amount = pos_order.discount_amount
+        if getattr(pos_order, "discount_percent", None):
+            si.additional_discount_percentage = pos_order.discount_percent
+
     # Apply selling price list from POS Profile
     if pos_profile.selling_price_list:
         si.selling_price_list = pos_profile.selling_price_list
