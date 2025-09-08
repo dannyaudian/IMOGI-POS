@@ -51,7 +51,7 @@ def ensure_update_stock_enabled(pos_profile):
         )
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, discount_amount=0, discount_percent=0, promo_code=None):
+def create_order(order_type, branch, pos_profile, table=None, items=None, discount_amount=0, discount_percent=0, promo_code=None):
     """
     Creates a new POS Order.
     
@@ -60,6 +60,7 @@ def create_order(order_type, branch, pos_profile, table=None, discount_amount=0,
         branch (str): Branch name
         pos_profile (str): POS Profile name
         table (str, optional): Restaurant Table name. Required for Dine-in.
+        items (list | dict, optional): Items to be added to the order.
     
     Returns:
         dict: Created POS Order details
@@ -108,6 +109,13 @@ def create_order(order_type, branch, pos_profile, table=None, discount_amount=0,
     )
     if table_doc:
         order_doc.floor = table_doc.floor
+
+    if items:
+        if isinstance(items, dict):
+            items = [items]
+        for item in items:
+            row = order_doc.append("items", item)
+            validate_item_is_sales_item(row)
 
     order_doc.insert()
     # Allow downstream apps to reserve or deduct stock before invoicing
