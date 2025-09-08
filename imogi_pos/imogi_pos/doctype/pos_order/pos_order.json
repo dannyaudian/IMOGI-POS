@@ -21,6 +21,9 @@
         "section_break_11",
         "items",
         "section_break_13",
+        "discount_percent",
+        "discount_amount",
+        "promo_code",
         "totals",
         "section_break_15",
         "notes",
@@ -117,6 +120,21 @@
             "fieldname": "section_break_13",
             "fieldtype": "Section Break",
             "label": "Totals"
+        },
+        {
+            "fieldname": "discount_percent",
+            "fieldtype": "Percent",
+            "label": "Discount Percent"
+        },
+        {
+            "fieldname": "discount_amount",
+            "fieldtype": "Currency",
+            "label": "Discount Amount"
+        },
+        {
+            "fieldname": "promo_code",
+            "fieldtype": "Data",
+            "label": "Promo Code"
         },
         {
             "fieldname": "totals",

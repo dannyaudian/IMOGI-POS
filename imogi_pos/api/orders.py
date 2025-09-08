@@ -43,7 +43,7 @@ def check_restaurant_domain(pos_profile):
 
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None):
+def create_order(order_type, branch, pos_profile, table=None, discount_amount=0, discount_percent=0, promo_code=None):
     """
     Creates a new POS Order.
     
@@ -92,6 +92,9 @@ def create_order(order_type, branch, pos_profile, table=None):
             "pos_profile": pos_profile,
             "table": table,
             "workflow_state": "Draft",
+            "discount_amount": discount_amount,
+            "discount_percent": discount_percent,
+            "promo_code": promo_code,
         }
     )
     if table_doc:
