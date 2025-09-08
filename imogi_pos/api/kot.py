@@ -182,16 +182,46 @@ def send_items_to_kitchen(pos_order, item_rows):
                 ).format(item_identifier)
             )
     
-    # STUB: Create KOT Ticket logic will go here
-    # For now, create a minimal response
-    kot_ticket = {
-        "name": f"KOT-{frappe.utils.now_datetime().strftime('%Y%m%d%H%M%S')}",
-        "pos_order": pos_order,
-        "status": "Queued",
-        "items": item_rows,
-        "branch": order_doc.branch,
-        "creation": now_datetime()
-    }
+    # Create KOT Ticket document
+    kot_doc = frappe.new_doc("KOT Ticket")
+    kot_doc.pos_order = pos_order
+    kot_doc.branch = order_doc.branch
+    kot_doc.table = getattr(order_doc, "table", None)
+    kot_doc.floor = getattr(order_doc, "floor", None)
+    kot_doc.order_type = getattr(order_doc, "order_type", None)
+    kot_doc.customer = getattr(order_doc, "customer", None)
+
+    # Build KOT Item records from selected POS Order Items
+    for row_name in item_rows:
+        item_details = frappe.db.get_value(
+            "POS Order Item",
+            row_name,
+            ["item", "qty", "notes", "kitchen", "kitchen_station"],
+            as_dict=True,
+        )
+
+        item_code = item_details.get("item")
+        item_name = frappe.db.get_value("Item", item_code, "item_name")
+
+        if not getattr(kot_doc, "kitchen_station", None):
+            kot_doc.kitchen_station = item_details.get("kitchen_station")
+        if not getattr(kot_doc, "kitchen", None):
+            kot_doc.kitchen = item_details.get("kitchen")
+
+        kot_doc.append(
+            "items",
+            {
+                "item_code": item_code,
+                "item_name": item_name,
+                "qty": item_details.get("qty"),
+                "pos_order_item": row_name,
+                "workflow_state": "Queued",
+                "notes": item_details.get("notes"),
+            },
+        )
+
+    kot_doc.insert()
+    kot_ticket = kot_doc.as_dict()
     
     # Publish updates to kitchen and table displays
     publish_kitchen_update(kot_ticket)

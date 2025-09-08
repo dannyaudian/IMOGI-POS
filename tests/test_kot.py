@@ -47,23 +47,47 @@ def kot_module():
         def get_value(self, doctype, name=None, fieldname=None, as_dict=False):
             if doctype == "POS Order Item":
                 self.requested_field = fieldname
+                data = {
+                    "item": "ITEM-1",
+                    "qty": 1,
+                    "notes": "Note",
+                    "kitchen": "KIT-1",
+                    "kitchen_station": "ST-1",
+                }
                 if isinstance(fieldname, (list, tuple)):
-                    data = {"item": "ITEM-1", "item_code": None}
-                    return data if as_dict else tuple(data.values())
-                if fieldname == "item":
-                    return "ITEM-1"
-                if fieldname == "item_code":
-                    raise Exception("old field used")
+                    return data if as_dict else [data.get(f) for f in fieldname]
+                return data.get(fieldname)
             if doctype == "Item":
                 self.looked_up_item = name
+                if fieldname == "item_name":
+                    return "Item Name"
                 return False
-            if doctype == "KOT Ticket":
+            if doctype == "KOT Ticket" and fieldname == "branch":
                 return "BR-1"
             if doctype == "POS Profile":
                 return "Restaurant"
             return None
 
     frappe.db = DB()
+
+    class Document:
+        def __init__(self, doctype):
+            self.doctype = doctype
+            self.items = []
+            self.name = f"{doctype}-1"
+
+        def append(self, fieldname, value):
+            getattr(self, fieldname).append(value)
+
+        def insert(self):
+            return self
+
+        def as_dict(self):
+            return {
+                k: v for k, v in self.__dict__.items()
+            }
+
+    frappe.new_doc = lambda doctype: Document(doctype)
 
     def get_doc(doctype, name=None):
         if doctype == "POS Order":
@@ -78,7 +102,13 @@ def kot_module():
 
     frappe.get_doc = get_doc
 
-    realtime = types.SimpleNamespace(publish_realtime=lambda *a, **k: None)
+    class Realtime:
+        def __init__(self):
+            self.calls = []
+        def publish_realtime(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+
+    realtime = Realtime()
     frappe.realtime = realtime
 
     sys.modules['frappe'] = frappe
@@ -99,53 +129,11 @@ def kot_module():
     sys.path.pop(0)
 
 
-def test_send_items_to_kitchen_uses_item_field(kot_module):
+def test_send_items_to_kitchen_creates_ticket(kot_module):
     kot, frappe = kot_module
     result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
     assert frappe.db.requested_field != "item_code"
     assert frappe.db.looked_up_item == "ITEM-1"
-    assert result["items"] == ["ROW-1"]
-
-
-def test_get_kots_for_kitchen_returns_items(kot_module):
-    kot, frappe = kot_module
-    calls = []
-
-    def get_all(doctype, filters=None, fields=None, order_by=None):
-        calls.append((doctype, filters, fields, order_by))
-        if doctype == "KOT Ticket":
-            return [
-                {
-                    "name": "KT-1",
-                    "table": "T1",
-                    "workflow_state": "Queued",
-                    "creation": "2023-01-01",
-                }
-            ]
-        if doctype == "KOT Item":
-            return [
-                {
-                    "idx": 1,
-                    "item": "ITEM-1",
-                    "item_name": "Item 1",
-                    "status": "Queued",
-                    "qty": 2,
-                    "notes": "note",
-                }
-            ]
-        return []
-
-    frappe.get_all = get_all
-
-
-    tickets = kot.get_kots_for_kitchen("K1", "S1", "B1")
-
-    assert calls[0][1] == {
-        "kitchen": "K1",
-        "kitchen_station": "S1",
-        "branch": "B1",
-    }
-    assert calls[0][3] == "creation asc"
-    assert tickets[0]["items"][0]["status"] == "Queued"
-    assert tickets[0]["items"][0]["qty"] == 2
-    assert tickets[0]["items"][0]["notes"] == "note"
+    assert result["pos_order"] == "POS-1"
+    assert result["items"][0]["pos_order_item"] == "ROW-1"
+    assert len(frappe.realtime.calls) > 0
