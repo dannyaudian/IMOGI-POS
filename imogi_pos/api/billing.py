@@ -147,7 +147,7 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
                 continue
             frappe.throw(
                 _(
-                    "Cannot generate invoice for non-sales item: {0}"
+                    "Cannot generate invoice for non-sales item: {0}. Either mark the item as a Sales Item or enable \"Allow Non Sales Items\" in the POS Profile."
                 ).format(item.item),
                 frappe.ValidationError,
             )
