@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderOrderFields(meta) {
   const container = document.getElementById('order-fields');
-  const fields = ['order_type', 'branch', 'pos_profile', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
+  const fields = ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
   fields.forEach(fn => {
     const df = meta.fields.find(f => f.fieldname === fn);
     if (!df) return;
@@ -107,7 +107,7 @@ function submitOrder() {
   const formData = new FormData(form);
 
   const args = {};
-  ['order_type', 'branch', 'pos_profile', 'table', 'discount_amount', 'discount_percent', 'promo_code']
+  ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
     .forEach(key => {
       const val = formData.get(key);
       if (val) args[key] = val;

@@ -51,6 +51,7 @@ def frappe_env(monkeypatch):
                 "table": self.table,
                 "workflow_state": self.workflow_state,
                 "floor": getattr(self, "floor", None),
+                "customer": getattr(self, "customer", None),
             }
 
     class DB:
@@ -182,3 +183,11 @@ def test_non_sales_items_rejected(frappe_env):
         orders_module.create_order(
             "Dine-in", "BR-1", "P1", table="T1", items={"item": "NON-SALES-ITEM"}
         )
+
+def test_create_order_records_customer(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order(
+        "Dine-in", "BR-1", "P1", table="T1", customer="CUST-1"
+    )
+    assert orders[result["name"]].customer == "CUST-1"
+    assert result["customer"] == "CUST-1"
