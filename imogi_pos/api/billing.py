@@ -302,13 +302,16 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
-            fields=["item", "qty", "rate", "amount"],
+            fields=["item", "qty", "rate", "amount", "notes"],
             order_by="idx",
         )
-
-        # Attach item names
+        # Attach item info from Item doctype
         for item in order_items:
-            item["item_name"] = frappe.db.get_value("Item", item["item"], "item_name")
+            item_details = frappe.db.get_value(
+                "Item", item["item"], ["item_name", "image"], as_dict=True
+            )
+            if item_details:
+                item.update(item_details)
 
         order["items"] = order_items
 
