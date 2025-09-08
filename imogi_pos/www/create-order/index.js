@@ -7,14 +7,14 @@
 async function fetchMeta(doctype) {
   try {
     const r = await frappe.call({
-      method: 'frappe.client.get_meta',
+      method: 'imogi_pos.api.utils.get_meta',
       args: { doctype }
     });
     return r.message;
-  } catch (err) {
-    console.error(`Error fetching metadata for ${doctype}`, err);
-    frappe.msgprint(__('Unable to fetch metadata for {0}', [doctype]));
-    return null;
+  } catch (e) {
+    console.error(e);
+    frappe.msgprint(__('Unable to load metadata. Please refresh the page.'));
+    throw e;
   }
 }
 
