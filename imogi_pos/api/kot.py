@@ -125,6 +125,52 @@ def get_kitchens_and_stations(branch=None):
     return {"kitchens": kitchens, "stations": stations}
 
 @frappe.whitelist()
+def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+    """Return KOT tickets for a specific kitchen/station/branch.
+
+    Args:
+        kitchen (str, optional): Kitchen name to filter by.
+        station (str, optional): Kitchen station name to filter by.
+        branch (str, optional): Branch name to filter by and validate access.
+
+    Returns:
+        list: List of KOT Ticket dicts with requested fields and their items.
+    """
+    filters = {}
+    if kitchen:
+        filters["kitchen"] = kitchen
+    if station:
+        filters["kitchen_station"] = station
+    if branch:
+        filters["branch"] = branch
+        validate_branch_access(branch)
+
+    tickets = frappe.get_all(
+        "KOT Ticket",
+        filters=filters,
+        fields=["name", "table", "workflow_state"],
+        order_by="creation asc",
+    )
+
+    for ticket in tickets:
+        items = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=["item_name", "qty", "notes", "workflow_state"],
+        )
+        ticket["items"] = [
+            {
+                "item_name": i.get("item_name"),
+                "qty": i.get("qty"),
+                "notes": i.get("notes"),
+                "status": i.get("workflow_state"),
+            }
+            for i in items
+        ]
+
+    return tickets
+
+@frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
     """
     Creates a KOT Ticket and sends selected items to the kitchen.
