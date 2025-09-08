@@ -426,7 +426,17 @@ frappe.ready(function () {
           .then(() => showSuccess(__('Bill printed successfully')))
           .catch(err => showError('Print failed: ' + (err?.message || err)));
         } else {
-          showError('Print service not available');
+          console.warn('ImogiPrintService not available; falling back to browser print');
+          showError(__('Imogi Print Service not available. Using browser print.'));
+          if (d && d.html) {
+            const w = window.open('', '_blank');
+            if (w) {
+              w.document.write(d.html);
+              w.document.close();
+              w.focus();
+              w.print();
+            }
+          }
         }
       } else {
         showError(__('Failed to prepare bill for printing'));
@@ -605,7 +615,8 @@ frappe.ready(function () {
         defaultInterface: 'OS'
       });
     } else {
-      console.warn('Print service not available');
+      console.warn('ImogiPrintService not available');
+      showError(__('Imogi Print Service is not available. Browser printing will be used.'));
     }
   }
 
