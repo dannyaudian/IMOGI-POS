@@ -112,7 +112,14 @@ frappe.ready(function () {
     .then((r) => {
       const payload = (r && r.message) || [];
       console.debug('[loadOrders] received', payload);
-      allOrders = Array.isArray(payload) ? payload : [];
+      // Ensure item metadata is properly structured
+      allOrders = Array.isArray(payload) ? payload.map(order => ({
+        ...order,
+        items: (order.items || []).map(item => ({
+          ...item,
+          rate: Number(item.rate || 0)
+        }))
+      })) : [];
       applySearchTo(allOrders);
       renderOrders();
       // Reset selection jika order yang dipilih hilang
@@ -165,8 +172,13 @@ frappe.ready(function () {
       const orderDate = order.creation ? new Date(order.creation) : null;
       const time = orderDate ? orderDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       const amount = safeTotal(order);
-      const itemsCount = (order.items && order.items.length) || 0;
       const isSelected = selectedOrder && selectedOrder.name === order.name;
+      const itemsHtml = (order.items || []).map(it => `
+        <div class="order-item">
+          ${it.image ? `<div class="order-item-img"><img src="${escapeAttr(it.image)}" alt="${escapeAttr(it.item_name || it.item || '')}"></div>` : ''}
+          <div class="order-item-name">${escapeHtml(it.item_name || it.item || '')}</div>
+          <div class="order-item-meta">${Number(it.qty || 0)}x ${formatCurrency(Number(it.rate || 0))}</div>
+        </div>`).join('');
 
       return `
         <div class="order-card ${isSelected ? 'selected' : ''}" data-order="${order.name}">
@@ -183,9 +195,7 @@ frappe.ready(function () {
             </div>
             <div class="order-amount">${formatCurrency(amount)}</div>
           </div>
-          <div class="order-items">
-            ${itemsCount} item(s) • ${escapeHtml(order.workflow_state || '')}
-          </div>
+          <div class="order-items">${itemsHtml}</div>
         </div>`;
     }).join('');
 
@@ -272,7 +282,7 @@ frappe.ready(function () {
           </div>
           <div class="item-quantity-price">
             <span>${Number(item.qty || 0)}x</span>
-            <span>${formatCurrency(Number(item.amount || item.net_amount || 0))}</span>
+            <span>${formatCurrency(Number(item.rate || 0))}</span>
           </div>
         </div>
       `).join('');
