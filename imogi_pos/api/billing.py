@@ -8,6 +8,12 @@ from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date, get_url, flt
 from frappe.realtime import publish_realtime
 
+try:
+    from erpnext.stock.stock_ledger import NegativeStockError
+except Exception:  # pragma: no cover - fallback when erpnext isn't installed
+    class NegativeStockError(Exception):
+        pass
+
 def validate_branch_access(branch):
     """
     Validates that the current user has access to the specified branch.
@@ -225,8 +231,39 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
                     frappe.ValidationError,
                 )
 
+        if invoice_doc.get("update_stock"):
+            allow_negative_stock = frappe.db.get_value(
+                "Stock Settings", None, "allow_negative_stock"
+            )
+            for item in invoice_doc.get("items", []):
+                warehouse = item.get("warehouse") or profile_doc.get("warehouse")
+                if not warehouse:
+                    continue
+                available_qty = frappe.db.get_value(
+                    "Bin",
+                    {"item_code": item.get("item_code"), "warehouse": warehouse},
+                    "actual_qty",
+                ) or 0
+                if (
+                    not cint(allow_negative_stock)
+                    and flt(item.get("qty")) > flt(available_qty)
+                ):
+                    shortage = flt(item.get("qty")) - flt(available_qty)
+                    frappe.throw(
+                        _(
+                            "Item {0} in warehouse {1} is short by {2}"
+                        ).format(item.get("item_code"), warehouse, shortage),
+                        frappe.ValidationError,
+                    )
+
         invoice_doc.insert(ignore_permissions=True)
-        invoice_doc.submit()
+        try:
+            invoice_doc.submit()
+        except NegativeStockError:
+            frappe.throw(
+                _("Insufficient stock to complete invoice"),
+                frappe.ValidationError,
+            )
 
         # Link invoice back to POS Order
         frappe.db.set_value("POS Order", pos_order, "sales_invoice", invoice_doc.name)
