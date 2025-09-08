@@ -136,10 +136,11 @@ def test_create_order_assigns_table(frappe_env):
 def test_create_order_stores_items(frappe_env):
     frappe, orders_module = frappe_env
     result = orders_module.create_order(
-        "Dine-in", "BR-1", "P1", table="T1", items={"item": "SALES-ITEM"}
+        "Dine-in", "BR-1", "P1", table="T1", items={"item": "SALES-ITEM", "rate": 10}
     )
     assert len(orders[result["name"]].items) == 1
     assert orders[result["name"]].items[0].item == "SALES-ITEM"
+    assert orders[result["name"]].items[0].rate == 10
 
 def test_switch_table_moves_order(frappe_env):
     frappe, orders_module = frappe_env
