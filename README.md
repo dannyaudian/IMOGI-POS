@@ -105,6 +105,10 @@ When not set to "Restaurant", the UI will hide restaurant-specific elements and 
 
 Inventory deduction is controlled by the POS Profile. Enable **Update Stock** on each profile for branches where sales should affect stock levels. After an order is created the system fires an `after_create_order` hook, allowing integrators to reserve or deduct stock before the Sales Invoice is generated.
 
+### Handling stock shortages
+
+When **Update Stock** is enabled, invoices will fail if an item's quantity exceeds the available stock and negative stock is disabled in **Stock Settings**. To resolve this, restock the item or allow negative stock before retrying the invoice.
+
 ## Documentation
 
 For detailed documentation, refer to the [User Guide](link-to-docs) and [Developer Reference](link-to-dev-docs).

@@ -249,9 +249,11 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
                     and flt(item.get("qty")) > flt(available_qty)
                 ):
                     shortage = flt(item.get("qty")) - flt(available_qty)
+                    # Provide guidance to operators when stock is insufficient
                     frappe.throw(
                         _(
-                            "Item {0} in warehouse {1} is short by {2}"
+                            "Item {0} in warehouse {1} is short by {2}. "
+                            "Restock the item or enable negative stock in Stock Settings."
                         ).format(item.get("item_code"), warehouse, shortage),
                         frappe.ValidationError,
                     )
@@ -261,7 +263,10 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
             invoice_doc.submit()
         except NegativeStockError:
             frappe.throw(
-                _("Insufficient stock to complete invoice"),
+                _(
+                    "Insufficient stock to complete invoice. Restock the item or "
+                    "enable negative stock in Stock Settings."
+                ),
                 frappe.ValidationError,
             )
 
