@@ -149,7 +149,12 @@ function addItemRow() {
 
 function submitOrder() {
   const form = document.getElementById('create-order-form');
+  const submitBtn = form.querySelector('button[type="submit"]');
   const formData = new FormData(form);
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+  }
 
   const args = {};
   ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
@@ -176,13 +181,24 @@ function submitOrder() {
     args.items = JSON.stringify(args.items);
   }
 
-  frappe.call({
-    method: 'imogi_pos.api.orders.create_order',
-    args: args
-  }).then(r => {
-    if (r && r.message) {
-      frappe.msgprint(__('Order created successfully'));
-      window.location.href = '/cashier-console';
-    }
-  });
+  frappe
+    .call({
+      method: 'imogi_pos.api.orders.create_order',
+      args: args
+    })
+    .then(r => {
+      if (r && r.message) {
+        frappe.msgprint(__('Order created successfully'));
+        window.location.href = '/cashier-console';
+      }
+    })
+    .catch(err => {
+      console.error('Failed to create order', err);
+      frappe.msgprint(__('Failed to create order'));
+    })
+    .finally(() => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+      }
+    });
 }
