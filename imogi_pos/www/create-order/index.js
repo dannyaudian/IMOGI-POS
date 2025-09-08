@@ -4,6 +4,10 @@
  * submits data to imogi_pos.api.orders.create_order.
  */
 
+// store references to order level controls and item row controls
+const orderControls = {};
+const itemControls = [];
+
 async function fetchMeta(doctype) {
   try {
     const r = await frappe.call({
@@ -49,53 +53,13 @@ function renderOrderFields(meta) {
     const wrapper = document.createElement('div');
     wrapper.className = 'form-group';
 
-    const label = document.createElement('label');
-    label.textContent = df.label;
-    label.setAttribute('for', df.fieldname);
-    wrapper.appendChild(label);
-
-    if (df.fieldtype === 'Select') {
-      const select = document.createElement('select');
-      select.id = df.fieldname;
-      select.name = df.fieldname;
-      select.className = 'form-control';
-      if (df.reqd) select.required = true;
-      (df.options || '').split('\n').forEach(opt => {
-        if (!opt) return;
-        const option = document.createElement('option');
-        option.value = opt;
-        option.textContent = opt;
-        select.appendChild(option);
-      });
-      if (df.default) select.value = df.default;
-      wrapper.appendChild(select);
-    } else if (df.fieldtype === 'Link') {
-      const inputWrapper = document.createElement('div');
-      wrapper.appendChild(inputWrapper);
-      const control = frappe.ui.form.make_control({
-        df: df,
-        parent: inputWrapper,
-        only_input: true
-      });
-      control.refresh();
-    } else {
-      const input = document.createElement('input');
-      input.id = df.fieldname;
-      input.name = df.fieldname;
-      input.className = 'form-control';
-      if (['Int', 'Float', 'Currency'].includes(df.fieldtype)) {
-        input.type = 'number';
-      } else if (df.fieldtype === 'Date') {
-        input.type = 'date';
-      } else {
-        input.type = 'text';
-      }
-      if (df.reqd) input.required = true;
-      if (df.default) input.value = df.default;
-      wrapper.appendChild(input);
-    }
-
     container.appendChild(wrapper);
+    const ctrl = frappe.ui.form.make_control({
+      df: df,
+      parent: wrapper
+    });
+    ctrl.refresh();
+    orderControls[fn] = ctrl;
   });
 }
 
@@ -103,83 +67,57 @@ function addItemRow() {
   if (!window.itemMeta) return;
   const tbody = document.querySelector('#items-table tbody');
   const tr = document.createElement('tr');
-
   const itemDf = window.itemMeta.fields.find(f => f.fieldname === 'item');
   const qtyDf = window.itemMeta.fields.find(f => f.fieldname === 'qty');
-  const rateDf = window.itemMeta.fields.find(f => f.fieldname === 'rate');
-  const discDf = window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') ||
+  const discDf =
+    window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') ||
     window.itemMeta.fields.find(f => f.fieldname === 'discount');
 
-  let rateControl;
-  let img;
+  const controls = {};
 
   // Item column using Link control
   const itemTd = document.createElement('td');
-  const itemControl = frappe.ui.form.make_control({
-    df: Object.assign({}, itemDf || { fieldtype: 'Link', label: 'Item', options: 'Item' }, {
-      fieldname: 'items_item',
-      onchange: function () {
-        const item_code = this.get_value();
-        if (!item_code) return;
-        frappe.client
-          .get_value('Item', item_code, ['image', 'standard_rate'])
-          .then(r => {
-            if (r && r.message) {
-              if (r.message.standard_rate !== undefined && rateControl) {
-                rateControl.set_value(r.message.standard_rate);
-              }
-              if (r.message.image && img) {
-                img.src = r.message.image;
-              }
-            }
-          })
-          .catch(err => {
-            console.error('Error fetching item details', err);
-            frappe.msgprint(__('Unable to fetch item details'));
-          });
-      }
-    }),
-    parent: itemTd,
-    render_input: true
-  });
-  itemControl.$input.attr('name', 'items_item');
   tr.appendChild(itemTd);
+  controls.item = frappe.ui.form.make_control({
+    df: itemDf || { fieldtype: 'Link', options: 'Item', fieldname: 'item', label: 'Item' },
+    parent: itemTd,
+    only_input: true
+  });
+  controls.item.refresh();
+  controls.item.$input.attr('placeholder', itemDf ? itemDf.label : 'Item');
 
   // Qty column control
   const qtyTd = document.createElement('td');
-  const qtyControl = frappe.ui.form.make_control({
-    df: Object.assign({}, qtyDf || { fieldtype: 'Float', label: 'Qty' }, {
-      fieldname: 'items_qty'
-    }),
-    parent: qtyTd,
-    render_input: true
-  });
-  qtyControl.$input.attr('name', 'items_qty');
   tr.appendChild(qtyTd);
+  controls.qty = frappe.ui.form.make_control({
+    df: qtyDf || { fieldtype: 'Float', fieldname: 'qty', label: 'Qty' },
+    parent: qtyTd,
+    only_input: true
+  });
+  controls.qty.refresh();
+  controls.qty.$input.attr('placeholder', qtyDf ? qtyDf.label : 'Qty');
 
   // Rate column control
   const rateTd = document.createElement('td');
-  rateControl = frappe.ui.form.make_control({
-    df: Object.assign({}, rateDf || { fieldtype: 'Currency', label: 'Rate' }, {
-      fieldname: 'items_rate'
-    }),
-    parent: rateTd,
-    render_input: true
-  });
-  rateControl.$input.attr('name', 'items_rate');
   tr.appendChild(rateTd);
+  controls.rate = frappe.ui.form.make_control({
+    df: { fieldtype: 'Currency', fieldname: 'rate', label: 'Price' },
+    parent: rateTd,
+    only_input: true
+  });
+  controls.rate.refresh();
+  controls.rate.$input.attr('placeholder', 'Price');
 
   // Discount column control
   const discTd = document.createElement('td');
-  const discControl = frappe.ui.form.make_control({
-    df: Object.assign({}, discDf || { fieldtype: 'Float', label: 'Discount' }, {
-      fieldname: 'items_discount'
-    }),
-    parent: discTd,
-    render_input: true
-  });
-  discControl.$input.attr('name', 'items_discount');
   tr.appendChild(discTd);
+  controls.discount = frappe.ui.form.make_control({
+    df: discDf || { fieldtype: 'Float', fieldname: 'discount', label: 'Discount' },
+    parent: discTd,
+    only_input: true
+  });
+  controls.discount.refresh();
+  controls.discount.$input.attr('placeholder', discDf ? discDf.label : 'Discount');
 
   const imgTd = document.createElement('td');
   img = document.createElement('img');
@@ -193,42 +131,71 @@ function addItemRow() {
   btn.type = 'button';
   btn.textContent = '×';
   btn.className = 'btn btn-default';
-  btn.addEventListener('click', () => tr.remove());
+  btn.addEventListener('click', () => {
+    const idx = itemControls.indexOf(controls);
+    if (idx > -1) itemControls.splice(idx, 1);
+    tr.remove();
+  });
   removeTd.appendChild(btn);
   tr.appendChild(removeTd);
 
   tbody.appendChild(tr);
+  
+  itemControls.push(controls);
+
+  controls.item.$input.on('change', () => {
+    const item_code = controls.item.get_value();
+    if (!item_code) return;
+    frappe.client
+      .get_value('Item', item_code, ['image', 'standard_rate'])
+      .then(r => {
+        if (r && r.message) {
+          if (r.message.standard_rate !== undefined) {
+            controls.rate.set_value(r.message.standard_rate);
+          }
+          if (r.message.image) {
+            img.src = r.message.image;
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching item details', err);
+        frappe.msgprint(__('Unable to fetch item details'));
+      });
+  });
 }
 
 function submitOrder() {
-  const form = document.getElementById('create-order-form');
-  const formData = new FormData(form);
-
   const args = {};
-  if (window.orderMeta) {
-    window.orderMeta.fields.forEach(df => {
-      if (df.fieldtype === 'Table') return;
-      const val = formData.get(df.fieldname);
-      if (val) args[df.fieldname] = val;
+  ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
+    .forEach(key => {
+      const ctrl = orderControls[key];
+      if (!ctrl) return;
+      const val = ctrl.get_value();
+      if (val) args[key] = val;
     });
   }
 
-  const items = [];
-  document.querySelectorAll('#items-table tbody tr').forEach(tr => {
-    const item = tr.querySelector('input[name="items_item"]').value;
-    const qty = tr.querySelector('input[name="items_qty"]').value;
-    const rate = tr.querySelector('input[name="items_rate"]').value;
-    const discount = tr.querySelector('input[name="items_discount"]').value;
-    if (item || qty || discount || rate) {
-      items.push({ item, qty, discount, rate });
-    }
-  });
-  if (items.length) {
-    args.items = items;
+  if (args.order_type === 'Dine-in' && !args.table) {
+    frappe.msgprint(__('Table is required for Dine-in orders'));
+    return;
   }
 
-  if (args.items) {
-    args.items = JSON.stringify(args.items);
+  const items = itemControls
+    .map(ctrls => {
+      const item = ctrls.item.get_value();
+      const qty = ctrls.qty.get_value();
+      const rate = ctrls.rate.get_value();
+      const discount = ctrls.discount.get_value();
+      if (item || qty || rate || discount) {
+        return { item, qty, rate, discount };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  if (items.length) {
+    args.items = JSON.stringify(items);
   }
 
   frappe.call({
