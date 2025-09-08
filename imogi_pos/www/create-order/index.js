@@ -4,6 +4,10 @@
  * submits data to imogi_pos.api.orders.create_order.
  */
 
+// store references to order level controls and item row controls
+const orderControls = {};
+const itemControls = [];
+
 async function fetchMeta(doctype) {
   try {
     const r = await frappe.call({
@@ -48,18 +52,13 @@ function renderOrderFields(meta) {
     if (!df) return;
     const wrapper = document.createElement('div');
     wrapper.className = 'form-group';
-    const label = document.createElement('label');
-    label.textContent = df.label;
-    label.setAttribute('for', fn);
-    const input = document.createElement('input');
-    input.id = fn;
-    input.name = fn;
-    input.className = 'form-control';
-    input.type = df.fieldtype === 'Int' || df.fieldtype === 'Float' ? 'number' : 'text';
-    if (df.reqd) input.required = true;
-    wrapper.appendChild(label);
-    wrapper.appendChild(input);
     container.appendChild(wrapper);
+    const ctrl = frappe.ui.form.make_control({
+      df: df,
+      parent: wrapper
+    });
+    ctrl.refresh();
+    orderControls[fn] = ctrl;
   });
 }
 
@@ -67,45 +66,53 @@ function addItemRow() {
   if (!window.itemMeta) return;
   const tbody = document.querySelector('#items-table tbody');
   const tr = document.createElement('tr');
-
   const itemDf = window.itemMeta.fields.find(f => f.fieldname === 'item');
   const qtyDf = window.itemMeta.fields.find(f => f.fieldname === 'qty');
-  const discDf = window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') || window.itemMeta.fields.find(f => f.fieldname === 'discount');
+  const discDf =
+    window.itemMeta.fields.find(f => f.fieldname === 'discount_percentage') ||
+    window.itemMeta.fields.find(f => f.fieldname === 'discount');
+
+  const controls = {};
 
   const itemTd = document.createElement('td');
-  const itemInput = document.createElement('input');
-  itemInput.name = 'items_item';
-  itemInput.className = 'form-control';
-  itemInput.placeholder = itemDf ? itemDf.label : 'Item';
-  itemTd.appendChild(itemInput);
   tr.appendChild(itemTd);
+  controls.item = frappe.ui.form.make_control({
+    df: itemDf || { fieldtype: 'Link', options: 'Item', fieldname: 'item', label: 'Item' },
+    parent: itemTd,
+    only_input: true
+  });
+  controls.item.refresh();
+  controls.item.$input.attr('placeholder', itemDf ? itemDf.label : 'Item');
 
   const qtyTd = document.createElement('td');
-  const qtyInput = document.createElement('input');
-  qtyInput.type = 'number';
-  qtyInput.name = 'items_qty';
-  qtyInput.className = 'form-control';
-  qtyInput.placeholder = qtyDf ? qtyDf.label : 'Qty';
-  qtyTd.appendChild(qtyInput);
   tr.appendChild(qtyTd);
+  controls.qty = frappe.ui.form.make_control({
+    df: qtyDf || { fieldtype: 'Float', fieldname: 'qty', label: 'Qty' },
+    parent: qtyTd,
+    only_input: true
+  });
+  controls.qty.refresh();
+  controls.qty.$input.attr('placeholder', qtyDf ? qtyDf.label : 'Qty');
 
   const rateTd = document.createElement('td');
-  const rateInput = document.createElement('input');
-  rateInput.type = 'number';
-  rateInput.name = 'items_rate';
-  rateInput.className = 'form-control';
-  rateInput.placeholder = 'Price';
-  rateTd.appendChild(rateInput);
   tr.appendChild(rateTd);
+  controls.rate = frappe.ui.form.make_control({
+    df: { fieldtype: 'Currency', fieldname: 'rate', label: 'Price' },
+    parent: rateTd,
+    only_input: true
+  });
+  controls.rate.refresh();
+  controls.rate.$input.attr('placeholder', 'Price');
 
   const discTd = document.createElement('td');
-  const discInput = document.createElement('input');
-  discInput.type = 'number';
-  discInput.name = 'items_discount';
-  discInput.className = 'form-control';
-  discInput.placeholder = discDf ? discDf.label : 'Discount';
-  discTd.appendChild(discInput);
   tr.appendChild(discTd);
+  controls.discount = frappe.ui.form.make_control({
+    df: discDf || { fieldtype: 'Float', fieldname: 'discount', label: 'Discount' },
+    parent: discTd,
+    only_input: true
+  });
+  controls.discount.refresh();
+  controls.discount.$input.attr('placeholder', discDf ? discDf.label : 'Discount');
 
   const imgTd = document.createElement('td');
   const img = document.createElement('img');
@@ -119,21 +126,26 @@ function addItemRow() {
   btn.type = 'button';
   btn.textContent = '×';
   btn.className = 'btn btn-default';
-  btn.addEventListener('click', () => tr.remove());
+  btn.addEventListener('click', () => {
+    const idx = itemControls.indexOf(controls);
+    if (idx > -1) itemControls.splice(idx, 1);
+    tr.remove();
+  });
   removeTd.appendChild(btn);
   tr.appendChild(removeTd);
 
   tbody.appendChild(tr);
+  itemControls.push(controls);
 
-  itemInput.addEventListener('change', () => {
-    const item_code = itemInput.value;
+  controls.item.$input.on('change', () => {
+    const item_code = controls.item.get_value();
     if (!item_code) return;
     frappe.client
       .get_value('Item', item_code, ['image', 'standard_rate'])
       .then(r => {
         if (r && r.message) {
           if (r.message.standard_rate !== undefined) {
-            rateInput.value = r.message.standard_rate;
+            controls.rate.set_value(r.message.standard_rate);
           }
           if (r.message.image) {
             img.src = r.message.image;
@@ -148,32 +160,35 @@ function addItemRow() {
 }
 
 function submitOrder() {
-  const form = document.getElementById('create-order-form');
-  const formData = new FormData(form);
-
   const args = {};
   ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code']
     .forEach(key => {
-      const val = formData.get(key);
+      const ctrl = orderControls[key];
+      if (!ctrl) return;
+      const val = ctrl.get_value();
       if (val) args[key] = val;
     });
 
-  const items = [];
-  document.querySelectorAll('#items-table tbody tr').forEach(tr => {
-    const item = tr.querySelector('input[name="items_item"]').value;
-    const qty = tr.querySelector('input[name="items_qty"]').value;
-    const rate = tr.querySelector('input[name="items_rate"]').value;
-    const discount = tr.querySelector('input[name="items_discount"]').value;
-    if (item || qty || discount || rate) {
-      items.push({ item, qty, discount, rate });
-    }
-  });
-  if (items.length) {
-    args.items = items;
+  if (args.order_type === 'Dine-in' && !args.table) {
+    frappe.msgprint(__('Table is required for Dine-in orders'));
+    return;
   }
 
-  if (args.items) {
-    args.items = JSON.stringify(args.items);
+  const items = itemControls
+    .map(ctrls => {
+      const item = ctrls.item.get_value();
+      const qty = ctrls.qty.get_value();
+      const rate = ctrls.rate.get_value();
+      const discount = ctrls.discount.get_value();
+      if (item || qty || rate || discount) {
+        return { item, qty, rate, discount };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  if (items.length) {
+    args.items = JSON.stringify(items);
   }
 
   frappe.call({
