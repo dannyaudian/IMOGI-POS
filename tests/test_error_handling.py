@@ -87,21 +87,54 @@ def response_module():
     frappe.errprint = errprint
     frappe.log_error = log_error
     frappe.get_traceback = get_traceback
-    # allow importing submodules from our test stub package
-    import pathlib
-    frappe.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "frappe")]
+    # create minimal frappe.utils.response module
+    utils_mod = types.ModuleType("frappe.utils")
+    utils_mod.__path__ = []
+    response_mod = types.ModuleType("frappe.utils.response")
+
+    def report_error():
+        tb = frappe.get_traceback()
+        frappe.log_error(tb)
+        try:
+            frappe.errprint(tb)
+        except BrokenPipeError:
+            frappe.log_error(tb, "BrokenPipeError")
+
+    response_mod.report_error = report_error
+    utils_mod.response = response_mod
 
     sys.modules["frappe"] = frappe
+    sys.modules["frappe.utils"] = utils_mod
+    sys.modules["frappe.utils.response"] = response_mod
+
+    # Create in-memory stub for frappe.utils.response
+    utils_mod = types.ModuleType("frappe.utils")
+
+    response_mod = types.ModuleType("frappe.utils.response")
+
+    def report_error():
+        traceback_msg = frappe.get_traceback()
+        frappe.log_error(traceback_msg)
+        try:
+            frappe.errprint(traceback_msg)
+        except BrokenPipeError:
+            frappe.log_error(traceback_msg, "BrokenPipeError")
+
+    response_mod.report_error = report_error
+
+    utils_mod.response = response_mod
+
+    sys.modules["frappe.utils"] = utils_mod
+    sys.modules["frappe.utils.response"] = response_mod
 
     err_mod = importlib.import_module("imogi_pos.utils.error")
     importlib.reload(err_mod)
 
     resp_mod = importlib.import_module("frappe.utils.response")
-    importlib.reload(resp_mod)
 
     yield resp_mod, calls
 
-    for mod in ["frappe.utils.response", "imogi_pos.utils.error", "frappe"]:
+    for mod in ["frappe.utils.response", "frappe.utils", "imogi_pos.utils.error", "frappe"]:
         sys.modules.pop(mod, None)
     sys.path.remove(".")
 
