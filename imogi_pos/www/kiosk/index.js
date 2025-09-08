@@ -212,36 +212,7 @@ frappe.ready(function() {
         },
 
         loadTaxTemplate: async function() {
-            try {
-                const profileResp = await frappe.call({
-                    method: 'frappe.client.get',
-                    args: {
-                        doctype: 'POS Profile',
-                        name: POS_PROFILE
-                    }
-                });
-
-                const templateName = profileResp.message?.taxes_and_charges;
-                if (templateName) {
-                    const templateResp = await frappe.call({
-                        method: 'frappe.client.get',
-                        args: {
-                            doctype: 'Sales Taxes and Charges Template',
-                            name: templateName
-                        }
-                    });
-
-                    const taxes = templateResp.message?.taxes || [];
-                    const rate = taxes.reduce((sum, t) => sum + (t.rate || 0), 0);
-                    this.taxRate = rate / 100;
-                } else {
-                    this.taxRate = 0;
-                }
-            } catch (error) {
-                console.error('Error loading tax template:', error);
-                this.taxRate = 0;
-            }
-
+            this.taxRate = 0.11;
             this.updateCartTotals();
         },
 

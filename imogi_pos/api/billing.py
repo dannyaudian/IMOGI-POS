@@ -223,13 +223,20 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
                 flt(p.get("amount", 0))
                 for p in getattr(invoice_doc, "payments", [])
             )
-            if round(payments_total, 2) != round(grand_total, 2):
-                frappe.throw(
-                    _(
-                        "Total payment {0} does not match Grand Total {1}"
-                    ).format(payments_total, grand_total),
-                    frappe.ValidationError,
-                )
+            tolerance = flt(profile_doc.get("imogi_payment_tolerance", 0))
+            difference = round(grand_total - payments_total, 2)
+            if abs(difference) <= tolerance:
+                invoice_doc.outstanding_amount = 0
+            else:
+                invoice_doc.outstanding_amount = difference
+                if difference > 0:
+                    invoice_doc.payment_message = _(
+                        "Outstanding amount {0}"
+                    ).format(difference)
+                else:
+                    invoice_doc.payment_message = _(
+                        "Overpayment of {0}"
+                    ).format(abs(difference))
 
         if invoice_doc.get("update_stock"):
             allow_negative_stock = frappe.db.get_value(
