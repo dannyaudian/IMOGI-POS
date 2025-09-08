@@ -101,6 +101,10 @@ The app supports multiple domains through the `imogi_pos_domain` field in POS Pr
 
 When not set to "Restaurant", the UI will hide restaurant-specific elements and API endpoints will restrict access to restaurant functions.
 
+## Stock Updates
+
+Inventory deduction is controlled by the POS Profile. Enable **Update Stock** on each profile for branches where sales should affect stock levels. After an order is created the system fires an `after_create_order` hook, allowing integrators to reserve or deduct stock before the Sales Invoice is generated.
+
 ## Documentation
 
 For detailed documentation, refer to the [User Guide](link-to-docs) and [Developer Reference](link-to-dev-docs).

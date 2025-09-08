@@ -101,6 +101,7 @@ def frappe_env(monkeypatch):
     frappe.whitelist = lambda *a, **kw: (lambda f: f)
     frappe.utils = types.ModuleType("utils")
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
+    frappe.call_hook = lambda method, **kwargs: None
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
@@ -111,7 +112,7 @@ def frappe_env(monkeypatch):
         "T2": StubTable("T2", "BR-1")
     }
     pos_profiles = {
-        "P1": types.SimpleNamespace(imogi_pos_domain="Restaurant", imogi_branch="BR-1")
+        "P1": types.SimpleNamespace(imogi_pos_domain="Restaurant", imogi_branch="BR-1", update_stock=1)
     }
     items = {
         "SALES-ITEM": types.SimpleNamespace(is_sales_item=1),
@@ -147,6 +148,22 @@ def test_merge_tables_moves_items(frappe_env):
     assert len(orders[order1["name"]].items) == 2
     assert tables["T2"].status == "Available"
     assert orders[order2["name"]].workflow_state == "Merged"
+
+def test_create_order_requires_update_stock(frappe_env):
+    frappe, orders_module = frappe_env
+    pos_profiles["P2"] = types.SimpleNamespace(imogi_pos_domain="Restaurant", imogi_branch="BR-1", update_stock=0)
+    with pytest.raises(frappe.ValidationError):
+        orders_module.create_order("Dine-in", "BR-1", "P2", table="T1")
+
+def test_after_create_order_hook_called(frappe_env):
+    frappe, orders_module = frappe_env
+    calls = []
+    def hook(method, **kwargs):
+        calls.append((method, kwargs))
+    frappe.call_hook = hook
+    orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+    assert calls and calls[0][0] == "after_create_order"
+    assert "order" in calls[0][1]
 
 def test_non_sales_items_rejected(frappe_env):
     frappe, orders_module = frappe_env
