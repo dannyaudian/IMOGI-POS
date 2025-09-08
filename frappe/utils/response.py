@@ -1,15 +1,15 @@
 import frappe
 
 
-def report_error():
-    """Log and print traceback safely.
+def report_error(status_code=None):
+    """Minimal stub of frappe.utils.response.report_error for tests.
 
-    Ensures that a broken pipe while printing does not raise and the
-    traceback is still logged."""
-    traceback = frappe.get_traceback()
-    # Always log the original traceback first
-    frappe.log_error(traceback)
+    Logs the traceback and attempts to print it, handling BrokenPipeError
+    gracefully by logging it again with a specific title.
+    """
+    message = frappe.get_traceback()
+    frappe.log_error(message)
     try:
-        frappe.errprint(traceback)
+        frappe.errprint(message)
     except BrokenPipeError:
-        frappe.log_error(traceback, "BrokenPipeError")
+        frappe.log_error(message, "BrokenPipeError")
