@@ -64,3 +64,54 @@ def test_safe_print_handles_broken_pipe(error_module, monkeypatch):
     mod.safe_print("hello", "world")
 
     assert calls["log_error"][-1] == ("hello world", "BrokenPipeError")
+
+
+@pytest.fixture
+def response_module():
+    sys.path.insert(0, ".")
+
+    calls = {}
+
+    frappe = types.ModuleType("frappe")
+
+    def errprint(msg, *a, **k):
+        calls.setdefault("errprint", []).append(msg)
+        raise BrokenPipeError("pipe closed")
+
+    def log_error(message, title=None):
+        calls.setdefault("log_error", []).append((message, title))
+
+    def get_traceback():
+        return "Original Traceback"
+
+    frappe.errprint = errprint
+    frappe.log_error = log_error
+    frappe.get_traceback = get_traceback
+    # allow importing submodules from our test stub package
+    import pathlib
+    frappe.__path__ = [str(pathlib.Path(__file__).resolve().parent.parent / "frappe")]
+
+    sys.modules["frappe"] = frappe
+
+    err_mod = importlib.import_module("imogi_pos.utils.error")
+    importlib.reload(err_mod)
+
+    resp_mod = importlib.import_module("frappe.utils.response")
+    importlib.reload(resp_mod)
+
+    yield resp_mod, calls
+
+    for mod in ["frappe.utils.response", "imogi_pos.utils.error", "frappe"]:
+        sys.modules.pop(mod, None)
+    sys.path.remove(".")
+
+
+def test_report_error_handles_broken_pipe(response_module):
+    mod, calls = response_module
+
+    # Should not raise BrokenPipeError even though errprint fails
+    mod.report_error()
+
+    assert calls["log_error"][0][0] == "Original Traceback"
+    assert calls["log_error"][1] == ("Original Traceback", "BrokenPipeError")
+    assert calls["errprint"] == ["Original Traceback"]
