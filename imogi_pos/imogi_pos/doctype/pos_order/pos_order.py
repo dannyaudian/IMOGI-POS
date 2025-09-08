@@ -29,20 +29,31 @@ class POSOrder(Document):
         self.last_edited_by = self.modified_by or frappe.session.user
     
     def calculate_totals(self):
-        """Calculate order totals from items minus discounts"""
+        """Calculate order totals including PB1 and discounts"""
         subtotal = 0
         for item in self.items:
             if not item.amount:
                 item.amount = (item.qty or 0) * (item.rate or 0)
             subtotal += item.amount
 
+        # store subtotal
+        self.subtotal = subtotal
+
+        # apply PB1 tax (11%)
+        pb1 = subtotal * 0.11
+        self.pb1_amount = pb1
+        subtotal_with_pb1 = subtotal + pb1
+
+        # apply discounts on subtotal with PB1
         discount = 0
         if getattr(self, "discount_percent", None):
-            discount += subtotal * (self.discount_percent / 100)
+            discount += subtotal_with_pb1 * (self.discount_percent / 100)
         if getattr(self, "discount_amount", None):
             discount += self.discount_amount
 
-        self.totals = max(subtotal - discount, 0)
+        # store calculated amounts
+        self.discount_amount = discount
+        self.totals = max(subtotal_with_pb1 - discount, 0)
     
     def update_table_status(self):
         """Update table status if applicable"""
