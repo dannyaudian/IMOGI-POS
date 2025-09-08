@@ -117,6 +117,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             items = [items]
         for item in items:
             row = order_doc.append("items", item)
+            if item.get("rate") is not None:
+                row.rate = item.get("rate")
             validate_item_is_sales_item(row)
 
     order_doc.insert()
