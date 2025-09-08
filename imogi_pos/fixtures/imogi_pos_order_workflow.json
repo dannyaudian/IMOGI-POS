@@ -90,6 +90,14 @@
         "condition": ""
       },
       {
+        "state": "In Progress",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
         "state": "Ready",
         "action": "Mark as Served",
         "next_state": "Served",
