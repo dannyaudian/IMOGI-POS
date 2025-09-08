@@ -13,4 +13,3 @@ def report_error(status_code=None):
         frappe.errprint(message)
     except BrokenPipeError:
         frappe.log_error(message, "BrokenPipeError")
-
