@@ -25,6 +25,7 @@ async function fetchMeta(doctype) {
 async function init() {
   const orderMeta = await fetchMeta('POS Order');
   if (orderMeta) {
+    window.orderMeta = orderMeta;
     renderOrderFields(orderMeta);
     const itemsField = orderMeta.fields.find(f => f.fieldname === 'items');
     if (itemsField) {
@@ -46,12 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderOrderFields(meta) {
   const container = document.getElementById('order-fields');
-  const fields = ['order_type', 'branch', 'pos_profile', 'customer', 'table', 'discount_amount', 'discount_percent', 'promo_code'];
-  fields.forEach(fn => {
-    const df = meta.fields.find(f => f.fieldname === fn);
-    if (!df) return;
+  meta.fields.forEach(df => {
+    if (df.fieldtype === 'Table') return;
+
     const wrapper = document.createElement('div');
     wrapper.className = 'form-group';
+
     container.appendChild(wrapper);
     const ctrl = frappe.ui.form.make_control({
       df: df,
@@ -74,6 +75,7 @@ function addItemRow() {
 
   const controls = {};
 
+  // Item column using Link control
   const itemTd = document.createElement('td');
   tr.appendChild(itemTd);
   controls.item = frappe.ui.form.make_control({
@@ -84,6 +86,7 @@ function addItemRow() {
   controls.item.refresh();
   controls.item.$input.attr('placeholder', itemDf ? itemDf.label : 'Item');
 
+  // Qty column control
   const qtyTd = document.createElement('td');
   tr.appendChild(qtyTd);
   controls.qty = frappe.ui.form.make_control({
@@ -94,6 +97,7 @@ function addItemRow() {
   controls.qty.refresh();
   controls.qty.$input.attr('placeholder', qtyDf ? qtyDf.label : 'Qty');
 
+  // Rate column control
   const rateTd = document.createElement('td');
   tr.appendChild(rateTd);
   controls.rate = frappe.ui.form.make_control({
@@ -104,6 +108,7 @@ function addItemRow() {
   controls.rate.refresh();
   controls.rate.$input.attr('placeholder', 'Price');
 
+  // Discount column control
   const discTd = document.createElement('td');
   tr.appendChild(discTd);
   controls.discount = frappe.ui.form.make_control({
@@ -115,7 +120,7 @@ function addItemRow() {
   controls.discount.$input.attr('placeholder', discDf ? discDf.label : 'Discount');
 
   const imgTd = document.createElement('td');
-  const img = document.createElement('img');
+  img = document.createElement('img');
   img.style.maxWidth = '50px';
   img.style.maxHeight = '50px';
   imgTd.appendChild(img);
@@ -135,6 +140,7 @@ function addItemRow() {
   tr.appendChild(removeTd);
 
   tbody.appendChild(tr);
+  
   itemControls.push(controls);
 
   controls.item.$input.on('change', () => {
@@ -168,6 +174,7 @@ function submitOrder() {
       const val = ctrl.get_value();
       if (val) args[key] = val;
     });
+  }
 
   if (args.order_type === 'Dine-in' && !args.table) {
     frappe.msgprint(__('Table is required for Dine-in orders'));
