@@ -105,3 +105,84 @@ def test_send_items_to_kitchen_uses_item_field(kot_module):
     assert frappe.db.requested_field != "item_code"
     assert frappe.db.looked_up_item == "ITEM-1"
     assert result["items"] == ["ROW-1"]
+
+
+def test_get_kots_for_kitchen_returns_ticket_list(kot_module):
+    kot, frappe = kot_module
+
+    def get_all(doctype, filters=None, fields=None, order_by=None):
+        if doctype == "KOT Ticket":
+            assert filters == {
+                "kitchen": "Main Kitchen",
+                "kitchen_station": "Grill",
+                "branch": "BR-1",
+            }
+            assert order_by == "creation asc"
+            return [
+                {
+                    "name": "KOT-1",
+                    "table": "T1",
+                    "workflow_state": "Queued",
+                },
+                {
+                    "name": "KOT-2",
+                    "table": "T2",
+                    "workflow_state": "In Progress",
+                },
+            ]
+        if doctype == "KOT Item":
+            parent = filters["parent"]
+            if parent == "KOT-1":
+                return [
+                    {
+                        "item_name": "Burger",
+                        "qty": 1,
+                        "notes": "No cheese",
+                        "workflow_state": "Queued",
+                    }
+                ]
+            if parent == "KOT-2":
+                return [
+                    {
+                        "item_name": "Pizza",
+                        "qty": 2,
+                        "notes": "",
+                        "workflow_state": "In Progress",
+                    }
+                ]
+        return []
+
+    frappe.get_all = get_all
+
+    tickets = kot.get_kots_for_kitchen(
+        kitchen="Main Kitchen", station="Grill", branch="BR-1"
+    )
+
+    assert tickets == [
+        {
+            "name": "KOT-1",
+            "table": "T1",
+            "workflow_state": "Queued",
+            "items": [
+                {
+                    "item_name": "Burger",
+                    "qty": 1,
+                    "notes": "No cheese",
+                    "status": "Queued",
+                }
+            ],
+        },
+        {
+            "name": "KOT-2",
+            "table": "T2",
+            "workflow_state": "In Progress",
+            "items": [
+                {
+                    "item_name": "Pizza",
+                    "qty": 2,
+                    "notes": "",
+                    "status": "In Progress",
+                }
+            ],
+        },
+    ]

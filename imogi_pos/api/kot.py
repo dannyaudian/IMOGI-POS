@@ -9,6 +9,14 @@ from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
 
+__all__ = [
+    "get_kitchens_and_stations",
+    "send_items_to_kitchen",
+    "update_kot_item_state",
+    "bulk_update_kot_item_state",
+    "update_kot_status",
+]
+
 def check_restaurant_domain(pos_profile):
     """
     Validates that the POS Profile has Restaurant domain enabled.
@@ -82,6 +90,85 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
     # Publish to floor channel if available
     if payload["floor"]:
         publish_realtime(f"table_display:floor:{payload['floor']}", payload)
+
+
+@frappe.whitelist()
+def get_kitchens_and_stations(branch=None):
+    """
+    Retrieve kitchens and kitchen stations for the given branch.
+
+    Args:
+        branch (str): Branch name to filter by.
+
+    Returns:
+        dict: {
+            "kitchens": [{"name": ..., "kitchen_name": ...}, ...],
+            "stations": [{"name": ..., "station_name": ..., "kitchen": ...}, ...]
+        }
+    """
+    if not branch:
+        return {"kitchens": [], "stations": []}
+
+    validate_branch_access(branch)
+
+    kitchens = frappe.get_all(
+        "Kitchen",
+        filters={"branch": branch},
+        fields=["name", "kitchen_name"],
+    )
+    stations = frappe.get_all(
+        "Kitchen Station",
+        filters={"branch": branch},
+        fields=["name", "station_name", "kitchen"],
+    )
+
+    return {"kitchens": kitchens, "stations": stations}
+
+@frappe.whitelist()
+def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+    """Return KOT tickets for a specific kitchen/station/branch.
+
+    Args:
+        kitchen (str, optional): Kitchen name to filter by.
+        station (str, optional): Kitchen station name to filter by.
+        branch (str, optional): Branch name to filter by and validate access.
+
+    Returns:
+        list: List of KOT Ticket dicts with requested fields and their items.
+    """
+    filters = {}
+    if kitchen:
+        filters["kitchen"] = kitchen
+    if station:
+        filters["kitchen_station"] = station
+    if branch:
+        filters["branch"] = branch
+        validate_branch_access(branch)
+
+    tickets = frappe.get_all(
+        "KOT Ticket",
+        filters=filters,
+        fields=["name", "table", "workflow_state"],
+        order_by="creation asc",
+    )
+
+    for ticket in tickets:
+        items = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=["item_name", "qty", "notes", "workflow_state"],
+        )
+        ticket["items"] = [
+            {
+                "item_name": i.get("item_name"),
+                "qty": i.get("qty"),
+                "notes": i.get("notes"),
+                "status": i.get("workflow_state"),
+            }
+            for i in items
+        ]
+
+    return tickets
 
 @frappe.whitelist()
 def send_items_to_kitchen(pos_order, item_rows):
@@ -341,40 +428,82 @@ def update_kot_status(kot_ticket, state):
     
     check_restaurant_domain(pos_order.pos_profile)
     validate_branch_access(pos_order.branch)
-    
-    # STUB: Validate state transition
-    # STUB: Update KOT Ticket status
-    
+
+    # Validate state transition
+    current_state = ticket_doc.workflow_state
+    allowed_transitions = {
+        "Queued": ["In Progress", "Cancelled"],
+        "In Progress": ["Ready", "Cancelled"],
+        "Ready": ["Served", "Cancelled"],
+        "Served": [],
+        "Cancelled": []
+    }
+
+    if state not in allowed_transitions.get(current_state, []):
+        frappe.throw(
+            _("Invalid status transition from {0} to {1}").format(current_state, state)
+        )
+
+    # Update ticket status and save
+    ticket_doc.workflow_state = state
+    ticket_doc.save(ignore_permissions=True)
+
     # Prepare updated KOT Ticket data
     updated_ticket = {
-        "name": kot_ticket,
+        "name": ticket_doc.name,
         "pos_order": ticket_doc.pos_order,
-        "previous_state": ticket_doc.status,
-        "new_state": state,
+        "workflow_state": ticket_doc.workflow_state,
         "updated_at": now_datetime()
     }
-    
+
     # Get kitchen/station info for targeted updates
     kitchen = None
     station = None
-    
-    # Get sample KOT Item to determine kitchen/station
-    kot_items = frappe.get_all("KOT Item", 
-                              filters={"parent": kot_ticket},
-                              fields=["kitchen", "kitchen_station"],
-                              limit=1)
-    
+
+    kot_items = frappe.get_all(
+        "KOT Item",
+        filters={"parent": kot_ticket},
+        fields=["kitchen", "kitchen_station"],
+        limit=1
+    )
     if kot_items:
         kitchen = kot_items[0].kitchen
         station = kot_items[0].kitchen_station
-    
+
     # Publish updates
     publish_kitchen_update(updated_ticket, kitchen=kitchen, station=station)
-    
+
     if pos_order.table:
         publish_table_update(pos_order.name, pos_order.table, "kot_status_update")
+# <<<<<<< codex/complete-update_kot_item_state-function
     
     # Update POS Order workflow state based on KOT status changes
     # STUB: Implement workflow state transitions based on KOT status
     
+# =======
+
+#     # Update POS Order workflow state based on all related KOTs
+#     tickets = frappe.get_all(
+#         "KOT Ticket",
+#         filters={"pos_order": ticket_doc.pos_order},
+#         pluck="workflow_state"
+#     )
+#     new_pos_state = None
+#     if tickets:
+#         if all(s == "Cancelled" for s in tickets):
+#             new_pos_state = "Cancelled"
+#         elif all(s == "Served" for s in tickets):
+#             new_pos_state = "Served"
+#         elif all(s in ["Ready", "Served"] for s in tickets):
+#             new_pos_state = "Ready"
+#         elif any(s == "In Progress" for s in tickets):
+#             new_pos_state = "In Progress"
+
+#     if new_pos_state and pos_order.workflow_state != new_pos_state:
+#         frappe.db.set_value(
+#             "POS Order", pos_order.name, "workflow_state", new_pos_state
+#         )
+#         pos_order.workflow_state = new_pos_state
+
+# >>>>>>> main
     return updated_ticket
