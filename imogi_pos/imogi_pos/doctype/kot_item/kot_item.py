@@ -33,7 +33,7 @@ class KOTItem(Document):
             # Map KOT states to counter fields
             state_to_counter = {
                 "Queued": "sent",
-                "Preparing": "preparing",
+                "In Progress": "preparing",
                 "Ready": "ready",
                 "Served": "served",
                 "Cancelled": "cancelled"

@@ -18,7 +18,7 @@ class KOTService:
     # Workflow states
     STATES = {
         "QUEUED": "Queued",
-        "PREPARING": "Preparing",
+        "IN_PROGRESS": "In Progress",
         "READY": "Ready",
         "SERVED": "Served",
         "CANCELLED": "Cancelled"
@@ -488,7 +488,7 @@ class KOTService:
         # Map KOT states to counter fields
         state_to_counter = {
             self.STATES["QUEUED"]: "sent",
-            self.STATES["PREPARING"]: "preparing",
+            self.STATES["IN_PROGRESS"]: "preparing",
             self.STATES["READY"]: "ready",
             self.STATES["SERVED"]: "served",
             self.STATES["CANCELLED"]: "cancelled"
@@ -561,7 +561,7 @@ class KOTService:
         
         # Map KOT states to POS Order states
         kot_to_pos_state = {
-            self.STATES["PREPARING"]: "In Progress",
+            self.STATES["IN_PROGRESS"]: "In Progress",
             self.STATES["READY"]: "Ready",
             self.STATES["SERVED"]: "Served"
         }
@@ -577,12 +577,12 @@ class KOTService:
         elif len(states) == 1 and list(states)[0] == self.STATES["SERVED"]:
             new_pos_state = "Served"
         
-        # If any KOT is ready and none are queued/preparing, mark order as ready
-        elif self.STATES["READY"] in states and not any(s in states for s in [self.STATES["QUEUED"], self.STATES["PREPARING"]]):
+        # If any KOT is ready and none are queued/in progress, mark order as ready
+        elif self.STATES["READY"] in states and not any(s in states for s in [self.STATES["QUEUED"], self.STATES["IN_PROGRESS"]]):
             new_pos_state = "Ready"
         
-        # If any KOT is preparing, mark order as in progress
-        elif self.STATES["PREPARING"] in states:
+        # If any KOT is in progress, mark order as in progress
+        elif self.STATES["IN_PROGRESS"] in states:
             new_pos_state = "In Progress"
         
         # Update POS Order if needed

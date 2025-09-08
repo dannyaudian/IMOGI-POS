@@ -146,8 +146,10 @@ def send_items_to_kitchen(pos_order, item_rows):
     
     # Update POS Order workflow state if it's still in Draft
     if order_doc.workflow_state == "Draft":
-        # STUB: Update workflow state to "Sent to Kitchen"
-        pass
+        if hasattr(order_doc, "db_set"):
+            order_doc.db_set('workflow_state', 'In Progress', update_modified=False)
+        else:
+            order_doc.workflow_state = "In Progress"
     
     return kot_ticket
 
@@ -158,7 +160,7 @@ def update_kot_item_state(kot_item, state):
     
     Args:
         kot_item (str): KOT Item name
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Updated KOT Item details
@@ -217,7 +219,7 @@ def bulk_update_kot_item_state(kot_items, state):
     
     Args:
         kot_items (list or str): List of KOT Item names
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Summary of updates
@@ -298,7 +300,7 @@ def update_kot_status(kot_ticket, state):
     
     Args:
         kot_ticket (str): KOT Ticket name
-        state (str): New state (Queued/Preparing/Ready/Served/Cancelled)
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
     
     Returns:
         dict: Updated KOT Ticket details

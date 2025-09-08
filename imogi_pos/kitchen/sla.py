@@ -87,7 +87,7 @@ class KitchenSLA:
             kot_ticket: KOT Ticket name (optional)
             kot_item: KOT Item name (optional)
             timestamps: Dictionary with timestamps (optional, for manual calculation)
-                Expected keys: queued, preparing, ready
+                Expected keys: queued, in_progress, ready
                 
         Returns:
             Dictionary with SLA status information
@@ -114,14 +114,14 @@ class KitchenSLA:
         
         # Calculate times in seconds
         queue_time = self._calculate_time_diff(
-            timestamps.get("queued"), 
-            timestamps.get("preparing") or now
+            timestamps.get("queued"),
+            timestamps.get("in_progress") or now
         )
         
         prep_time = 0
-        if timestamps.get("preparing"):
+        if timestamps.get("in_progress"):
             prep_time = self._calculate_time_diff(
-                timestamps.get("preparing"),
+                timestamps.get("in_progress"),
                 timestamps.get("ready") or now
             )
             
@@ -186,7 +186,7 @@ class KitchenSLA:
             "KOT Ticket",
             filters={
                 "kitchen_station": station_name,
-                "workflow_state": ["in", ["Queued", "Preparing"]]
+                "workflow_state": ["in", ["Queued", "In Progress"]]
             },
             fields=["name", "workflow_state", "creation_time"]
         )
@@ -195,7 +195,7 @@ class KitchenSLA:
         summary = {
             "total_active": len(active_tickets),
             "queued": 0,
-            "preparing": 0,
+            "in_progress": 0,
             "delayed": 0,
             "at_risk": 0,
             "on_time": 0,
@@ -218,8 +218,8 @@ class KitchenSLA:
             # Count by state
             if ticket.workflow_state == "Queued":
                 summary["queued"] += 1
-            elif ticket.workflow_state == "Preparing":
-                summary["preparing"] += 1
+            elif ticket.workflow_state == "In Progress":
+                summary["in_progress"] += 1
                 
             # Calculate SLA
             sla_status = self.get_sla_status(kot_ticket=ticket.name)
@@ -332,10 +332,10 @@ class KitchenSLA:
             # This is a simplified approach - in a full implementation, you would
             # track exact state transition times in a separate log or use the
             # Version timeline to get precise timestamps
-            if item_doc.workflow_state in ["Preparing", "Ready", "Served"]:
+            if item_doc.workflow_state in ["In Progress", "Ready", "Served"]:
                 # In a real implementation, get actual transition timestamp
                 # For now, use modified as an approximation
-                timestamps["preparing"] = get_datetime(item_doc.modified)
+                timestamps["in_progress"] = get_datetime(item_doc.modified)
                 
             if item_doc.workflow_state in ["Ready", "Served"]:
                 # Again, this is an approximation
@@ -347,8 +347,8 @@ class KitchenSLA:
             timestamps["queued"] = get_datetime(ticket_doc.creation_time)
             
             # Simplified approach for transitions
-            if ticket_doc.workflow_state in ["Preparing", "Ready", "Served"]:
-                timestamps["preparing"] = get_datetime(ticket_doc.modified)
+            if ticket_doc.workflow_state in ["In Progress", "Ready", "Served"]:
+                timestamps["in_progress"] = get_datetime(ticket_doc.modified)
                 
             if ticket_doc.workflow_state in ["Ready", "Served"]:
                 timestamps["ready"] = get_datetime(ticket_doc.modified)

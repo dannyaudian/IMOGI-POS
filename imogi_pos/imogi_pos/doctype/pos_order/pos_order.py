@@ -29,13 +29,20 @@ class POSOrder(Document):
         self.last_edited_by = self.modified_by or frappe.session.user
     
     def calculate_totals(self):
-        """Calculate order totals from items"""
-        total = 0
+        """Calculate order totals from items minus discounts"""
+        subtotal = 0
         for item in self.items:
             if not item.amount:
                 item.amount = (item.qty or 0) * (item.rate or 0)
-            total += item.amount
-        self.totals = total
+            subtotal += item.amount
+
+        discount = 0
+        if getattr(self, "discount_percent", None):
+            discount += subtotal * (self.discount_percent / 100)
+        if getattr(self, "discount_amount", None):
+            discount += self.discount_amount
+
+        self.totals = max(subtotal - discount, 0)
     
     def update_table_status(self):
         """Update table status if applicable"""

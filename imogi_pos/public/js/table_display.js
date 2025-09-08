@@ -687,7 +687,7 @@ imogi_pos.table_display = {
      */
     updateTableNode: function(tableNode, status) {
         // Reset classes first
-        tableNode.classList.remove('table-occupied', 'table-ordered', 'table-preparing', 'table-ready', 'table-served');
+        tableNode.classList.remove('table-occupied', 'table-ordered', 'table-in-progress', 'table-ready', 'table-served');
         
         // Add appropriate classes based on status
         if (status.occupied) {
@@ -701,7 +701,7 @@ imogi_pos.table_display = {
                         tableNode.classList.add('table-ordered');
                         break;
                     case 'In Progress':
-                        tableNode.classList.add('table-preparing');
+                        tableNode.classList.add('table-in-progress');
                         break;
                     case 'Ready':
                         tableNode.classList.add('table-ready');

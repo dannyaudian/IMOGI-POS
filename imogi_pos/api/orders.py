@@ -42,8 +42,16 @@ def check_restaurant_domain(pos_profile):
                     frappe.ValidationError)
 
 
+def ensure_update_stock_enabled(pos_profile):
+    """Ensure the POS Profile is configured to update stock."""
+    if not frappe.db.get_value("POS Profile", pos_profile, "update_stock"):
+        frappe.throw(
+            _("POS Profile {0} is not configured to update stock").format(pos_profile),
+            frappe.ValidationError,
+        )
+
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None):
+def create_order(order_type, branch, pos_profile, table=None, discount_amount=0, discount_percent=0, promo_code=None):
     """
     Creates a new POS Order.
     
@@ -60,6 +68,7 @@ def create_order(order_type, branch, pos_profile, table=None):
         frappe.ValidationError: If table is missing for Dine-in orders
     """
     validate_branch_access(branch)
+    ensure_update_stock_enabled(pos_profile)
     
     if order_type == "Dine-in" and not table:
         frappe.throw(_("Table is required for Dine-in orders"), frappe.ValidationError)
@@ -92,12 +101,17 @@ def create_order(order_type, branch, pos_profile, table=None):
             "pos_profile": pos_profile,
             "table": table,
             "workflow_state": "Draft",
+            "discount_amount": discount_amount,
+            "discount_percent": discount_percent,
+            "promo_code": promo_code,
         }
     )
     if table_doc:
         order_doc.floor = table_doc.floor
 
     order_doc.insert()
+    # Allow downstream apps to reserve or deduct stock before invoicing
+    frappe.call_hook("after_create_order", order=order_doc)
 
     if table_doc:
         table_doc.set_status("Occupied", pos_order=order_doc.name)

@@ -23,6 +23,7 @@ frappe.ready(function () {
   const customerNameEl    = document.getElementById('customer-name');
   const customerDetailsEl = document.getElementById('customer-details');
   const refreshOrdersBtn  = document.getElementById('refresh-orders');
+  const createOrderBtn    = document.getElementById('create-order');
   const searchInput       = document.querySelector('.search-input'); // class di template
 
   // Checkout totals
@@ -76,6 +77,7 @@ frappe.ready(function () {
     });
 
     refreshOrdersBtn?.addEventListener('click', loadOrders);
+    createOrderBtn?.addEventListener('click', openCreateOrderDialog);
     findCustomerBtn?.addEventListener('click', openCustomerSearch);
     generateInvoiceBtn?.addEventListener('click', generateInvoice);
     requestPaymentBtn?.addEventListener('click', requestPayment);
@@ -259,32 +261,39 @@ frappe.ready(function () {
     requestPaymentBtn.disabled = true;
   }
 
-  function renderCheckoutItems(order) {
-    if (!checkoutItems) return;
-    const html = (order.items || []).map(item => `
-      <div class="checkout-item">
-        <div class="item-details">
-          <div class="item-name">${escapeHtml(item.item_name || item.item || '')}</div>
-          ${item.notes ? `<div class="item-notes">${escapeHtml(item.notes)}</div>` : ''}
+    function renderCheckoutItems(order) {
+      if (!checkoutItems) return;
+      const html = (order.items || []).map(item => `
+        <div class="checkout-item">
+          ${item.image ? `<div class="item-image"><img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.item_name || item.item || '')}"></div>` : ''}
+          <div class="item-details">
+            <div class="item-name">${escapeHtml(item.item_name || item.item || '')}</div>
+            ${item.notes ? `<div class="item-notes">${escapeHtml(item.notes)}</div>` : ''}
+          </div>
+          <div class="item-quantity-price">
+            <span>${Number(item.qty || 0)}x</span>
+            <span>${formatCurrency(Number(item.amount || item.net_amount || 0))}</span>
+          </div>
         </div>
-        <div class="item-quantity-price">
-          <span>${Number(item.qty || 0)}x</span>
-          <span>${formatCurrency(Number(item.amount || item.net_amount || 0))}</span>
-        </div>
-      </div>
-    `).join('');
-    checkoutItems.innerHTML = html || '<div class="empty-state">No items</div>';
-  }
+      `).join('');
+      checkoutItems.innerHTML = html || '<div class="empty-state">No items</div>';
+    }
 
   function updateTotals(order) {
     const subtotal  = Number(order.net_total || order.total || 0);
     const taxes     = Number(order.total_taxes_and_charges || 0);
-    const discount  = Number(order.discount_amount || 0);
+    const discountAmt  = Number(order.discount_amount || 0);
+    const discountPct  = Number(order.discount_percent || 0);
+    const promoCode    = order.promo_code || '';
     const grand     = safeTotal(order);
+
+    let discountText = formatCurrency(discountAmt);
+    if (discountPct) discountText += ` (${discountPct}%)`;
+    if (promoCode) discountText += ` [${promoCode}]`;
 
     subtotalEl.textContent = formatCurrency(subtotal);
     taxAmountEl.textContent = formatCurrency(taxes);
-    discountAmountEl.textContent = formatCurrency(discount);
+    discountAmountEl.textContent = discountText;
     grandTotalEl.textContent = formatCurrency(grand);
   }
 
@@ -302,6 +311,61 @@ frappe.ready(function () {
   /* =========================
      Actions
      ========================= */
+  function openCreateOrderDialog() {
+    const dialog = new frappe.ui.Dialog({
+      title: __('Create Order'),
+      fields: [
+        {
+          fieldname: 'order_type',
+          label: __('Order Type'),
+          fieldtype: 'Select',
+          options: ['Dine-in', 'Takeaway'],
+          reqd: 1
+        },
+        {
+          fieldname: 'table',
+          label: __('Table'),
+          fieldtype: 'Data',
+          depends_on: "eval:doc.order_type=='Dine-in'",
+          mandatory_depends_on: "eval:doc.order_type=='Dine-in'"
+        }
+      ],
+      primary_action_label: __('Create'),
+      primary_action(values) {
+        dialog.hide();
+        createOrder(values);
+      }
+    });
+    dialog.show();
+  }
+
+  function createOrder(values) {
+    showLoading('Creating order…');
+    frappe.call({
+      method: 'imogi_pos.api.orders.create_order',
+      args: {
+        order_type : values.order_type,
+        table      : values.table || null,
+        branch     : CURRENT_BRANCH,
+        pos_profile: POS_PROFILE
+      }
+    })
+    .then(r => {
+      hideLoading();
+      if (r && r.message) {
+        showSuccess(__('Order created successfully'));
+        loadOrders();
+      } else {
+        showError(__('Failed to create order'));
+      }
+    })
+    .fail(err => {
+      hideLoading();
+      console.error('[createOrder] error', err);
+      showError(__('Failed to create order'));
+    });
+  }
+
   function generateInvoice() {
     if (!selectedOrder) return;
 
@@ -426,7 +490,17 @@ frappe.ready(function () {
           .then(() => showSuccess(__('Bill printed successfully')))
           .catch(err => showError('Print failed: ' + (err?.message || err)));
         } else {
-          showError('Print service not available');
+          console.warn('ImogiPrintService not available; falling back to browser print');
+          showError(__('Imogi Print Service not available. Using browser print.'));
+          if (d && d.html) {
+            const w = window.open('', '_blank');
+            if (w) {
+              w.document.write(d.html);
+              w.document.close();
+              w.focus();
+              w.print();
+            }
+          }
         }
       } else {
         showError(__('Failed to prepare bill for printing'));
@@ -605,7 +679,8 @@ frappe.ready(function () {
         defaultInterface: 'OS'
       });
     } else {
-      console.warn('Print service not available');
+      console.warn('ImogiPrintService not available');
+      showError(__('Imogi Print Service is not available. Browser printing will be used.'));
     }
   }
 

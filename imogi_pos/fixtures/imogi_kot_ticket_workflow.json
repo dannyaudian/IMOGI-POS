@@ -18,7 +18,7 @@
       "style": "Primary"
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "doc_status": 0,
       "allow_edit": "Restaurant Manager",
       "is_optional_state": 0,
@@ -58,13 +58,13 @@
     {
       "state": "Queued",
       "action": "Start Preparing",
-      "next_state": "Preparing",
+      "next_state": "In Progress",
       "allowed": "Restaurant Manager,Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "action": "Mark as Ready",
       "next_state": "Ready",
       "allowed": "Restaurant Manager,Kitchen Staff",
@@ -88,7 +88,7 @@
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "action": "Cancel",
       "next_state": "Cancelled",
       "allowed": "Restaurant Manager",
@@ -96,7 +96,7 @@
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "action": "Return to Queue",
       "next_state": "Queued",
       "allowed": "Restaurant Manager,Kitchen Staff",
@@ -106,7 +106,7 @@
     {
       "state": "Ready",
       "action": "Return to Kitchen",
-      "next_state": "Preparing",
+      "next_state": "In Progress",
       "allowed": "Restaurant Manager,Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""

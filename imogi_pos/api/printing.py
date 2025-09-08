@@ -89,10 +89,10 @@ def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, 
     if not settings["adapter_config"] or not settings["interface"]:
         try:
             restaurant_settings = frappe.get_single("Restaurant Settings")
-            
+
             if not settings["interface"]:
                 settings["interface"] = restaurant_settings.get("imogi_default_printer_interface") or "OS"
-            
+
             # Add default settings from Restaurant Settings if needed
             if settings["interface"] == "LAN" and not settings["adapter_config"].get("host"):
                 settings["adapter_config"].update({
@@ -110,8 +110,25 @@ def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, 
             # Fallback to OS if no Restaurant Settings
             if not settings["interface"]:
                 settings["interface"] = "OS"
-    
+
+    validate_adapter_settings(settings)
+
     return settings
+
+
+def validate_adapter_settings(settings):
+    """Validate that required printer settings are provided based on interface"""
+    interface = settings.get("interface")
+    config = settings.get("adapter_config") or {}
+
+    if not interface:
+        frappe.throw(_("Printer interface is not configured"))
+
+    if interface == "LAN" and not config.get("host"):
+        frappe.throw(_("LAN printer host/IP is required for LAN interface"))
+
+    if interface == "Bluetooth" and not config.get("device_name"):
+        frappe.throw(_("Bluetooth device name is required for Bluetooth interface"))
 
 def get_print_format_html(doc, print_format_name=None):
     """
@@ -610,6 +627,6 @@ def _detect_web_bluetooth_support():
         
         if is_https:
             return True
-    
+
     # If we can't determine, assume not supported for safety
     return False

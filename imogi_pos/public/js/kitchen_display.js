@@ -3,7 +3,7 @@
  * 
  * Main module for the Kitchen Display System (KDS)
  * Handles:
- * - KOT item display across queued/preparing/ready columns
+ * - KOT item display across queued/in-progress/ready columns
  * - KOT status management
  * - SLA monitoring
  * - KOT printing and reprinting
@@ -351,7 +351,7 @@ imogi_pos.kitchen_display = {
                             case 'Queued':
                                 kots.queued.push(kot);
                                 break;
-                            case 'Preparing':
+                            case 'In Progress':
                                 kots.preparing.push(kot);
                                 break;
                             case 'Ready':
@@ -497,7 +497,7 @@ imogi_pos.kitchen_display = {
             case 'Queued':
                 this.state.kots.queued.push(kot);
                 break;
-            case 'Preparing':
+            case 'In Progress':
                 this.state.kots.preparing.push(kot);
                 break;
             case 'Ready':
@@ -552,7 +552,7 @@ imogi_pos.kitchen_display = {
         // Map status string to state key
         const statusMap = {
             'Queued': 'queued',
-            'Preparing': 'preparing',
+            'In Progress': 'preparing',
             'Ready': 'ready',
             'Served': null, // Remove from KDS when served
             'Cancelled': null // Remove from KDS when cancelled
@@ -659,7 +659,7 @@ imogi_pos.kitchen_display = {
                     
                     <div class="kitchen-column preparing-column">
                         <div class="column-header">
-                            <h3>Preparing</h3>
+                            <h3>In Progress</h3>
                             <div class="column-count" id="preparing-count">0</div>
                         </div>
                         <div class="column-content" id="preparing-container"></div>
@@ -983,8 +983,18 @@ imogi_pos.kitchen_display = {
         
         // Render each column
         this.renderKotColumn(queuedContainer, this.state.filteredKots.queued, 'Queued');
-        this.renderKotColumn(preparingContainer, this.state.filteredKots.preparing, 'Preparing');
+        this.renderKotColumn(preparingContainer, this.state.filteredKots.preparing, 'In Progress');
         this.renderKotColumn(readyContainer, this.state.filteredKots.ready, 'Ready');
+
+        this.collapseEmptyColumns();
+    },
+
+    collapseEmptyColumns: function() {
+        ['queued', 'preparing', 'ready'].forEach(status => {
+            const column = this.container.querySelector(`.${status}-column`);
+            if (!column) return;
+            column.classList.toggle('collapsed', this.state.filteredKots[status].length === 0);
+        });
     },
     
     /**
@@ -1102,8 +1112,8 @@ imogi_pos.kitchen_display = {
                         Start Preparing
                     </button>
                 ` : ''}
-                
-                ${kot.workflow_state === 'Preparing' ? `
+
+                ${kot.workflow_state === 'In Progress' ? `
                     <button class="kot-action-btn primary ready-btn" data-action="ready" data-kot="${kot.name}">
                         Mark Ready
                     </button>
@@ -1168,7 +1178,7 @@ imogi_pos.kitchen_display = {
                 
                 switch (action) {
                     case 'start':
-                        this.updateKotWorkflowState(kotName, 'Preparing');
+                        this.updateKotWorkflowState(kotName, 'In Progress');
                         break;
                     case 'ready':
                         this.updateKotWorkflowState(kotName, 'Ready');
@@ -1198,9 +1208,9 @@ imogi_pos.kitchen_display = {
                 let nextStatus;
                 switch (currentStatus) {
                     case 'Queued':
-                        nextStatus = 'Preparing';
+                        nextStatus = 'In Progress';
                         break;
-                    case 'Preparing':
+                    case 'In Progress':
                         nextStatus = 'Ready';
                         break;
                     case 'Ready':
@@ -1233,13 +1243,13 @@ imogi_pos.kitchen_display = {
         frappe.call({
             method: 'imogi_pos.api.kot.update_kot_status',
             args: {
-                kot: kotName,
-                status: state
+                kot_ticket: kotName,
+                state: state
             },
             callback: (response) => {
-                if (response.message && response.message.success) {
+                if (response.message) {
                     this.showToast(`KOT ${kotName} updated to ${state}`);
-                    
+
                     // If locally processed, update the KOT status in state
                     this.updateKotStatus(kotName, state);
                 } else {
@@ -1353,7 +1363,7 @@ imogi_pos.kitchen_display = {
                         <div class="item-status">
                             <select class="item-status-select" data-item-idx="${item.idx}">
                                 <option value="Queued" ${itemStatus === 'Queued' ? 'selected' : ''}>Queued</option>
-                                <option value="Preparing" ${itemStatus === 'Preparing' ? 'selected' : ''}>Preparing</option>
+                                <option value="In Progress" ${itemStatus === 'In Progress' ? 'selected' : ''}>In Progress</option>
                                 <option value="Ready" ${itemStatus === 'Ready' ? 'selected' : ''}>Ready</option>
                                 <option value="Served" ${itemStatus === 'Served' ? 'selected' : ''}>Served</option>
                             </select>
@@ -1401,7 +1411,7 @@ imogi_pos.kitchen_display = {
                                     <div class="info-value">
                                         <select id="kot-status-select">
                                             <option value="Queued" ${kot.workflow_state === 'Queued' ? 'selected' : ''}>Queued</option>
-                                            <option value="Preparing" ${kot.workflow_state === 'Preparing' ? 'selected' : ''}>Preparing</option>
+                                            <option value="In Progress" ${kot.workflow_state === 'In Progress' ? 'selected' : ''}>In Progress</option>
                                             <option value="Ready" ${kot.workflow_state === 'Ready' ? 'selected' : ''}>Ready</option>
                                             <option value="Served" ${kot.workflow_state === 'Served' ? 'selected' : ''}>Served</option>
                                             <option value="Cancelled" ${kot.workflow_state === 'Cancelled' ? 'selected' : ''}>Cancelled</option>

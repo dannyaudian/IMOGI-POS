@@ -8,29 +8,20 @@
   "send_email_alert": 0,
   "workflow_state_field": "workflow_state",
   "states": [
-    {
-      "state": "Draft",
-      "doc_status": 0,
-      "allow_edit": "Restaurant Manager",
-      "is_optional_state": 0,
-      "update_field": "",
-      "update_value": "",
-      "style": "Primary"
-    },
-    {
-      "state": "Sent to Kitchen",
-      "doc_status": 0,
-      "allow_edit": "Restaurant Manager",
-      "is_optional_state": 0,
-      "update_field": "",
-      "update_value": "",
-      "style": "Info"
-    },
-    {
-      "state": "In Progress",
-      "doc_status": 0,
-      "allow_edit": "Restaurant Manager",
-      "is_optional_state": 0,
+      {
+        "state": "Draft",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Primary"
+      },
+      {
+        "state": "In Progress",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
       "update_field": "",
       "update_value": "",
       "style": "Warning"
@@ -82,35 +73,27 @@
     }
   ],
   "transitions": [
-    {
-      "state": "Draft",
-      "action": "Send to Kitchen",
-      "next_state": "Sent to Kitchen",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "Sent to Kitchen",
-      "action": "Start Preparing",
-      "next_state": "In Progress",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "In Progress",
-      "action": "Mark as Ready",
-      "next_state": "Ready",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "Ready",
-      "action": "Mark as Served",
-      "next_state": "Served",
-      "allowed": "Restaurant Manager",
+      {
+        "state": "Draft",
+        "action": "Send to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Ready",
+        "next_state": "Ready",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -122,45 +105,29 @@
       "allow_self_approval": 1,
       "condition": ""
     },
-    {
-      "state": "Draft",
-      "action": "Cancel",
-      "next_state": "Cancelled",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "Sent to Kitchen",
-      "action": "Cancel",
-      "next_state": "Cancelled",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "In Progress",
-      "action": "Return to Kitchen",
-      "next_state": "Sent to Kitchen",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "Ready",
-      "action": "Return to Kitchen",
-      "next_state": "In Progress",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    },
-    {
-      "state": "Served",
-      "action": "Return",
-      "next_state": "Returned",
-      "allowed": "Restaurant Manager",
-      "allow_self_approval": 1,
-      "condition": ""
-    }
+      {
+        "state": "Draft",
+        "action": "Cancel",
+        "next_state": "Cancelled",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Return to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Served",
+        "action": "Return",
+        "next_state": "Returned",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      }
   ]
 }

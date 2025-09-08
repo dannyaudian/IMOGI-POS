@@ -171,9 +171,19 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
             "items": invoice_items,
             "imogi_pos_order": pos_order,
             "order_type": order_doc.order_type,
+            "update_stock": profile_doc.get("update_stock"),
         }
         if pos_session:
             invoice_data["pos_session"] = pos_session
+
+        if getattr(order_doc, "discount_percent", None):
+            invoice_data["additional_discount_percentage"] = order_doc.discount_percent
+            invoice_data["apply_discount_on"] = "Grand Total"
+        if getattr(order_doc, "discount_amount", None):
+            invoice_data["discount_amount"] = order_doc.discount_amount
+            invoice_data["apply_discount_on"] = "Grand Total"
+        if getattr(order_doc, "promo_code", None):
+            invoice_data["promo_code"] = order_doc.promo_code
 
         invoice_doc = frappe.get_doc(invoice_data)
 
@@ -286,6 +296,9 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             "order_type",
             "table",
             "workflow_state",
+            "discount_percent",
+            "discount_amount",
+            "promo_code",
             "totals",
             "creation",
         ],
@@ -302,13 +315,16 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
-            fields=["item", "qty", "rate", "amount"],
+            fields=["item", "qty", "rate", "amount", "notes"],
             order_by="idx",
         )
-
-        # Attach item names
+        # Attach item info from Item doctype
         for item in order_items:
-            item["item_name"] = frappe.db.get_value("Item", item["item"], "item_name")
+            item_details = frappe.db.get_value(
+                "Item", item["item"], ["item_name", "image"], as_dict=True
+            )
+            if item_details:
+                item.update(item_details)
 
         order["items"] = order_items
 
@@ -355,7 +371,16 @@ def prepare_invoice_draft(pos_order):
     }
     if pos_session:
         draft_invoice["pos_session"] = pos_session
-    
+
+    if getattr(order_doc, "discount_percent", None):
+        draft_invoice["additional_discount_percentage"] = order_doc.discount_percent
+        draft_invoice["apply_discount_on"] = "Grand Total"
+    if getattr(order_doc, "discount_amount", None):
+        draft_invoice["discount_amount"] = order_doc.discount_amount
+        draft_invoice["apply_discount_on"] = "Grand Total"
+    if getattr(order_doc, "promo_code", None):
+        draft_invoice["promo_code"] = order_doc.promo_code
+
     # Add table information for Dine-in orders
     if order_doc.table:
         draft_invoice["table"] = order_doc.table
