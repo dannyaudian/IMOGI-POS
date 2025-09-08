@@ -1119,8 +1119,8 @@ imogi_pos.kitchen_display = {
                         Mark Ready
                     </button>
                 ` : ''}
-                
-                ${kot.workflow_state === 'Ready' ? `
+
+                ${['In Progress', 'Ready'].includes(kot.workflow_state) ? `
                     <button class="kot-action-btn primary serve-btn" data-action="serve" data-kot="${kot.name}">
                         Mark Served
                     </button>
