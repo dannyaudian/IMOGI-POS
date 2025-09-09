@@ -158,7 +158,11 @@ def send_items_to_kitchen(pos_order=None, item_rows=None):
     # Parse JSON if item_rows is passed as string
     if isinstance(item_rows, str):
         item_rows = frappe.parse_json(item_rows)
-    
+
+    # Ensure a POS Order is provided
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)

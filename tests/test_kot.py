@@ -138,6 +138,12 @@ def test_send_items_to_kitchen_creates_ticket(kot_module):
     assert [item["pos_order_item"] for item in result["items"]] == ["ROW-1"]
 
 
+def test_send_items_to_kitchen_requires_pos_order(kot_module):
+    kot, frappe = kot_module
+    with pytest.raises(frappe.ValidationError):
+        kot.send_items_to_kitchen(item_rows=["ROW-1"])
+
+
 @pytest.fixture
 def kot_service_env():
     sys.path.insert(0, ".")
