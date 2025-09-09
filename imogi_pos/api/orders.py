@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import copy
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import now_datetime, flt
 from imogi_pos.utils.permissions import validate_branch_access
 
 def validate_item_is_sales_item(doc, method=None):
@@ -93,6 +93,15 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 _("Table {0} is already occupied").format(table),
                 frappe.ValidationError,
             )
+    # Ensure numeric discounts to avoid type issues
+    try:
+        discount_amount = float(discount_amount or 0)
+    except Exception:
+        discount_amount = 0
+    try:
+        discount_percent = float(discount_percent or 0)
+    except Exception:
+        discount_percent = 0
 
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")

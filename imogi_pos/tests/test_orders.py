@@ -52,6 +52,8 @@ def frappe_env(monkeypatch):
                 "workflow_state": self.workflow_state,
                 "floor": getattr(self, "floor", None),
                 "customer": getattr(self, "customer", None),
+                "discount_amount": getattr(self, "discount_amount", 0),
+                "discount_percent": getattr(self, "discount_percent", 0),
             }
 
     class DB:
@@ -105,6 +107,7 @@ def frappe_env(monkeypatch):
     frappe.whitelist = lambda *a, **kw: (lambda f: f)
     frappe.utils = types.ModuleType("utils")
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
+    frappe.utils.flt = float
     frappe.call_hook = lambda method, **kwargs: None
 
     sys.modules['frappe'] = frappe
@@ -192,3 +195,39 @@ def test_create_order_records_customer(frappe_env):
     )
     assert orders[result["name"]].customer == "CUST-1"
     assert result["customer"] == "CUST-1"
+
+def test_create_order_accepts_string_discounts(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order(
+        "Dine-in",
+        "BR-1",
+        "P1",
+        table="T1",
+        items={"item": "SALES-ITEM", "rate": 100, "qty": 2},
+        discount_percent="10",
+        discount_amount="5",
+    )
+
+    order = orders[result["name"]]
+
+    # Mimic POSOrder.calculate_totals without requiring Frappe Document
+    subtotal = 0
+    for item in order.items:
+        if not getattr(item, "amount", None):
+            item.amount = (item.qty or 0) * (item.rate or 0)
+        subtotal += item.amount
+
+    pb1 = subtotal * 0.11
+    subtotal_with_pb1 = subtotal + pb1
+
+    discount = 0
+    if getattr(order, "discount_percent", None):
+        discount += subtotal_with_pb1 * (order.discount_percent / 100)
+    if getattr(order, "discount_amount", None):
+        discount += order.discount_amount
+
+    order.discount_amount = discount
+    order.totals = max(subtotal_with_pb1 - discount, 0)
+
+    assert order.totals == pytest.approx(194.8)
+    assert order.discount_amount == pytest.approx(27.2)

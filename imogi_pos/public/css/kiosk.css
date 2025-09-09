@@ -121,6 +121,30 @@
   border-color: var(--brand-primary);
 }
 
+.category-pill {
+  white-space: nowrap;
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-white);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-gray-200);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-base);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.category-pill:hover {
+  border-color: var(--brand-primary);
+}
+
+.category-pill.active {
+  background-color: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+}
+
 /* ===== SEARCH AREA ===== */
 .search-area {
   padding: var(--spacing-3);
@@ -163,6 +187,7 @@
   flex-direction: column;
   border: 1px solid var(--color-gray-200);
   min-height: 200px;
+  position: relative;
 }
 
 .catalog-item:hover {
@@ -170,10 +195,40 @@
   transform: translateY(-2px);
 }
 
+
+.catalog-item.sold-out .item-image {
+  opacity: 0.4;
+}
+
+.sold-out-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  font-size: var(--font-size-lg);
+}
+
+.catalog-item.sold-out .sold-out-badge {
+  display: flex;
+}
+
+.catalog-item.sold-out {
+  pointer-events: none;
+}
+
 .item-image {
   height: 120px;
   background-color: var(--color-gray-100);
   overflow: hidden;
+  position: relative;
 }
 
 .item-image img {
@@ -255,6 +310,12 @@
   margin-bottom: var(--spacing-2);
 }
 
+.cart-item-payment-methods {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  margin-top: var(--spacing-2);
+}
+
 .cart-item-price {
   font-weight: var(--font-weight-medium);
 }
@@ -281,10 +342,18 @@
   align-items: center;
   justify-content: center;
   background-color: var(--color-gray-100);
-  border: none;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-lg);
+  touch-action: manipulation;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.qty-btn:active {
+  background-color: var(--color-gray-200);
 }
 
 .qty-value {
@@ -1012,8 +1081,13 @@
   
   .qty-btn {
     background-color: var(--color-gray-750);
+    border-color: var(--color-gray-600);
   }
-  
+
+  .qty-btn:active {
+    background-color: var(--color-gray-700);
+  }
+
   .cash-preset:hover,
   .keypad-button:hover {
     background-color: var(--color-gray-750);
@@ -1023,7 +1097,7 @@
   .keypad-button:active {
     background-color: var(--color-gray-700);
   }
-  
+
   .change-due {
     background-color: var(--color-gray-850);
   }

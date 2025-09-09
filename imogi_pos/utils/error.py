@@ -43,11 +43,9 @@ if "frappe.utils.response" not in sys.modules:
         tb = getattr(frappe_mod, "get_traceback", lambda: "")()
         if hasattr(frappe_mod, "log_error"):
             frappe_mod.log_error(tb)
-        try:
-            frappe_mod.errprint(tb)
-        except BrokenPipeError:
-            if hasattr(frappe_mod, "log_error"):
-                frappe_mod.log_error(tb, "BrokenPipeError")
+        # Use ``safe_errprint`` so a client disconnect doesn't mask the
+        # original traceback with a secondary ``BrokenPipeError``
+        safe_errprint(tb)
 
     response_mod.report_error = report_error
     utils_mod.response = response_mod

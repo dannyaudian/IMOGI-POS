@@ -4,6 +4,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
+from frappe.utils import flt
 
 
 class POSOrder(Document):
@@ -46,12 +47,21 @@ class POSOrder(Document):
 
         # apply discounts on subtotal with PB1
         discount = 0
-        if getattr(self, "discount_percent", None):
-            discount += subtotal_with_pb1 * (self.discount_percent / 100)
-        if getattr(self, "discount_amount", None):
-            discount += self.discount_amount
 
-        # store calculated amounts
+        # convert discount fields to numeric values
+        discount_percent = flt(getattr(self, "discount_percent", 0))
+        discount_amount = flt(getattr(self, "discount_amount", 0))
+
+        # apply discount percent if provided
+        if discount_percent:
+            discount += subtotal_with_pb1 * (discount_percent / 100)
+
+        # apply fixed discount amount if provided
+        if discount_amount:
+            discount += discount_amount
+
+        # store calculated amounts and ensure numeric fields
+        self.discount_percent = discount_percent
         self.discount_amount = discount
         self.totals = max(subtotal_with_pb1 - discount, 0)
     
