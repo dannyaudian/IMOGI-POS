@@ -69,6 +69,9 @@ def kot_module():
                 return "Restaurant"
             return None
 
+        def has_column(self, doctype, column_name):
+            return doctype == "POS Order Item" and column_name == "item_code"
+
     frappe.db = DB()
 
     class Document:

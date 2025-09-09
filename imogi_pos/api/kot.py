@@ -178,15 +178,23 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     
     # Validate items for templates
     for row_name in item_rows:
-        # POS Order Item uses 'item' as the identifier. Older versions may
-        # still reference 'item_code', so fetch both and use whichever exists.
+        # POS Order Item uses "item" as the primary identifier. Fetch only this
+        # field by default and include the legacy "item_code" field if it exists
+        # in the table to maintain backwards compatibility.
+        fields = ["item"]
+        if frappe.db.has_column("POS Order Item", "item_code"):
+            fields.append("item_code")
+
         item_data = frappe.db.get_value(
             "POS Order Item",
             row_name,
-            ["item", "item_code"],
+            fields,
             as_dict=True,
         )
-        item_identifier = item_data.get("item") or item_data.get("item_code")
+
+        item_identifier = item_data.get("item")
+        if not item_identifier and "item_code" in item_data:
+            item_identifier = item_data.get("item_code")
 
         is_template = frappe.db.get_value("Item", item_identifier, "has_variants")
         if is_template:
