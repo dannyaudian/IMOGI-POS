@@ -1261,14 +1261,14 @@
 
   
   .variant-card:hover {
-    border-color: var(--accent-color);
-    background-color: rgba(36, 144, 239, 0.05);
+    border-color: var(--brand-accent);
+    background-color: rgba(var(--brand-accent-rgb), 0.05);
   }
 
   
   .variant-card.selected {
-    border-color: var(--accent-color);
-    background-color: rgba(36, 144, 239, 0.1);
+    border-color: var(--brand-accent);
+    background-color: rgba(var(--brand-accent-rgb), 0.1);
   }
 
   
@@ -1279,7 +1279,7 @@
 
   
   .variant-price {
-    color: var(--primary-color);
+    color: var(--brand-primary);
   }
 
   
@@ -1311,7 +1311,7 @@
 
   
     .btn-add {
-      background-color: var(--primary-color);
+      background-color: var(--brand-primary);
       color: var(--color-white);
       border: none;
       padding: 0.5rem 1rem;
@@ -1327,8 +1327,8 @@
 
   
   .payment-option.selected {
-    border-color: var(--accent-color);
-    background-color: rgba(36, 144, 239, 0.05);
+    border-color: var(--brand-accent);
+    background-color: rgba(var(--brand-accent-rgb), 0.05);
   }
 
   
@@ -1424,7 +1424,7 @@
     width: 50px;
     height: 50px;
     border: 5px solid #f3f3f3;
-    border-top: 5px solid var(--primary-color);
+    border-top: 5px solid var(--brand-primary);
     border-radius: 50%;
     animation: spin 2s linear infinite;
     margin-bottom: 1rem;
@@ -1481,12 +1481,12 @@
     font-size: 3rem;
     font-weight: bold;
     margin: 1rem 0;
-    color: var(--primary-color);
+    color: var(--brand-primary);
   }
 
   
     .btn-done {
-      background-color: var(--primary-color);
+      background-color: var(--brand-primary);
       color: var(--color-white);
       border: none;
       padding: 0.75rem 2rem;
