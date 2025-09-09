@@ -11,6 +11,15 @@
  * - Dark mode support
  */
 
+/* ===== Utility Classes ===== */
+.hidden {
+  display: none;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
 /* ===== LAYOUT STRUCTURE ===== */
 .kiosk-layout {
   display: flex;
@@ -518,7 +527,7 @@
 }
 
 .checkout-panel {
-  background-color: white;
+  background-color: var(--color-white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
@@ -789,7 +798,7 @@
 }
 
 .new-order-btn {
-  background-color: white;
+  background-color: var(--color-white);
   color: var(--color-success);
   padding: var(--spacing-3) var(--spacing-6);
   border-radius: var(--radius-md);
@@ -1129,6 +1138,7 @@
   position: relative;
 }
 
+
 .item-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -1188,9 +1198,11 @@
   padding: 0.25rem;
 }
 
+
 .qty-btn:hover {
   background-color: #e0e0e0;
 }
+
 
 .cart-item-notes {
   font-size: 0.9rem;
@@ -1198,6 +1210,7 @@
   margin-top: 0.5rem;
   font-style: italic;
 }
+
 
 .cart-item-remove {
   position: absolute;
@@ -1216,6 +1229,7 @@
 .cart-actions .btn {
   width: 100%;
 }
+
 
 /* Variant Picker Modal */
 
@@ -1238,6 +1252,7 @@
   transition: all 0.2s;
 }
 
+
 .variant-card:hover {
   border-color: var(--accent-color);
   background-color: rgba(36, 144, 239, 0.05);
@@ -1256,6 +1271,7 @@
 .variant-price {
   color: var(--primary-color);
 }
+
 
 .variant-attributes {
   margin-top: 0.5rem;
@@ -1281,6 +1297,7 @@
   cursor: pointer;
 }
 
+
 .btn-add {
   background-color: var(--primary-color);
   color: var(--color-white);
@@ -1290,10 +1307,12 @@
   cursor: pointer;
 }
 
+
 /* Payment Modal */
 .payment-modal .modal-container {
   max-width: 600px;
 }
+
 
 .payment-option.selected {
   border-color: var(--accent-color);
@@ -1304,12 +1323,14 @@
   font-weight: 500;
 }
 
+
 .payment-qr {
   width: 200px;
   height: 200px;
   background-color: #f0f0f0;
   margin-bottom: 1rem;
 }
+
 
 .payment-status {
   text-align: center;
@@ -1327,6 +1348,7 @@
   background-color: #d4edda;
   color: var(--color-black);
 }
+
 
 .payment-status.error {
   background-color: #f8d7da;
@@ -1411,6 +1433,7 @@
   text-align: center;
 }
 
+
 .empty-cart {
   display: flex;
   flex-direction: column;
@@ -1448,3 +1471,4 @@
   font-size: 1.1rem;
   cursor: pointer;
 }
+
