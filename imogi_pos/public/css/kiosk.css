@@ -121,6 +121,30 @@
   border-color: var(--brand-primary);
 }
 
+.category-pill {
+  white-space: nowrap;
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-white);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-gray-200);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: var(--font-size-base);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.category-pill:hover {
+  border-color: var(--brand-primary);
+}
+
+.category-pill.active {
+  background-color: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+}
+
 /* ===== SEARCH AREA ===== */
 .search-area {
   padding: var(--spacing-3);

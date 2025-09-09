@@ -7,6 +7,7 @@ frappe.ready(function() {
         items: [],
         filteredItems: [],
         cart: [],
+        categories: [],
         selectedCategory: 'all',
         searchQuery: '',
         selectedTemplateItem: null,
@@ -70,6 +71,7 @@ frappe.ready(function() {
         init: async function() {
             this.setupEventListeners();
             await this.loadItems();
+            this.renderCategories();
             await this.loadTaxTemplate();
             this.renderItems();
             this.updateCartTotals();
@@ -182,6 +184,16 @@ frappe.ready(function() {
 
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates();
+
+                    // Build unique list of categories from loaded items
+                    const categorySet = new Set();
+                    this.items.forEach(item => {
+                        const category = item.menu_category || item.item_group;
+                        if (category) {
+                            categorySet.add(category);
+                        }
+                    });
+                    this.categories = Array.from(categorySet);
                 }
 
                 this.hideLoading();
@@ -255,6 +267,16 @@ frappe.ready(function() {
         },
         
         // Rendering
+        renderCategories: function() {
+            const categories = ['all', ...this.categories];
+            const html = categories.map(cat => {
+                const label = cat === 'all' ? 'All' : cat;
+                const activeClass = this.selectedCategory === cat ? ' active' : '';
+                return `<div class="category-pill${activeClass}" data-category="${cat}">${label}</div>`;
+            }).join('');
+            this.elements.categoriesContainer.innerHTML = html;
+        },
+
         renderItems: function() {
             if (!this.filteredItems.length) {
                 this.elements.catalogGrid.innerHTML = `
