@@ -137,7 +137,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
 
 
 @frappe.whitelist()
-def send_items_to_kitchen(pos_order, item_rows):
+def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     """
     Creates a KOT Ticket and sends selected items to the kitchen.
     
@@ -151,6 +151,10 @@ def send_items_to_kitchen(pos_order, item_rows):
     Raises:
         frappe.ValidationError: If any selected item is a template (not a variant)
     """
+    if order and not pos_order:
+        pos_order = order
+        item_rows = order.get("items", [])
+        
     # Parse JSON if item_rows is passed as string
     if isinstance(item_rows, str):
         item_rows = frappe.parse_json(item_rows)

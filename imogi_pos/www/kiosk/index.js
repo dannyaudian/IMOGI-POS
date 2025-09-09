@@ -888,7 +888,7 @@ frappe.ready(function() {
                 } else {
                     // Create POS Order and invoice
                     const orderResponse = await frappe.call({
-                        method: 'imogi_pos.api.orders.create_order',
+                        method: 'imogi_pos.api.kot.send_items_to_kitchen',
                         args: {
                             order_type: 'Kiosk',
                             branch: CURRENT_BRANCH,
