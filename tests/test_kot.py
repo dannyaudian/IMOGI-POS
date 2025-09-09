@@ -143,7 +143,6 @@ def test_send_items_to_kitchen_accepts_order_dict(kot_module):
     result = kot.send_items_to_kitchen(order={"name": "POS-1"}, item_rows=["ROW-1"])
     assert result["pos_order"] == "POS-1"
 
-
 @pytest.fixture
 def kot_service_env():
     sys.path.insert(0, ".")
