@@ -93,10 +93,15 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 _("Table {0} is already occupied").format(table),
                 frappe.ValidationError,
             )
-
-    # Convert discount values to numeric types
-    discount_amount = flt(discount_amount)
-    discount_percent = flt(discount_percent)
+    # Ensure numeric discounts to avoid type issues
+    try:
+        discount_amount = float(discount_amount or 0)
+    except Exception:
+        discount_amount = 0
+    try:
+        discount_percent = float(discount_percent or 0)
+    except Exception:
+        discount_percent = 0
 
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")
