@@ -19,6 +19,9 @@ def validate_item_is_sales_item(doc, method=None):
     Raises:
         frappe.ValidationError: If the Item is not marked as a sales item
     """
+    if not getattr(doc, "item", None):
+        frappe.throw(_("Item is required"), frappe.ValidationError)
+
     is_sales_item = frappe.db.get_value("Item", doc.item, "is_sales_item")
     if not is_sales_item:
         frappe.throw(
