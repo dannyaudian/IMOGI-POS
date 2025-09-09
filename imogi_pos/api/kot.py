@@ -140,7 +140,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
 
 
 @frappe.whitelist()
-def send_items_to_kitchen(pos_order=None, item_rows=Nonee):
+def send_items_to_kitchen(pos_order=None, item_rows=None):
     """
     Creates a KOT Ticket and sends selected items to the kitchen.
     
