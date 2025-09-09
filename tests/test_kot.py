@@ -146,6 +146,63 @@ def test_send_items_to_kitchen_accepts_order_dict(kot_module):
     result = kot.send_items_to_kitchen(order={"name": "POS-1"}, item_rows=["ROW-1"])
     assert result["pos_order"] == "POS-1"
 
+
+def test_send_items_to_kitchen_requires_station(kot_module):
+    kot, frappe = kot_module
+
+    insert_called = False
+
+    class Document:
+        def __init__(self, doctype):
+            self.doctype = doctype
+            self.items = []
+            self.name = f"{doctype}-1"
+
+        def append(self, fieldname, value):
+            getattr(self, fieldname).append(value)
+
+        def insert(self):
+            nonlocal insert_called
+            insert_called = True
+            return self
+
+        def as_dict(self):
+            return {k: v for k, v in self.__dict__.items()}
+
+    frappe.new_doc = lambda doctype: Document(doctype)
+
+    def db_get_value(self, doctype, name=None, fieldname=None, as_dict=False):
+        self.requested_field = fieldname
+        if doctype == "POS Order Item":
+            data = {
+                "item": "ITEM-1",
+                "qty": 1,
+                "notes": "Note",
+                "kitchen": "KIT-1",
+                "kitchen_station": None,
+            }
+            if isinstance(fieldname, (list, tuple)):
+                return data if as_dict else [data.get(f) for f in fieldname]
+            return data.get(fieldname)
+        if doctype == "Item":
+            self.looked_up_item = name
+            if fieldname == "item_name":
+                return "Item Name"
+            return False
+        if doctype == "KOT Ticket" and fieldname == "branch":
+            return "BR-1"
+        if doctype == "POS Profile":
+            return "Restaurant"
+        return None
+
+    frappe.db.get_value = types.MethodType(db_get_value, frappe.db)
+
+    with pytest.raises(frappe.ValidationError) as excinfo:
+        kot.send_items_to_kitchen("POS-1", ["ROW-1"])
+
+    assert "ITEM-1" in str(excinfo.value)
+    assert not insert_called
+
 @pytest.fixture
 def kot_service_env():
     sys.path.insert(0, ".")
