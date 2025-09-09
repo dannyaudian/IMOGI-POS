@@ -219,11 +219,11 @@ body {
 
 .item-info {
   padding: 0.75rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: space-between; /* Ensure proper spacing */
+  min-height: 70px; /* Give enough room for content */
 }
-
 .item-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
@@ -231,10 +231,14 @@ body {
   color: var(--text);
 }
 
-.item-price {
+item-price {
   color: var(--primary);
   font-weight: 700;
-  margin-top: auto;
+  font-size: 1rem; /* Ensure readable size */
+  display: block; /* Make sure it's visible */
+  margin-top: 0.25rem; /* Add some spacing */
+  visibility: visible !important; /* Force visibility */
+  opacity: 1 !important; /* Force opacity */
 }
 
 .item-has-variants {
