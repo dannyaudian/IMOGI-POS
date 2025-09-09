@@ -616,6 +616,110 @@ body {
   color: #721c24;
 }
 
+  /* Fix for text contrast issues */
+
+/* Item card name - make sure it's black text for visibility */
+.item-name {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.25rem !important;
+  line-height: 1.2 !important;
+  font-size: 0.95rem !important;
+}
+
+/* Item price - make it dark blue for visibility but still attractive */
+.item-price {
+  color: #2563eb !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Cart item name - ensure dark text on light background */
+.cart-item-name {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  padding-right: 1.5rem !important;
+}
+
+/* Cart item price - blue for consistency with product cards */
+.cart-item-price {
+  color: #2563eb !important;
+  font-weight: 600 !important;
+}
+
+/* Better contrast for cart section elements */
+.cart-section {
+  background-color: #ffffff !important;
+}
+
+.cart-item {
+  background-color: #f9fafb !important;
+  border-radius: 8px !important;
+  margin-bottom: 0.5rem !important;
+  padding: 1rem !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* Cart quantity controls */
+.cart-item-controls {
+  margin-top: 0.5rem !important;
+}
+
+.qty-btn {
+  background-color: #e5e7eb !important;
+  color: #000000 !important;
+}
+
+.qty-btn:hover {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* Cart totals with better contrast */
+.total-row {
+  color: #000000 !important;
+}
+
+/* Header styling */
+.app-header {
+  background-color: #2563eb !important;
+}
+
+/* Category pills - better contrast */
+.category-pill {
+  background-color: #f3f4f6 !important;
+  color: #000000 !important;
+  font-weight: 500 !important;
+}
+
+.category-pill.active {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* Buttons - better colors */
+.btn-checkout {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.btn-checkout:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Item cards - improve borders and shadow */
+.item-card {
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+.item-card:hover {
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
