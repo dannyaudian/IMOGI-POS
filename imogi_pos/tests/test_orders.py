@@ -69,7 +69,9 @@ def frappe_env(monkeypatch):
             return None
         def set_value(self, doctype, name, field, value):
             setattr(orders[name], field, value)
-        def exists(self, doctype, filters):
+        def exists(self, doctype, name):
+            if doctype == "Item":
+                return name in items
             return False
 
     def new_doc(doctype):

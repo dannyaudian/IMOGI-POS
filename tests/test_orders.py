@@ -15,12 +15,11 @@ def test_create_order_without_item_key_fails(frappe_env):
         )
 
 
-def test_create_order_with_item_code_succeeds(frappe_env):
+def test_create_order_with_nonexistent_item_fails(frappe_env):
     frappe, orders_module = frappe_env
-    result = orders_module.create_order(
-        "Dine-in", "BR-1", "P1", table="T1", items={"item_code": "SALES-ITEM", "rate": 10}
-    )
-    order_items = order_utils.orders[result["name"]].items
-    assert len(order_items) == 1
-    assert order_items[0].item == "SALES-ITEM"
+    with pytest.raises(frappe.ValidationError, match="Item UNKNOWN-ITEM not found"):
+        orders_module.create_order(
+            "Dine-in", "BR-1", "P1", table="T1", items={"item": "UNKNOWN-ITEM"}
+        )
+
 
