@@ -214,6 +214,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     kot_doc.customer = getattr(order_doc, "customer", None)
 
     # Build KOT Item records from selected POS Order Items
+    missing_station_item = None
     for row_name in item_rows:
         item_details = frappe.db.get_value(
             "POS Order Item",
@@ -225,6 +226,8 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         item_code = item_details.get("item")
         item_name = frappe.db.get_value("Item", item_code, "item_name")
 
+        if not item_details.get("kitchen_station") and not missing_station_item:
+            missing_station_item = item_code
         if not getattr(kot_doc, "kitchen_station", None):
             kot_doc.kitchen_station = item_details.get("kitchen_station")
         if not getattr(kot_doc, "kitchen", None):
@@ -240,6 +243,19 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                 "workflow_state": "Queued",
                 "notes": item_details.get("notes"),
             },
+        )
+
+    if not kot_doc.kitchen_station:
+        if missing_station_item:
+            frappe.throw(
+                _(
+                    "No kitchen station assigned for selected items. Missing for item: {0}"
+                ).format(missing_station_item),
+                frappe.ValidationError,
+            )
+        frappe.throw(
+            _("No kitchen station assigned for selected items"),
+            frappe.ValidationError,
         )
 
     kot_doc.insert()
