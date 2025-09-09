@@ -96,8 +96,8 @@ class KitchenStation(Document):
             kitchen.update_station_links()
         except Exception as e:
             frappe.log_error(
-                f"Error updating kitchen stations: {str(e)}",
-                "Kitchen Station Update Error"
+                title="Kitchen Station Update Error",
+                message=f"Error updating kitchen stations: {e}",
             )
     
     def get_print_settings(self):
