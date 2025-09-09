@@ -4,6 +4,7 @@ import pytest
 
 sys.path.insert(0, ".")
 from imogi_pos.tests.test_orders import frappe_env
+import imogi_pos.tests.test_orders as order_utils
 
 
 def test_create_order_without_item_key_fails(frappe_env):
@@ -20,4 +21,5 @@ def test_create_order_with_nonexistent_item_fails(frappe_env):
         orders_module.create_order(
             "Dine-in", "BR-1", "P1", table="T1", items={"item": "UNKNOWN-ITEM"}
         )
+
 

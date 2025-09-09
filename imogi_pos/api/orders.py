@@ -19,9 +19,13 @@ def validate_item_is_sales_item(doc, method=None):
     Raises:
         frappe.ValidationError: If the Item is not marked as a sales item
     """
+
     identifier = getattr(doc, "item", None)
     if not identifier:
         frappe.throw(_("Item is required"), frappe.ValidationError)
+    if not getattr(doc, "item", None):
+        doc.item = item_code
+
 
     if not frappe.db.exists("Item", identifier):
         frappe.throw(_("Item {0} not found").format(identifier), frappe.ValidationError)
@@ -134,6 +138,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         if isinstance(items, dict):
             items = [items]
         for item in items:
+            if not item.get("item") and item.get("item_code"):
+                item["item"] = item.get("item_code")
             row = order_doc.append("items", item)
             if item.get("rate") is not None:
                 row.rate = item.get("rate")
