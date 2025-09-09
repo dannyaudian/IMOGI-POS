@@ -214,7 +214,7 @@ body {
   background-color: var(--color-gray-50);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -410,7 +410,7 @@ textarea:focus {
 }
 
 .min-h-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .max-w-xs { max-width: 20rem; }
