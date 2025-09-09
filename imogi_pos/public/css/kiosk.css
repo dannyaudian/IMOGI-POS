@@ -856,10 +856,11 @@
   .kiosk-main {
     flex-direction: column;
   }
-  
+
   .kiosk-sidebar {
     width: 100%;
-    height: 300px;
+    height: auto;
+    max-height: 300px;
     border-right: none;
     border-bottom: 1px solid var(--color-gray-200);
   }
@@ -884,6 +885,23 @@
   
   .payment-method-icon {
     margin-bottom: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .kiosk-main {
+    flex-direction: row;
+  }
+
+  .kiosk-sidebar {
+    width: 300px;
+    height: auto;
+    border-right: 1px solid var(--color-gray-200);
+    border-bottom: none;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 
@@ -927,6 +945,16 @@
   
   .cash-presets {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .kiosk-sidebar {
+    width: 420px;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }
 }
 
