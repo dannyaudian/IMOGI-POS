@@ -59,7 +59,15 @@
       "state": "Queued",
       "action": "Start Preparing",
       "next_state": "In Progress",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "Queued",
+      "action": "Start Preparing",
+      "next_state": "In Progress",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -67,7 +75,15 @@
       "state": "In Progress",
       "action": "Mark as Ready",
       "next_state": "Ready",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Mark as Ready",
+      "next_state": "Ready",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -75,7 +91,15 @@
       "state": "In Progress",
       "action": "Mark as Served",
       "next_state": "Served",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Mark as Served",
+      "next_state": "Served",
+      "allowed": "Waiter",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -83,7 +107,15 @@
       "state": "Ready",
       "action": "Mark as Served",
       "next_state": "Served",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "Ready",
+      "action": "Mark as Served",
+      "next_state": "Served",
+      "allowed": "Waiter",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -107,7 +139,15 @@
       "state": "In Progress",
       "action": "Return to Queue",
       "next_state": "Queued",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Return to Queue",
+      "next_state": "Queued",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -115,7 +155,15 @@
       "state": "Ready",
       "action": "Return to Kitchen",
       "next_state": "In Progress",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "Ready",
+      "action": "Return to Kitchen",
+      "next_state": "In Progress",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     }
