@@ -171,6 +171,7 @@
   transform: translateY(-2px);
 }
 
+
 .catalog-item.sold-out .item-image {
   opacity: 0.4;
 }
@@ -203,6 +204,7 @@
   height: 120px;
   background-color: var(--color-gray-100);
   overflow: hidden;
+  position: relative;
 }
 
 .item-image img {
@@ -282,6 +284,12 @@
   font-size: var(--font-size-sm);
   color: var(--color-gray-600);
   margin-bottom: var(--spacing-2);
+}
+
+.cart-item-payment-methods {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  margin-top: var(--spacing-2);
 }
 
 .cart-item-price {
