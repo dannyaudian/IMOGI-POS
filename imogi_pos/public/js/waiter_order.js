@@ -198,6 +198,7 @@ imogi_pos.waiter_order = {
                         // Copy order items
                         if (this.state.order.items && Array.isArray(this.state.order.items)) {
                             this.state.orderItems = this.state.order.items.map(item => ({
+                                name: item.name,
                                 item: item.item,
                                 item_name: item.item_name,
                                 qty: item.qty,
@@ -1586,40 +1587,41 @@ imogi_pos.waiter_order = {
         
         // Save order first
         this.saveOrder(true)
-            .then(() => {
+            .then((itemRows) => {
                 // Show loading indicator
                 this.showLoading(true, 'Sending to kitchen...');
-                
+
                 // Send to kitchen
                 frappe.call({
                     method: 'imogi_pos.api.kot.send_items_to_kitchen',
                     args: {
-                        pos_order: this.settings.posOrder
+                        pos_order: this.settings.posOrder,
+                        item_rows: itemRows
                     },
                     callback: (response) => {
                         this.showLoading(false);
-                        
+
                         if (response.message && response.message.success) {
                             this.showToast('Order sent to kitchen');
-                            
+
                             // Update KOT status
                             this.state.kotSubmitted = true;
-                            
+
                             // Update UI
                             const sendToKitchenBtn = this.container.querySelector('#send-to-kitchen-btn');
                             if (sendToKitchenBtn) {
                                 sendToKitchenBtn.disabled = true;
                             }
-                            
+
                             const printKotBtn = this.container.querySelector('#print-kot-btn');
                             if (printKotBtn) {
                                 printKotBtn.disabled = false;
                             }
-                            
+
                             // Update order status if needed
                             if (this.state.order) {
                                 this.state.order.workflow_state = 'Sent to Kitchen';
-                                
+
                                 // Update order status display
                                 const orderStatus = this.container.querySelector('.order-status');
                                 if (orderStatus) {
@@ -1627,7 +1629,7 @@ imogi_pos.waiter_order = {
                                     orderStatus.className = 'order-status sent-to-kitchen';
                                 }
                             }
-                            
+
                             // Ask if user wants to go back to table display
                             this.showConfirmDialog(
                                 'Order Sent',
@@ -1735,24 +1737,25 @@ imogi_pos.waiter_order = {
                         if (!silent) {
                             this.showToast('Order saved successfully');
                         }
-                        
+
                         // Update order name if needed
                         if (!this.settings.posOrder) {
                             this.settings.posOrder = response.message.name;
-                            
+
                             // Update URL without reloading
                             const url = new URL(window.location);
                             url.searchParams.set('pos_order', this.settings.posOrder);
                             window.history.pushState({}, '', url);
-                            
+
                             // Update order header
                             const orderHeader = this.container.querySelector('.order-header h3');
                             if (orderHeader) {
                                 orderHeader.textContent = `Order: ${this.settings.posOrder}`;
                             }
                         }
-                        
-                        resolve();
+
+                        const itemRows = (response.message.items || []).map(item => item.name);
+                        resolve(itemRows);
                     } else {
                         if (!silent) {
                             this.showError('Failed to save order');
