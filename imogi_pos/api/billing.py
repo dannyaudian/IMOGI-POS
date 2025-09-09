@@ -81,11 +81,30 @@ def build_invoice_items(order_doc, mode):
         list: List of item dictionaries with descriptions and optional notes flag
     """
     invoice_items = []
+
+    # Collect distinct item codes and fetch their names in a single query
+    item_codes = list({item.item for item in order_doc.items})
+    item_names = {}
+    if item_codes:
+        if hasattr(frappe, "get_all"):
+            fetched = frappe.get_all(
+                "Item",
+                filters={"name": ["in", item_codes]},
+                fields=["name", "item_name"],
+            )
+        else:
+            fetched = [
+                {
+                    "name": code,
+                    "item_name": frappe.db.get_value("Item", code, "item_name"),
+                }
+                for code in item_codes
+            ]
+        item_names = {d["name"]: d["item_name"] for d in fetched}
+
     for item in order_doc.items:
         item_code = item.item
-        item_name = getattr(item, "item_name", None) or frappe.db.get_value(
-            "Item", item_code, "item_name"
-        )
+        item_name = getattr(item, "item_name", None) or item_names.get(item_code)
 
         invoice_item = {
             "item_code": item_code,
