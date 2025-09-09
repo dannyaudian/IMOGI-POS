@@ -12,10 +12,10 @@
 /* ===== CSS VARIABLES (TOKENS) ===== */
 :root {
   /* Brand Colors - customizable via POS Profile */
-  --brand-primary: #1a73e8;
+  --brand-primary: #00a65a;
   --brand-accent: #f5c518;
-  --brand-header-bg: #202124;
-  --brand-text: var(--color-black);
+  --brand-header-bg: #000000;
+  --brand-text: #ffffff;
   
   /* Neutral Colors */
   --color-white: #ffffff;
@@ -32,8 +32,8 @@
   --color-gray-900: #111827;
   
   /* Functional Colors */
-  --color-success: #10b981;
-  --color-success-light: #d1fae5;
+  --color-success: #00a65a;
+  --color-success-light: #ccffe6;
   --color-warning: #f59e0b;
   --color-warning-light: #fef3c7;
   --color-danger: #ef4444;
