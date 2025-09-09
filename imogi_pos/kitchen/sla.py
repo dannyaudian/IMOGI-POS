@@ -515,9 +515,75 @@ def get_station_daily_performance(station_name, date=None):
     return sla.calculate_daily_performance(station_name, date)
 
 def process_hourly_metrics():
-    # TODO: implement real job
-    pass
+    """Enqueue computation of hourly SLA metrics for all kitchen stations."""
+    frappe.enqueue(_process_hourly_metrics, queue="long")
+
+
+def _process_hourly_metrics():
+    """Compute and store hourly SLA metrics for active kitchen stations."""
+    logger = frappe.logger("imogi_pos.kitchen_sla")
+    logger.info("Starting hourly kitchen SLA metric processing")
+
+    now = now_datetime()
+    stations = frappe.get_all("Kitchen Station", filters={"is_active": 1}, pluck="name")
+
+    for station in stations:
+        sla = KitchenSLA(station)
+        summary = sla.get_station_summary(station)
+        summary["timestamp"] = now
+        data_json = json.dumps(summary, default=str)
+
+        try:
+            if frappe.db.exists("DocType", "Kitchen SLA Metric"):
+                doc = frappe.get_doc({
+                    "doctype": "Kitchen SLA Metric",
+                    "kitchen_station": station,
+                    "metric_time": now,
+                    "data": data_json,
+                })
+                doc.insert(ignore_permissions=True)
+            else:
+                key = f"kitchen_sla_metric:{station}:{now.strftime('%Y-%m-%d %H:%M')}"
+                frappe.cache().set_value(key, data_json)
+            logger.debug("Recorded SLA metrics for %s", station)
+        except Exception:
+            logger.exception("Failed to record SLA metrics for %s", station)
+
+    logger.info("Completed hourly kitchen SLA metric processing")
+
 
 def generate_daily_report():
-    # TODO: implement real job
-    pass
+    """Enqueue generation of daily SLA reports for all kitchen stations."""
+    frappe.enqueue(_generate_daily_report, queue="long")
+
+
+def _generate_daily_report():
+    """Aggregate daily SLA performance for each kitchen station."""
+    logger = frappe.logger("imogi_pos.kitchen_sla")
+    report_date = frappe.utils.today()
+    logger.info("Generating daily kitchen SLA reports for %s", report_date)
+
+    stations = frappe.get_all("Kitchen Station", filters={"is_active": 1}, pluck="name")
+
+    for station in stations:
+        sla = KitchenSLA(station)
+        performance = sla.calculate_daily_performance(station, report_date)
+        performance_json = json.dumps(performance, default=str)
+
+        try:
+            if frappe.db.exists("DocType", "Kitchen SLA Daily Report"):
+                doc = frappe.get_doc({
+                    "doctype": "Kitchen SLA Daily Report",
+                    "kitchen_station": station,
+                    "report_date": report_date,
+                    "data": performance_json,
+                })
+                doc.insert(ignore_permissions=True)
+            else:
+                key = f"kitchen_sla_daily:{station}:{report_date}"
+                frappe.cache().set_value(key, performance_json)
+            logger.debug("Generated daily SLA report for %s", station)
+        except Exception:
+            logger.exception("Failed to generate daily SLA report for %s", station)
+
+    logger.info("Completed daily kitchen SLA report generation")
