@@ -291,7 +291,7 @@ frappe.ready(function() {
             
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                const stockQty = item.actual_qty !== undefined ? item.actual_qty :
+                const stockQty = item.qty !== undefined ? item.qty :
                                  item.stock_qty !== undefined ? item.stock_qty : null;
                 const isSoldOut = stockQty !== null && stockQty <= 0;
 
