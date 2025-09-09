@@ -260,10 +260,14 @@ frappe.ready(function() {
             
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                
+                const stockQty = item.actual_qty !== undefined ? item.actual_qty :
+                                 item.stock_qty !== undefined ? item.stock_qty : null;
+                const isSoldOut = stockQty !== null && stockQty <= 0;
+
                 html += `
-                    <div class="item-card" data-item="${item.name}">
+                    <div class="catalog-item item-card${isSoldOut ? ' sold-out' : ''}" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+                        <div class="sold-out-badge">Sold Out</div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
@@ -272,13 +276,14 @@ frappe.ready(function() {
                     </div>
                 `;
             });
-            
+
             this.elements.catalogGrid.innerHTML = html;
-            
+
             // Add click handlers
             const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
             itemCards.forEach(card => {
                 card.addEventListener('click', () => {
+                    if (card.classList.contains('sold-out')) return;
                     const itemName = card.dataset.item;
                     const item = this.items.find(i => i.name === itemName);
                     if (item) {
