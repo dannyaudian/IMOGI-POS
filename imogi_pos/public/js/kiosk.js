@@ -2228,6 +2228,6 @@ imogi_pos.kiosk = {
      * @returns {string} Formatted currency
      */
     formatCurrency: function(amount) {
-        return frappe.format(amount, { fieldtype: 'Currency' });
+        return frappe.format_currency(amount, 'IDR');
     }
 };
