@@ -618,16 +618,16 @@ frappe.ready(function() {
         togglePaymentMethod: function() {
             // Show/hide sections based on payment method
             if (this.paymentMethod === 'qr_code') {
-                this.elements.paymentQrSection.style.display = 'block';
-                this.elements.paymentCashSection.style.display = 'none';
-                
+                this.elements.paymentQrSection.classList.remove('hidden');
+                this.elements.paymentCashSection.classList.add('hidden');
+
                 // Disable confirm button if gateway enabled (will be enabled when payment confirmed)
                 // Otherwise, enable it for simulation mode
                 this.elements.paymentConfirmBtn.disabled = PAYMENT_SETTINGS.gateway_enabled;
             } else {
-                this.elements.paymentQrSection.style.display = 'none';
-                this.elements.paymentCashSection.style.display = 'block';
-                
+                this.elements.paymentQrSection.classList.add('hidden');
+                this.elements.paymentCashSection.classList.remove('hidden');
+
                 // Enable confirm button when cash amount >= total
                 const totals = this.calculateTotals();
                 this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
