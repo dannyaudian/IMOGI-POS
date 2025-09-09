@@ -161,7 +161,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
 
     order_doc.insert()
     # Allow downstream apps to reserve or deduct stock before invoicing
-    frappe.call_hooks("after_create_order", order=order_doc)
+    frappe.call_hook("after_create_order", order=order_doc)
 
     if table_doc:
         table_doc.set_status("Occupied", pos_order=order_doc.name)
