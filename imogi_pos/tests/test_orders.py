@@ -52,6 +52,8 @@ def frappe_env(monkeypatch):
                 "workflow_state": self.workflow_state,
                 "floor": getattr(self, "floor", None),
                 "customer": getattr(self, "customer", None),
+                "discount_amount": getattr(self, "discount_amount", 0),
+                "discount_percent": getattr(self, "discount_percent", 0),
             }
 
     class DB:
@@ -105,6 +107,7 @@ def frappe_env(monkeypatch):
     frappe.whitelist = lambda *a, **kw: (lambda f: f)
     frappe.utils = types.ModuleType("utils")
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
+    frappe.utils.flt = float
     frappe.call_hook = lambda method, **kwargs: None
 
     sys.modules['frappe'] = frappe
@@ -192,7 +195,6 @@ def test_create_order_records_customer(frappe_env):
     )
     assert orders[result["name"]].customer == "CUST-1"
     assert result["customer"] == "CUST-1"
-
 
 def test_create_order_accepts_string_discounts(frappe_env):
     frappe, orders_module = frappe_env
