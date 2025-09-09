@@ -1282,6 +1282,9 @@ imogi_pos.kiosk = {
             },
             callback: (response) => {
                 if (response.message && response.message.name) {
+                    // Store POS Order item row names for KOT
+                    this.kotItemRows = (response.message.items || []).map(item => item.name);
+
                     // Generate invoice with chosen payment mode
                     const mop = prompt('Enter payment mode (e.g., Cash, Card, Online)', 'Cash');
                     this.generateInvoice(response.message.name, mop || 'Cash');
@@ -1897,7 +1900,8 @@ imogi_pos.kiosk = {
         frappe.call({
             method: 'imogi_pos.api.kot.send_items_to_kitchen',
             args: {
-                pos_order: orderName
+                pos_order: orderName,
+                item_rows: this.kotItemRows || []
             },
             callback: (response) => {
                 // Print receipt

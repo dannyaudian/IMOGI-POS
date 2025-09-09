@@ -1032,7 +1032,8 @@ imogi_pos.table_display = {
         frappe.call({
             method: 'imogi_pos.api.kot.send_items_to_kitchen',
             args: {
-                pos_order: this.state.selectedOrder.name
+                pos_order: this.state.selectedOrder.name,
+                item_rows: (this.state.selectedOrder.items || []).map(item => item.name)
             },
             callback: (response) => {
                 this.showLoading(false);

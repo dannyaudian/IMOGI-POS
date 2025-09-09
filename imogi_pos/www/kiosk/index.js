@@ -656,6 +656,7 @@ frappe.ready(function() {
                 }
 
                 this.posOrder = orderResponse.message.name;
+                this.itemRows = (orderResponse.message.items || []).map(item => item.name);
 
                 // Create draft invoice for payment
                 const totals = this.calculateTotals();
@@ -903,6 +904,7 @@ frappe.ready(function() {
                     }
 
                     this.posOrder = orderResponse.message.name;
+                    this.itemRows = (orderResponse.message.items || []).map(item => item.name);
 
                     const totals = this.calculateTotals();
                     const response = await frappe.call({
@@ -928,8 +930,8 @@ frappe.ready(function() {
                     await frappe.call({
                         method: 'imogi_pos.api.kot.send_items_to_kitchen',
                         args: {
-                            invoice: invoice.name,
-                            items: this.cart
+                            pos_order: this.posOrder,
+                            item_rows: this.itemRows || []
                         }
                     });
                 }
