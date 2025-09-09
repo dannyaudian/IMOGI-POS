@@ -34,6 +34,9 @@ def get_order_branch(pos_order):
     Raises:
         frappe.DoesNotExistError: If POS Order not found
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     branch = frappe.db.get_value("POS Order", pos_order, "branch")
     if not branch:
         frappe.throw(_("POS Order not found or has no branch"), frappe.DoesNotExistError)
@@ -253,6 +256,9 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
         frappe.ValidationError: If neither attributes nor variant are provided,
                               or if template item cannot be replaced
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get order details for branch validation
     branch = get_order_branch(pos_order)
     validate_branch_access(branch)

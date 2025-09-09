@@ -263,6 +263,9 @@ def print_customer_bill(pos_order, print_format=None):
     Returns:
         dict: Print status
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     try:
         # Get POS Order details
         order_doc = frappe.get_doc("POS Order", pos_order)

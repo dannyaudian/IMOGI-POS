@@ -422,10 +422,13 @@ def prepare_invoice_draft(pos_order):
     
     Args:
         pos_order (str): POS Order name
-    
+
     Returns:
         dict: Draft Sales Invoice data
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)

@@ -189,6 +189,9 @@ def switch_table(pos_order, from_table, to_table):
     Raises:
         frappe.ValidationError: If tables are not available or order status doesn't allow switch
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)
@@ -311,6 +314,9 @@ def set_order_type(pos_order, order_type):
     Raises:
         frappe.ValidationError: If the order type change is not allowed for the current state
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)
