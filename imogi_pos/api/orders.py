@@ -122,6 +122,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         order_doc.floor = table_doc.floor
 
     if items:
+        if isinstance(items, str):
+            items = frappe.parse_json(items)
         if isinstance(items, dict):
             items = [items]
         for item in items:
