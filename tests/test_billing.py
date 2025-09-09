@@ -532,6 +532,12 @@ def test_generate_invoice_requires_payment_details(billing_module):
         billing.generate_invoice('POS-1')
 
 
+def test_generate_invoice_requires_pos_order(billing_module):
+    billing, frappe = billing_module
+    with pytest.raises(frappe.ValidationError):
+        billing.generate_invoice(None, mode_of_payment='Cash', amount=10)
+
+
 def test_generate_invoice_error_handling(billing_module):
     billing, frappe = billing_module
 
