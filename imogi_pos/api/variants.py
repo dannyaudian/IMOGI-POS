@@ -37,8 +37,76 @@ def get_order_branch(pos_order):
     branch = frappe.db.get_value("POS Order", pos_order, "branch")
     if not branch:
         frappe.throw(_("POS Order not found or has no branch"), frappe.DoesNotExistError)
-    
+
     return branch
+
+
+@frappe.whitelist()
+def get_items_with_stock(warehouse=None, limit=500):
+    """Return POS items with stock and allowed payment methods.
+
+    Args:
+        warehouse (str, optional): Warehouse to fetch stock levels from.
+        limit (int, optional): Maximum number of items to return. Defaults to 500.
+
+    Returns:
+        list[dict]: List of item data including available quantity and payment methods.
+    """
+    items = frappe.get_all(
+        "Item",
+        filters={"disabled": 0, "is_sales_item": 1},
+        fields=[
+            "name",
+            "item_name",
+            "item_code",
+            "description",
+            "image",
+            "standard_rate",
+            "has_variants",
+            "variant_of",
+            "item_group",
+            "menu_category",
+            "photo",
+            "default_kitchen",
+            "default_kitchen_station",
+        ],
+        limit_page_length=limit,
+    )
+
+    item_names = [d.name for d in items]
+
+    # Fetch stock quantities from Bin for the given warehouse
+    stock_map = {}
+    if warehouse and item_names:
+        bin_rows = frappe.get_all(
+            "Bin",
+            filters={"item_code": ["in", item_names], "warehouse": warehouse},
+            fields=["item_code", "actual_qty"],
+        )
+        stock_map = {b.item_code: b.actual_qty for b in bin_rows}
+
+    # Fetch allowed payment methods if doctype exists
+    payment_map = {}
+    payment_doctype = None
+    for dt in ["Item Payment Method", "Item Payment Mode", "Item Payment"]:
+        if frappe.db.exists("DocType", dt):
+            payment_doctype = dt
+            break
+
+    if payment_doctype and item_names:
+        payment_rows = frappe.get_all(
+            payment_doctype,
+            filters={"parent": ["in", item_names]},
+            fields=["parent", "mode_of_payment"],
+        )
+        for row in payment_rows:
+            payment_map.setdefault(row.parent, []).append(row.mode_of_payment)
+
+    for item in items:
+        item["actual_qty"] = stock_map.get(item.name, 0)
+        item["payment_methods"] = payment_map.get(item.name, [])
+
+    return items
 
 @frappe.whitelist()
 def get_variant_picker_config(item_template):
