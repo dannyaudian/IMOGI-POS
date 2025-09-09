@@ -112,7 +112,7 @@ def frappe_env(monkeypatch):
     frappe.utils = types.ModuleType("utils")
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
     frappe.utils.flt = float
-    frappe.call_hooks = lambda method, **kwargs: None
+    frappe.call_hook = lambda method, **kwargs: None
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
@@ -181,7 +181,7 @@ def test_after_create_order_hook_called(frappe_env):
     calls = []
     def hook(method, **kwargs):
         calls.append((method, kwargs))
-    frappe.call_hooks = hook
+    frappe.call_hook = hook
     orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
     assert calls and calls[0][0] == "after_create_order"
     assert "order" in calls[0][1]
