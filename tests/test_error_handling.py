@@ -66,6 +66,16 @@ def test_safe_print_handles_broken_pipe(error_module, monkeypatch):
     assert calls["log_error"][-1] == ("hello world", "BrokenPipeError")
 
 
+def test_safe_errprint_handles_broken_pipe(error_module):
+    mod, calls = error_module
+
+    # Should not raise even if ``frappe.errprint`` blows up with BrokenPipeError
+    mod.safe_errprint("broken")
+
+    assert calls["errprint"] == ["broken"]
+    assert calls["log_error"] == [("broken", "BrokenPipeError")]
+
+
 @pytest.fixture
 def response_module():
     sys.path.insert(0, ".")
