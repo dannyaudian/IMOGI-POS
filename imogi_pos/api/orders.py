@@ -19,13 +19,22 @@ def validate_item_is_sales_item(doc, method=None):
     Raises:
         frappe.ValidationError: If the Item is not marked as a sales item
     """
-    if not getattr(doc, "item", None):
+
+    identifier = getattr(doc, "item", None) or getattr(doc, "item_code", None)
+    if not identifier:
         frappe.throw(_("Item is required"), frappe.ValidationError)
 
-    is_sales_item = frappe.db.get_value("Item", doc.item, "is_sales_item")
+    # Ensure downstream logic can rely on doc.item being populated
+    doc.item = identifier
+
+
+    if not frappe.db.exists("Item", identifier):
+        frappe.throw(_("Item {0} not found").format(identifier), frappe.ValidationError)
+
+    is_sales_item = frappe.db.get_value("Item", identifier, "is_sales_item")
     if not is_sales_item:
         frappe.throw(
-            _("Item {0} is not a sales item").format(doc.item),
+            _("Item {0} is not a sales item").format(identifier),
             frappe.ValidationError,
         )
 
@@ -130,10 +139,25 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         if isinstance(items, dict):
             items = [items]
         for item in items:
+            if not item.get("item") and item.get("item_code"):
+                item["item"] = item.get("item_code")
             row = order_doc.append("items", item)
             if item.get("rate") is not None:
                 row.rate = item.get("rate")
             validate_item_is_sales_item(row)
+
+    # Validate customer before inserting the order
+    if customer:
+        # Check if the provided customer exists
+        if not frappe.db.exists("Customer", customer):
+            if customer == "Walk-in Customer":
+                # Remove link to allow inserting the order without a customer
+                order_doc.customer = None
+            else:
+                frappe.throw(
+                    _("Customer {0} not found").format(customer),
+                    frappe.ValidationError,
+                )
 
     order_doc.insert()
     # Allow downstream apps to reserve or deduct stock before invoicing
@@ -189,9 +213,6 @@ def switch_table(pos_order, from_table, to_table):
     Raises:
         frappe.ValidationError: If tables are not available or order status doesn't allow switch
     """
-    if not pos_order:
-        frappe.throw(_("POS Order is required"), frappe.ValidationError)
-
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)
@@ -314,9 +335,6 @@ def set_order_type(pos_order, order_type):
     Raises:
         frappe.ValidationError: If the order type change is not allowed for the current state
     """
-    if not pos_order:
-        frappe.throw(_("POS Order is required"), frappe.ValidationError)
-
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)
