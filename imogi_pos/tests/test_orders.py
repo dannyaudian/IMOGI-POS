@@ -72,6 +72,8 @@ def frappe_env(monkeypatch):
         def exists(self, doctype, name):
             if doctype == "Item":
                 return name in items
+            if doctype == "Customer":
+                return name in customers
             return False
 
     def new_doc(doctype):
@@ -114,7 +116,7 @@ def frappe_env(monkeypatch):
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
-    global orders, tables, pos_profiles, items
+    global orders, tables, pos_profiles, items, customers
     orders = {}
     tables = {
         "T1": StubTable("T1", "BR-1"),
@@ -127,6 +129,7 @@ def frappe_env(monkeypatch):
         "SALES-ITEM": types.SimpleNamespace(is_sales_item=1),
         "NON-SALES-ITEM": types.SimpleNamespace(is_sales_item=0),
     }
+    customers = {"CUST-1": object()}
 
     import imogi_pos.api.orders as orders_module
     importlib.reload(orders_module)

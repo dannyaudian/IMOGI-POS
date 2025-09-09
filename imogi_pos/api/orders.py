@@ -145,6 +145,19 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 row.rate = item.get("rate")
             validate_item_is_sales_item(row)
 
+    # Validate customer before inserting the order
+    if customer:
+        # Check if the provided customer exists
+        if not frappe.db.exists("Customer", customer):
+            if customer == "Walk-in Customer":
+                # Remove link to allow inserting the order without a customer
+                order_doc.customer = None
+            else:
+                frappe.throw(
+                    _("Customer {0} not found").format(customer),
+                    frappe.ValidationError,
+                )
+
     order_doc.insert()
     # Allow downstream apps to reserve or deduct stock before invoicing
     frappe.call_hook("after_create_order", order=order_doc)
