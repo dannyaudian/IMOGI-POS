@@ -11,6 +11,15 @@
  * - Dark mode support
  */
 
+/* ===== Utility Classes ===== */
+.hidden {
+  display: none;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
 /* ===== LAYOUT STRUCTURE ===== */
 .kiosk-layout {
   display: flex;
