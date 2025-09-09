@@ -63,6 +63,9 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
         table (str): Table name
         event_type (str, optional): Type of event (kot_update, state_change)
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     
