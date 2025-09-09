@@ -230,33 +230,30 @@ def _should_include_notes_in_description(
 
 
 def split_pos_order_to_invoices(
-    pos_order: Union[str, Dict, Any], 
+    pos_order: Union[str, Dict, Any],
     split_data: List[Dict]
 ) -> List[str]:
     """
-    Split a POS Order into multiple Sales Invoices based on split data.
-    
+    Split a POS Order into multiple Sales Invoices based on ``split_data``.
+
     Args:
         pos_order: POS Order name or document
-        split_data: List of dictionaries containing split information
-            Each dict should have: customer, items (list of dicts with item_id, qty)
-    
+        split_data: A list of dictionaries describing how the order should be
+            divided. Each dictionary is expected to include a ``customer`` and
+            an ``items`` list containing ``{"item_id": str, "qty": float}``
+            entries.
+
     Returns:
-        List of created Sales Invoice names
+        List of created Sales Invoice names.
+
+    Intended behaviour:
+        1. Validate the provided split data to ensure item quantities and totals
+           match the original POS Order.
+        2. Create a new Sales Invoice for each split entry using the specified
+           customer and items.
+        3. Mark the original POS Order as split and link the resulting invoices.
+
+    Currently, this function is not implemented and will raise an exception
+    when called to prevent silent failures.
     """
-    # This is a stub - would need to be implemented based on full requirements
-    # Basic implementation would:
-    # 1. Validate split data (totals match, items exist, etc.)
-    # 2. For each split entry, create a new SI with the specified items/quantities
-    # 3. Mark original POS Order as split
-    # 4. Return list of created SIs
-    
-    # Placeholder for now
-    invoice_names = []
-    for split in split_data:
-        # Would create invoice here with the split data
-        # invoice_name = build_sales_invoice_from_split(pos_order, split)
-        # invoice_names.append(invoice_name)
-        pass
-    
-    return invoice_names
+    frappe.throw(_("Invoice splitting not implemented"))
