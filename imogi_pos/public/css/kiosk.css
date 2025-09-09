@@ -248,6 +248,8 @@
 
 .cart-item {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: var(--spacing-3);
   background-color: var(--color-white);
   border: 1px solid var(--color-gray-200);
@@ -1017,6 +1019,7 @@
     background-color: var(--color-gray-850);
     border-color: var(--color-gray-700);
   }
+
 
   .item-description,
   .cart-item-options,
