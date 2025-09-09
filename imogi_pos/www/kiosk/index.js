@@ -280,26 +280,25 @@ frappe.ready(function() {
                 `;
                 return;
             }
-            
+
             let html = '';
-            
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                
+
                 html += `
                     <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
-                            <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
+                            <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
                             ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
                         </div>
                     </div>
                 `;
             });
-            
+
             this.elements.catalogGrid.innerHTML = html;
-            
+
             // Add click handlers
             const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
             itemCards.forEach(card => {
@@ -439,13 +438,12 @@ frappe.ready(function() {
         
         updateCartTotals: function() {
             const totals = this.calculateTotals();
-
-            this.elements.cartSubtotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.subtotal)}`;
-            this.elements.cartTax.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.tax)}`;
+            this.elements.cartSubtotal.textContent = formatRupiah(totals.subtotal);
+            this.elements.cartTax.textContent = formatRupiah(totals.tax);
             if (this.elements.cartDiscount) {
-                this.elements.cartDiscount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.discount)}`;
+                this.elements.cartDiscount.textContent = formatRupiah(totals.discount);
             }
-            this.elements.cartTotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
+            this.elements.cartTotal.textContent = formatRupiah(totals.total);
         },
         
         // Event handlers
@@ -1102,10 +1100,28 @@ frappe.ready(function() {
             alert(message);
         }
     };
+
+    function formatRupiah(angka) {
+        if (angka === 0 || angka === '0') return 'Rp 0,-';
+        
+        var number_string = angka.toString().replace(/[^,\d]/g, ''),
+        split   = number_string.split(','),
+        sisa    = split[0].length % 3,
+        rupiah  = split[0].substr(0, sisa),
+        ribuan  = split[0].substr(sisa).match(/\d{3}/gi);
+            
+        if (ribuan) {
+            separator = sisa ? '.' : '';
+            rupiah += separator + ribuan.join('.');
+        }
+        
+        rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+        return 'Rp ' + rupiah + ',-';
+        }
     
     // Helper function to format numbers
     function formatNumber(number) {
-        return parseFloat(number).toFixed(2);
+         return formatRupiah(number);
     }
     
     // Initialize the app
