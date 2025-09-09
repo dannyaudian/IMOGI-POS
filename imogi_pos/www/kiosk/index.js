@@ -325,32 +325,29 @@ frappe.ready(function() {
             this.elements.cartItems.innerHTML = html;
             
             // Add event listeners
-            const qtyMinusButtons = this.elements.cartItems.querySelectorAll('.qty-minus');
-            const qtyPlusButtons = this.elements.cartItems.querySelectorAll('.qty-plus');
+            const qtyButtons = this.elements.cartItems.querySelectorAll('.qty-btn');
             const qtyInputs = this.elements.cartItems.querySelectorAll('.cart-item-qty');
             const removeButtons = this.elements.cartItems.querySelectorAll('.cart-item-remove');
-            
-            qtyMinusButtons.forEach(button => {
+
+            qtyButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const index = parseInt(button.dataset.index);
-                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
+                    const newQty = button.classList.contains('qty-minus')
+                        ? this.cart[index].qty - 1
+                        : this.cart[index].qty + 1;
+                    this.updateCartItemQuantity(index, newQty);
                 });
             });
-            
-            qtyPlusButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const index = parseInt(button.dataset.index);
-                    this.updateCartItemQuantity(index, this.cart[index].qty + 1);
-                });
-            });
-            
+
             qtyInputs.forEach(input => {
-                input.addEventListener('change', () => {
+                const handler = () => {
                     const index = parseInt(input.dataset.index);
                     this.updateCartItemQuantity(index, parseInt(input.value) || 1);
-                });
+                };
+                input.addEventListener('change', handler);
+                input.addEventListener('input', handler);
             });
-            
+
             removeButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const index = parseInt(button.dataset.index);
