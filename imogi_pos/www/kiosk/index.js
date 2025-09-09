@@ -149,32 +149,41 @@ frappe.ready(function() {
         // Data loading
         loadItems: async function() {
             this.showLoading('Loading catalog...');
-            
+
             try {
                 const response = await frappe.call({
-                    method: 'frappe.client.get_list',
+                    method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
-                        doctype: 'Item',
-                        filters: {
-                            disabled: 0,
-                            is_sales_item: 1
-                        },
-                        fields: ['name', 'item_name', 'item_code', 'description', 'image', 
-                                'standard_rate', 'has_variants', 'variant_of', 'item_group',
-                                'menu_category', 'photo', 'default_kitchen', 'default_kitchen_station'],
+                        warehouse: POS_PROFILE.warehouse,
                         limit: 500
                     }
                 });
-                
+
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
-                    this.items = response.message.filter(item => !item.variant_of);
+                    const allItems = response.message.filter(item => !item.variant_of);
+
+                    const available = [];
+                    const soldOut = [];
+
+                    allItems.forEach(item => {
+                        item.payment_methods = item.payment_methods || [];
+                        item.actual_qty = item.actual_qty || 0;
+                        if (item.actual_qty <= 0) {
+                            item.sold_out = true;
+                            soldOut.push(item);
+                        } else {
+                            available.push(item);
+                        }
+                    });
+
+                    this.items = available.concat(soldOut);
                     this.filteredItems = [...this.items];
-                    
+
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates();
                 }
-                
+
                 this.hideLoading();
             } catch (error) {
                 console.error("Error loading items:", error);
@@ -260,10 +269,17 @@ frappe.ready(function() {
             
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                
+
+                const classes = ['catalog-item', 'item-card'];
+                if (item.sold_out) {
+                    classes.push('sold-out');
+                }
+
                 html += `
-                    <div class="item-card" data-item="${item.name}">
-                        <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+                    <div class="${classes.join(' ')}" data-item="${item.name}">
+                        <div class="item-image" style="background-image: url('${imageUrl}')">
+                            ${item.sold_out ? '<div class="sold-out-badge">Sold Out</div>' : ''}
+                        </div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
@@ -272,12 +288,13 @@ frappe.ready(function() {
                     </div>
                 `;
             });
-            
+
             this.elements.catalogGrid.innerHTML = html;
-            
+
             // Add click handlers
-            const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
+            const itemCards = this.elements.catalogGrid.querySelectorAll('.catalog-item');
             itemCards.forEach(card => {
+                if (card.classList.contains('sold-out')) return;
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
                     const item = this.items.find(i => i.name === itemName);
@@ -317,6 +334,7 @@ frappe.ready(function() {
                             <button class="qty-btn qty-plus" data-index="${index}">+</button>
                         </div>
                         ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ''}
+                        ${item.payment_methods && item.payment_methods.length ? `<div class="cart-item-payment-methods">Payment: ${item.payment_methods.join(', ')}</div>` : ''}
                         <div class="cart-item-remove" data-index="${index}">&times;</div>
                     </div>
                 `;
@@ -442,21 +460,33 @@ frappe.ready(function() {
         },
         
         filterItems: function() {
-            this.filteredItems = this.items.filter(item => {
+            const available = [];
+            const soldOut = [];
+
+            this.items.forEach(item => {
                 // Filter by search
-                const matchesSearch = !this.searchQuery || 
+                const matchesSearch = !this.searchQuery ||
                     item.item_name.toLowerCase().includes(this.searchQuery) ||
                     item.item_code.toLowerCase().includes(this.searchQuery) ||
                     (item.description && item.description.toLowerCase().includes(this.searchQuery));
-                
+
                 // Filter by category
-                const matchesCategory = this.selectedCategory === 'all' || 
+                const matchesCategory = this.selectedCategory === 'all' ||
                     item.item_group === this.selectedCategory ||
                     item.menu_category === this.selectedCategory;
-                
-                return matchesSearch && matchesCategory;
+
+                if (matchesSearch && matchesCategory) {
+                    if (item.actual_qty <= 0) {
+                        item.sold_out = true;
+                        soldOut.push(item);
+                    } else {
+                        available.push(item);
+                    }
+                }
             });
-            
+
+            this.filteredItems = available.concat(soldOut);
+
             this.renderItems();
         },
         
@@ -508,9 +538,10 @@ frappe.ready(function() {
         },
         
         addItemToCart: function(item, notes = '') {
+            if (item.sold_out) return;
             // Check if item already in cart
             const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes);
-            
+
             if (existingIndex >= 0) {
                 // Update quantity
                 this.cart[existingIndex].qty += 1;
@@ -525,7 +556,8 @@ frappe.ready(function() {
                     amount: item.standard_rate || 0,
                     notes: notes,
                     kitchen: item.default_kitchen,
-                    kitchen_station: item.default_kitchen_station
+                    kitchen_station: item.default_kitchen_station,
+                    payment_methods: item.payment_methods || []
                 });
             }
             

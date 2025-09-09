@@ -170,10 +170,36 @@
   transform: translateY(-2px);
 }
 
+.catalog-item.sold-out {
+  filter: grayscale(100%);
+  pointer-events: none;
+  position: relative;
+}
+
+.catalog-item.sold-out .item-image {
+  filter: grayscale(100%);
+}
+
+.catalog-item .sold-out-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--color-white);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-md);
+}
+
 .item-image {
   height: 120px;
   background-color: var(--color-gray-100);
   overflow: hidden;
+  position: relative;
 }
 
 .item-image img {
@@ -253,6 +279,12 @@
   font-size: var(--font-size-sm);
   color: var(--color-gray-600);
   margin-bottom: var(--spacing-2);
+}
+
+.cart-item-payment-methods {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+  margin-top: var(--spacing-2);
 }
 
 .cart-item-price {
