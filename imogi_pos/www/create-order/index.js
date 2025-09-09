@@ -59,7 +59,7 @@ function renderOrderFields(meta) {
       parent: wrapper
     });
     ctrl.refresh();
-    orderControls[fn] = ctrl;
+    orderControls[df.fieldname] = ctrl;
   });
 }
 
@@ -120,7 +120,7 @@ function addItemRow() {
   controls.discount.$input.attr('placeholder', discDf ? discDf.label : 'Discount');
 
   const imgTd = document.createElement('td');
-  img = document.createElement('img');
+  const img = document.createElement('img');
   img.style.maxWidth = '50px';
   img.style.maxHeight = '50px';
   imgTd.appendChild(img);
@@ -181,7 +181,6 @@ function submitOrder() {
       const val = ctrl.get_value();
       if (val) args[key] = val;
     });
-  }
 
   if (args.order_type === 'Dine-in' && !args.table) {
     frappe.msgprint(__('Table is required for Dine-in orders'));
