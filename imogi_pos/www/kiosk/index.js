@@ -151,35 +151,26 @@ frappe.ready(function() {
         // Data loading
         loadItems: async function() {
             this.showLoading('Loading catalog...');
-
+            
             try {
                 const response = await frappe.call({
-                    method: 'imogi_pos.api.variants.get_items_with_stock',
+                    method: 'frappe.client.get_list',
                     args: {
-                        warehouse: POS_PROFILE.warehouse,
+                        doctype: 'Item',
+                        filters: {
+                            disabled: 0,
+                            is_sales_item: 1
+                        },
+                        fields: ['name', 'item_name', 'item_code', 'description', 'image', 
+                                'standard_rate', 'has_variants', 'variant_of', 'item_group',
+                                'menu_category', 'photo', 'default_kitchen', 'default_kitchen_station'],
                         limit: 500
                     }
                 });
-
+                
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
-                    const allItems = response.message.filter(item => !item.variant_of);
-
-                    const available = [];
-                    const soldOut = [];
-
-                    allItems.forEach(item => {
-                        item.payment_methods = item.payment_methods || [];
-                        item.actual_qty = item.actual_qty || 0;
-                        if (item.actual_qty <= 0) {
-                            item.sold_out = true;
-                            soldOut.push(item);
-                        } else {
-                            available.push(item);
-                        }
-                    });
-
-                    this.items = available.concat(soldOut);
+                    this.items = response.message.filter(item => !item.variant_of);
                     this.filteredItems = [...this.items];
 
                     // Load rates for items that don't have standard_rate
@@ -195,7 +186,7 @@ frappe.ready(function() {
                     });
                     this.categories = Array.from(categorySet);
                 }
-
+                
                 this.hideLoading();
             } catch (error) {
                 console.error("Error loading items:", error);
@@ -291,14 +282,10 @@ frappe.ready(function() {
             
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                const stockQty = item.qty !== undefined ? item.qty :
-                                 item.stock_qty !== undefined ? item.stock_qty : null;
-                const isSoldOut = stockQty !== null && stockQty <= 0;
-
+                
                 html += `
-                    <div class="catalog-item item-card${isSoldOut ? ' sold-out' : ''}" data-item="${item.name}">
+                    <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
-                        <div class="sold-out-badge">Sold Out</div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
@@ -307,15 +294,13 @@ frappe.ready(function() {
                     </div>
                 `;
             });
-
+            
             this.elements.catalogGrid.innerHTML = html;
-
+            
             // Add click handlers
-            const itemCards = this.elements.catalogGrid.querySelectorAll('.catalog-item');
+            const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
             itemCards.forEach(card => {
-                if (card.classList.contains('sold-out')) return;
                 card.addEventListener('click', () => {
-                    if (card.classList.contains('sold-out')) return;
                     const itemName = card.dataset.item;
                     const item = this.items.find(i => i.name === itemName);
                     if (item) {
@@ -354,7 +339,6 @@ frappe.ready(function() {
                             <button class="qty-btn qty-plus" data-index="${index}">+</button>
                         </div>
                         ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ''}
-                        ${item.payment_methods && item.payment_methods.length ? `<div class="cart-item-payment-methods">Payment: ${item.payment_methods.join(', ')}</div>` : ''}
                         <div class="cart-item-remove" data-index="${index}">&times;</div>
                     </div>
                 `;
@@ -363,29 +347,32 @@ frappe.ready(function() {
             this.elements.cartItems.innerHTML = html;
             
             // Add event listeners
-            const qtyButtons = this.elements.cartItems.querySelectorAll('.qty-btn');
+            const qtyMinusButtons = this.elements.cartItems.querySelectorAll('.qty-minus');
+            const qtyPlusButtons = this.elements.cartItems.querySelectorAll('.qty-plus');
             const qtyInputs = this.elements.cartItems.querySelectorAll('.cart-item-qty');
             const removeButtons = this.elements.cartItems.querySelectorAll('.cart-item-remove');
-
-            qtyButtons.forEach(button => {
+            
+            qtyMinusButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const index = parseInt(button.dataset.index);
-                    const newQty = button.classList.contains('qty-minus')
-                        ? this.cart[index].qty - 1
-                        : this.cart[index].qty + 1;
-                    this.updateCartItemQuantity(index, newQty);
+                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
                 });
             });
-
+            
+            qtyPlusButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const index = parseInt(button.dataset.index);
+                    this.updateCartItemQuantity(index, this.cart[index].qty + 1);
+                });
+            });
+            
             qtyInputs.forEach(input => {
-                const handler = () => {
+                input.addEventListener('change', () => {
                     const index = parseInt(input.dataset.index);
                     this.updateCartItemQuantity(index, parseInt(input.value) || 1);
-                };
-                input.addEventListener('change', handler);
-                input.addEventListener('input', handler);
+                });
             });
-
+            
             removeButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const index = parseInt(button.dataset.index);
@@ -477,33 +464,21 @@ frappe.ready(function() {
         },
         
         filterItems: function() {
-            const available = [];
-            const soldOut = [];
-
-            this.items.forEach(item => {
+            this.filteredItems = this.items.filter(item => {
                 // Filter by search
-                const matchesSearch = !this.searchQuery ||
+                const matchesSearch = !this.searchQuery || 
                     item.item_name.toLowerCase().includes(this.searchQuery) ||
                     item.item_code.toLowerCase().includes(this.searchQuery) ||
                     (item.description && item.description.toLowerCase().includes(this.searchQuery));
-
+                
                 // Filter by category
-                const matchesCategory = this.selectedCategory === 'all' ||
+                const matchesCategory = this.selectedCategory === 'all' || 
                     item.item_group === this.selectedCategory ||
                     item.menu_category === this.selectedCategory;
-
-                if (matchesSearch && matchesCategory) {
-                    if (item.actual_qty <= 0) {
-                        item.sold_out = true;
-                        soldOut.push(item);
-                    } else {
-                        available.push(item);
-                    }
-                }
+                
+                return matchesSearch && matchesCategory;
             });
-
-            this.filteredItems = available.concat(soldOut);
-
+            
             this.renderItems();
         },
         
@@ -555,10 +530,9 @@ frappe.ready(function() {
         },
         
         addItemToCart: function(item, notes = '') {
-            if (item.sold_out) return;
             // Check if item already in cart
             const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes);
-
+            
             if (existingIndex >= 0) {
                 // Update quantity
                 this.cart[existingIndex].qty += 1;
@@ -573,8 +547,7 @@ frappe.ready(function() {
                     amount: item.standard_rate || 0,
                     notes: notes,
                     kitchen: item.default_kitchen,
-                    kitchen_station: item.default_kitchen_station,
-                    payment_methods: item.payment_methods || []
+                    kitchen_station: item.default_kitchen_station
                 });
             }
             
