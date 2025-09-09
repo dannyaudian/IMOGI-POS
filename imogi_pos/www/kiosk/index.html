@@ -8,8 +8,8 @@
 
 <style>
   :root {
-  --brand-primary: #660033;
-  --brand-accent: #8B1538;
+  --brand-primary: #FF8800;
+  --brand-accent: #3b82f6;
   --brand-header-bg: #1f2937;
   --text-dark: #111827;
   --text-light: #4b5563;
@@ -108,7 +108,7 @@ body {
 .search-input:focus {
   outline: none;
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 2px rgba(102, 0, 51, 0.1);
+  box-shadow: 0 0 0 2px rgba(255, 136, 0, 0.1);
 }
 
 .catalog-categories {
@@ -347,7 +347,7 @@ body {
 }
 
 .btn-checkout:hover {
-  background-color: var(--brand-accent);
+  background-color: #e67a00;
 }
 
 .btn-clear {
@@ -439,12 +439,12 @@ body {
 
 .variant-card:hover {
   border-color: var(--brand-accent);
-  background-color: rgba(139, 21, 56, 0.05);
+  background-color: rgba(59, 130, 246, 0.05);
 }
 
 .variant-card.selected {
   border-color: var(--brand-accent);
-  background-color: rgba(139, 21, 56, 0.1);
+  background-color: rgba(59, 130, 246, 0.1);
 }
 
 .variant-name {
@@ -528,7 +528,7 @@ body {
 
 .payment-option.selected {
   border-color: var(--brand-accent);
-  background-color: rgba(139, 21, 56, 0.05);
+  background-color: rgba(59, 130, 246, 0.05);
 }
 
 .payment-option-icon {
@@ -609,6 +609,10 @@ body {
   border-radius: 6px;
   cursor: pointer;
   text-align: center;
+}
+
+.keypad-button.keypad-clear {
+  grid-column: 1 / 3;
 }
 
 .keypad-input {
@@ -793,19 +797,19 @@ body {
     <div class="cart-totals">
       <div class="total-row">
         <span>{{ _("Subtotal") }}</span>
-        <span id="cart-subtotal">Rp 0,00</span>
+        <span id="cart-subtotal">Rp 0</span>
       </div>
       <div class="total-row">
         <span>{{ _("PB1") }}</span>
-        <span id="cart-tax">Rp 0,00</span>
+        <span id="cart-tax">Rp 0</span>
       </div>
       <div class="total-row">
         <span>{{ _("Discount") }}</span>
-        <span id="cart-discount">Rp 0,00</span>
+        <span id="cart-discount">Rp 0</span>
       </div>
       <div class="grand-total total-row">
         <span>{{ _("Total") }}</span>
-        <span id="cart-total">Rp 0,00</span>
+        <span id="cart-total">Rp 0</span>
       </div>
     </div>
     
@@ -870,7 +874,7 @@ body {
       </div>
       
       <div class="payment-amount" id="payment-amount">
-        Rp 0,00
+        Rp 0
       </div>
       
       <div id="payment-qr-section">
@@ -890,7 +894,7 @@ body {
       
       <div id="payment-cash-section" class="hidden">
         <div class="keypad-input-container">
-          <input type="text" id="cash-amount" class="keypad-input" readonly value="Rp 0,00">
+          <input type="text" id="cash-amount" class="keypad-input" readonly value="Rp 0">
         </div>
         
         <div class="keypad">
@@ -908,7 +912,7 @@ body {
         </div>
         
         <div class="payment-change" id="payment-change">
-          {{ _("Change") }}: <span id="change-amount">Rp 0,00</span>
+          {{ _("Change") }}: <span id="change-amount">Rp 0</span>
         </div>
       </div>
     </div>
@@ -948,83 +952,6 @@ body {
   <div class="loading-text" id="loading-text">{{ _("Processing...") }}</div>
 </div>
 
-<script>
-  // Fungsi untuk format mata uang Indonesia
-  function formatIDR(amount) {
-    return 'Rp ' + new Intl.NumberFormat('id-ID', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  }
-
-  // Update semua tampilan mata uang saat halaman dimuat
-  document.addEventListener('DOMContentLoaded', function() {
-    // Update elemen yang sudah ada
-    document.querySelectorAll('[id$="-subtotal"], [id$="-tax"], [id$="-discount"], [id$="-total"], [id$="-amount"]').forEach(function(element) {
-      if (element.textContent.includes('0.00')) {
-        element.textContent = 'Rp 0,00';
-      }
-    });
-    
-    // Override fungsi display harga jika ada
-    if (typeof window.updateCartDisplay === 'function') {
-              const originalUpdateCartDisplay = window.updateCartDisplay;
-      window.updateCartDisplay = function(cart) {
-        originalUpdateCartDisplay(cart);
-        // Format ulang semua harga setelah update
-        document.querySelectorAll('.item-price, .cart-item-price, .variant-price').forEach(function(element) {
-          const text = element.textContent;
-          const match = text.match(/[\d.,]+/);
-          if (match) {
-            const number = parseFloat(match[0].replace(/,/g, ''));
-            if (!isNaN(number)) {
-              element.textContent = text.replace(match[0], formatIDR(number).replace('Rp ', ''));
-            }
-          }
-        });
-      };
-    }
-  });
-
-  // Override fungsi global untuk format mata uang
-  window.formatCurrency = function(amount, currency = 'IDR') {
-    return formatIDR(amount);
-  };
-
-  // Intercept dan format semua update harga
-  const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      if (mutation.type === 'childList' || mutation.type === 'characterData') {
-        const target = mutation.target;
-        if (target.nodeType === Node.TEXT_NODE) {
-          const parent = target.parentElement;
-          if (parent && (parent.classList.contains('item-price') || 
-                        parent.classList.contains('cart-item-price') || 
-                        parent.classList.contains('variant-price') ||
-                        parent.id.includes('total') || 
-                        parent.id.includes('amount'))) {
-            const text = target.textContent;
-            const match = text.match(/[\d.,]+/);
-            if (match && !text.includes('Rp')) {
-              const number = parseFloat(match[0].replace(/,/g, ''));
-              if (!isNaN(number)) {
-                target.textContent = formatIDR(number);
-              }
-            }
-          }
-        }
-      }
-    });
-  });
-
-  // Mulai observasi perubahan DOM
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    characterData: true
-  });
-</script>
-
 {% endblock %}
 
 {% block script %}
@@ -1041,14 +968,6 @@ body {
   const PRINT_SETTINGS = {{ print_settings | tojson }};
   const NEXT_QUEUE_NUMBER = {{ next_queue_number }};
   const ALLOW_NOTES = {{ allow_notes }};
-
-  // Override currency formatting untuk seluruh aplikasi
-  window.formatCurrency = function(amount) {
-    return 'Rp ' + new Intl.NumberFormat('id-ID', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
 </script>
 
 <script src="/assets/imogi_pos/js/nav.js"></script>
