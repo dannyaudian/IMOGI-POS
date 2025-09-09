@@ -105,12 +105,13 @@ def build_invoice_items(order_doc, mode):
     return invoice_items
 
 @frappe.whitelist()
-def generate_invoice(pos_order, mode_of_payment=None, amount=None):
-    """
-    Creates a Sales Invoice (is_pos=1) from a POS Order.
+def generate_invoice(
+    pos_order: str | None = None, mode_of_payment=None, amount=None
+):
+    """Creates a Sales Invoice (``is_pos=1``) from a POS Order.
 
     Args:
-        pos_order (str): POS Order name
+        pos_order (str | None, optional): POS Order name. Required.
         mode_of_payment (str, optional): Mode of payment to record against the invoice
         amount (float, optional): Payment amount
 
@@ -118,8 +119,10 @@ def generate_invoice(pos_order, mode_of_payment=None, amount=None):
         dict: Created Sales Invoice details
 
     Raises:
-        frappe.ValidationError: If any selected item is a template (not a variant)
+        frappe.ValidationError: If POS Order is missing or any selected item is a template
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
     if not mode_of_payment or amount is None:
         frappe.throw(_("Mode of payment and amount are required"), frappe.ValidationError)
 

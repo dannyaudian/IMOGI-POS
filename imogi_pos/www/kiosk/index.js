@@ -15,7 +15,10 @@ frappe.ready(function() {
         taxRate: 0,
         discountPercent: 0,
         discountAmount: 0,
-        
+
+        // Tracking the created POS Order
+        posOrder: null,
+
         // Payment state
         paymentRequest: null,
         paymentMethod: 'qr_code',
@@ -636,18 +639,34 @@ frappe.ready(function() {
         
         requestPaymentQR: async function() {
             this.showLoading('Generating payment QR code...');
-            
+
             try {
-                // Create draft invoice first
+                // Create POS Order first
+                const orderResponse = await frappe.call({
+                    method: 'imogi_pos.api.orders.create_order',
+                    args: {
+                        order_type: 'Kiosk',
+                        branch: CURRENT_BRANCH,
+                        pos_profile: POS_PROFILE,
+                        customer: 'Walk-in Customer',
+                        items: this.cart
+                    }
+                });
+
+                if (!orderResponse.message) {
+                    throw new Error('Failed to create order');
+                }
+
+                this.posOrder = orderResponse.message.name;
+
+                // Create draft invoice for payment
                 const totals = this.calculateTotals();
                 const invoiceResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.generate_invoice',
                     args: {
-                        cart_items: this.cart,
+                        pos_order: this.posOrder,
                         pos_profile: POS_PROFILE,
-                        customer: 'Walk-in Customer',
                         pos_session: ACTIVE_POS_SESSION,
-                        branch: CURRENT_BRANCH,
                         mode_of_payment: 'Online',
                         amount: totals.total
                     }
@@ -869,25 +888,40 @@ frappe.ready(function() {
                     // Use existing invoice
                     invoice = { name: this.paymentRequest.invoice };
                 } else {
-                    // Create new invoice
+                    // Create POS Order and invoice
+                    const orderResponse = await frappe.call({
+                        method: 'imogi_pos.api.orders.create_order',
+                        args: {
+                            order_type: 'Kiosk',
+                            branch: CURRENT_BRANCH,
+                            pos_profile: POS_PROFILE,
+                            customer: 'Walk-in Customer',
+                            items: this.cart
+                        }
+                    });
+
+                    if (!orderResponse.message) {
+                        throw new Error('Failed to create order');
+                    }
+
+                    this.posOrder = orderResponse.message.name;
+
                     const totals = this.calculateTotals();
                     const response = await frappe.call({
                         method: 'imogi_pos.api.billing.generate_invoice',
                         args: {
-                            cart_items: this.cart,
+                            pos_order: this.posOrder,
                             pos_profile: POS_PROFILE,
-                            customer: 'Walk-in Customer',
                             pos_session: ACTIVE_POS_SESSION,
-                            branch: CURRENT_BRANCH,
                             mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
                             amount: totals.total
                         }
                     });
-                    
+
                     if (!response.message) {
                         throw new Error('Failed to create invoice');
                     }
-                    
+
                     invoice = response.message;
                 }
                 
