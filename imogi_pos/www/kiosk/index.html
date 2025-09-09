@@ -5,9 +5,8 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/kiosk.css">
 
-
 <style>
-   :root {
+  :root {
     --primary-color: {{ branding.primary_color }};
     --accent-color: {{ branding.accent_color }};
     --header-bg: {{ branding.header_bg }};
@@ -628,7 +627,6 @@
     cursor: pointer;
   }
 </style>
-
 {% endblock %}
 
 {% block page_content %}
@@ -717,12 +715,8 @@
         <span id="cart-subtotal">{{ currency_symbol }} 0.00</span>
       </div>
       <div class="total-row">
-        <span>{{ _("PB1") }}</span>
+        <span>{{ _("Tax") }}</span>
         <span id="cart-tax">{{ currency_symbol }} 0.00</span>
-      </div>
-      <div class="total-row">
-        <span>{{ _("Discount") }}</span>
-        <span id="cart-discount">{{ currency_symbol }} 0.00</span>
       </div>
       <div class="grand-total total-row">
         <span>{{ _("Total") }}</span>
@@ -731,10 +725,10 @@
     </div>
     
     <div class="cart-actions">
-      <button id="btn-checkout" class="btn btn-primary checkout-btn" disabled>
+      <button id="btn-checkout" class="btn-checkout" disabled>
         {{ _("Checkout") }}
       </button>
-      <button id="btn-clear" class="btn btn-secondary" disabled>
+      <button id="btn-clear" class="btn-clear" disabled>
         {{ _("Clear Order") }}
       </button>
     </div>
@@ -742,8 +736,8 @@
 </div>
 
 <!-- Variant Picker Modal -->
-<div class="modal-overlay" id="variant-modal">
-  <div class="modal-container">
+<div class="modal" id="variant-modal">
+  <div class="modal-content">
     <div class="modal-header">
       <div class="modal-title">{{ _("Choose Variant") }}</div>
       <div class="modal-close">&times;</div>
@@ -768,8 +762,8 @@
 </div>
 
 <!-- Payment Modal -->
-<div class="modal-overlay payment-modal" id="payment-modal">
-  <div class="modal-container">
+<div class="modal payment-modal" id="payment-modal">
+  <div class="modal-content">
     <div class="modal-header">
       <div class="modal-title">{{ _("Complete Payment") }}</div>
       <div class="modal-close">&times;</div>
@@ -809,7 +803,7 @@
         </div>
       </div>
       
-      <div id="payment-cash-section" class="hidden">
+      <div id="payment-cash-section" style="display: none;">
         <div class="keypad-input-container">
           <input type="text" id="cash-amount" class="keypad-input" readonly value="{{ currency_symbol }} 0.00">
         </div>
@@ -841,8 +835,8 @@
 </div>
 
 <!-- Success Modal -->
-<div class="modal-overlay success-modal" id="success-modal">
-  <div class="modal-container">
+<div class="modal success-modal" id="success-modal">
+  <div class="modal-content">
     <div class="success-icon">
       <i class="fa fa-check-circle"></i>
     </div>
@@ -857,7 +851,7 @@
       <div>{{ _("Please wait for your number to be called") }}</div>
     </div>
     
-    <div class="mt-8">
+    <div style="margin-top: 2rem;">
       <button class="btn-done" id="btn-success-done">{{ _("Done") }}</button>
     </div>
   </div>
@@ -888,7 +882,7 @@
 </script>
 
 <script src="/assets/imogi_pos/js/nav.js"></script>
-<script src="/assets/imogi_pos/js/auth.js"></script>
+<script src="/assets/imogi_pos/js/branch.js"></script>
 <script src="/assets/imogi_pos/js/print/service.js"></script>
-<script src="../kiosk/index.js"></script>
+<script src="/assets/imogi_pos/www/kiosk/index.js"></script>
 {% endblock %}
