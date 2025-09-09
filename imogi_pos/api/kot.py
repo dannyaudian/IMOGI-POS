@@ -140,25 +140,37 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
 
 
 @frappe.whitelist()
-def send_items_to_kitchen(pos_order=None, item_rows=None):
+def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     """
     Creates a KOT Ticket and sends selected items to the kitchen.
-    
+
     Args:
-        pos_order (str): POS Order name
-        item_rows (list or str): List of POS Order Item rows to include in the KOT
-    
+        pos_order (str, optional): POS Order name. Provide this or ``order``.
+        item_rows (list or str): List of POS Order Item rows to include in the KOT.
+        order (dict or object, optional): Full POS Order data. If provided,
+            its ``name`` field is used as ``pos_order``.
+
     Returns:
         dict: Created KOT Ticket details
-    
+
     Raises:
         frappe.ValidationError: If any selected item is a template (not a variant)
     """
-        
+
     # Parse JSON if item_rows is passed as string
     if isinstance(item_rows, str):
         item_rows = frappe.parse_json(item_rows)
-    
+
+    # Allow passing full order data instead of just the name
+    if not pos_order and order:
+        if isinstance(order, dict):
+            pos_order = order.get("name")
+        else:
+            pos_order = getattr(order, "name", None)
+
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)
