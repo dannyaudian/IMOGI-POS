@@ -7,9 +7,9 @@
 
 <style>
   :root {
-    --primary-color: {{ branding.primary_color }};
-    --accent-color: {{ branding.accent_color }};
-    --header-bg: {{ branding.header_bg }};
+    --brand-primary: {{ branding.primary_color }};
+    --brand-accent: {{ branding.accent_color }};
+    --brand-header-bg: {{ branding.header_bg }};
   }
   
   .kiosk-container {
@@ -69,7 +69,7 @@
   }
   
   .category-pill.active {
-    background-color: var(--primary-color);
+    background-color: var(--brand-primary);
     color: white;
   }
   
@@ -139,7 +139,7 @@
   }
   
   .item-price {
-    color: var(--primary-color);
+    color: var(--brand-primary);
     font-weight: 600;
   }
   
@@ -260,7 +260,7 @@
   }
   
   .btn-checkout {
-    background-color: var(--primary-color);
+    background-color: var(--brand-primary);
     color: white;
     border: none;
     padding: 0.75rem;
@@ -351,12 +351,12 @@
   }
   
   .variant-card:hover {
-    border-color: var(--accent-color);
+    border-color: var(--brand-accent);
     background-color: rgba(36, 144, 239, 0.05);
   }
   
   .variant-card.selected {
-    border-color: var(--accent-color);
+    border-color: var(--brand-accent);
     background-color: rgba(36, 144, 239, 0.1);
   }
   
@@ -366,7 +366,7 @@
   }
   
   .variant-price {
-    color: var(--primary-color);
+    color: var(--brand-primary);
   }
   
   .variant-attributes {
@@ -417,7 +417,7 @@
   }
   
   .btn-add {
-    background-color: var(--primary-color);
+    background-color: var(--brand-primary);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -446,7 +446,7 @@
   }
   
   .payment-option.selected {
-    border-color: var(--accent-color);
+    border-color: var(--brand-accent);
     background-color: rgba(36, 144, 239, 0.05);
   }
   
@@ -575,7 +575,7 @@
     width: 50px;
     height: 50px;
     border: 5px solid #f3f3f3;
-    border-top: 5px solid var(--primary-color);
+    border-top: 5px solid var(--brand-primary);
     border-radius: 50%;
     animation: spin 2s linear infinite;
     margin-bottom: 1rem;
@@ -638,11 +638,11 @@
     font-size: 3rem;
     font-weight: bold;
     margin: 1rem 0;
-    color: var(--primary-color);
+    color: var(--brand-primary);
   }
   
   .btn-done {
-    background-color: var(--primary-color);
+    background-color: var(--brand-primary);
     color: white;
     border: none;
     padding: 0.75rem 2rem;
