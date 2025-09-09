@@ -15,7 +15,7 @@
   --brand-primary: #1a73e8;
   --brand-accent: #f5c518;
   --brand-header-bg: #202124;
-  --brand-text: #ffffff;
+  --brand-text: var(--color-black);
   
   /* Neutral Colors */
   --color-white: #ffffff;
@@ -158,6 +158,7 @@
 /* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   :root {
+    --brand-text: var(--color-white);
     --color-gray-50: #18191a;
     --color-gray-100: #242526;
     --color-gray-200: #3a3b3c;

@@ -123,7 +123,7 @@
 .category-item.active,
 .category-pill.active {
   background-color: var(--brand-primary);
-  color: white;
+  color: var(--color-white);
   border-color: var(--brand-primary);
 }
 
@@ -317,7 +317,7 @@
 
 .remove-btn:hover {
   background-color: var(--color-danger);
-  color: white;
+  color: var(--color-white);
 }
 
 .cart-empty {
@@ -427,7 +427,7 @@
 
 .option-item.selected {
   background-color: var(--brand-primary);
-  color: white;
+  color: var(--color-white);
   border-color: var(--brand-primary);
 }
 
@@ -498,7 +498,7 @@
 
 .checkout-step.active .step-number {
   background-color: var(--brand-primary);
-  color: white;
+  color: var(--color-white);
 }
 
 .checkout-step.active .step-text {
@@ -508,7 +508,7 @@
 
 .checkout-step.completed .step-number {
   background-color: var(--color-success);
-  color: white;
+  color: var(--color-white);
 }
 
 .checkout-content {
@@ -747,7 +747,7 @@
   right: 0;
   bottom: 0;
   background-color: var(--color-success);
-  color: white;
+  color: var(--color-white);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1152,8 +1152,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: #fff;
+  background-color: rgba(0, 0, 0, 0.6);
+    color: var(--color-white);
     display: none;
     align-items: center;
     justify-content: center;
@@ -1172,11 +1172,11 @@
   }
 
   
-  .item-has-variants {
-    font-size: 0.8rem;
-    color: #666;
-    margin-top: 0.25rem;
-  }
+    .item-has-variants {
+      font-size: 0.8rem;
+      color: var(--brand-text);
+      margin-top: 0.25rem;
+    }
 
   
   .cart-section {
@@ -1208,21 +1208,21 @@
   }
 
   
-  .cart-item-notes {
-    font-size: 0.9rem;
-    color: #666;
-    margin-top: 0.5rem;
-    font-style: italic;
-  }
+    .cart-item-notes {
+      font-size: 0.9rem;
+      color: var(--brand-text);
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
 
   
-  .cart-item-remove {
-    position: absolute;
-    top: 1rem;
-    right: 0;
-    color: #ff5555;
-    cursor: pointer;
-  }
+    .cart-item-remove {
+      position: absolute;
+      top: 1rem;
+      right: 0;
+      color: var(--color-danger);
+      cursor: pointer;
+    }
 
   
   .cart-actions {
@@ -1283,11 +1283,11 @@
   }
 
   
-  .variant-attributes {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    color: #666;
-  }
+    .variant-attributes {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--brand-text);
+    }
 
   
   .variant-attribute {
@@ -1300,24 +1300,24 @@
     margin-top: 1rem;
   }
   
-  .btn-cancel {
-    background-color: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
+    .btn-cancel {
+      background-color: #f5f5f5;
+      color: var(--brand-text);
+      border: 1px solid #ddd;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
   
-  .btn-add {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
+    .btn-add {
+      background-color: var(--primary-color);
+      color: var(--color-white);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
   
   /* Payment Modal */
@@ -1353,22 +1353,22 @@
   }
 
   
-  .payment-status.pending {
-    background-color: #fff3cd;
-    color: #856404;
-  }
+    .payment-status.pending {
+      background-color: #fff3cd;
+      color: var(--color-black);
+    }
 
   
-  .payment-status.success {
-    background-color: #d4edda;
-    color: #155724;
-  }
+    .payment-status.success {
+      background-color: #d4edda;
+      color: var(--color-black);
+    }
 
   
-  .payment-status.error {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
+    .payment-status.error {
+      background-color: #f8d7da;
+      color: var(--color-black);
+    }
 
   
   .keypad {
@@ -1394,14 +1394,14 @@
   }
 
   
-  .session-warning {
-    background-color: #fff3cd;
-    color: #856404;
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin: 1rem;
-    text-align: center;
-  }
+    .session-warning {
+      background-color: #fff3cd;
+      color: var(--color-black);
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin: 1rem;
+      text-align: center;
+    }
 
   
   .loading-overlay {
@@ -1441,28 +1441,28 @@
 
   
   /* Empty states */
-  .empty-catalog {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #666;
-    padding: 2rem;
-    text-align: center;
-  }
+    .empty-catalog {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--brand-text);
+      padding: 2rem;
+      text-align: center;
+    }
 
   
-  .empty-cart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #666;
-    padding: 2rem;
-    text-align: center;
-  }
+    .empty-cart {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--brand-text);
+      padding: 2rem;
+      text-align: center;
+    }
 
   
   /* Success Modal */
@@ -1485,12 +1485,12 @@
   }
 
   
-  .btn-done {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 0.75rem 2rem;
-    border-radius: 4px;
-    font-size: 1.1rem;
-    cursor: pointer;
-  }
+    .btn-done {
+      background-color: var(--primary-color);
+      color: var(--color-white);
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 4px;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
