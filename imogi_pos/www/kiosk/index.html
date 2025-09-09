@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/kiosk.css">
 
+
 <style>
   :root {
     --brand-primary: {{ branding.primary_color }};
@@ -651,6 +652,7 @@
     cursor: pointer;
   }
 </style>
+
 {% endblock %}
 
 {% block page_content %}
@@ -753,10 +755,10 @@
     </div>
     
     <div class="cart-actions">
-      <button id="btn-checkout" class="btn-checkout" disabled>
+      <button id="btn-checkout" class="btn btn-primary checkout-btn" disabled>
         {{ _("Checkout") }}
       </button>
-      <button id="btn-clear" class="btn-clear" disabled>
+      <button id="btn-clear" class="btn btn-secondary" disabled>
         {{ _("Clear Order") }}
       </button>
     </div>
@@ -764,8 +766,8 @@
 </div>
 
 <!-- Variant Picker Modal -->
-<div class="modal" id="variant-modal">
-  <div class="modal-content">
+<div class="modal-overlay" id="variant-modal">
+  <div class="modal-container">
     <div class="modal-header">
       <div class="modal-title">{{ _("Choose Variant") }}</div>
       <div class="modal-close">&times;</div>
@@ -790,8 +792,8 @@
 </div>
 
 <!-- Payment Modal -->
-<div class="modal payment-modal" id="payment-modal">
-  <div class="modal-content">
+<div class="modal-overlay payment-modal" id="payment-modal">
+  <div class="modal-container">
     <div class="modal-header">
       <div class="modal-title">{{ _("Complete Payment") }}</div>
       <div class="modal-close">&times;</div>
@@ -863,8 +865,8 @@
 </div>
 
 <!-- Success Modal -->
-<div class="modal success-modal" id="success-modal">
-  <div class="modal-content">
+<div class="modal-overlay success-modal" id="success-modal">
+  <div class="modal-container">
     <div class="success-icon">
       <i class="fa fa-check-circle"></i>
     </div>
