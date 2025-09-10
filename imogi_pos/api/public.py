@@ -317,7 +317,7 @@ def get_cashier_device_sessions(limit=5):
     return frappe.get_all(
         "Cashier Device Session",
         filters={"user": user},
-        fields=["name", "device", "opening_balance", "timestamp"],
+        fields=["name", "device", "opening_balance", "timestamp", "user"],
         order_by="timestamp desc",
         limit=limit,
     )

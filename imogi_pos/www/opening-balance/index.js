@@ -15,7 +15,7 @@ frappe.ready(() => {
       const sessions = r.message || [];
       sessions.forEach((s) => {
         const li = document.createElement('li');
-        li.textContent = `${s.timestamp} - ${s.device} - ${s.opening_balance}`;
+        li.textContent = `${s.timestamp} - ${s.user} - ${s.device} - ${s.opening_balance}`;
         sessionList.appendChild(li);
       });
     },
