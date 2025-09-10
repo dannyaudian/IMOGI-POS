@@ -5,7 +5,7 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from frappe.utils import cint
+from frappe.utils import cint, format_datetime
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
 
@@ -39,9 +39,13 @@ def get_context(context):
         active_session = check_active_pos_session(pos_profile.name)
         context.has_active_session = bool(active_session)
         context.active_pos_session = active_session
+        context.session_start = (
+            format_datetime(active_session.get("creation")) if active_session else None
+        )
     else:
         context.has_active_session = True
         context.active_pos_session = None
+        context.session_start = None
     
     # Get branding information
     context.branding = get_branding_info(pos_profile)
