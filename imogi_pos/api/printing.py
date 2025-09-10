@@ -130,6 +130,27 @@ def validate_adapter_settings(settings):
     if interface == "Bluetooth" and not config.get("device_name"):
         frappe.throw(_("Bluetooth device name is required for Bluetooth interface"))
 
+
+@frappe.whitelist()
+def get_printer_config(pos_profile=None, job_type="receipt"):
+    """Return printer configuration for a POS profile and job type."""
+
+    adapter_map = {
+        "kot": "kitchen",
+        "receipt": "cashier",
+        "customer_bill": "cashier",
+        "queue_ticket": "cashier",
+        "test": "cashier",
+    }
+    adapter_type = adapter_map.get(job_type, "cashier")
+
+    if pos_profile:
+        profile_doc = frappe.get_doc("POS Profile", pos_profile)
+        if profile_doc.get("imogi_branch"):
+            validate_branch_access(profile_doc.imogi_branch)
+
+    return get_print_adapter_settings(adapter_type, pos_profile=pos_profile)
+
 def get_print_format_html(doc, print_format_name=None):
     """
     Gets the HTML for a print format.
@@ -252,14 +273,57 @@ def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_f
         }
 
 @frappe.whitelist()
+def get_customer_bill_html(pos_order, pos_profile=None):
+    """Get rendered HTML and format for a customer bill."""
+
+    try:
+        order_doc = frappe.get_doc("POS Order", pos_order)
+        validate_branch_access(order_doc.branch)
+
+        if not pos_profile:
+            pos_profile = order_doc.pos_profile
+
+        print_format = None
+        hide_notes = False
+
+        if pos_profile:
+            profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            if profile_doc.get("imogi_branch"):
+                validate_branch_access(profile_doc.imogi_branch)
+            print_format = profile_doc.get("imogi_customer_bill_format")
+            if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
+                hide_notes = True
+
+        if not print_format:
+            print_format = frappe.db.get_single_value(
+                "Restaurant Settings", "imogi_default_customer_bill_format"
+            )
+
+        html_content = get_print_format_html(order_doc, print_format)
+
+        if hide_notes:
+            html_content = html_content.replace("<!-- ITEM_NOTES_START -->", "<!-- ")
+            html_content = html_content.replace("<!-- ITEM_NOTES_END -->", " -->")
+
+        return {
+            "html": html_content,
+            "print_format": print_format,
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error generating customer bill HTML: {str(e)}")
+        return {"error": str(e)}
+
+
+@frappe.whitelist()
 def print_customer_bill(pos_order, print_format=None):
     """
     Prints a customer bill (pro-forma invoice) for a POS Order.
-    
+
     Args:
         pos_order (str): POS Order name
         print_format (str, optional): Print Format to use. Defaults to None.
-    
+
     Returns:
         dict: Print status
     """
@@ -270,47 +334,47 @@ def print_customer_bill(pos_order, print_format=None):
         # Get POS Order details
         order_doc = frappe.get_doc("POS Order", pos_order)
         validate_branch_access(order_doc.branch)
-        
+
         # Get print format name if not provided
         if not print_format and order_doc.pos_profile:
             profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
             print_format = profile_doc.get("imogi_customer_bill_format")
-        
+
         if not print_format:
             print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_customer_bill_format")
-        
+
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(
-            "cashier", 
+            "cashier",
             source_doc=order_doc
         )
-        
+
         # For table service, we might want to hide line notes from the customer bill
         hide_notes = False
         if order_doc.pos_profile:
             profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
             if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
                 hide_notes = True
-        
+
         # Get the HTML content
         html_content = get_print_format_html(order_doc, print_format)
-        
+
         # If hiding notes, modify the HTML (simplified approach - in production you'd use DOM parsing)
         if hide_notes:
-            # This is a simplified approach - in real implementation you would use 
+            # This is a simplified approach - in real implementation you would use
             # proper DOM parsing to remove note elements based on their class/id
             html_content = html_content.replace("<!-- ITEM_NOTES_START -->", "<!-- ")
             html_content = html_content.replace("<!-- ITEM_NOTES_END -->", " -->")
-        
+
         # Print using the appropriate adapter
         from imogi_pos.utils.printing import print_document
-        
+
         print_result = print_document(
             html_content,
             adapter_settings["interface"],
             adapter_settings["adapter_config"]
         )
-        
+
         return {
             "success": print_result.get("success", False),
             "pos_order": pos_order,
@@ -318,7 +382,7 @@ def print_customer_bill(pos_order, print_format=None):
             "timestamp": now_datetime().isoformat(),
             "error": print_result.get("error")
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error printing customer bill: {str(e)}")
         return {
@@ -378,7 +442,7 @@ def print_receipt(sales_invoice, print_format=None):
             "timestamp": now_datetime().isoformat(),
             "error": print_result.get("error")
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error printing receipt: {str(e)}")
         return {
@@ -387,6 +451,66 @@ def print_receipt(sales_invoice, print_format=None):
             "error": str(e),
             "timestamp": now_datetime().isoformat()
         }
+
+@frappe.whitelist()
+def get_queue_ticket_html(sales_invoice, pos_profile=None):
+    """Get rendered HTML and format for a queue ticket."""
+
+    try:
+        invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
+        validate_branch_access(invoice_doc.branch)
+
+        if not pos_profile:
+            pos_profile = invoice_doc.pos_profile
+
+        print_format = None
+        if pos_profile:
+            profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            if profile_doc.get("imogi_branch"):
+                validate_branch_access(profile_doc.imogi_branch)
+            print_format = profile_doc.get("imogi_queue_format")
+
+        if not print_format:
+            print_format = frappe.db.get_single_value(
+                "Restaurant Settings", "imogi_default_queue_format"
+            )
+
+        queue_no = (
+            invoice_doc.get("queue_no")
+            or invoice_doc.get("queue_number")
+            or sales_invoice
+        )
+
+        queue_data = {
+            "queue_no": queue_no,
+            "timestamp": now_datetime().isoformat(),
+            "branch": invoice_doc.branch,
+        }
+
+        template_path = os.path.join(
+            frappe.get_app_path("imogi_pos", "templates", "queue_ticket.html")
+        )
+
+        if os.path.exists(template_path):
+            with open(template_path, "r") as f:
+                template = f.read()
+            html_content = frappe.render_template(template, queue_data)
+        else:
+            html_content = f"""
+            <div style=\"text-align: center; padding: 20px;\">
+                <h1>Queue Ticket</h1>
+                <h2 style=\"font-size: 48px; margin: 20px 0;\">{queue_no}</h2>
+                <p>{now_datetime().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Thank you for your order!</p>
+            </div>
+            """
+
+        return {"html": html_content, "print_format": print_format}
+
+    except Exception as e:
+        frappe.log_error(f"Error generating queue ticket HTML: {str(e)}")
+        return {"error": str(e)}
+
 
 @frappe.whitelist()
 def print_queue_ticket(queue_no, pos_profile=None, print_format=None):
