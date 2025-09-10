@@ -11,6 +11,7 @@ frappe.ready(() => {
 
   frappe.call({
     method: 'imogi_pos.api.public.get_cashier_device_sessions',
+    args: { device },
     callback: (r) => {
       const sessions = r.message || [];
       sessions.forEach((s) => {
@@ -46,6 +47,10 @@ frappe.ready(() => {
         sessionList.appendChild(card);
       });
     },
+    error: (err) => {
+      console.error(err);
+      frappe.msgprint(__('Failed to load sessions'));
+    },
   });
 
   form.addEventListener('submit', (e) => {
@@ -56,6 +61,10 @@ frappe.ready(() => {
       args: { device_type: device, opening_balance: amount },
       callback: () => {
         window.location.href = next;
+      },
+      error: (err) => {
+        console.error(err);
+        frappe.msgprint(__('Failed to record opening balance'));
       },
     });
   });
