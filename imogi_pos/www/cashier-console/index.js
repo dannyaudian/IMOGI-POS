@@ -147,7 +147,8 @@ frappe.ready(function () {
       return (
         (order.name && order.name.toLowerCase().includes(s)) ||
         (order.table && String(order.table).toLowerCase().includes(s)) ||
-        (order.customer_name && order.customer_name.toLowerCase().includes(s))
+        (order.customer_name && order.customer_name.toLowerCase().includes(s)) ||
+        (order.queue_number && String(order.queue_number).includes(s))
       );
     });
   }
@@ -180,10 +181,11 @@ frappe.ready(function () {
           <div class="order-item-meta">${Number(it.qty || 0)}x ${formatCurrency(Number(it.rate || 0))}</div>
         </div>`).join('');
 
+      const displayName = order.queue_number ? `#${escapeHtml(String(order.queue_number))}` : escapeHtml(order.name);
       return `
         <div class="order-card ${isSelected ? 'selected' : ''}" data-order="${order.name}">
           <div class="order-meta">
-            <span>${escapeHtml(order.name)}</span>
+            <span>${displayName}</span>
             <span>${escapeHtml(time)}</span>
           </div>
           <div class="order-info">

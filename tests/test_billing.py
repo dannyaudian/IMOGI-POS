@@ -891,6 +891,50 @@ def test_list_orders_for_cashier_resolves_branch(billing_module):
     assert called['branch'] == 'BR-1'
 
 
+def test_list_orders_for_cashier_includes_queue_number(billing_module):
+    billing, frappe = billing_module
+
+    def get_all(doctype, filters=None, fields=None, order_by=None):
+        if doctype == 'POS Order':
+            assert 'queue_number' in fields
+            return [{
+                'name': 'POS-1',
+                'customer': 'CUST-1',
+                'order_type': 'Dine-in',
+                'table': 'T1',
+                'queue_number': 7,
+                'workflow_state': 'Ready',
+                'discount_percent': 0,
+                'discount_amount': 0,
+                'promo_code': None,
+                'totals': 10,
+                'creation': '2023-01-01 00:00:00',
+            }]
+        if doctype == 'POS Order Item':
+            return [{
+                'item': 'ITEM-1',
+                'qty': 1,
+                'rate': 10,
+                'amount': 10,
+                'notes': ''
+            }]
+        return []
+
+    frappe.get_all = get_all
+
+    def get_value(doctype, name=None, fieldname=None, as_dict=False):
+        if doctype == 'Customer' and fieldname == 'customer_name':
+            return 'Test Customer'
+        if doctype == 'Item' and as_dict:
+            return {'item_name': 'Item 1', 'image': None}
+        return None
+
+    frappe.db.get_value = get_value
+
+    orders = billing.list_orders_for_cashier(branch='BR-1')
+    assert orders[0]['queue_number'] == 7
+
+
 def test_list_orders_for_cashier_errors_without_profile(billing_module):
     billing, frappe = billing_module
 
