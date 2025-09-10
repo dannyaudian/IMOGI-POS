@@ -943,7 +943,7 @@ frappe.ready(function() {
                 
                 // Auto-print queue ticket if enabled
                 if (PRINT_SETTINGS.print_queue_ticket) {
-                    await this.printQueueTicket(invoice.name);
+                    await this.printQueueTicket();
                 }
                 
                 this.hideLoading();
@@ -986,14 +986,13 @@ frappe.ready(function() {
             }
         },
         
-        printQueueTicket: async function(invoiceName) {
+        printQueueTicket: async function() {
             try {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.printing.print_queue_ticket',
                     args: {
-                        invoice: invoiceName,
-                        pos_profile: POS_PROFILE,
-                        queue_number: NEXT_QUEUE_NUMBER
+                        queue_no: NEXT_QUEUE_NUMBER,
+                        pos_profile: POS_PROFILE
                     }
                 });
                 
