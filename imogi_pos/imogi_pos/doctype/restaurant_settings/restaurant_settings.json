@@ -48,6 +48,8 @@
     "self_order_default_token_ttl",
     "self_order_disclaimer",
     "miscellaneous_section",
+    "imogi_default_receipt_format",
+    "imogi_default_queue_format",
     "show_prices_on_qr_menu",
     "show_out_of_stock_indicator",
     "hide_inactive_items"
@@ -305,6 +307,18 @@
       "fieldname": "miscellaneous_section",
       "fieldtype": "Section Break",
       "label": "Miscellaneous"
+    },
+    {
+      "fieldname": "imogi_default_receipt_format",
+      "fieldtype": "Link",
+      "label": "Default Receipt Print Format",
+      "options": "Print Format"
+    },
+    {
+      "fieldname": "imogi_default_queue_format",
+      "fieldtype": "Link",
+      "label": "Default Queue Print Format",
+      "options": "Print Format"
     },
     {
       "default": "1",
