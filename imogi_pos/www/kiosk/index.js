@@ -311,6 +311,7 @@ frappe.ready(async function() {
                 html += `
                     <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+                        <div class="sold-out-badge">Sold Out</div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
@@ -326,12 +327,24 @@ frappe.ready(async function() {
             const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
             itemCards.forEach(card => {
                 card.addEventListener('click', () => {
+                    if (card.classList.contains('sold-out')) {
+                        return;
+                    }
                     const itemName = card.dataset.item;
                     const item = this.items.find(i => i.name === itemName);
                     if (item) {
                         this.handleItemClick(item);
                     }
                 });
+            });
+
+            // Apply sold-out state to rendered items
+            itemCards.forEach(card => {
+                const itemName = card.dataset.item;
+                const item = this.items.find(i => i.name === itemName);
+                if (item) {
+                    this.updateItemStock(item.name, item.actual_qty);
+                }
             });
         },
         
@@ -473,8 +486,16 @@ frappe.ready(async function() {
             if (item) {
                 item.actual_qty = actualQty;
             }
-            // Previously we toggled sold-out styles and badges here.
-            // With the removal of the sold-out overlay, we only update the item's stock data.
+            const card = this.elements.catalogGrid.querySelector(`.item-card[data-item="${itemCode}"]`);
+            if (card) {
+                if (actualQty <= 0) {
+                    card.classList.add('sold-out');
+                    card.style.pointerEvents = 'none';
+                } else {
+                    card.classList.remove('sold-out');
+                    card.style.pointerEvents = '';
+                }
+            }
         },
 
         refreshStockLevels: async function() {
