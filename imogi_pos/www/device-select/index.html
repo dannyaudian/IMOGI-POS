@@ -9,20 +9,25 @@
     gap: 1.5rem;
     padding: 2rem;
   }
-  .device-select button {
+  .device-select .device-link {
+    display: inline-block;
     padding: 1rem 2rem;
     font-size: 1.1rem;
     cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--gray-300, #ccc);
+    border-radius: 4px;
+    background-color: var(--gray-100, #f8f9fa);
   }
 </style>
 {% endblock %}
 
 {% block page_content %}
 <div class="device-select">
-  <button id="kiosk-btn">{{ _("Kiosk") }}</button>
-  <button id="cashier-btn">{{ _("Cashier") }}</button>
+  <a class="device-link" data-device="kiosk" href="/opening-balance?device=kiosk&next=/kiosk">{{ _("Kiosk") }}</a>
+  <a class="device-link" data-device="cashier" href="/cashier-console">{{ _("Cashier") }}</a>
 </div>
-<div id="device-modal"></div>
 {% endblock %}
 
 {% block script %}
