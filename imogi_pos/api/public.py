@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now, get_url
+from frappe.utils import now, get_url, flt
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
@@ -265,3 +265,4 @@ def record_opening_balance(device_type, opening_balance):
     doc.insert(ignore_permissions=True)
 
     return {"status": "ok"}
+

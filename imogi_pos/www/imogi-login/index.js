@@ -49,7 +49,7 @@ frappe.ready(function() {
           response.message === 'Logged In' ||
           (frappe.session && frappe.session.user && frappe.session.user !== 'Guest')
         ) {
-          // Login successful, redirect
+          // Login successful, fetch user info and redirect
           try {
             let sid = (frappe.session && frappe.session.sid);
             if (!sid) {
@@ -61,11 +61,35 @@ frappe.ready(function() {
               // server-managed HTTP-only cookies.
               frappe.sid = sid;
             }
-            const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
-            window.location.href = redirectTo;
-            localStorage.removeItem('login_redirect');
+
+            const storedRedirect = localStorage.getItem('login_redirect') || '/cashier-console';
+
+            frappe.call({
+              method: 'imogi_pos.api.public.get_current_user_info',
+              callback: function(r) {
+                let redirectTo = storedRedirect;
+                try {
+                  const roles = (r.message && r.message.roles) || [];
+                  if (roles.includes('Cashier')) {
+                    const url = new URL(window.location.origin + storedRedirect);
+                    const redirectParam = url.searchParams.get('redirect');
+                    redirectTo = '/device-select';
+                    if (redirectParam) {
+                      redirectTo += `?redirect=${encodeURIComponent(redirectParam)}`;
+                    }
+                  }
+                  window.location.href = redirectTo;
+                } finally {
+                  localStorage.removeItem('login_redirect');
+                }
+              },
+              error: function() {
+                window.location.href = storedRedirect;
+                localStorage.removeItem('login_redirect');
+              }
+            });
           } catch (e) {
-            console.error("Redirect error:", e);
+            console.error('Redirect error:', e);
             window.location.href = '/cashier-console';
             localStorage.removeItem('login_redirect');
           }
