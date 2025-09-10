@@ -668,7 +668,7 @@ frappe.ready(function() {
                     args: {
                         order_type: 'Kiosk',
                         branch: CURRENT_BRANCH,
-                        pos_profile: POS_PROFILE,
+                        pos_profile: POS_PROFILE.name,
                         customer: 'Walk-in Customer',
                         items: this.cart
                     }
@@ -688,7 +688,7 @@ frappe.ready(function() {
                     method: 'imogi_pos.api.billing.generate_invoice',
                     args: {
                         pos_order: this.posOrder,
-                        pos_profile: POS_PROFILE,
+                        pos_profile: POS_PROFILE.name,
                         pos_session: ACTIVE_POS_SESSION,
                         mode_of_payment: 'Online',
                         amount: totals.total
@@ -917,7 +917,7 @@ frappe.ready(function() {
                         args: {
                             order_type: 'Kiosk',
                             branch: CURRENT_BRANCH,
-                            pos_profile: POS_PROFILE,
+                            pos_profile: POS_PROFILE.name,
                             customer: 'Walk-in Customer',
                             items: this.cart
                         }
@@ -936,7 +936,7 @@ frappe.ready(function() {
                         method: 'imogi_pos.api.billing.generate_invoice',
                         args: {
                             pos_order: this.posOrder,
-                            pos_profile: POS_PROFILE,
+                            pos_profile: POS_PROFILE.name,
                             pos_session: ACTIVE_POS_SESSION,
                             mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
                             amount: totals.total
@@ -1015,7 +1015,7 @@ frappe.ready(function() {
                     method: 'imogi_pos.api.printing.print_queue_ticket',
                     args: {
                         queue_no: this.queueNumber,
-                        pos_profile: POS_PROFILE
+                        pos_profile: POS_PROFILE.name
                     }
                 });
 
@@ -1086,7 +1086,7 @@ frappe.ready(function() {
             // Initialize the print service from the shared module
             if (window.ImogiPrintService) {
                 ImogiPrintService.init({
-                    profile: POS_PROFILE,
+                    profile: POS_PROFILE.name,
                     defaultInterface: 'OS' // Fallback to OS printing if profile doesn't specify
                 });
             } else {
