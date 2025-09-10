@@ -5,6 +5,13 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <style>
   body { background:#ff6600; color:#fff; }
+  .opening-balance-wrapper {
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+  }
   .opening-balance-form {
     display: flex;
     flex-direction: column;
@@ -36,12 +43,14 @@
 {% endblock %}
 
 {% block page_content %}
-<form id="opening-balance-form" class="opening-balance-form">
-  <label for="opening-balance">{{ _("Opening Balance") }}</label>
-  <input type="number" id="opening-balance" required />
-  <button type="submit">{{ _("Start") }}</button>
-</form>
-<div id="session-list" class="session-cards"></div>
+<div class="opening-balance-wrapper">
+  <form id="opening-balance-form" class="opening-balance-form">
+    <label for="opening-balance">{{ _("Opening Balance") }}</label>
+    <input type="number" id="opening-balance" required />
+    <button type="submit">{{ _("Start") }}</button>
+  </form>
+  <div id="session-list" class="session-cards"></div>
+</div>
 {% endblock %}
 
 {% block script %}
