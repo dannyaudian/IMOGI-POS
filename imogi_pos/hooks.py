@@ -91,3 +91,5 @@ jinja = {
     ]
 }
 
+after_install = "imogi_pos.setup.install.create_cash_accounts"
+after_migrate = "imogi_pos.setup.install.create_cash_accounts"
