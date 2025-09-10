@@ -33,18 +33,67 @@ def public_module():
 
     inserted = []
 
-    class Doc:
+    class SessionDoc:
         def __init__(self, data):
             self.data = data
+            self.name = "SESSION-001"
+            self.meta = types.SimpleNamespace(get_field=lambda x: None)
 
         def insert(self, ignore_permissions=False):
             inserted.append(self.data)
             return self
 
+        def db_set(self, fieldname, value):
+            self.data[fieldname] = value
+
+    class JournalDoc:
+        def __init__(self):
+            self.voucher_type = None
+            self.posting_date = None
+            self.company = None
+            self.accounts = []
+            self.name = "JE-001"
+
+        def append(self, fieldname, value):
+            if fieldname == "accounts":
+                self.accounts.append(value)
+
+        def insert(self, ignore_permissions=False):
+            inserted.append({
+                "doctype": "Journal Entry",
+                "voucher_type": self.voucher_type,
+                "posting_date": self.posting_date,
+                "company": self.company,
+                "accounts": self.accounts,
+            })
+            return self
+
+        def submit(self):
+            pass
+
     def get_doc(data):
-        return Doc(data)
+        return SessionDoc(data)
+
+    def new_doc(doctype):
+        assert doctype == "Journal Entry"
+        return JournalDoc()
 
     frappe.get_doc = get_doc
+    frappe.new_doc = new_doc
+
+    settings_doc = types.SimpleNamespace(
+        big_cash_account="Kas Besar", petty_cash_account="Kas Kecil"
+    )
+    frappe.get_cached_doc = lambda name: settings_doc
+
+    class Defaults:
+        def get_user_default(self, key):
+            return None
+
+        def get_global_default(self, key):
+            return "Test Company"
+
+    frappe.defaults = Defaults()
 
     def get_cached_doc(doctype):
         if doctype == "Restaurant Settings":
@@ -62,7 +111,9 @@ def public_module():
     frappe._ = lambda x: x
     utils = types.ModuleType("frappe.utils")
     utils.now = lambda: "now"
+    utils.nowdate = lambda: "2023-01-01"
     utils.get_url = lambda path=None: f"http://test/{path}" if path else "http://test"
+    utils.flt = float
     frappe.utils = utils
 
     sys.modules["frappe"] = frappe
@@ -87,8 +138,17 @@ def test_record_opening_balance_inserts(public_module):
 
     assert result == {"status": "ok"}
     assert cache[("active_devices", "cashier@example.com")] == "terminal"
+    # first insert is the session document
     assert inserted[0]["opening_balance"] == 100
     assert inserted[0]["user"] == "cashier@example.com"
+    # second insert is the journal entry
+    je = inserted[1]
+    assert je["doctype"] == "Journal Entry"
+    assert je["voucher_type"] == "Cash Entry"
+    assert je["accounts"][0]["account"] == "Kas Kecil"
+    assert je["accounts"][0]["debit_in_account_currency"] == 100
+    assert je["accounts"][1]["account"] == "Kas Besar"
+    assert je["accounts"][1]["credit_in_account_currency"] == 100
 
 
 def test_record_opening_balance_rejects_existing(public_module):

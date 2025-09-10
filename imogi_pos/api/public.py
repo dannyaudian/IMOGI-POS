@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now, get_url
+from frappe.utils import now, nowdate, get_url, flt
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
@@ -264,27 +264,48 @@ def record_opening_balance(device_type, opening_balance):
     )
     doc.insert(ignore_permissions=True)
 
-    # Post a Journal Entry moving funds from the big cash account to the
-    # petty cash account for the opening balance of this session. The
-    # required accounts are fetched from the singleton Restaurant Settings
-    # document. If either account is missing we silently skip creating the
-    # Journal Entry.
-    settings = frappe.get_cached_doc("Restaurant Settings")
-    big_cash = getattr(settings, "big_cash_account", None)
-    petty_cash = getattr(settings, "petty_cash_account", None)
 
-    if big_cash and petty_cash and opening_balance:
-        je = frappe.get_doc(
-            {
-                "doctype": "Journal Entry",
-                "posting_date": now(),
-                "accounts": [
-                    {"account": petty_cash, "debit": opening_balance},
-                    {"account": big_cash, "credit": opening_balance},
-                ],
-            }
-        )
-        je.insert(ignore_permissions=True)
+    settings = frappe.get_cached_doc("Restaurant Settings")
+    big_cash_account = getattr(settings, "big_cash_account", None)
+    petty_cash_account = getattr(settings, "petty_cash_account", None)
+
+    if not big_cash_account or not petty_cash_account:
+        frappe.throw(_("Cash accounts are not configured in Restaurant Settings"))
+
+    opening_balance = flt(opening_balance)
+    company = (
+        frappe.defaults.get_user_default("company")
+        or frappe.defaults.get_global_default("company")
+    )
+
+    je = frappe.new_doc("Journal Entry")
+    je.voucher_type = "Cash Entry"
+    je.posting_date = nowdate()
+    je.company = company
+    je.append(
+        "accounts",
+        {
+            "account": petty_cash_account,
+            "debit_in_account_currency": opening_balance,
+            "reference_type": "Cashier Device Session",
+            "reference_name": doc.name,
+        },
+    )
+    je.append(
+        "accounts",
+        {
+            "account": big_cash_account,
+            "credit_in_account_currency": opening_balance,
+            "reference_type": "Cashier Device Session",
+            "reference_name": doc.name,
+        },
+    )
+
+    je.insert(ignore_permissions=True)
+    je.submit()
+
+    if doc.meta.get_field("journal_entry"):
+        doc.db_set("journal_entry", je.name)
 
     return {"status": "ok"}
 
