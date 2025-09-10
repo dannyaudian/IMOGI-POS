@@ -264,6 +264,7 @@ def record_opening_balance(device_type, opening_balance):
     )
     doc.insert(ignore_permissions=True)
 
+
     settings = frappe.get_cached_doc("Restaurant Settings")
     big_cash_account = getattr(settings, "big_cash_account", None)
     petty_cash_account = getattr(settings, "petty_cash_account", None)

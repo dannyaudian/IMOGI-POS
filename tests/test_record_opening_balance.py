@@ -95,6 +95,15 @@ def public_module():
 
     frappe.defaults = Defaults()
 
+    def get_cached_doc(doctype):
+        if doctype == "Restaurant Settings":
+            return types.SimpleNamespace(
+                big_cash_account="Big Cash", petty_cash_account="Petty Cash"
+            )
+        raise KeyError(doctype)
+
+    frappe.get_cached_doc = get_cached_doc
+
     class FrappeExc(Exception):
         pass
 
@@ -148,3 +157,25 @@ def test_record_opening_balance_rejects_existing(public_module):
 
     with pytest.raises(Exc):
         public.record_opening_balance("other", 50)
+
+
+def test_record_opening_balance_creates_journal_entry(public_module, monkeypatch):
+    """Ensure a Journal Entry is created with debit and credit lines."""
+    public, inserted, cache, _ = public_module
+
+    import frappe
+    class Settings:
+        big_cash_account = "Vault"
+        petty_cash_account = "Drawer"
+
+    monkeypatch.setattr(frappe, "get_cached_doc", lambda d: Settings())
+
+    public.record_opening_balance("terminal", 250)
+
+    # Session doc is inserted first, journal entry second
+    je = inserted[1]
+    assert je["doctype"] == "Journal Entry"
+    assert je["accounts"] == [
+        {"account": "Drawer", "debit": 250},
+        {"account": "Vault", "credit": 250},
+    ]
