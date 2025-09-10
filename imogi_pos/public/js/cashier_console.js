@@ -360,8 +360,9 @@ imogi_pos.cashier_console = {
                 const tableMatch = order.table_name && order.table_name.toLowerCase().includes(searchTerm);
                 const orderMatch = order.name.toLowerCase().includes(searchTerm);
                 const customerMatch = order.customer_name && order.customer_name.toLowerCase().includes(searchTerm);
-                
-                return tableMatch || orderMatch || customerMatch;
+                const queueMatch = order.queue_number && String(order.queue_number).includes(searchTerm);
+
+                return tableMatch || orderMatch || customerMatch || queueMatch;
             }
             
             return true;
@@ -614,11 +615,11 @@ imogi_pos.cashier_console = {
         this.state.filteredOrders.forEach(order => {
             const isSelected = this.state.currentOrder && this.state.currentOrder.name === order.name;
             const statusClass = (order.workflow_state || '').toLowerCase().replace(' ', '-');
-            
+
             html += `
                 <div class="order-card ${isSelected ? 'selected' : ''} ${statusClass}" data-order="${order.name}">
                     <div class="order-header">
-                        <div class="order-name">${order.name}</div>
+                        <div class="order-name">${order.queue_number ? `#${order.queue_number}` : order.name}</div>
                         <div class="order-status ${statusClass}">${order.workflow_state}</div>
                     </div>
                     <div class="order-info">
