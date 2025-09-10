@@ -8,7 +8,7 @@ def get_context(context):
         frappe.local.flags.redirect_location = "/imogi-login?redirect=/device-select"
         raise frappe.Redirect
 
-    if not frappe.has_role("Cashier"):
+    if "Cashier" not in frappe.get_roles():
         frappe.throw(_("Access denied: Cashier role required"))
 
     return context
