@@ -10,12 +10,16 @@ from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
 
 def get_context(context):
-    """Get context for kiosk page."""
+    """Get context for kiosk page. Requires Cashier role when logged in."""
     context.title = _("IMOGI POS Kiosk")
-    
+
     # Check if guest access is allowed or user is logged in
     allow_guest = check_guest_access()
     if frappe.session.user == "Guest" and not allow_guest:
+        frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
+        raise frappe.Redirect
+
+    if frappe.session.user != "Guest" and not frappe.has_role("Cashier"):
         frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
         raise frappe.Redirect
     
