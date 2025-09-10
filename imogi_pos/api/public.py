@@ -263,13 +263,28 @@ def record_opening_balance(device_type, opening_balance):
         }
     )
     doc.insert(ignore_permissions=True)
-    # The creation of Journal Entries for the opening balance has been
-    # intentionally disabled. The original implementation fetched
-    # Restaurant Settings to determine cash accounts and posted a Journal
-    # Entry to move funds between those accounts. That logic has been
-    # removed to keep this function focused solely on recording the
-    # device session. If reintroduced in the future, ensure the necessary
-    # imports and test coverage are restored.
+
+    # Post a Journal Entry moving funds from the big cash account to the
+    # petty cash account for the opening balance of this session. The
+    # required accounts are fetched from the singleton Restaurant Settings
+    # document. If either account is missing we silently skip creating the
+    # Journal Entry.
+    settings = frappe.get_cached_doc("Restaurant Settings")
+    big_cash = getattr(settings, "big_cash_account", None)
+    petty_cash = getattr(settings, "petty_cash_account", None)
+
+    if big_cash and petty_cash and opening_balance:
+        je = frappe.get_doc(
+            {
+                "doctype": "Journal Entry",
+                "posting_date": now(),
+                "accounts": [
+                    {"account": petty_cash, "debit": opening_balance},
+                    {"account": big_cash, "credit": opening_balance},
+                ],
+            }
+        )
+        je.insert(ignore_permissions=True)
 
     return {"status": "ok"}
 
