@@ -7,6 +7,7 @@ from imogi_pos.utils.branding import (
 )
 from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
+from imogi_pos.api.queue import get_next_queue_number
 
 def get_context(context):
     """Get context for kiosk page."""
@@ -71,7 +72,7 @@ def get_context(context):
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_kiosk", 1))
     
     # Get Queue Number if applicable
-    context.next_queue_number = get_next_queue_number()
+    context.next_queue_number = get_next_queue_number(context.branch) if context.branch else 1
     
     return context
 
@@ -232,31 +233,3 @@ def get_item_categories():
     except Exception as e:
         frappe.log_error(f"Error getting item categories: {str(e)}")
         return {"item_groups": [], "menu_categories": []}
-
-def get_next_queue_number():
-    """Get next queue number for this branch/day."""
-    try:
-        branch = get_current_branch(get_pos_profile())
-        if not branch:
-            return 1
-            
-        # Get max queue number for today
-        queue_number = frappe.db.sql(
-            """
-            SELECT MAX(queue_number) as max_number
-            FROM `tabPOS Order`
-            WHERE DATE(creation) = CURDATE()
-            AND branch = %s
-            AND queue_number IS NOT NULL
-            """,
-            branch,
-            as_dict=True
-        )
-        
-        if queue_number and queue_number[0]['max_number']:
-            return queue_number[0]['max_number'] + 1
-        
-        return 1
-    except Exception as e:
-        frappe.log_error(f"Error getting next queue number: {str(e)}")
-        return 1

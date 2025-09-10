@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, flt
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.api.queue import get_next_queue_number
 
 def validate_item_is_sales_item(doc, method=None):
     """Ensure the linked Item is a sales item before saving POS Order Item.
@@ -132,6 +133,9 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     )
     if table_doc:
         order_doc.floor = table_doc.floor
+
+    if order_type == "Kiosk":
+        order_doc.queue_number = get_next_queue_number(branch)
 
     if items:
         if isinstance(items, str):
