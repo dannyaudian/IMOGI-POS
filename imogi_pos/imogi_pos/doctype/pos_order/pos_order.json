@@ -18,6 +18,7 @@
         "posting_date",
         "posting_time",
         "sales_invoice",
+        "queue_number",
         "section_break_11",
         "items",
         "section_break_13",
@@ -104,6 +105,12 @@
             "fieldtype": "Link",
             "label": "Sales Invoice",
             "options": "Sales Invoice",
+            "read_only": 1
+        },
+        {
+            "fieldname": "queue_number",
+            "fieldtype": "Int",
+            "label": "Queue Number",
             "read_only": 1
         },
         {

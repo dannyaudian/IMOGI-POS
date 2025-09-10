@@ -29,10 +29,12 @@ def frappe_env(monkeypatch):
             self.name = name
             self.items = []
             self.workflow_state = "Draft"
+            self.creation = None
         def update(self, data):
             for k, v in data.items():
                 setattr(self, k, v)
         def insert(self):
+            self.creation = frappe.utils.now_datetime()
             orders[self.name] = self
             return self
         def save(self):
@@ -54,6 +56,7 @@ def frappe_env(monkeypatch):
                 "customer": getattr(self, "customer", None),
                 "discount_amount": getattr(self, "discount_amount", 0),
                 "discount_percent": getattr(self, "discount_percent", 0),
+                "queue_number": getattr(self, "queue_number", None),
             }
 
     class DB:
@@ -75,6 +78,22 @@ def frappe_env(monkeypatch):
             if doctype == "Customer":
                 return name in customers
             return False
+
+        def sql(self, query, params=None, as_dict=False):
+            if "MAX(queue_number)" in query:
+                branch = params[0] if isinstance(params, (list, tuple)) else params
+                today = frappe.utils.now_datetime().date()
+                max_no = 0
+                for order in orders.values():
+                    if (
+                        order.branch == branch
+                        and order.creation
+                        and order.creation.date() == today
+                        and getattr(order, "queue_number", None) is not None
+                    ):
+                        max_no = max(max_no, order.queue_number)
+                return [{"max_number": max_no}] if as_dict else max_no
+            return []
 
     def new_doc(doctype):
         if doctype == "POS Order":
@@ -113,6 +132,7 @@ def frappe_env(monkeypatch):
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
     frappe.utils.flt = float
     frappe.call_hook = lambda method, **kwargs: None
+    frappe.get_hooks = lambda *a, **kw: []
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
