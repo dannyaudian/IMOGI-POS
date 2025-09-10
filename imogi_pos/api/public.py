@@ -234,14 +234,35 @@ def check_permission(doctype, perm_type="read"):
 
 
 @frappe.whitelist()
-def record_opening_balance(amount):
-    """Record opening balance for the current user in cache."""
-    if frappe.session.user == "Guest":
-        frappe.throw(_("Login required"), frappe.PermissionError)
+def record_opening_balance(device_type, opening_balance):
+    """Record the opening balance for a user's device session.
 
-    value = flt(amount)
-    frappe.cache().hset("imogi_pos_opening_balance", frappe.session.user, value)
-    return {
-        "message": _("Opening balance recorded"),
-        "amount": value,
-    }
+    Args:
+        device_type (str): Identifier for the device being registered.
+        opening_balance (float): Starting cash balance for the session.
+
+    Returns:
+        dict: Confirmation status.
+    """
+
+    user = frappe.session.user
+
+    cache = frappe.cache()
+    if cache.hget("active_devices", user):
+        frappe.throw(_("Active device already registered for user"))
+
+    cache.hset("active_devices", user, device_type)
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "Cashier Device Session",
+            "user": user,
+            "device": device_type,
+            "opening_balance": opening_balance,
+            "timestamp": now(),
+        }
+    )
+    doc.insert(ignore_permissions=True)
+
+    return {"status": "ok"}
+
