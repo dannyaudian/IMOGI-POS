@@ -311,12 +311,27 @@ def record_opening_balance(device_type, opening_balance):
     return {"status": "ok"}
 
 
-@frappe.whitelist()
-def get_cashier_device_sessions(limit=5):
+@frappe.whitelist(allow_guest=True)
+def get_cashier_device_sessions(limit=5, device=None):
+    """Retrieve recent cashier device sessions for the current user.
+
+    Args:
+        limit (int, optional): Number of records to fetch. Defaults to 5.
+        device (str, optional): Device type to filter sessions by. Defaults to None.
+
+    Returns:
+        list[dict]: List of session records.
+    """
+
     user = frappe.session.user
+    filters = {"user": user}
+
+    if device:
+        filters["device"] = device
+
     return frappe.get_all(
         "Cashier Device Session",
-        filters={"user": user},
+        filters=filters,
         fields=["name", "device", "opening_balance", "timestamp", "user"],
         order_by="timestamp desc",
         limit=limit,
