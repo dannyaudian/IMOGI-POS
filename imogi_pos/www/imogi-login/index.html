@@ -103,6 +103,13 @@
     text-align:center;
     display:none;
   }
+
+  .login-note {
+    text-align:center;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    font-size: .9rem;
+  }
 </style>
 {% endblock %}
 
@@ -116,7 +123,9 @@
       {% endif %}
       <h2>{{ branding.name }}</h2>
     </div>
-    
+
+    <p class="login-note">{{ _("Kiosk access requires the Cashier role.") }}</p>
+
     <form id="login-form">
       <div class="form-group">
         <label for="username">Username or Email</label>
