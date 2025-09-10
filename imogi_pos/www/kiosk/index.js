@@ -19,6 +19,9 @@ frappe.ready(function() {
         // Tracking the created POS Order
         posOrder: null,
 
+        // Queue number for the last created order
+        queueNumber: null,
+
         // Payment state
         paymentRequest: null,
         paymentMethod: 'qr_code',
@@ -656,6 +659,7 @@ frappe.ready(function() {
                 }
 
                 this.posOrder = orderResponse.message.name;
+                this.queueNumber = orderResponse.message.queue_number;
                 this.itemRows = (orderResponse.message.items || []).map(item => item.name);
 
                 // Create draft invoice for payment
@@ -904,6 +908,7 @@ frappe.ready(function() {
                     }
 
                     this.posOrder = orderResponse.message.name;
+                    this.queueNumber = orderResponse.message.queue_number;
                     this.itemRows = (orderResponse.message.items || []).map(item => item.name);
 
                     const totals = this.calculateTotals();
@@ -989,7 +994,7 @@ frappe.ready(function() {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.printing.print_queue_ticket',
                     args: {
-                        queue_no: NEXT_QUEUE_NUMBER,
+                        queue_no: this.queueNumber,
                         pos_profile: POS_PROFILE
                     }
                 });
@@ -1007,10 +1012,13 @@ frappe.ready(function() {
         
         showSuccessModal: function() {
             // Set queue number
-            this.elements.successQueueNumber.textContent = NEXT_QUEUE_NUMBER;
-            
+            this.elements.successQueueNumber.textContent = this.queueNumber;
+
             // Show modal
             this.elements.successModal.style.display = 'flex';
+
+            // Update the next queue number for subsequent orders
+            NEXT_QUEUE_NUMBER = this.queueNumber + 1;
         },
         
         closeSuccessModal: function() {
@@ -1026,6 +1034,7 @@ frappe.ready(function() {
             // Reset payment state
             this.paymentRequest = null;
             this.cashAmount = 0;
+            this.queueNumber = null;
             
             // Clear search
             this.elements.searchInput.value = '';
