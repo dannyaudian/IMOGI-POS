@@ -160,20 +160,13 @@ frappe.ready(function() {
             
             try {
                 const response = await frappe.call({
-                    method: 'frappe.client.get_list',
+                    method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
-                        doctype: 'Item',
-                        filters: {
-                            disabled: 0,
-                            is_sales_item: 1
-                        },
-                        fields: ['name', 'item_name', 'item_code', 'description', 'image', 
-                                'standard_rate', 'has_variants', 'variant_of', 'item_group',
-                                'menu_category', 'photo', 'default_kitchen', 'default_kitchen_station'],
+                        warehouse: POS_PROFILE.warehouse,
                         limit: 500
                     }
                 });
-                
+
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
                     this.items = response.message.filter(item => !item.variant_of);
@@ -287,10 +280,12 @@ frappe.ready(function() {
             let html = '';
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+                const soldOut = (item.actual_qty || 0) <= 0;
 
                 html += `
-                    <div class="item-card" data-item="${item.name}">
+                    <div class="item-card${soldOut ? ' sold-out' : ''}" data-item="${item.name}" ${soldOut ? 'style="pointer-events: none;"' : ''}>
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+                        ${soldOut ? '<div class="sold-out-badge">Sold Out</div>' : ''}
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
@@ -448,7 +443,48 @@ frappe.ready(function() {
             }
             this.elements.cartTotal.textContent = formatRupiah(totals.total);
         },
-        
+
+        updateItemStock: function(itemCode, actualQty) {
+            const item = this.items.find(i => i.name === itemCode);
+            if (item) {
+                item.actual_qty = actualQty;
+            }
+            const card = this.elements.catalogGrid.querySelector(`.item-card[data-item="${itemCode}"]`);
+            if (card) {
+                const soldOut = (actualQty || 0) <= 0;
+                card.classList.toggle('sold-out', soldOut);
+                if (soldOut) {
+                    if (!card.querySelector('.sold-out-badge')) {
+                        card.insertAdjacentHTML('beforeend', '<div class="sold-out-badge">Sold Out</div>');
+                    }
+                    card.style.pointerEvents = 'none';
+                } else {
+                    const badge = card.querySelector('.sold-out-badge');
+                    if (badge) badge.remove();
+                    card.style.pointerEvents = '';
+                }
+            }
+        },
+
+        refreshStockLevels: async function() {
+            try {
+                const response = await frappe.call({
+                    method: 'imogi_pos.api.variants.get_items_with_stock',
+                    args: {
+                        warehouse: POS_PROFILE.warehouse,
+                        limit: 500
+                    }
+                });
+                if (response.message) {
+                    response.message.forEach(updated => {
+                        this.updateItemStock(updated.name, updated.actual_qty);
+                    });
+                }
+            } catch (error) {
+                console.error('Error refreshing stock levels:', error);
+            }
+        },
+
         // Event handlers
         handleSearch: function() {
             this.searchQuery = this.elements.searchInput.value.toLowerCase();
@@ -1086,6 +1122,19 @@ frappe.ready(function() {
                     }
                 }
             });
+
+            // Listen for stock updates
+            frappe.realtime.on('stock_update', (data) => {
+                if (!data || data.warehouse !== POS_PROFILE.warehouse) {
+                    return;
+                }
+                this.updateItemStock(data.item_code, data.actual_qty);
+            });
+
+            // Periodic refresh as fallback
+            setInterval(() => {
+                this.refreshStockLevels();
+            }, 60000);
         },
         
         showLoading: function(message = "Loading...") {
