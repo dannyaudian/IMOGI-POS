@@ -1,0 +1,37 @@
+{% extends "templates/web.html" %}
+
+{% block style %}
+<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<style>
+  .opening-balance-form {
+    display: flex;
+    flex-direction: column;
+    max-width: 300px;
+    margin: 3rem auto;
+    gap: 1rem;
+  }
+  .opening-balance-form input {
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+  .opening-balance-form button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<form id="opening-balance-form" class="opening-balance-form">
+  <label for="opening-balance">{{ _("Opening Balance") }}</label>
+  <input type="number" id="opening-balance" required />
+  <button type="submit">{{ _("Start") }}</button>
+</form>
+{% endblock %}
+
+{% block script %}
+<script src="/assets/imogi_pos/js/nav.js"></script>
+<script src="/assets/imogi_pos/js/auth.js"></script>
+<script src="../opening-balance/index.js"></script>
+{% endblock %}
