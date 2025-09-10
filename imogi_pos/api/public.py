@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now, get_url
+from frappe.utils import now, get_url, flt
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
@@ -21,6 +21,7 @@ __all__ = [
     "check_session",
     "get_current_user_info",
     "check_permission",
+    "record_opening_balance",
 ]
 
 @frappe.whitelist(allow_guest=True)
@@ -230,3 +231,17 @@ def check_permission(doctype, perm_type="read"):
         return False
 
     return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
+
+
+@frappe.whitelist()
+def record_opening_balance(amount):
+    """Record opening balance for the current user in cache."""
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Login required"), frappe.PermissionError)
+
+    value = flt(amount)
+    frappe.cache().hset("imogi_pos_opening_balance", frappe.session.user, value)
+    return {
+        "message": _("Opening balance recorded"),
+        "amount": value,
+    }
