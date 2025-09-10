@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now, get_url
+from frappe.utils import now, nowdate, get_url, flt
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
@@ -263,13 +263,48 @@ def record_opening_balance(device_type, opening_balance):
         }
     )
     doc.insert(ignore_permissions=True)
-    # The creation of Journal Entries for the opening balance has been
-    # intentionally disabled. The original implementation fetched
-    # Restaurant Settings to determine cash accounts and posted a Journal
-    # Entry to move funds between those accounts. That logic has been
-    # removed to keep this function focused solely on recording the
-    # device session. If reintroduced in the future, ensure the necessary
-    # imports and test coverage are restored.
+
+    settings = frappe.get_cached_doc("Restaurant Settings")
+    big_cash_account = getattr(settings, "big_cash_account", None)
+    petty_cash_account = getattr(settings, "petty_cash_account", None)
+
+    if not big_cash_account or not petty_cash_account:
+        frappe.throw(_("Cash accounts are not configured in Restaurant Settings"))
+
+    opening_balance = flt(opening_balance)
+    company = (
+        frappe.defaults.get_user_default("company")
+        or frappe.defaults.get_global_default("company")
+    )
+
+    je = frappe.new_doc("Journal Entry")
+    je.voucher_type = "Cash Entry"
+    je.posting_date = nowdate()
+    je.company = company
+    je.append(
+        "accounts",
+        {
+            "account": petty_cash_account,
+            "debit_in_account_currency": opening_balance,
+            "reference_type": "Cashier Device Session",
+            "reference_name": doc.name,
+        },
+    )
+    je.append(
+        "accounts",
+        {
+            "account": big_cash_account,
+            "credit_in_account_currency": opening_balance,
+            "reference_type": "Cashier Device Session",
+            "reference_name": doc.name,
+        },
+    )
+
+    je.insert(ignore_permissions=True)
+    je.submit()
+
+    if doc.meta.get_field("journal_entry"):
+        doc.db_set("journal_entry", je.name)
 
     return {"status": "ok"}
 
