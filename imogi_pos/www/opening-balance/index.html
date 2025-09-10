@@ -3,21 +3,26 @@
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <style>
+  body { background:#ff6600; color:#fff; }
   .opening-balance-form {
     display: flex;
     flex-direction: column;
     max-width: 300px;
     margin: 3rem auto;
     gap: 1rem;
+    background:#fff; color:#ff6600;
+    padding:1.5rem; border-radius:8px;
   }
   .opening-balance-form input {
     padding: 0.5rem;
     font-size: 1rem;
+    border:1px solid #ff6600; color:#ff6600;
   }
   .opening-balance-form button {
     padding: 0.5rem 1rem;
     font-size: 1rem;
     cursor: pointer;
+    background:#ff6600; color:#fff; border:none;
   }
 </style>
 {% endblock %}
