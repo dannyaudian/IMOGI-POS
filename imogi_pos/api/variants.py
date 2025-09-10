@@ -44,7 +44,7 @@ def get_order_branch(pos_order):
     return branch
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_items_with_stock(warehouse=None, limit=500):
     """Return POS items with stock and allowed payment methods.
 
