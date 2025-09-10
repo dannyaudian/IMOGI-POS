@@ -350,34 +350,29 @@ frappe.ready(function() {
             });
             
             this.elements.cartItems.innerHTML = html;
-            
+
             // Add event listeners
-            const qtyMinusButtons = this.elements.cartItems.querySelectorAll('.qty-minus');
-            const qtyPlusButtons = this.elements.cartItems.querySelectorAll('.qty-plus');
             const qtyInputs = this.elements.cartItems.querySelectorAll('.cart-item-qty');
             const removeButtons = this.elements.cartItems.querySelectorAll('.cart-item-remove');
-            
-            qtyMinusButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const index = parseInt(button.dataset.index);
-                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
-                });
-            });
-            
-            qtyPlusButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const index = parseInt(button.dataset.index);
+
+            this.elements.cartItems.addEventListener('click', e => {
+                const index = Number(e.target.dataset.index);
+                if (e.target.classList.contains('qty-plus')) {
+                    e.preventDefault();
                     this.updateCartItemQuantity(index, this.cart[index].qty + 1);
-                });
+                } else if (e.target.classList.contains('qty-minus')) {
+                    e.preventDefault();
+                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
+                }
             });
-            
+
             qtyInputs.forEach(input => {
                 input.addEventListener('change', () => {
                     const index = parseInt(input.dataset.index);
                     this.updateCartItemQuantity(index, parseInt(input.value) || 1);
                 });
             });
-            
+
             removeButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const index = parseInt(button.dataset.index);
