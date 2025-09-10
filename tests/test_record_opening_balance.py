@@ -98,7 +98,7 @@ def public_module():
     def get_cached_doc(doctype):
         if doctype == "Restaurant Settings":
             return types.SimpleNamespace(
-                big_cash_account="Big Cash", petty_cash_account="Petty Cash"
+                big_cash_account="Kas Besar", petty_cash_account="Kas Kecil"
             )
         raise KeyError(doctype)
 
@@ -175,7 +175,7 @@ def test_record_opening_balance_creates_journal_entry(public_module, monkeypatch
     # Session doc is inserted first, journal entry second
     je = inserted[1]
     assert je["doctype"] == "Journal Entry"
-    assert je["accounts"] == [
-        {"account": "Drawer", "debit": 250},
-        {"account": "Vault", "credit": 250},
-    ]
+    assert je["accounts"][0]["account"] == "Drawer"
+    assert je["accounts"][0]["debit_in_account_currency"] == 250
+    assert je["accounts"][1]["account"] == "Vault"
+    assert je["accounts"][1]["credit_in_account_currency"] == 250
