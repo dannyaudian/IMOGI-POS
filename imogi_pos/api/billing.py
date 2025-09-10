@@ -537,65 +537,6 @@ def get_active_pos_session(context_scope=None):
     active_session = frappe.db.get_value("POS Session", filters, "name")
     return active_session
 
-
-@frappe.whitelist()
-def start_cashier_shift(pos_profile, opening_balance):
-    """Start a cashier shift and open a POS Session.
-
-    Validates that the current user has the Cashier role and that no active
-    session is already running. Creates a ``POS Opening Shift`` document with
-    the provided ``opening_balance`` and current time, then starts a ``POS
-    Session`` linked to that opening shift.
-
-    Args:
-        pos_profile (str): POS Profile to start the session for.
-        opening_balance (float): Opening cash balance for the shift.
-
-    Returns:
-        dict: Dictionary containing ``session_id`` and ``start_time``.
-    """
-
-    # Check if user has Cashier role when role API is available
-    if hasattr(frappe, "has_role") and not frappe.has_role("Cashier"):
-        frappe.throw(_("Only Cashiers can start a shift."), frappe.PermissionError)
-
-    # Ensure there is no active session
-    existing = get_active_pos_session()
-    if existing:
-        frappe.throw(
-            _("An active POS Session already exists: {0}").format(existing),
-            frappe.ValidationError,
-        )
-
-    start_time = now_datetime()
-
-    # Create opening shift document
-    opening_shift = frappe.get_doc(
-        {
-            "doctype": "POS Opening Shift",
-            "pos_profile": pos_profile,
-            "user": frappe.session.user,
-            "opening_time": start_time,
-            "opening_balance": opening_balance,
-        }
-    )
-    opening_shift.insert(ignore_permissions=True)
-
-    # Create POS Session linked to the opening shift
-    pos_session = frappe.get_doc(
-        {
-            "doctype": "POS Session",
-            "pos_profile": pos_profile,
-            "user": frappe.session.user,
-            "status": "Open",
-            "opening_shift": opening_shift.name,
-            "start_time": start_time,
-        }
-    )
-    pos_session.insert(ignore_permissions=True)
-
-    return {"session_id": pos_session.name, "start_time": start_time}
-
 @frappe.whitelist()
 def request_payment(sales_invoice):
     """

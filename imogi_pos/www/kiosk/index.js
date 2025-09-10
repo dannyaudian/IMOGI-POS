@@ -94,20 +94,12 @@ frappe.ready(async function() {
             successModal: document.getElementById('success-modal'),
             successQueueNumber: document.getElementById('success-queue-number'),
             successDoneBtn: document.getElementById('btn-success-done'),
-
+            
             // Loading overlay
             loadingOverlay: document.getElementById('loading-overlay'),
-            loadingText: document.getElementById('loading-text'),
-
-            // Main container for locking interactions
-            kioskContainer: document.getElementById('kiosk-container'),
-
-            // Opening balance modal (created dynamically)
-            openingModal: null,
-            openingInput: null,
-            openingSubmitBtn: null
+            loadingText: document.getElementById('loading-text')
         },
-
+        
         // Initialize
         init: async function() {
             this.setupEventListeners();
@@ -117,12 +109,7 @@ frappe.ready(async function() {
             this.renderItems();
             this.updateCartTotals();
             this.setupPrintService();
-
-            if (!ACTIVE_POS_SESSION) {
-                this.lockCatalog();
-                this.showOpeningBalanceModal();
-            }
-
+            
             // Setup realtime if available
             if (frappe.realtime) {
                 this.setupRealtimeUpdates();
@@ -750,7 +737,6 @@ frappe.ready(async function() {
                     args: {
                         pos_order: this.posOrder,
                         pos_profile: POS_PROFILE.name,
-                        pos_session: ACTIVE_POS_SESSION,
                         mode_of_payment: 'Online',
                         amount: totals.total
                     }
@@ -998,7 +984,6 @@ frappe.ready(async function() {
                         args: {
                             pos_order: this.posOrder,
                             pos_profile: POS_PROFILE.name,
-                            pos_session: ACTIVE_POS_SESSION,
                             mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
                             amount: totals.total
                         }
@@ -1181,82 +1166,7 @@ frappe.ready(async function() {
                 this.refreshStockLevels();
             }, 60000);
         },
-
-        lockCatalog: function() {
-            if (this.elements.kioskContainer) {
-                this.elements.kioskContainer.style.pointerEvents = 'none';
-                this.elements.kioskContainer.style.opacity = '0.4';
-            }
-        },
-
-        unlockCatalog: function() {
-            if (this.elements.kioskContainer) {
-                this.elements.kioskContainer.style.pointerEvents = '';
-                this.elements.kioskContainer.style.opacity = '';
-            }
-        },
-
-        showOpeningBalanceModal: function() {
-            const modal = document.createElement('div');
-            modal.id = 'opening-modal';
-            modal.className = 'modal-overlay active';
-            modal.innerHTML = `
-                <div class="modal">
-                    <div class="modal-header">
-                        <h2>${__('Open POS Session')}</h2>
-                    </div>
-                    <div class="modal-content">
-                        <p>${__('Enter opening balance')}</p>
-                        <input type="number" id="opening-balance-input" class="form-control" min="0" />
-                    </div>
-                    <div class="modal-footer">
-                        <button id="btn-opening-submit" class="btn btn-primary">${__('Start Session')}</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-            this.elements.openingModal = modal;
-            this.elements.openingInput = modal.querySelector('#opening-balance-input');
-            this.elements.openingSubmitBtn = modal.querySelector('#btn-opening-submit');
-            this.elements.openingSubmitBtn.addEventListener('click', () => {
-                const value = parseFloat(this.elements.openingInput.value || '0');
-                this.submitOpeningBalance(value);
-            });
-        },
-
-        hideOpeningBalanceModal: function() {
-            if (this.elements.openingModal) {
-                this.elements.openingModal.remove();
-                this.elements.openingModal = null;
-                this.elements.openingInput = null;
-                this.elements.openingSubmitBtn = null;
-            }
-        },
-
-        submitOpeningBalance: async function(value) {
-            this.showLoading(__('Starting session...'));
-            try {
-                const { message } = await frappe.call({
-                    method: 'imogi_pos.api.pos_session.open_kiosk_session',
-                    args: {
-                        pos_profile: POS_PROFILE_DATA.name,
-                        opening_balance: value
-                    }
-                });
-
-                if (message && message.name) {
-                    ACTIVE_POS_SESSION = message.name;
-                }
-
-                this.hideOpeningBalanceModal();
-                this.unlockCatalog();
-            } catch (err) {
-                console.error('Failed to open session:', err);
-                this.showError(__('Failed to open POS session')); 
-            } finally {
-                this.hideLoading();
-            }
-        },
-
+        
         showLoading: function(message = "Loading...") {
             this.elements.loadingText.textContent = message;
             this.elements.loadingOverlay.style.display = 'flex';
