@@ -73,14 +73,6 @@ body {
   font-size: 0.85rem;
 }
 
-.shift-start {
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 0.3rem 0.8rem;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  margin-left: 0.5rem;
-}
-
 /* Main Container */
 .kiosk-container {
   display: grid;
@@ -741,21 +733,10 @@ body {
       <span class="branch-value">{{ branch }}</span>
     </div>
     {% endif %}
-    {% if session_start %}
-    <div class="shift-start">
-      <span class="shift-label">{{ _("Shift Start") }}:</span>
-      <span class="shift-value">{{ session_start }}</span>
-    </div>
-    {% endif %}
   </div>
 </header>
 {% endif %}
 
-{% if require_pos_session and enforce_session_on_kiosk and not has_active_session %}
-<div class="session-warning">
-  {{ _("No active POS Session. Please contact staff for assistance.") }}
-</div>
-{% endif %}
 
 <div class="kiosk-container" id="kiosk-container">
   <section class="catalog-section">
@@ -980,7 +961,6 @@ body {
   const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
   const POS_PROFILE = {{ {"name": pos_profile.name, "warehouse": pos_profile.warehouse, "selling_price_list": pos_profile.selling_price_list} | tojson }};
   const POS_WAREHOUSE = {{ pos_profile.warehouse | tojson }};
-  const ACTIVE_POS_SESSION = {{ active_pos_session.name | tojson if active_pos_session else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
   const CURRENCY_SYMBOL = 'Rp';
   const DEFAULT_CURRENCY = 'IDR';

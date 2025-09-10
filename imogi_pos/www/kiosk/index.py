@@ -5,21 +5,17 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from frappe.utils import cint, format_datetime
+from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
 
 def get_context(context):
-    """Get context for kiosk page. Requires Cashier role when logged in."""
+    """Get context for kiosk page."""
     context.title = _("IMOGI POS Kiosk")
-
+    
     # Check if guest access is allowed or user is logged in
     allow_guest = check_guest_access()
     if frappe.session.user == "Guest" and not allow_guest:
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
-        raise frappe.Redirect
-
-    if frappe.session.user != "Guest" and "Cashier" not in frappe.get_roles():
         frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
         raise frappe.Redirect
     
@@ -34,18 +30,6 @@ def get_context(context):
     domain = pos_profile.get("imogi_pos_domain", "Restaurant")
     context.domain = domain
     
-    # Check active POS session if required
-    if cint(pos_profile.get("imogi_require_pos_session", 0)) and cint(pos_profile.get("imogi_enforce_session_on_kiosk", 0)):
-        active_session = check_active_pos_session(pos_profile.name)
-        context.has_active_session = bool(active_session)
-        context.active_pos_session = active_session
-        context.session_start = (
-            format_datetime(active_session.get("creation")) if active_session else None
-        )
-    else:
-        context.has_active_session = True
-        context.active_pos_session = None
-        context.session_start = None
     
     # Get branding information
     context.branding = get_branding_info(pos_profile)
@@ -113,35 +97,6 @@ def get_pos_profile():
         frappe.log_error(f"Error fetching Kiosk POS Profile: {str(e)}")
         return None
 
-def check_active_pos_session(pos_profile_name):
-    """Check if there's an active POS session for the user and profile."""
-    try:
-        if frappe.session.user == "Guest":
-            # For guest mode, check any active session for this profile
-            filters = {
-                "pos_profile": pos_profile_name,
-                "status": "Open"
-            }
-        else:
-            # For logged-in users, check user-specific session
-            filters = {
-                "user": frappe.session.user,
-                "pos_profile": pos_profile_name,
-                "status": "Open"
-            }
-        
-        session = frappe.get_all(
-            "POS Session",
-            filters=filters,
-            fields=["name", "pos_opening_shift", "creation"],
-            order_by="creation desc",
-            limit=1
-        )
-        
-        return session[0] if session else None
-    except Exception as e:
-        frappe.log_error(f"Error checking active POS session: {str(e)}")
-        return None
 
 def get_branding_info(pos_profile):
     """Get branding information from profile or settings."""
