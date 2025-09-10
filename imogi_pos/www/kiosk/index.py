@@ -19,7 +19,7 @@ def get_context(context):
         frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
         raise frappe.Redirect
 
-    if frappe.session.user != "Guest" and not frappe.has_role("Cashier"):
+    if frappe.session.user != "Guest" and "Cashier" not in frappe.get_roles():
         frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
         raise frappe.Redirect
     
