@@ -2,6 +2,7 @@
 
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <style>
   body { background:#ff6600; color:#fff; }
   .opening-balance-form {
@@ -24,6 +25,13 @@
     cursor: pointer;
     background:#ff6600; color:#fff; border:none;
   }
+  .session-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 400px;
+    margin: 2rem auto;
+  }
 </style>
 {% endblock %}
 
@@ -33,7 +41,7 @@
   <input type="number" id="opening-balance" required />
   <button type="submit">{{ _("Start") }}</button>
 </form>
-<ul id="session-list"></ul>
+<div id="session-list" class="session-cards"></div>
 {% endblock %}
 
 {% block script %}
