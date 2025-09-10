@@ -280,12 +280,10 @@ frappe.ready(function() {
             let html = '';
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                const soldOut = (item.actual_qty || 0) <= 0;
 
                 html += `
-                    <div class="item-card${soldOut ? ' sold-out' : ''}" data-item="${item.name}" ${soldOut ? 'style="pointer-events: none;"' : ''}>
+                    <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
-                        ${soldOut ? '<div class="sold-out-badge">Sold Out</div>' : ''}
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
@@ -448,21 +446,8 @@ frappe.ready(function() {
             if (item) {
                 item.actual_qty = actualQty;
             }
-            const card = this.elements.catalogGrid.querySelector(`.item-card[data-item="${itemCode}"]`);
-            if (card) {
-                const soldOut = (actualQty || 0) <= 0;
-                card.classList.toggle('sold-out', soldOut);
-                if (soldOut) {
-                    if (!card.querySelector('.sold-out-badge')) {
-                        card.insertAdjacentHTML('beforeend', '<div class="sold-out-badge">Sold Out</div>');
-                    }
-                    card.style.pointerEvents = 'none';
-                } else {
-                    const badge = card.querySelector('.sold-out-badge');
-                    if (badge) badge.remove();
-                    card.style.pointerEvents = '';
-                }
-            }
+            // Previously we toggled sold-out styles and badges here.
+            // With the removal of the sold-out overlay, we only update the item's stock data.
         },
 
         refreshStockLevels: async function() {
