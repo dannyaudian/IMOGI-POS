@@ -936,7 +936,7 @@ body {
     
     <div class="success-queue-section">
       <div>{{ _("Your queue number is") }}</div>
-      <div class="success-queue" id="success-queue-number">{{ next_queue_number }}</div>
+      <div class="success-queue" id="success-queue-number"></div>
       <div>{{ _("Please wait for your number to be called") }}</div>
     </div>
     
@@ -983,7 +983,7 @@ body {
   const DOMAIN = '{{ domain }}';
   const PAYMENT_SETTINGS = {{ payment_settings | tojson }};
   const PRINT_SETTINGS = {{ print_settings | tojson }};
-  const NEXT_QUEUE_NUMBER = {{ next_queue_number }};
+  let NEXT_QUEUE_NUMBER = {{ next_queue_number }};
   const ALLOW_NOTES = {{ allow_notes }};
 </script>
 
