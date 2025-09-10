@@ -73,6 +73,14 @@ body {
   font-size: 0.85rem;
 }
 
+.shift-start {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.8rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
 /* Main Container */
 .kiosk-container {
   display: grid;
@@ -742,6 +750,12 @@ body {
     <div class="branch-selector">
       <span class="branch-label">{{ _("Branch") }}:</span>
       <span class="branch-value">{{ branch }}</span>
+    </div>
+    {% endif %}
+    {% if session_start %}
+    <div class="shift-start">
+      <span class="shift-label">{{ _("Shift Start") }}:</span>
+      <span class="shift-value">{{ session_start }}</span>
     </div>
     {% endif %}
   </div>
