@@ -440,6 +440,10 @@ frappe.ready(function() {
         },
 
         updateItemStock: function(itemCode, actualQty) {
+            if (actualQty == null) {
+                console.warn(`updateItemStock called without actualQty for ${itemCode}`);
+                return;
+            }
             const item = this.items.find(i => i.name === itemCode);
             if (item) {
                 item.actual_qty = actualQty;
