@@ -1,4 +1,31 @@
-frappe.ready(function() {
+frappe.ready(async function() {
+    const POS_PROFILE_DATA = {};
+
+    try {
+        if (typeof POS_PROFILE === 'string') {
+            const { message } = await frappe.call({
+                method: 'imogi_pos.api.public.get_pos_profile_details',
+                args: { profile: POS_PROFILE }
+            });
+            if (!message) {
+                throw new Error('POS profile not found');
+            }
+            Object.assign(POS_PROFILE_DATA, message);
+        } else if (typeof POS_PROFILE === 'object' && POS_PROFILE !== null) {
+            Object.assign(POS_PROFILE_DATA, POS_PROFILE);
+        } else {
+            throw new Error('Invalid POS profile');
+        }
+    } catch (error) {
+        console.error('Failed to load POS profile:', error);
+        frappe.msgprint({
+            title: __('Error'),
+            message: __('Failed to load POS profile. Please refresh or contact the administrator.'),
+            indicator: 'red'
+        });
+        return;
+    }
+
     // =====================
     // State Management
     // =====================
@@ -162,7 +189,7 @@ frappe.ready(function() {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
-                        warehouse: POS_PROFILE.warehouse,
+                        warehouse: POS_PROFILE_DATA.warehouse,
                         limit: 500
                     }
                 });
@@ -205,7 +232,7 @@ frappe.ready(function() {
                         doctype: 'Item Price',
                         filters: {
                             item_code: ['in', itemsWithoutRate.map(item => item.name)],
-                            price_list: POS_PROFILE.selling_price_list
+                            price_list: POS_PROFILE_DATA.selling_price_list
                         },
                         fields: ['item_code', 'price_list_rate']
                     }
@@ -455,7 +482,7 @@ frappe.ready(function() {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
-                        warehouse: POS_PROFILE.warehouse,
+                        warehouse: POS_PROFILE_DATA.warehouse,
                         limit: 500
                     }
                 });
@@ -1086,7 +1113,7 @@ frappe.ready(function() {
             // Initialize the print service from the shared module
             if (window.ImogiPrintService) {
                 ImogiPrintService.init({
-                    profile: POS_PROFILE.name,
+                    profile: POS_PROFILE_DATA,
                     defaultInterface: 'OS' // Fallback to OS printing if profile doesn't specify
                 });
             } else {
@@ -1109,7 +1136,7 @@ frappe.ready(function() {
 
             // Listen for stock updates
             frappe.realtime.on('stock_update', (data) => {
-                if (!data || data.warehouse !== POS_PROFILE.warehouse) {
+                if (!data || data.warehouse !== POS_PROFILE_DATA.warehouse) {
                     return;
                 }
                 this.updateItemStock(data.item_code, data.actual_qty);
