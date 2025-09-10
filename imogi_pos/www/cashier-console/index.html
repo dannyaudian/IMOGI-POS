@@ -339,19 +339,30 @@
   // Minor UX: toggle active class on tabs with keyboard support
   document.addEventListener('DOMContentLoaded', () => {
     const tabs = Array.from(document.querySelectorAll('.order-tab'));
+    const list = document.getElementById('order-list');
+
     tabs.forEach(tab => {
       tab.addEventListener('click', () => setActive(tab));
       tab.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(tab); }
       });
     });
+
     function setActive(el){
       tabs.forEach(t => t.classList.remove('active'));
       el.classList.add('active');
       el.setAttribute('aria-selected', 'true');
       tabs.filter(t=>t!==el).forEach(t=>t.setAttribute('aria-selected','false'));
-      // TODO: hook filter logic by data-status here if needed
+
+      if (!list) return;
+      const status = el.dataset.status;
+      list.querySelectorAll('[data-status]').forEach(item => {
+        item.hidden = !(status === 'All' || item.dataset.status === status);
+      });
     }
+
+    const initial = tabs.find(t => t.classList.contains('active'));
+    if (initial) setActive(initial);
 
     // Header shadow on scroll
     const header = document.querySelector('.app-header');
