@@ -14,9 +14,20 @@ frappe.ready(() => {
     callback: (r) => {
       const sessions = r.message || [];
       sessions.forEach((s) => {
-        const li = document.createElement('li');
-        li.textContent = `${s.timestamp} - ${s.user} - ${s.device} - ${s.opening_balance}`;
-        sessionList.appendChild(li);
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        body.innerHTML = `
+          <div>${s.timestamp}</div>
+          <div>${s.user}</div>
+          <div>${s.device}</div>
+          <div>${s.opening_balance}</div>
+        `;
+
+        card.appendChild(body);
+        sessionList.appendChild(card);
       });
     },
   });
