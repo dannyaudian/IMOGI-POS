@@ -976,6 +976,7 @@ body {
   // Pass important context variables to the frontend
   const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
   const POS_PROFILE = {{ pos_profile.name | tojson }};
+  const POS_WAREHOUSE = {{ pos_profile.warehouse | tojson }};
   const ACTIVE_POS_SESSION = {{ active_pos_session.name | tojson if active_pos_session else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
   const CURRENCY_SYMBOL = 'Rp';
