@@ -22,6 +22,7 @@ __all__ = [
     "get_current_user_info",
     "check_permission",
     "record_opening_balance",
+    "get_cashier_device_sessions",
 ]
 
 @frappe.whitelist(allow_guest=True)
@@ -308,4 +309,16 @@ def record_opening_balance(device_type, opening_balance):
         doc.db_set("journal_entry", je.name)
 
     return {"status": "ok"}
+
+
+@frappe.whitelist()
+def get_cashier_device_sessions(limit=5):
+    user = frappe.session.user
+    return frappe.get_all(
+        "Cashier Device Session",
+        filters={"user": user},
+        fields=["name", "device", "opening_balance", "timestamp", "user"],
+        order_by="timestamp desc",
+        limit=limit,
+    )
 

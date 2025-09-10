@@ -7,6 +7,19 @@ frappe.ready(() => {
 
   const form = document.getElementById('opening-balance-form');
   const amountInput = document.getElementById('opening-balance');
+  const sessionList = document.getElementById('session-list');
+
+  frappe.call({
+    method: 'imogi_pos.api.public.get_cashier_device_sessions',
+    callback: (r) => {
+      const sessions = r.message || [];
+      sessions.forEach((s) => {
+        const li = document.createElement('li');
+        li.textContent = `${s.timestamp} - ${s.user} - ${s.device} - ${s.opening_balance}`;
+        sessionList.appendChild(li);
+      });
+    },
+  });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
