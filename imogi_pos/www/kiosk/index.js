@@ -963,22 +963,20 @@ frappe.ready(function() {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.printing.print_receipt',
                     args: {
-                        invoice: invoiceName,
-                        pos_profile: POS_PROFILE
+                        sales_invoice: invoiceName
                     }
                 });
-                
+
                 if (response.message) {
-                    const printData = response.message;
-                    
-                    // Send to print service
-                    if (window.ImogiPrintService) {
-                        await ImogiPrintService.print({
-                            type: 'receipt',
-                            data: printData.html,
-                            printer: printData.printer,
-                            copies: printData.copies || 1
-                        });
+                    if (response.message.success) {
+                        console.log(
+                            `Receipt printed via ${response.message.adapter}`
+                        );
+                    } else {
+                        console.error(
+                            'Failed to print receipt:',
+                            response.message.error
+                        );
                     }
                 }
             } catch (error) {
