@@ -50,6 +50,8 @@
     "miscellaneous_section",
     "imogi_default_receipt_format",
     "imogi_default_queue_format",
+    "big_cash_account",
+    "petty_cash_account",
     "show_prices_on_qr_menu",
     "show_out_of_stock_indicator",
     "hide_inactive_items"
@@ -319,6 +321,18 @@
       "fieldtype": "Link",
       "label": "Default Queue Print Format",
       "options": "Print Format"
+    },
+    {
+      "fieldname": "big_cash_account",
+      "fieldtype": "Link",
+      "label": "Kas Besar",
+      "options": "Account"
+    },
+    {
+      "fieldname": "petty_cash_account",
+      "fieldtype": "Link",
+      "label": "Kas Kecil",
+      "options": "Account"
     },
     {
       "default": "1",
