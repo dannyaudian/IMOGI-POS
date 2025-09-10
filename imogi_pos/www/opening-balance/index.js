@@ -19,11 +19,27 @@ frappe.ready(() => {
 
         const body = document.createElement('div');
         body.className = 'card-body';
+
+        const formattedTimestamp = frappe.datetime.str_to_user(s.timestamp);
+        const formattedBalance = frappe.format_currency(s.opening_balance);
+
         body.innerHTML = `
-          <div>${s.timestamp}</div>
-          <div>${s.user}</div>
-          <div>${s.device}</div>
-          <div>${s.opening_balance}</div>
+          <div class="form-group">
+            <label>${__('Timestamp')}</label>
+            <input class="form-control" value="${formattedTimestamp}" readonly />
+          </div>
+          <div class="form-group">
+            <label>${__('User')}</label>
+            <input class="form-control" value="${s.user}" readonly />
+          </div>
+          <div class="form-group">
+            <label>${__('Device')}</label>
+            <input class="form-control" value="${s.device}" readonly />
+          </div>
+          <div class="form-group">
+            <label>${__('Opening Balance')}</label>
+            <input class="form-control" value="${formattedBalance}" readonly />
+          </div>
         `;
 
         card.appendChild(body);
