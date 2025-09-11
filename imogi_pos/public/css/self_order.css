@@ -77,7 +77,7 @@
   top: -6px;
   right: -6px;
   background-color: var(--color-warning);
-  color: var(--color-gray-900);
+  color: var(--color-white);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
@@ -146,7 +146,7 @@
 
 .category-tab.active {
   background-color: var(--brand-primary);
-  color: white;
+  color: var(--color-white);
 }
 
 .search-bar {
@@ -432,7 +432,7 @@
 
 .remove-item:hover {
   background-color: var(--color-danger);
-  color: white;
+  color: var(--color-white);
 }
 
 .edit-notes {
@@ -575,7 +575,7 @@
 
 .variant-option.selected {
   background-color: var(--brand-primary);
-  color: white;
+  color: var(--color-white);
   border-color: var(--brand-primary);
 }
 
@@ -833,7 +833,7 @@
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--color-warning);
-  color: var(--color-gray-900);
+  color: var(--color-white);
   padding: var(--spacing-3) var(--spacing-4);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
