@@ -201,28 +201,28 @@
   }
 
   /* Sold Out Overlay */
-  .sold-out-badge {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.5rem;
-  }
-  .item-card:not(.sold-out) .sold-out-badge {
-    display: none;
-  }
+  .item-card.sold-out .item-image {
+  opacity: 0.4;
+}
 
-  .item-card.sold-out {
-    opacity: 0.8;
-    pointer-events: none;
-  }
+.sold-out-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: var(--color-white);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.item-card.sold-out .sold-out-badge {
+  display: flex;
+}
 
   /* Cart Section */
   .cart-section {
