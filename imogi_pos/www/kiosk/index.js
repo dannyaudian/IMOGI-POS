@@ -854,6 +854,16 @@ frappe.ready(async function() {
                 }
                 
             } catch (error) {
+                if (error?.message && error.message.includes("already occupied")) {
+                    this.hideLoading();
+                    frappe.msgprint({
+                        title: __('Table In Use'),
+                        message: error.message,
+                        indicator: 'red'
+                    });
+                    return;
+                }
+
                 console.error("Error requesting payment:", error);
                 this.showError("Failed to generate payment QR. Please try another payment method.");
                 this.hideLoading();
@@ -1108,6 +1118,15 @@ frappe.ready(async function() {
                 this.showSuccessModal();
                 
             } catch (error) {
+                if (error?.message && error.message.includes("already occupied")) {
+                    this.hideLoading();
+                    frappe.msgprint({
+                        title: __('Table In Use'),
+                        message: error.message,
+                        indicator: 'red'
+                    });
+                    return;
+                }
                 console.error("Error completing order:", error);
                 this.showError("An error occurred while completing your order. Please contact staff for assistance.");
                 this.hideLoading();
