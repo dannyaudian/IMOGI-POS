@@ -757,7 +757,7 @@ frappe.ready(async function() {
                     localStorage.setItem('imogi_table_number', message);
                     frappe.msgprint({
                         title: __('Table Assigned'),
-                        message: __('Please proceed to table {0}').format(message),
+                        message: __('Please proceed to table {0}', [message]),
                         indicator: 'green'
                     });
                 } catch (e) {

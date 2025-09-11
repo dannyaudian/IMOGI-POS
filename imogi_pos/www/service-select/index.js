@@ -4,6 +4,7 @@ frappe.ready(() => {
     if (service) {
       link.addEventListener('click', () => {
         localStorage.setItem('imogi_service_type', service);
+        window.location.href = href;
       });
     }
   });
