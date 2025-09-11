@@ -677,13 +677,19 @@ frappe.ready(async function() {
             }
         },
         
-        handleCheckout: function() {
+        handleCheckout: async function() {
             if (!this.cart.length) return;
-            
+
+            // Ensure table number before checkout
+            const tableReady = await this.ensureTableNumber();
+            if (!tableReady) {
+                return; // User cancelled table prompt
+            }
+
             // Open payment modal
             this.openPaymentModal();
         },
-        
+
         openPaymentModal: function() {
             const totals = this.calculateTotals();
 
@@ -714,6 +720,7 @@ frappe.ready(async function() {
 
             // If payment gateway is enabled and QR selected, request payment QR
             if (this.paymentMethod === 'qr_code' && PAYMENT_SETTINGS.gateway_enabled) {
+
                 this.requestPaymentQR();
             }
         },
@@ -759,9 +766,6 @@ frappe.ready(async function() {
         },
 
         requestPaymentQR: async function() {
-            if (!(await this.ensureTableNumber())) {
-                return;
-            }
             this.showLoading('Generating payment QR code...');
 
             try {
@@ -846,12 +850,22 @@ frappe.ready(async function() {
                 console.error("Error requesting payment:", error);
                 this.showError("Failed to generate payment QR. Please try another payment method.");
                 this.hideLoading();
-                
+
                 // Switch to cash as fallback
+                this.paymentMethod = 'cash';
+                this.togglePaymentMethod();
+
+                // Update UI selection
+                const paymentOptions = document.querySelectorAll('.payment-option');
+                paymentOptions.forEach(o => o.classList.remove('selected'));
                 const cashOption = document.querySelector('.payment-option[data-method="cash"]');
                 if (cashOption) {
-                    cashOption.click();
+                    cashOption.classList.add('selected');
                 }
+
+                // Recalculate confirm button state based on current cash amount
+                const totals = this.calculateTotals();
+                this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
             }
         },
         
