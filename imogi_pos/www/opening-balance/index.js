@@ -1,7 +1,7 @@
 frappe.ready(() => {
   const params = new URLSearchParams(window.location.search);
   const device = params.get('device') || 'kiosk';
-  const next = params.get('next') || '/kiosk';
+  const next = params.get('next') || '/service-select';
 
   const form = document.getElementById('opening-balance-form');
   const amountInput = document.getElementById('new-opening-balance');
