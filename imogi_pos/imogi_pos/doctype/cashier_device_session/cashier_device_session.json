@@ -1,5 +1,6 @@
 {
     "actions": [],
+    "autoname": "autoname",
     "creation": "2023-01-01 00:00:00.000000",
     "doctype": "DocType",
     "editable_grid": 1,
@@ -8,6 +9,7 @@
         "user",
         "device",
         "opening_balance",
+        "denominations",
         "timestamp"
     ],
     "fields": [
@@ -30,6 +32,11 @@
             "fieldtype": "Currency",
             "label": "Opening Balance",
             "in_list_view": 1
+        },
+        {
+            "fieldname": "denominations",
+            "fieldtype": "JSON",
+            "label": "Denominations"
         },
         {
             "fieldname": "timestamp",

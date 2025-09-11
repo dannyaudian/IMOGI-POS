@@ -242,6 +242,7 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
         device_type (str): Jenis perangkat kasir.
         opening_balance (float): Total saldo pembukaan.
         denominations (list | None): Rincian pecahan uang yang diterima.
+
     """
     from frappe.utils import flt, now, nowdate
     from frappe import _
@@ -254,7 +255,11 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
     if cache.hget("active_devices", user):
         frappe.throw(_("Active device already registered for user"))
 
-    # --- Validasi input
+    # --- Validasi & hitung dari denominasi
+    denominations = denominations or []
+    opening_balance = 0
+    for d in denominations:
+        opening_balance += flt(d.get("value")) * flt(d.get("qty"))
     opening_balance = flt(opening_balance)
     if opening_balance <= 0:
         frappe.throw(_("Opening balance must be greater than 0"))
@@ -265,6 +270,7 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
         "user": user,
         "device": device_type,
         "opening_balance": opening_balance,
+        "denominations": denominations,
         "timestamp": now(),
     })
     doc.insert(ignore_permissions=True)
@@ -378,7 +384,7 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
     # --- SET LOCK cache SETELAH semua sukses agar tidak nyangkut bila error di atas
     cache.hset("active_devices", user, device_type)
 
-    return {"status": "ok"}
+    return {"status": "ok", "shift_id": doc.name, "opening_balance": opening_balance}
 
 
 
