@@ -9,6 +9,7 @@ from frappe import _
 from frappe.utils import now_datetime, flt
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
+from frappe.exceptions import TimestampMismatchError
 
 def validate_item_is_sales_item(doc, method=None):
     """Ensure the linked Item is a sales item before saving POS Order Item.
@@ -200,9 +201,16 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     hooks = frappe.get_hooks("after_create_order") or []
     for hook in hooks:
         frappe.get_attr(hook)(order=order_doc)
+    frappe.call_hook("after_create_order", order=order_doc)
 
     if table_doc:
-        table_doc.set_status("Occupied", pos_order=order_doc.name)
+        table_doc.reload()
+        if table_doc.status != "Available":
+            frappe.throw(_("Table already occupied"), frappe.ValidationError)
+        try:
+            table_doc.set_status("Occupied", pos_order=order_doc.name)
+        except TimestampMismatchError:
+            frappe.throw(_("Table already occupied"), frappe.ValidationError)
 
     return order_doc.as_dict()
 
