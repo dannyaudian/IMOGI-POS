@@ -246,7 +246,7 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
     """
     from frappe.utils import flt, now, nowdate
     from frappe import _
-    import frappe
+    import frappe, json
 
     user = frappe.session.user
 
@@ -264,7 +264,6 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
             denominations = frappe.parse_json(denominations)
         except Exception:
             try:
-                import json
                 denominations = json.loads(denominations)
             except Exception:
                 denominations = []
@@ -286,13 +285,15 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
     if opening_balance <= 0:
         frappe.throw(_("Opening balance must be greater than 0"))
 
+    serialized_denominations = json.dumps(denominations)
+
     # --- Buat record sesi device (akan ikut rollback bila error di bawah)
     doc = frappe.get_doc({
         "doctype": "Cashier Device Session",
         "user": user,
         "device": device_type,
         "opening_balance": opening_balance,
-        "denominations": denominations,
+        "denominations": serialized_denominations,
         "timestamp": now(),
     })
     doc.insert(ignore_permissions=True)

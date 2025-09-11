@@ -167,7 +167,8 @@ def test_record_opening_balance_inserts(public_module):
     assert cache[("active_devices", "cashier@example.com")] == "terminal"
     # first insert is the session document
     assert inserted[0]["opening_balance"] == 100
-    assert inserted[0]["denominations"] == denoms
+    assert json.loads(inserted[0]["denominations"]) == denoms
+    assert isinstance(inserted[0]["denominations"], str)
     assert inserted[0]["user"] == "cashier@example.com"
     # second insert is the journal entry
     je = inserted[1]
@@ -191,7 +192,8 @@ def test_record_opening_balance_accepts_alt_keys(public_module):
         "opening_balance": 60.0,
     }
     assert inserted[0]["opening_balance"] == 60
-    assert inserted[0]["denominations"] == denoms
+    assert isinstance(inserted[0]["denominations"], str)
+    assert json.loads(inserted[0]["denominations"]) == denoms
 
 
 def test_record_opening_balance_accepts_json_string(public_module):
@@ -207,7 +209,8 @@ def test_record_opening_balance_accepts_json_string(public_module):
         "opening_balance": 100.0,
     }
     assert inserted[0]["opening_balance"] == 100
-    assert inserted[0]["denominations"] == [{"value": 25, "qty": 4}]
+    assert isinstance(inserted[0]["denominations"], str)
+    assert json.loads(inserted[0]["denominations"]) == [{"value": 25, "qty": 4}]
 
 
 def test_record_opening_balance_uses_opening_balance_when_no_denoms(public_module):
@@ -221,7 +224,8 @@ def test_record_opening_balance_uses_opening_balance_when_no_denoms(public_modul
         "opening_balance": 150.0,
     }
     assert inserted[0]["opening_balance"] == 150
-    assert inserted[0]["denominations"] == []
+    assert isinstance(inserted[0]["denominations"], str)
+    assert json.loads(inserted[0]["denominations"]) == []
 
 
 def test_record_opening_balance_rejects_existing(public_module):
