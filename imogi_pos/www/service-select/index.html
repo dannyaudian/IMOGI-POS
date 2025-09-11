@@ -3,13 +3,13 @@
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <style>
-  .device-select {
+  .service-select {
     display: flex;
     justify-content: center;
     gap: 1.5rem;
     padding: 2rem;
   }
-  .device-select .device-link {
+  .service-select .service-link {
     display: inline-block;
     padding: 1rem 2rem;
     font-size: 1.1rem;
@@ -20,21 +20,21 @@
     border-radius: 4px;
     background-color: var(--gray-100, #f8f9fa);
   }
-  .device-select .device-link:visited {
+  .service-select .service-link:visited {
     color: var(--color-black, #000);
   }
 </style>
 {% endblock %}
 
 {% block page_content %}
-<div class="device-select">
-    <a class="device-link" data-device="kiosk" href="/opening-balance?device=kiosk&next=/service-select">{{ _("Kiosk") }}</a>
-  <a class="device-link" data-device="cashier" href="/cashier-console">{{ _("Cashier") }}</a>
+<div class="service-select">
+  <a class="service-link" data-service="dine_in" href="/kiosk?service=dine-in">{{ _("Dine In") }}</a>
+  <a class="service-link" data-service="take_away" href="/kiosk?service=take-away">{{ _("Take Away") }}</a>
 </div>
 {% endblock %}
 
 {% block script %}
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/auth.js"></script>
-<script src="../device-select/index.js"></script>
+<script src="../service-select/index.js"></script>
 {% endblock %}
