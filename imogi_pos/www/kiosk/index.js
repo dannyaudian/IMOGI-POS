@@ -178,6 +178,8 @@ frappe.ready(async function() {
             this.elements.successDoneBtn.addEventListener('click', () => {
                 this.closeSuccessModal();
                 this.resetApp();
+                localStorage.removeItem('imogi_service_type');
+                window.location.href = '/service-select';
             });
         },
         
