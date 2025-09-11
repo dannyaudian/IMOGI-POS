@@ -211,38 +211,29 @@
     margin-top: 1rem;
   }
 
-  .opening-balance-form label {
-    font-weight: 600;
-    color: #ffffff;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
-    display: block;
-  }
-
-  .opening-balance-form input {
-    padding: 1.2rem;
-    font-size: 1.2rem;
-    border: none;
-    border-radius: 12px;
-    color: #333;
+  .opening-balance-form table {
+    width: 100%;
+    border-collapse: collapse;
     background: #ffffff;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    color: #333;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .opening-balance-form th,
+  .opening-balance-form td {
+    padding: 0.75rem;
     text-align: center;
-    font-weight: 600;
   }
 
-  .opening-balance-form input:focus {
-    outline: none;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+  .opening-balance-form thead {
+    background: #333;
+    color: #ffffff;
   }
 
-  .opening-balance-form input::placeholder {
-    color: #999;
-    font-weight: 400;
+  .opening-balance-form tfoot td {
+    font-weight: 700;
+    background: #f0f0f0;
   }
 
   .opening-balance-form button {
@@ -429,94 +420,34 @@
     <form id="opening-balance-form" class="opening-balance-form">
       <h3>
         <i class="fas fa-money-bill-wave"></i>
-        Set New Balance
+        {{ _("New Opening Balance") }}
       </h3>
-      
-      <label for="new-opening-balance">
-        <i class="fas fa-edit"></i> {{ _("New Opening Balance") }}
-      </label>
-      <input
-        type="text"
-        id="new-opening-balance"
-        inputmode="numeric"
-        autocomplete="off"
-        placeholder="Rp 0"
-        required
-      />
+
+      <table id="denomination-table">
+        <thead>
+          <tr>
+            <th>{{ _("Denomination") }}</th>
+            <th>{{ _("Quantity") }}</th>
+            <th>{{ _("Subtotal") }}</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">{{ _("Total") }}</td>
+            <td id="denomination-total">Rp 0</td>
+          </tr>
+        </tfoot>
+      </table>
+
       <button type="submit">
         <i class="fas fa-play"></i>
         {{ _("Start") }}
       </button>
-      
-      <div class="success-message" id="successMessage">
-        <i class="fas fa-check-circle"></i>
-        Session started successfully!
-      </div>
     </form>
   </div>
 </div>
 
-<script>
-  // Format currency input
-  document.getElementById('new-opening-balance').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/[^\d]/g, '');
-    if (value) {
-      // Format number with thousand separators
-      let formatted = new Intl.NumberFormat('id-ID').format(value);
-      e.target.value = 'Rp ' + formatted;
-    }
-  });
-
-  // Handle form submission
-  document.getElementById('opening-balance-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const button = form.querySelector('button[type="submit"]');
-    const successMessage = document.getElementById('successMessage');
-    
-    // Add loading state
-    form.classList.add('loading');
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Remove loading state
-      form.classList.remove('loading');
-      button.innerHTML = '<i class="fas fa-check"></i> Started!';
-      
-      // Show success message
-      successMessage.classList.add('show');
-      
-      // Reset after delay
-      setTimeout(() => {
-        button.innerHTML = '<i class="fas fa-play"></i> {{ _("Start") }}';
-        successMessage.classList.remove('show');
-        form.reset();
-      }, 2000);
-      
-    }, 1500);
-  });
-
-  // Add click to copy functionality
-  document.querySelectorAll('.session-details .form-group div').forEach(div => {
-    div.addEventListener('click', function() {
-      // Copy to clipboard functionality
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(this.textContent).then(() => {
-          const original = this.style.background;
-          const originalColor = this.style.color;
-          this.style.background = '#4CAF50';
-          this.style.color = 'white';
-          setTimeout(() => {
-            this.style.background = original;
-            this.style.color = originalColor;
-          }, 500);
-        });
-      }
-    });
-  });
-</script>
 {% endblock %}
 
 {% block script %}
