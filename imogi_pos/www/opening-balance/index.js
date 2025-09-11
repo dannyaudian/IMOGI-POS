@@ -1,7 +1,7 @@
 frappe.ready(() => {
   const params = new URLSearchParams(window.location.search);
   const device = params.get('device') || 'kiosk';
-  const next = params.get('next') || '/kiosk';
+    const next = params.get('next') || '/service-select';
 
   localStorage.setItem('imogi_device', device);
 
