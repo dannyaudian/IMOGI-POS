@@ -31,7 +31,7 @@ function showDineInModal() {
     .dine-in-modal label { display: block; margin-top: 0.5rem; }
     .dine-in-modal select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
     .dine-in-table-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem; }
-    .dine-in-table-list .table-item { padding: 0.75rem; font-size: 1.2rem; border: 1px solid #ced4da; background: #e9ecef; border-radius: 4px; cursor: pointer; text-align: center; }
+    .dine-in-table-list .table-item { padding: 0.75rem; font-size: 1.2rem; border: 1px solid #ced4da; background: #e9ecef; color: var(--color-gray-900); border-radius: 4px; cursor: pointer; text-align: center; }
     .dine-in-table-list .no-tables { grid-column: span 3; text-align: center; color: #6c757d; }
     .dine-in-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
     .dine-in-footer button { padding: 0.5rem 1rem; }
