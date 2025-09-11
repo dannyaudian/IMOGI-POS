@@ -4,25 +4,56 @@ frappe.ready(() => {
   const next = params.get('next') || '/service-select';
 
   const form = document.getElementById('opening-balance-form');
-  const amountInput = document.getElementById('new-opening-balance');
+  const tbody = document.querySelector('#denomination-table tbody');
+  const totalCell = document.getElementById('denomination-total');
 
   const elTs = document.getElementById('timestamp');
+  const elShift = document.getElementById('shift_id');
   const elUser = document.getElementById('user');
   const elDev = document.getElementById('device');
   const elOB  = document.getElementById('opening_balance');
 
-  // --- Formatter & parser Rupiah ---
+  // --- Formatter Rupiah ---
   function formatRupiah(val) {
     const digits = String(val).replace(/[^\d]/g, '');
     if (!digits) return 'Rp 0';
-    // sisipkan titik setiap 3 digit dari belakang
     const withDots = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return 'Rp ' + withDots;
   }
-  function parseRupiah(str) {
-    const digits = String(str || '').replace(/[^\d]/g, '');
-    return digits ? parseInt(digits, 10) : 0;
+
+  // --- Render rows pecahan ---
+  const denominationValues = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 100];
+  denominationValues.forEach((val) => {
+    const tr = document.createElement('tr');
+    tr.dataset.nominal = val;
+    tr.innerHTML = `
+      <td>${formatRupiah(val)}</td>
+      <td><input type="number" min="0" value="0" class="count" /></td>
+      <td class="subtotal">Rp 0</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  function updateTotals() {
+    let total = 0;
+    const denoms = [];
+    tbody.querySelectorAll('tr').forEach((tr) => {
+      const nominal = parseInt(tr.dataset.nominal, 10);
+      const count = parseInt(tr.querySelector('input').value) || 0;
+      const subtotal = nominal * count;
+      tr.querySelector('.subtotal').textContent = formatRupiah(subtotal);
+      if (count > 0) {
+        denoms.push({ nominal, quantity: count, subtotal });
+      }
+      total += subtotal;
+    });
+    totalCell.textContent = formatRupiah(total);
+    if (elOB) elOB.textContent = formatRupiah(total);
+    return { total, denoms };
   }
+
+  tbody.addEventListener('input', updateTotals);
+  updateTotals();
 
   // Isi panel kiri (ambil session terakhir kalau ada)
   frappe.call({
@@ -30,37 +61,27 @@ frappe.ready(() => {
     callback: (r) => {
       const s = (r.message || [])[0];
       if (!s) return;
-      if (elTs)   elTs.textContent = s.timestamp || '';
-      if (elUser) elUser.textContent = s.user || '';
-      if (elDev)  elDev.textContent = s.device || '';
-      if (elOB)   elOB.textContent  = formatRupiah(s.opening_balance || 0);
+      if (elTs)    elTs.textContent    = s.timestamp || '';
+      if (elShift) elShift.textContent = s.name || '';
+      if (elUser)  elUser.textContent  = s.user || '';
+      if (elDev)   elDev.textContent   = s.device || '';
+      if (elOB)    elOB.textContent    = formatRupiah(s.opening_balance || 0);
     }
   });
 
-  // Format saat user mengetik
-  amountInput.addEventListener('input', (e) => {
-    const raw = parseRupiah(e.target.value);
-    e.target.value = formatRupiah(raw);
-  });
-
-  // Pre-fill tampilan input agar jelas
-  amountInput.value = formatRupiah(0);
-
-  // Submit: kirim angka bersih ke backend
+  // Submit: kirim hasil kalkulasi ke backend
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const opening_balance = parseRupiah(amountInput.value); // angka murni
+    const { total, denoms } = updateTotals();
 
     frappe.call({
       method: 'imogi_pos.api.public.record_opening_balance',
-      args: { device_type: device, opening_balance },
+      args: { device_type: device, opening_balance: total, denominations: denoms },
       callback: () => {
-        // opsional: update panel kiri sebelum pindah halaman
-        if (elOB) elOB.textContent = formatRupiah(opening_balance);
+        if (elOB) elOB.textContent = formatRupiah(total);
         window.location.href = next;
       },
       error: (err) => {
-        // tampilkan pesan error dari backend (mis. session masih aktif)
         const msg = err?.message || err?._server_messages || __('Failed to open session');
         frappe.msgprint(msg);
       }

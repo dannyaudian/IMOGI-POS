@@ -71,7 +71,25 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .opening-balance-form input {
+  .opening-balance-form table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .opening-balance-form th,
+  .opening-balance-form td {
+    border: 1px solid #000000;
+    padding: 0.5rem;
+    text-align: right;
+  }
+
+  .opening-balance-form th:first-child,
+  .opening-balance-form td:first-child {
+    text-align: left;
+  }
+
+  .opening-balance-form input[type="number"] {
+    width: 100%;
     padding: 0.5rem;
     font-size: 1rem;
     border: 1px solid #000000;
@@ -101,6 +119,10 @@
         <div id="timestamp"></div>
       </div>
       <div class="form-group">
+        <label for="shift_id">{{ _('Shift ID') }}</label>
+        <div id="shift_id"></div>
+      </div>
+      <div class="form-group">
         <label for="user">{{ _('User') }}</label>
         <div id="user"></div>
       </div>
@@ -116,15 +138,22 @@
 
     <!-- Right: Opening Balance Input Form -->
     <form id="opening-balance-form" class="opening-balance-form">
-      <label for="new-opening-balance">{{ _("New Opening Balance") }}</label>
-      <input
-        type="text"
-        id="new-opening-balance"
-        inputmode="numeric"
-        autocomplete="off"
-        placeholder="Rp 0"
-        required
-      />
+      <table id="denomination-table">
+        <thead>
+          <tr>
+            <th>{{ _('Nominal') }}</th>
+            <th>{{ _('Jumlah Lembar') }}</th>
+            <th>{{ _('Subtotal') }}</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">{{ _('Total') }}</td>
+            <td id="denomination-total">Rp 0</td>
+          </tr>
+        </tfoot>
+      </table>
       <button type="submit">{{ _("Start") }}</button>
     </form>
 
