@@ -5,6 +5,9 @@ import pytest
 
 sys.path.insert(0, ".")
 
+from imogi_pos.tests.test_orders import frappe_env
+import imogi_pos.tests.test_orders as order_utils
+
 
 @pytest.fixture
 def table_env(monkeypatch):
@@ -71,3 +74,27 @@ def test_concurrent_status_updates(table_env):
         pytest.fail("TimestampMismatchError raised")
 
     assert store["T1"].status == "Reserved"
+
+
+def test_create_order_on_occupied_table_raises_validation_without_broken_pipe(frappe_env, monkeypatch):
+    frappe, orders_module = frappe_env
+    # Mark table T1 as occupied to trigger the validation
+    order_utils.tables["T1"].status = "Occupied"
+    order_utils.tables["T1"].current_pos_order = "POS-EXISTING"
+
+    logged = {}
+
+    def fake_log_error(*args, **kwargs):
+        logged["called"] = True
+
+    def broken_throw(message, exc):
+        raise BrokenPipeError("broken pipe")
+
+    monkeypatch.setattr(orders_module.frappe, "log_error", fake_log_error, raising=False)
+    monkeypatch.setattr(orders_module.frappe, "get_traceback", lambda: "tb", raising=False)
+    monkeypatch.setattr(orders_module.frappe, "throw", broken_throw)
+
+    with pytest.raises(frappe.ValidationError, match="already occupied"):
+        orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+
+    assert logged.get("called")

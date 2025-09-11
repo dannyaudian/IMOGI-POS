@@ -117,21 +117,26 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
 
     # For restaurant-specific features like table assignment
     table_doc = None
+    def _safe_throw(message):
+        try:
+            frappe.throw(message, frappe.ValidationError)
+        except BrokenPipeError:
+            frappe.log_error(frappe.get_traceback())
+            raise frappe.ValidationError(message)
+
     if table:
         check_restaurant_domain(pos_profile)
         table_doc = frappe.get_doc("Restaurant Table", table)
 
         # Table must belong to branch and be available
         if table_doc.branch != branch:
-            frappe.throw(
-                _("Table {0} does not belong to branch {1}").format(table, branch),
-                frappe.ValidationError,
+            _safe_throw(
+                _("Table {0} does not belong to branch {1}").format(table, branch)
             )
 
         if table_doc.status == "Occupied" and table_doc.current_pos_order:
-            frappe.throw(
-                _("Table {0} is already occupied").format(table),
-                frappe.ValidationError,
+            _safe_throw(
+                _("Table {0} is already occupied").format(table)
             )
     elif order_type == "Dine-in":
         # Allow Dine-in orders without specifying a table, but ensure Restaurant domain
@@ -191,9 +196,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 # Remove link to allow inserting the order without a customer
                 order_doc.customer = None
             else:
-                frappe.throw(
-                    _("Customer {0} not found").format(customer),
-                    frappe.ValidationError,
+                _safe_throw(
+                    _("Customer {0} not found").format(customer)
                 )
 
     order_doc.insert()
@@ -208,11 +212,11 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     if table_doc:
         table_doc.reload()
         if table_doc.status != "Available":
-            frappe.throw(_("Table already occupied"), frappe.ValidationError)
+            _safe_throw(_("Table already occupied"))
         try:
             table_doc.set_status("Occupied", pos_order=order_doc.name)
         except TimestampMismatchError:
-            frappe.throw(_("Table already occupied"), frappe.ValidationError)
+            _safe_throw(_("Table already occupied"))
 
     return order_doc.as_dict()
 
