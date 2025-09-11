@@ -26,13 +26,18 @@ function showDineInModal() {
   const style = document.createElement('style');
   style.textContent = `
     .dine-in-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .dine-in-modal { background: #fff; padding: 1rem; border-radius: 8px; width: 90%; max-width: 320px; }
-    .dine-in-modal h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.25rem; text-align: center; }
-    .dine-in-modal label { display: block; margin-top: 0.5rem; }
-    .dine-in-modal select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+    .dine-in-modal { background: #fff; padding: 1rem; border-radius: 8px; width: 90%; max-width: 360px; color:#0f172a; }
+    .dine-in-modal h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.25rem; text-align: center; color:#0f172a; }
+    .dine-in-modal label { display: block; margin-top: 0.5rem; color:#0f172a; }
+    .dine-in-modal select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; color:#0f172a; background:#fff; border:1px solid #ced4da; border-radius:4px; }
     .dine-in-table-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem; }
-    .dine-in-table-list .table-item { padding: 0.75rem; font-size: 1.2rem; border: 1px solid #ced4da; background: #e9ecef; color: var(--color-gray-900); border-radius: 4px; cursor: pointer; text-align: center; }
-    .dine-in-table-list .no-tables { grid-column: span 3; text-align: center; color: #6c757d; }
+    .dine-in-table-list .table-item {
+      padding: 0.75rem; font-size: 1.05rem;
+      border: 1px solid #cbd5e1; background: #f3f4f6;
+      color: #111827; border-radius: 6px; cursor: pointer; text-align: center; font-weight: 600;
+    }
+    .dine-in-table-list .table-item:hover { background:#e2e8f0; }
+    .dine-in-table-list .no-tables { grid-column: span 3; text-align: center; color: #334155; }
     .dine-in-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
     .dine-in-footer button { padding: 0.5rem 1rem; }
     .dine-in-error { color: #dc3545; margin-top: 0.5rem; display: none; }
