@@ -4,37 +4,93 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <style>
+  /* Style monokrom elegan untuk service-select */
+body {
+  background-color: #1a1a1a;
+  color: #f8f8f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.service-select {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.5rem;
+  padding: 3rem 1rem;
+  min-height: 70vh;
+}
+
+.service-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2.5rem;
+  width: 280px;
+  border-radius: 8px;
+  background-color: #252525;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.service-link:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  background-color: #2c2c2c;
+  border-color: #444;
+}
+
+.service-link i {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: #f8f8f8;
+}
+
+.service-link span {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #f8f8f8;
+}
+
+.service-link .description {
+  font-size: 1rem;
+  color: #b0b0b0;
+  line-height: 1.5;
+}
+
+.service-link:visited {
+  color: #f8f8f8;
+}
+
+/* Efek saat kartu dihover */
+.service-link:hover i {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+/* Efek fokus untuk aksesibilitas */
+.service-link:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Media query untuk layar kecil */
+@media (max-width: 768px) {
   .service-select {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    padding: 2rem;
-  }
-  .service-select .service-link {
-    display: inline-flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    cursor: pointer;
-    text-decoration: none;
-    color: var(--color-black, #000);
-    border: 1px solid var(--gray-300, #ccc);
-    border-radius: 4px;
-    background-color: var(--gray-100, #f8f9fa);
-    text-align: center;
+    gap: 1.5rem;
   }
-  .service-select .service-link i {
-    font-size: 1.2rem;
+  
+  .service-link {
+    width: 100%;
+    max-width: 320px;
   }
-  .service-select .service-link .description {
-    font-size: 0.9rem;
-    color: var(--gray-700, #555);
-  }
-  .service-select .service-link:visited {
-    color: var(--color-black, #000);
-  }
+}
 </style>
 {% endblock %}
 
