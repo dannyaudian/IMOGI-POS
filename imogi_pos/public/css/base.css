@@ -12,9 +12,9 @@
 /* ===== CSS VARIABLES (TOKENS) ===== */
 :root {
   /* Brand Colors - customizable via POS Profile */
-  --brand-primary: var(--color-black);
-  --brand-accent: var(--color-gray-600);
-  --brand-header-bg: #000000;
+  --brand-primary: #FF8800;
+  --brand-accent: #FFA500;
+  --brand-header-bg: #333333;
   --brand-text: #ffffff;
   
   /* Neutral Colors */
