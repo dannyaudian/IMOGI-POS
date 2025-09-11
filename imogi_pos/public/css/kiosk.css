@@ -166,6 +166,7 @@
   gap: var(--spacing-3);
   justify-content: center;
   justify-items: center;
+  align-content: flex-start;
 }
 
 .catalog-item {
