@@ -12,8 +12,8 @@
 /* ===== CSS VARIABLES (TOKENS) ===== */
 :root {
   /* Brand Colors - customizable via POS Profile */
-  --brand-primary: #00a65a;
-  --brand-accent: #f5c518;
+  --brand-primary: var(--color-black);
+  --brand-accent: var(--color-gray-600);
   --brand-header-bg: #000000;
   --brand-text: #ffffff;
   
@@ -34,8 +34,8 @@
   /* Functional Colors */
   --color-success: #00a65a;
   --color-success-light: #ccffe6;
-  --color-warning: #f59e0b;
-  --color-warning-light: #fef3c7;
+  --color-warning: var(--color-gray-500);
+  --color-warning-light: var(--color-gray-200);
   --color-danger: #ef4444;
   --color-danger-light: #fee2e2;
   --color-info: #3b82f6;
@@ -168,14 +168,14 @@
     --color-gray-600: #a8a9aa;
     --color-gray-700: #c8c9ca;
     --color-gray-800: #e4e5e6;
-    --color-gray-900: #f5f6f7;
-    
-    --color-success-light: rgba(16, 185, 129, 0.2);
-    --color-warning-light: rgba(245, 158, 11, 0.2);
-    --color-danger-light: rgba(239, 68, 68, 0.2);
-    --color-info-light: rgba(59, 130, 246, 0.2);
+      --color-gray-900: #f5f6f7;
+
+      --color-success-light: rgba(16, 185, 129, 0.2);
+      --color-warning-light: rgba(107, 114, 128, 0.2);
+      --color-danger-light: rgba(239, 68, 68, 0.2);
+      --color-info-light: rgba(59, 130, 246, 0.2);
+    }
   }
-}
 
 /* ===== RESET ===== */
 *, *::before, *::after {
