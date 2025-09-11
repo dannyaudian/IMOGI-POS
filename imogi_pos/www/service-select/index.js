@@ -29,10 +29,10 @@ function showDineInModal() {
     .dine-in-modal { background: #fff; padding: 1rem; border-radius: 8px; width: 90%; max-width: 320px; }
     .dine-in-modal h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.25rem; text-align: center; }
     .dine-in-modal label { display: block; margin-top: 0.5rem; }
-    .dine-in-modal select, .dine-in-modal input { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
-    .dine-in-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem; }
-    .dine-in-keypad button { padding: 0.75rem; font-size: 1.2rem; border: 1px solid #ced4da; background: #e9ecef; border-radius: 4px; cursor: pointer; }
-    .dine-in-keypad button.keypad-clear { grid-column: span 3; background: #ffc107; }
+    .dine-in-modal select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+    .dine-in-table-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1rem; }
+    .dine-in-table-list .table-item { padding: 0.75rem; font-size: 1.2rem; border: 1px solid #ced4da; background: #e9ecef; border-radius: 4px; cursor: pointer; text-align: center; }
+    .dine-in-table-list .no-tables { grid-column: span 3; text-align: center; color: #6c757d; }
     .dine-in-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
     .dine-in-footer button { padding: 0.5rem 1rem; }
     .dine-in-error { color: #dc3545; margin-top: 0.5rem; display: none; }
@@ -45,27 +45,12 @@ function showDineInModal() {
   modal.innerHTML = `
     <div class="dine-in-modal">
       <h3>Makan di Tempat</h3>
-      <label>Nomor Meja</label>
-      <input type="text" id="dine-in-table" readonly>
       <label>Zona</label>
       <select id="dine-in-zone"><option value="">Pilih Zona</option></select>
-      <div class="dine-in-keypad">
-        <button data-value="1">1</button>
-        <button data-value="2">2</button>
-        <button data-value="3">3</button>
-        <button data-value="4">4</button>
-        <button data-value="5">5</button>
-        <button data-value="6">6</button>
-        <button data-value="7">7</button>
-        <button data-value="8">8</button>
-        <button data-value="9">9</button>
-        <button class="keypad-clear" data-value="clear">Clear</button>
-        <button data-value="0">0</button>
-      </div>
+      <div class="dine-in-table-list" id="dine-in-table-list"></div>
       <div class="dine-in-error" id="dine-in-error"></div>
       <div class="dine-in-footer">
         <button id="dine-in-cancel">Batal</button>
-        <button id="dine-in-continue">Lanjut</button>
       </div>
     </div>
   `;
@@ -91,59 +76,54 @@ function showDineInModal() {
     });
   });
 
-  const input = document.getElementById('dine-in-table');
-  modal.querySelectorAll('.dine-in-keypad button').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-value');
-      if (val === 'clear') {
-        input.value = '';
-      } else {
-        input.value += val;
-      }
-    });
-  });
-
   modal.querySelector('#dine-in-cancel').addEventListener('click', () => {
     modal.remove();
   });
 
-  modal.querySelector('#dine-in-continue').addEventListener('click', () => {
-    const tableNumber = input.value;
-    const zone = document.getElementById('dine-in-zone').value;
-    const errorDiv = document.getElementById('dine-in-error');
+  const zoneSelect = document.getElementById('dine-in-zone');
+  const tableList = document.getElementById('dine-in-table-list');
+  const errorDiv = document.getElementById('dine-in-error');
+
+  zoneSelect.addEventListener('change', () => {
+    const zone = zoneSelect.value;
+    tableList.innerHTML = '';
     errorDiv.style.display = 'none';
 
-    if (!tableNumber || !zone) {
-      errorDiv.textContent = 'Nomor meja dan zona wajib diisi';
-      errorDiv.style.display = 'block';
+    if (!zone) {
       return;
     }
 
     frappe.call({
-      method: 'frappe.client.get_value',
+      method: 'frappe.client.get_list',
       args: {
         doctype: 'Restaurant Table',
-        filters: { table_number: tableNumber, floor: zone },
-        fieldname: ['status'],
+        fields: ['table_number'],
+        filters: { floor: zone, status: 'Available' },
+        limit_page_length: 0,
       },
     }).then((r) => {
-      const data = r.message;
-      if (!data) {
-        errorDiv.textContent = `Meja ${tableNumber} tidak ditemukan`;
-        errorDiv.style.display = 'block';
+      const tables = r.message || [];
+      if (tables.length === 0) {
+        const noTables = document.createElement('div');
+        noTables.className = 'no-tables';
+        noTables.textContent = 'Tidak ada meja kosong di zona ini';
+        tableList.appendChild(noTables);
         return;
       }
 
-      if (data.status && data.status !== 'Available') {
-        errorDiv.textContent = `Meja ${tableNumber} sudah digunakan`;
-        errorDiv.style.display = 'block';
-        return;
-      }
-
-      localStorage.setItem('imogi_service_type', 'dine_in');
-      localStorage.setItem('imogi_table_number', tableNumber);
-      localStorage.setItem('imogi_table_zone', zone);
-      window.location.href = '/kiosk?service=dine-in';
+      tables.forEach((t) => {
+        const div = document.createElement('div');
+        div.className = 'table-item';
+        div.setAttribute('data-table', t.table_number);
+        div.textContent = `Meja ${t.table_number}`;
+        div.addEventListener('click', () => {
+          localStorage.setItem('imogi_service_type', 'dine_in');
+          localStorage.setItem('imogi_table_number', t.table_number);
+          localStorage.setItem('imogi_table_zone', zone);
+          window.location.href = '/kiosk?service=dine-in';
+        });
+        tableList.appendChild(div);
+      });
     });
   });
 }
