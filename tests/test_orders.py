@@ -57,3 +57,9 @@ def test_create_order_with_walkin_customer_missing(frappe_env):
     assert result["customer"] is None
 
 
+def test_create_dine_in_without_table_allowed(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order("Dine-in", "BR-1", "P1")
+    assert result["table"] is None
+
+

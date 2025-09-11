@@ -783,7 +783,8 @@ frappe.ready(async function() {
                         pos_order: this.posOrder,
                         pos_profile: POS_PROFILE.name,
                         mode_of_payment: 'Online',
-                        amount: totals.total
+                        amount: totals.total,
+                        table: this.tableNumber
                     }
                 });
                 
@@ -1034,7 +1035,8 @@ frappe.ready(async function() {
                             pos_order: this.posOrder,
                             pos_profile: POS_PROFILE.name,
                             mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
-                            amount: totals.total
+                            amount: totals.total,
+                            table: this.tableNumber
                         }
                     });
 
