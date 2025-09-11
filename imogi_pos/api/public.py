@@ -236,93 +236,144 @@ def check_permission(doctype, perm_type="read"):
 
 @frappe.whitelist()
 def record_opening_balance(device_type, opening_balance):
-    """Record the opening balance for a user's device session.
-
-    Args:
-        device_type (str): Identifier for the device being registered.
-        opening_balance (float): Starting cash balance for the session.
-
-    Returns:
-        dict: Confirmation status.
-    """
+    """Record the opening balance for a user's device session."""
+    from frappe.utils import flt, now, nowdate
+    from frappe import _
+    import frappe
 
     user = frappe.session.user
 
+    # --- Cegah multi device aktif untuk user
     cache = frappe.cache()
     if cache.hget("active_devices", user):
         frappe.throw(_("Active device already registered for user"))
 
-    cache.hset("active_devices", user, device_type)
+    # --- Validasi input
+    opening_balance = flt(opening_balance)
+    if opening_balance <= 0:
+        frappe.throw(_("Opening balance must be greater than 0"))
 
-    doc = frappe.get_doc(
-        {
-            "doctype": "Cashier Device Session",
-            "user": user,
-            "device": device_type,
-            "opening_balance": opening_balance,
-            "timestamp": now(),
-        }
-    )
+    # --- Buat record sesi device (akan ikut rollback bila error di bawah)
+    doc = frappe.get_doc({
+        "doctype": "Cashier Device Session",
+        "user": user,
+        "device": device_type,
+        "opening_balance": opening_balance,
+        "timestamp": now(),
+    })
     doc.insert(ignore_permissions=True)
 
-
+    # --- Ambil / siapkan akun kas dari Restaurant Settings (auto-create bila kosong)
     settings = frappe.get_cached_doc("Restaurant Settings")
     big_cash_account = getattr(settings, "big_cash_account", None)
     petty_cash_account = getattr(settings, "petty_cash_account", None)
 
     if not big_cash_account or not petty_cash_account:
-        # Attempt to auto-create missing cash accounts
-        from imogi_pos.setup.install import create_cash_accounts
+        # coba auto-create sesuai code kamu
+        try:
+            from imogi_pos.setup.install import create_cash_accounts
+            create_cash_accounts()
+        except Exception:
+            # biarkan lanjut ke pengecekan & error user-friendly di bawah
+            pass
 
-        create_cash_accounts()
+        # refresh settings setelah auto-create
         settings = frappe.get_cached_doc("Restaurant Settings")
         big_cash_account = getattr(settings, "big_cash_account", None)
         petty_cash_account = getattr(settings, "petty_cash_account", None)
 
     if not big_cash_account or not petty_cash_account:
-        frappe.throw(
-            _(
-                "Cash accounts are not configured in Restaurant Settings."
-                " Please configure big and petty cash accounts."
-            )
-        )
+        frappe.throw(_(
+            "Cash accounts are not configured in Restaurant Settings. "
+            "Please configure big and petty cash accounts."
+        ))
 
-    opening_balance = flt(opening_balance)
     company = (
         frappe.defaults.get_user_default("company")
         or frappe.defaults.get_global_default("company")
     )
+    if not company:
+        frappe.throw(_("Default Company is not set"))
 
+    # --- Helper aturan sisi akun
+    def account_rule(acc_name: str):
+        acc = frappe.db.get_value(
+            "Account", acc_name,
+            ["root_type", "balance_must_be", "company"],
+            as_dict=True,
+        )
+        if not acc:
+            frappe.throw(_("Account {0} not found").format(acc_name))
+
+        # Jika dikunci, pakai aturan kunci. Jika tidak, pakai default root_type.
+        if acc.balance_must_be in ("Debit", "Credit"):
+            normal_side = acc.balance_must_be
+        else:
+            # Default: Asset/Expense -> Debit ; Liability/Equity/Income -> Credit
+            normal_side = "Credit" if acc.root_type in ("Liability", "Equity", "Income") else "Debit"
+
+        return normal_side, acc
+
+    def ensure_side_allowed(acc_name: str, side: str):
+        must = frappe.db.get_value("Account", acc_name, "balance_must_be")
+        if must in ("Debit", "Credit") and must != side:
+            frappe.throw(_(
+                "Account {0} is locked to {1} postings, cannot post {2}. "
+                "Adjust Chart of Accounts / Restaurant Settings."
+            ).format(acc_name, must, side))
+
+    # --- Tentukan sisi yang dipakai: tambah saldo petty pada sisi normalnya
+    petty_side, _ = account_rule(petty_cash_account)
+    offset_side = "Credit" if petty_side == "Debit" else "Debit"
+
+    # Validasi dua akun sesuai sisi yang akan diposting
+    ensure_side_allowed(petty_cash_account, petty_side)
+    ensure_side_allowed(big_cash_account, offset_side)
+
+    # --- Susun baris JE sesuai aturan sisi
+    petty_row = {
+        "account": petty_cash_account,
+        "reference_type": "Cashier Device Session",
+        "reference_name": doc.name,
+    }
+    offset_row = {
+        "account": big_cash_account,
+        "reference_type": "Cashier Device Session",
+        "reference_name": doc.name,
+    }
+
+    if petty_side == "Debit":
+        petty_row["debit_in_account_currency"] = opening_balance
+        petty_row["credit_in_account_currency"] = 0
+        offset_row["credit_in_account_currency"] = opening_balance
+        offset_row["debit_in_account_currency"] = 0
+    else:
+        # Jika petty direquire Credit, balik sisi
+        petty_row["credit_in_account_currency"] = opening_balance
+        petty_row["debit_in_account_currency"] = 0
+        offset_row["debit_in_account_currency"] = opening_balance
+        offset_row["credit_in_account_currency"] = 0
+
+    # --- Buat & submit Journal Entry
     je = frappe.new_doc("Journal Entry")
-    je.voucher_type = "Cash Entry"
+    je.voucher_type = "Cash Entry"  # atau "Journal Entry" sesuai kebijakan
     je.posting_date = nowdate()
     je.company = company
-    je.append(
-        "accounts",
-        {
-            "account": petty_cash_account,
-            "debit_in_account_currency": opening_balance,
-            "reference_type": "Cashier Device Session",
-            "reference_name": doc.name,
-        },
-    )
-    je.append(
-        "accounts",
-        {
-            "account": big_cash_account,
-            "credit_in_account_currency": opening_balance,
-            "reference_type": "Cashier Device Session",
-            "reference_name": doc.name,
-        },
-    )
+    je.append("accounts", petty_row)
+    je.append("accounts", offset_row)
 
     je.insert(ignore_permissions=True)
     je.submit()
 
+    # Simpan relasi JE pada sesi (jika field tersedia)
     if doc.meta.get_field("journal_entry"):
         doc.db_set("journal_entry", je.name)
 
+    # --- SET LOCK cache SETELAH semua sukses agar tidak nyangkut bila error di atas
+    cache.hset("active_devices", user, device_type)
+
     return {"status": "ok"}
+
 
 
 
