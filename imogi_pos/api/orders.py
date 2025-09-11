@@ -72,22 +72,17 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         order_type (str): Order type (Dine-in/Takeaway/Kiosk)
         branch (str): Branch name
         pos_profile (str): POS Profile name
-        table (str, optional): Restaurant Table name. Required for Dine-in.
+        table (str, optional): Restaurant Table name.
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
     
     Returns:
         dict: Created POS Order details
-    
-    Raises:
-        frappe.ValidationError: If table is missing for Dine-in orders
+
     """
     validate_branch_access(branch)
     ensure_update_stock_enabled(pos_profile)
-    
-    if order_type == "Dine-in" and not table:
-        frappe.throw(_("Table is required for Dine-in orders"), frappe.ValidationError)
-    
+
     # For restaurant-specific features like table assignment
     table_doc = None
     if table:
@@ -106,6 +101,9 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 _("Table {0} is already occupied").format(table),
                 frappe.ValidationError,
             )
+    elif order_type == "Dine-in":
+        # Allow Dine-in orders without specifying a table, but ensure Restaurant domain
+        check_restaurant_domain(pos_profile)
     # Ensure numeric discounts to avoid type issues
     try:
         discount_amount = float(discount_amount or 0)
