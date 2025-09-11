@@ -235,13 +235,14 @@ def check_permission(doctype, perm_type="read"):
 
 
 @frappe.whitelist()
-def record_opening_balance(device_type, denominations):
+def record_opening_balance(device_type, opening_balance, denominations=None):
     """Record the opening balance for a user's device session.
 
     Args:
-        device_type (str): The type of device being used.
-        denominations (list[dict]): List of ``{"value": x, "qty": y}`` items
-            describing the cash denominations provided by the cashier.
+        device_type (str): Jenis perangkat kasir.
+        opening_balance (float): Total saldo pembukaan.
+        denominations (list | None): Rincian pecahan uang yang diterima.
+
     """
     from frappe.utils import flt, now, nowdate
     from frappe import _
