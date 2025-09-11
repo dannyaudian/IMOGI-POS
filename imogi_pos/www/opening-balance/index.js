@@ -87,4 +87,21 @@ frappe.ready(() => {
       }
     });
   });
+
+  // Click to copy values from session details
+  document.querySelectorAll('.session-details .form-group div').forEach((div) => {
+    div.addEventListener('click', () => {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(div.textContent).then(() => {
+        const originalBg = div.style.background;
+        const originalColor = div.style.color;
+        div.style.background = '#4CAF50';
+        div.style.color = 'white';
+        setTimeout(() => {
+          div.style.background = originalBg;
+          div.style.color = originalColor;
+        }, 500);
+      });
+    });
+  });
 });
