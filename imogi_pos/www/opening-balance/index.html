@@ -1,12 +1,17 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <style>
   body {
-    background: #ffffff;
-    color: #fff;
+    background: linear-gradient(135deg, #afafaf 0%, #888888 100%);
+    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
   }
 
   .opening-balance-wrapper {
@@ -15,94 +20,366 @@
     justify-content: center;
     align-items: center;
     padding: 2rem;
+    position: relative;
+  }
+
+  /* Background decoration */
+  .opening-balance-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(254,156,43,0.1)"/><circle cx="80" cy="40" r="3" fill="rgba(254,156,43,0.08)"/><circle cx="40" cy="80" r="2" fill="rgba(254,156,43,0.12)"/></svg>');
+    pointer-events: none;
   }
 
   .session-card {
-    background: #fff;
-    color: var(--color-gray-900);
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background: #ffffff;
+    color: #333;
+    padding: 0;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     width: 100%;
-    max-width: 900px; /* Membatasi lebar maksimal card */
-    display: flex; /* Menggunakan flexbox untuk dua sisi */
-    gap: 2rem; /* Memberi jarak antara dua sisi */
+    max-width: 1000px;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    animation: slideInUp 0.6s ease-out;
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Header icon */
+  .session-header {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fe9c2b;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(254, 156, 43, 0.3);
+    z-index: 2;
+  }
+
+  .session-header i {
+    font-size: 1.8rem;
+    color: #ffffff;
   }
 
   /* Sisi kiri: Session Details */
   .session-details {
-    flex: 1; /* Membuat sisi kiri memiliki ukuran dinamis */
+    flex: 1;
+    padding: 3rem 2rem 2rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    position: relative;
+  }
+
+  .session-details::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent, #e9ecef, transparent);
   }
 
   .session-details h2 {
-    color: #000000;
-    margin-bottom: 1.5rem;
+    color: #333;
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 1rem;
   }
 
   .session-details .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    position: relative;
   }
 
   .session-details .form-group label {
-    font-weight: bold;
+    font-weight: 600;
     margin-bottom: 0.5rem;
-    color: #000000;
+    color: #555;
+    display: block;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .session-details .form-group div {
-    padding: 0.5rem;
-    font-size: 1rem;
-    color: #000000;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    border: 1px solid #000000;
+    padding: 1rem;
+    font-size: 1.1rem;
+    color: #333;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .session-details .form-group div:hover {
+    border-color: #fe9c2b;
+    box-shadow: 0 5px 15px rgba(254, 156, 43, 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Icon untuk setiap field */
+  .session-details .form-group div::before {
+    content: '';
+    position: absolute;
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    background: #fe9c2b;
+    border-radius: 50%;
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .session-details .form-group div:hover::before {
+    opacity: 1;
+  }
+
+  /* Special styling for opening balance display */
+  .session-details .form-group:last-child div {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    border-color: #4CAF50;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
   }
 
   /* Sisi kanan: Input Opening Balance */
   .opening-balance-form {
-    flex: 1; /* Membuat sisi kanan juga memiliki ukuran dinamis */
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    background: #fff;
-    color: #000000;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    gap: 1.5rem;
+    background: linear-gradient(135deg, #fe9c2b 0%, #ff8c00 100%);
+    color: #ffffff;
+    padding: 3rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
   }
 
-  .opening-balance-form table {
+  .opening-balance-form::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
     width: 100%;
-    border-collapse: collapse;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="90" cy="10" r="15" fill="rgba(255,255,255,0.05)"/><circle cx="10" cy="90" r="20" fill="rgba(255,255,255,0.03)"/><circle cx="50" cy="30" r="8" fill="rgba(255,255,255,0.08)"/></svg>');
+    pointer-events: none;
   }
 
-  .opening-balance-form th,
-  .opening-balance-form td {
-    border: 1px solid #000000;
-    padding: 0.5rem;
-    text-align: right;
+  .opening-balance-form > * {
+    position: relative;
+    z-index: 1;
   }
 
-  .opening-balance-form th:first-child,
-  .opening-balance-form td:first-child {
-    text-align: left;
+  .opening-balance-form h3 {
+    color: #ffffff;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 1rem;
   }
 
-  .opening-balance-form input[type="number"] {
-    width: 100%;
-    padding: 0.5rem;
+  .opening-balance-form label {
+    font-weight: 600;
+    color: #ffffff;
     font-size: 1rem;
-    border: 1px solid #000000;
-    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .opening-balance-form input {
+    padding: 1.2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 12px;
+    color: #333;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .opening-balance-form input:focus {
+    outline: none;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .opening-balance-form input::placeholder {
+    color: #999;
+    font-weight: 400;
   }
 
   .opening-balance-form button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
+    padding: 1.2rem 2rem;
+    font-size: 1.1rem;
     cursor: pointer;
-    background: #000000;
-    color: #fff;
+    background: #333;
+    color: #ffffff;
     border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .opening-balance-form button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transition: all 0.5s ease;
+    transform: translate(-50%, -50%);
+  }
+
+  .opening-balance-form button:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .opening-balance-form button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    background: #222;
+  }
+
+  .opening-balance-form button:active {
+    transform: translateY(-1px);
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .session-card {
+      flex-direction: column;
+      max-width: 500px;
+      margin: 1rem;
+    }
+
+    .session-details::after {
+      display: none;
+    }
+
+    .session-details,
+    .opening-balance-form {
+      padding: 2rem 1.5rem;
+    }
+
+    .opening-balance-wrapper {
+      padding: 1rem;
+    }
+
+    .session-header {
+      position: relative;
+      top: 0;
+      left: 0;
+      transform: none;
+      margin: 0 auto 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .session-card {
+      margin: 0.5rem;
+    }
+
+    .session-details,
+    .opening-balance-form {
+      padding: 1.5rem 1rem;
+    }
+
+    .session-details h2 {
+      font-size: 1.3rem;
+    }
+  }
+
+  /* Loading animation */
+  .loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .loading button {
+    position: relative;
+  }
+
+  .loading button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%);
+  }
+
+  @keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* Success message */
+  .success-message {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin-top: 1rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+  }
+
+  .success-message.show {
+    opacity: 1;
+    transform: translateY(0);
   }
 </style>
 {% endblock %}
@@ -110,55 +387,136 @@
 {% block page_content %}
 <div class="opening-balance-wrapper">
   <div class="session-card">
+    <!-- Header Icon -->
+    <div class="session-header">
+      <i class="fas fa-cash-register"></i>
+    </div>
+
     <!-- Left: Cashier Device Session Details -->
     <div class="session-details">
       <h2>{{ _('Cashier Session') }}</h2>
 
       <div class="form-group">
-        <label for="timestamp">{{ _('Timestamp') }}</label>
+        <label for="timestamp">
+          <i class="fas fa-clock"></i> {{ _('Timestamp') }}
+        </label>
         <div id="timestamp"></div>
       </div>
+      
       <div class="form-group">
-        <label for="shift_id">{{ _('Shift ID') }}</label>
-        <div id="shift_id"></div>
-      </div>
-      <div class="form-group">
-        <label for="user">{{ _('User') }}</label>
+        <label for="user">
+          <i class="fas fa-user"></i> {{ _('User') }}
+        </label>
         <div id="user"></div>
       </div>
+      
       <div class="form-group">
-        <label for="device">{{ _('Device') }}</label>
+        <label for="device">
+          <i class="fas fa-desktop"></i> {{ _('Device') }}
+        </label>
         <div id="device"></div>
       </div>
+      
       <div class="form-group">
-        <label for="opening_balance">{{ _('Opening Balance') }}</label>
+        <label for="opening_balance">
+          <i class="fas fa-wallet"></i> {{ _('Opening Balance') }}
+        </label>
         <div id="opening_balance"></div>
       </div>
     </div>
 
     <!-- Right: Opening Balance Input Form -->
     <form id="opening-balance-form" class="opening-balance-form">
-      <table id="denomination-table">
-        <thead>
-          <tr>
-            <th>{{ _('Nominal') }}</th>
-            <th>{{ _('Jumlah Lembar') }}</th>
-            <th>{{ _('Subtotal') }}</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2">{{ _('Total') }}</td>
-            <td id="denomination-total">Rp 0</td>
-          </tr>
-        </tfoot>
-      </table>
-      <button type="submit">{{ _("Start") }}</button>
+      <h3>
+        <i class="fas fa-money-bill-wave"></i>
+        Set New Balance
+      </h3>
+      
+      <label for="new-opening-balance">
+        <i class="fas fa-edit"></i> {{ _("New Opening Balance") }}
+      </label>
+      <input
+        type="text"
+        id="new-opening-balance"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="Rp 0"
+        required
+      />
+      <button type="submit">
+        <i class="fas fa-play"></i>
+        {{ _("Start") }}
+      </button>
+      
+      <div class="success-message" id="successMessage">
+        <i class="fas fa-check-circle"></i>
+        Session started successfully!
+      </div>
     </form>
-
   </div>
 </div>
+
+<script>
+  // Format currency input
+  document.getElementById('new-opening-balance').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/[^\d]/g, '');
+    if (value) {
+      // Format number with thousand separators
+      let formatted = new Intl.NumberFormat('id-ID').format(value);
+      e.target.value = 'Rp ' + formatted;
+    }
+  });
+
+  // Handle form submission
+  document.getElementById('opening-balance-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const button = form.querySelector('button[type="submit"]');
+    const successMessage = document.getElementById('successMessage');
+    
+    // Add loading state
+    form.classList.add('loading');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+    
+    // Simulate API call
+    setTimeout(() => {
+      // Remove loading state
+      form.classList.remove('loading');
+      button.innerHTML = '<i class="fas fa-check"></i> Started!';
+      
+      // Show success message
+      successMessage.classList.add('show');
+      
+      // Reset after delay
+      setTimeout(() => {
+        button.innerHTML = '<i class="fas fa-play"></i> {{ _("Start") }}';
+        successMessage.classList.remove('show');
+        form.reset();
+      }, 2000);
+      
+    }, 1500);
+  });
+
+  // Add click to copy functionality
+  document.querySelectorAll('.session-details .form-group div').forEach(div => {
+    div.addEventListener('click', function() {
+      // Copy to clipboard functionality
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(this.textContent).then(() => {
+          const original = this.style.background;
+          const originalColor = this.style.color;
+          this.style.background = '#4CAF50';
+          this.style.color = 'white';
+          setTimeout(() => {
+            this.style.background = original;
+            this.style.color = originalColor;
+          }, 500);
+        });
+      }
+    });
+  });
+</script>
 {% endblock %}
 
 {% block script %}
