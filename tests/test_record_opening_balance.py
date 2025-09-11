@@ -179,3 +179,35 @@ def test_record_opening_balance_creates_journal_entry(public_module, monkeypatch
     assert je["accounts"][0]["debit_in_account_currency"] == 250
     assert je["accounts"][1]["account"] == "Vault"
     assert je["accounts"][1]["credit_in_account_currency"] == 250
+
+
+def test_record_opening_balance_auto_creates_accounts(public_module, monkeypatch):
+    """If cash accounts are missing, they should be created automatically."""
+    public, inserted, cache, _ = public_module
+
+    import frappe
+    import imogi_pos.setup.install as install
+
+    calls = {"created": False, "count": 0}
+
+    def fake_get_cached_doc(name):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            # first call returns missing accounts
+            return types.SimpleNamespace(big_cash_account=None, petty_cash_account=None)
+        # second call returns the created accounts
+        return types.SimpleNamespace(big_cash_account="Vault", petty_cash_account="Drawer")
+
+    def fake_create_cash_accounts():
+        calls["created"] = True
+
+    monkeypatch.setattr(frappe, "get_cached_doc", fake_get_cached_doc)
+    monkeypatch.setattr(install, "create_cash_accounts", fake_create_cash_accounts)
+
+    result = public.record_opening_balance("terminal", 75)
+
+    assert result == {"status": "ok"}
+    assert calls["created"] is True
+    je = inserted[1]
+    assert je["accounts"][0]["account"] == "Drawer"
+    assert je["accounts"][1]["account"] == "Vault"
