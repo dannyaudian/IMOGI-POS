@@ -11,8 +11,9 @@
   }
   .service-select .service-link {
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     padding: 1rem 2rem;
     font-size: 1.1rem;
     cursor: pointer;
@@ -21,9 +22,14 @@
     border: 1px solid var(--gray-300, #ccc);
     border-radius: 4px;
     background-color: var(--gray-100, #f8f9fa);
+    text-align: center;
   }
   .service-select .service-link i {
     font-size: 1.2rem;
+  }
+  .service-select .service-link .description {
+    font-size: 0.9rem;
+    color: var(--gray-700, #555);
   }
   .service-select .service-link:visited {
     color: var(--color-black, #000);
@@ -35,11 +41,13 @@
 <div class="service-select">
   <a class="service-link" data-service="dine_in" href="/kiosk?service=dine-in">
     <i class="fa fa-utensils"></i>
-    <span>{{ _("Dine In") }}</span>
+    <span>{{ _("Makan di Tempat") }}</span>
+    <p class="description">{{ _("Masuk dan nikmati makanan di tempat kami") }}</p>
   </a>
   <a class="service-link" data-service="take_away" href="/kiosk?service=take-away">
     <i class="fa fa-shopping-bag"></i>
-    <span>{{ _("Take Away") }}</span>
+    <span>{{ _("Bawa Pulang") }}</span>
+    <p class="description">{{ _("Ambil dan nikmati makanan Anda di mana saja") }}</p>
   </a>
 </div>
 {% endblock %}
