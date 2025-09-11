@@ -315,7 +315,6 @@ frappe.ready(async function() {
             this.elements.categoriesContainer.innerHTML = html;
         },
 
-        
         renderItems: function() {
             if (!this.filteredItems.length) {
                 this.elements.catalogGrid.innerHTML = `
@@ -512,11 +511,13 @@ frappe.ready(async function() {
             if (card) {
                 if (actualQty <= 0) {
                     card.classList.add('sold-out');
+                    card.style.pointerEvents = 'none';
                 } else {
                     card.classList.remove('sold-out');
+                    card.style.pointerEvents = '';
                 }
             }
-        }
+        },
 
         refreshStockLevels: async function() {
             try {
