@@ -1,4 +1,5 @@
 import importlib
+import re
 import sys
 import types
 
@@ -36,7 +37,7 @@ def public_module():
     class SessionDoc:
         def __init__(self, data):
             self.data = data
-            self.name = "SESSION-001"
+            self.name = "SHF-20230101-001"
             self.meta = types.SimpleNamespace(get_field=lambda x: None)
 
         def insert(self, ignore_permissions=False):
@@ -106,6 +107,16 @@ def public_module():
 
     frappe.defaults = Defaults()
 
+    class DB:
+        def get_value(self, doctype, name, fields, as_dict=False):
+            if as_dict:
+                return types.SimpleNamespace(
+                    root_type="Asset", balance_must_be=None, company="Test Company"
+                )
+            return None
+
+    frappe.db = DB()
+
     def get_cached_doc(doctype):
         if doctype == "Restaurant Settings":
             return types.SimpleNamespace(
@@ -147,6 +158,7 @@ def test_record_opening_balance_inserts(public_module):
 
     denoms = [{"value": 50, "qty": 2}]
     result = public.record_opening_balance("terminal", denoms)
+
 
     assert result == {"status": "ok", "shift_id": "SESSION-001", "opening_balance": 100.0}
     assert cache[("active_devices", "cashier@example.com")] == "terminal"
@@ -220,6 +232,7 @@ def test_record_opening_balance_auto_creates_accounts(public_module, monkeypatch
 
     denoms = [{"value": 50, "qty": 1}, {"value": 20, "qty": 1}, {"value": 5, "qty": 1}]
     result = public.record_opening_balance("terminal", denoms)
+
 
     assert result == {"status": "ok", "shift_id": "SESSION-001", "opening_balance": 75.0}
     assert calls["created"] is True
