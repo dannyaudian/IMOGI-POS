@@ -777,17 +777,20 @@ frappe.ready(async function() {
 
             try {
                 // Create POS Order first
+                const orderArgs = {
+                    order_type: 'Kiosk',
+                    service_type: this.orderType,
+                    branch: CURRENT_BRANCH,
+                    pos_profile: POS_PROFILE.name,
+                    customer: 'Walk-in Customer',
+                    items: this.cart
+                };
+                if (this.tableNumber) {
+                    orderArgs.table = this.tableNumber;
+                }
                 const orderResponse = await frappe.call({
                     method: 'imogi_pos.api.orders.create_order',
-                    args: {
-                        order_type: 'Kiosk',
-                        service_type: this.orderType,
-                        branch: CURRENT_BRANCH,
-                        pos_profile: POS_PROFILE.name,
-                        customer: 'Walk-in Customer',
-                        table: this.tableNumber,
-                        items: this.cart
-                    }
+                    args: orderArgs
                 });
 
                 if (!orderResponse.message) {
@@ -800,15 +803,18 @@ frappe.ready(async function() {
 
                 // Create draft invoice for payment
                 const totals = this.calculateTotals();
+                const invoiceArgs = {
+                    pos_order: this.posOrder,
+                    pos_profile: POS_PROFILE.name,
+                    mode_of_payment: 'Online',
+                    amount: totals.total
+                };
+                if (this.tableNumber) {
+                    invoiceArgs.table = this.tableNumber;
+                }
                 const invoiceResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.generate_invoice',
-                    args: {
-                        pos_order: this.posOrder,
-                        pos_profile: POS_PROFILE.name,
-                        mode_of_payment: 'Online',
-                        amount: totals.total,
-                        table: this.tableNumber
-                    }
+                    args: invoiceArgs
                 });
                 
                 if (!invoiceResponse.message) {
@@ -1051,17 +1057,20 @@ frappe.ready(async function() {
                     invoice = { name: this.paymentRequest.invoice };
                 } else {
                     // Create POS Order and invoice
+                    const orderArgs = {
+                        order_type: 'Kiosk',
+                        service_type: this.orderType,
+                        branch: CURRENT_BRANCH,
+                        pos_profile: POS_PROFILE.name,
+                        customer: 'Walk-in Customer',
+                        items: this.cart
+                    };
+                    if (this.tableNumber) {
+                        orderArgs.table = this.tableNumber;
+                    }
                     const orderResponse = await frappe.call({
                         method: 'imogi_pos.api.orders.create_order',
-                        args: {
-                            order_type: 'Kiosk',
-                            service_type: this.orderType,
-                            branch: CURRENT_BRANCH,
-                            pos_profile: POS_PROFILE.name,
-                            customer: 'Walk-in Customer',
-                            table: this.tableNumber,
-                            items: this.cart
-                        }
+                        args: orderArgs
                     });
 
                     if (!orderResponse.message) {
@@ -1073,15 +1082,18 @@ frappe.ready(async function() {
                     this.itemRows = (orderResponse.message.items || []).map(item => item.name);
 
                     const totals = this.calculateTotals();
+                    const invoiceArgs = {
+                        pos_order: this.posOrder,
+                        pos_profile: POS_PROFILE.name,
+                        mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
+                        amount: totals.total
+                    };
+                    if (this.tableNumber) {
+                        invoiceArgs.table = this.tableNumber;
+                    }
                     const response = await frappe.call({
                         method: 'imogi_pos.api.billing.generate_invoice',
-                        args: {
-                            pos_order: this.posOrder,
-                            pos_profile: POS_PROFILE.name,
-                            mode_of_payment: this.paymentMethod === 'cash' ? 'Cash' : 'Online',
-                            amount: totals.total,
-                            table: this.tableNumber
-                        }
+                        args: invoiceArgs
                     });
 
                     if (!response.message) {
@@ -1320,7 +1332,10 @@ frappe.ready(async function() {
     KioskApp.orderType = orderType;
 
     const tableParam = params.get('table') || localStorage.getItem('imogi_table_number');
-    if (tableParam) {
+    if (orderType !== 'Dine-in') {
+        KioskApp.tableNumber = null;
+        localStorage.removeItem('imogi_table_number');
+    } else if (tableParam) {
         KioskApp.tableNumber = tableParam;
         localStorage.setItem('imogi_table_number', tableParam);
     }
