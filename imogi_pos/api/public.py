@@ -257,6 +257,22 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
 
     # --- Validasi & hitung dari denominasi
     denominations = denominations or []
+
+    # If denominations is provided as JSON string, attempt to parse it
+    if isinstance(denominations, str):
+        try:
+            denominations = frappe.parse_json(denominations)
+        except Exception:
+            try:
+                import json
+                denominations = json.loads(denominations)
+            except Exception:
+                denominations = []
+
+    # Ensure denominations is a list for iteration
+    if not isinstance(denominations, list):
+        denominations = []
+
     if denominations:
         total = 0
         for d in denominations:

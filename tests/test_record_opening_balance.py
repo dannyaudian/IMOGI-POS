@@ -1,4 +1,5 @@
 import importlib
+import json
 import re
 import sys
 import types
@@ -138,6 +139,8 @@ def public_module():
     utils.flt = float
     frappe.utils = utils
 
+    frappe.parse_json = lambda s: json.loads(s)
+
     sys.modules["frappe"] = frappe
     sys.modules["frappe.utils"] = utils
 
@@ -189,6 +192,22 @@ def test_record_opening_balance_accepts_alt_keys(public_module):
     }
     assert inserted[0]["opening_balance"] == 60
     assert inserted[0]["denominations"] == denoms
+
+
+def test_record_opening_balance_accepts_json_string(public_module):
+    public, inserted, cache, _ = public_module
+
+    # Pass denominations as JSON string
+    denoms_json = json.dumps([{"value": 25, "qty": 4}])
+    result = public.record_opening_balance("terminal", 0, denoms_json)
+
+    assert result == {
+        "status": "ok",
+        "shift_id": "SHF-20230101-001",
+        "opening_balance": 100.0,
+    }
+    assert inserted[0]["opening_balance"] == 100
+    assert inserted[0]["denominations"] == [{"value": 25, "qty": 4}]
 
 
 def test_record_opening_balance_uses_opening_balance_when_no_denoms(public_module):
