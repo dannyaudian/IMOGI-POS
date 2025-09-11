@@ -26,6 +26,19 @@ frappe.ready(async function() {
         return;
     }
 
+    // Determine service type from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    let serviceType = urlParams.get('service');
+    if (!serviceType) {
+        serviceType = localStorage.getItem('imogi_service_type');
+    }
+    if (!serviceType) {
+        window.location.href = '/service-select';
+        return;
+    }
+    // Persist the service type for subsequent visits
+    localStorage.setItem('imogi_service_type', serviceType);
+
     // =====================
     // State Management
     // =====================
@@ -42,6 +55,7 @@ frappe.ready(async function() {
         taxRate: 0,
         discountPercent: 0,
         discountAmount: 0,
+        serviceType: serviceType,
 
         // Tracking the created POS Order
         posOrder: null,
@@ -1110,9 +1124,10 @@ frappe.ready(async function() {
             
             // Reset category filter
             this.selectCategory('all');
-            
-            // Reload items
-            this.loadItems();
+
+            // Clear stored service type and redirect to selection page
+            localStorage.removeItem('imogi_service_type');
+            window.location.href = '/service-select';
         },
         
         // Utils
