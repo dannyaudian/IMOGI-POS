@@ -1,5 +1,5 @@
 frappe.ready(() => {
-  document.querySelectorAll('.service-link').forEach((link) => {
+  document.querySelectorAll('.service-card').forEach((link) => {
     const service = link.getAttribute('data-service');
     if (service) {
       link.addEventListener('click', () => {
