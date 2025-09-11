@@ -78,6 +78,32 @@ class RestaurantTable(Document):
         self.save(ignore_version=True)
         self.publish_table_update()
         return {"status": self.status, "current_pos_order": self.current_pos_order}
+
+    def ensure_available_for_new_order(self):
+        """Ensure table has no active POS Order before creating a new one.
+
+        If the linked ``current_pos_order`` exists but its workflow state is in a
+        terminal state (Closed/Cancelled/Returned), clear it. Otherwise raise an
+        error to prevent multiple active orders for the same table.
+        """
+        if not self.current_pos_order:
+            return
+
+        state = frappe.db.get_value(
+            "POS Order", self.current_pos_order, "workflow_state"
+        )
+
+        closed_states = ("Closed", "Cancelled", "Returned")
+        if state in closed_states:
+            # Stale link – mark table as available again
+            self.set_status("Available")
+        else:
+            frappe.throw(
+                _(
+                    "POS Order {0} is still {1}. Close or reopen it before creating a new order."
+                ).format(self.current_pos_order, state),
+                frappe.ValidationError,
+            )
     
     def publish_table_update(self):
         """Publish realtime update for table status change"""
