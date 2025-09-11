@@ -372,7 +372,7 @@ def record_opening_balance(device_type, opening_balance):
     # --- SET LOCK cache SETELAH semua sukses agar tidak nyangkut bila error di atas
     cache.hset("active_devices", user, device_type)
 
-    return {"status": "ok"}
+    return {"status": "ok", "shift_id": doc.name}
 
 
 
