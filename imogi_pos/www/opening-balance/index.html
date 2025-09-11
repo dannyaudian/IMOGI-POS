@@ -705,6 +705,108 @@
     </form>
   </div>
 </div>
+<script>
+  // Format currency
+  function formatCurrency(amount) {
+    return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount);
+  }
+
+  // Calculate subtotal for each denomination
+  function calculateSubtotal(input, denomination) {
+    const quantity = parseInt(input.value) || 0;
+    const subtotal = quantity * denomination;
+    const subtotalCell = input.closest('tr').querySelector('.subtotal-value');
+    subtotalCell.textContent = formatCurrency(subtotal);
+    
+    // Add animation
+    subtotalCell.style.transform = 'scale(1.1)';
+    subtotalCell.style.color = '#fe9c2b';
+    setTimeout(() => {
+      subtotalCell.style.transform = 'scale(1)';
+      subtotalCell.style.color = '#4CAF50';
+    }, 200);
+    
+    calculateTotal();
+  }
+
+  // Calculate total amount
+  function calculateTotal() {
+    let total = 0;
+    document.querySelectorAll('.subtotal-value').forEach(cell => {
+      const value = cell.textContent.replace(/[^\d]/g, '');
+      total += parseInt(value) || 0;
+    });
+    
+    const totalCell = document.getElementById('denomination-total');
+    totalCell.textContent = formatCurrency(total);
+    
+    // Add animation
+    totalCell.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      totalCell.style.transform = 'scale(1)';
+    }, 200);
+  }
+
+  // Handle form submission
+  document.getElementById('opening-balance-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const button = form.querySelector('button[type="submit"]');
+    const successMessage = document.getElementById('successMessage');
+    
+    // Add loading state
+    form.classList.add('loading');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+    
+    // Simulate API call
+    setTimeout(() => {
+      // Remove loading state
+      form.classList.remove('loading');
+      button.innerHTML = '<i class="fas fa-check"></i> Started!';
+      
+      // Show success message
+      successMessage.classList.add('show');
+      
+      // Reset after delay
+      setTimeout(() => {
+        button.innerHTML = '<i class="fas fa-play"></i> {{ _("Start Session") }}';
+        successMessage.classList.remove('show');
+        
+        // Reset form
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+          input.value = 0;
+        });
+        document.querySelectorAll('.subtotal-value').forEach(cell => {
+          cell.textContent = 'Rp 0';
+        });
+        document.getElementById('denomination-total').textContent = 'Rp 0';
+      }, 2000);
+      
+    }, 1500);
+  });
+
+  // Add click to copy functionality for session details
+  document.querySelectorAll('.session-details .form-group div').forEach(div => {
+    div.addEventListener('click', function() {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(this.textContent).then(() => {
+          const original = this.style.background;
+          const originalColor = this.style.color;
+          this.style.background = '#4CAF50';
+          this.style.color = 'white';
+          setTimeout(() => {
+            this.style.background = original;
+            this.style.color = originalColor;
+          }, 500);
+        });
+      }
+    });
+  });
+
+  // Initialize
+  calculateTotal();
+</script>
 {% endblock %}
 
 {% block script %}
