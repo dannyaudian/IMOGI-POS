@@ -271,7 +271,21 @@ def record_opening_balance(device_type, opening_balance):
     petty_cash_account = getattr(settings, "petty_cash_account", None)
 
     if not big_cash_account or not petty_cash_account:
-        frappe.throw(_("Cash accounts are not configured in Restaurant Settings"))
+        # Attempt to auto-create missing cash accounts
+        from imogi_pos.setup.install import create_cash_accounts
+
+        create_cash_accounts()
+        settings = frappe.get_cached_doc("Restaurant Settings")
+        big_cash_account = getattr(settings, "big_cash_account", None)
+        petty_cash_account = getattr(settings, "petty_cash_account", None)
+
+    if not big_cash_account or not petty_cash_account:
+        frappe.throw(
+            _(
+                "Cash accounts are not configured in Restaurant Settings."
+                " Please configure big and petty cash accounts."
+            )
+        )
 
     opening_balance = flt(opening_balance)
     company = (
