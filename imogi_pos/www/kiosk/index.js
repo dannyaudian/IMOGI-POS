@@ -315,59 +315,62 @@ frappe.ready(async function() {
             this.elements.categoriesContainer.innerHTML = html;
         },
 
-        renderItems: function() {
-            if (!this.filteredItems.length) {
-                this.elements.catalogGrid.innerHTML = `
-                    <div class="empty-catalog">
-                        <p>No items found</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = '';
-            this.filteredItems.forEach(item => {
-                const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-
-                html += `
-                    <div class="item-card" data-item="${item.name}">
-                        <div class="item-image" style="background-image: url('${imageUrl}')"></div>
+        
+    // Fungsi renderItems yang diperbaiki untuk item card
+    renderItems: function() {
+        if (!this.filteredItems.length) {
+            this.elements.catalogGrid.innerHTML = `
+                <div class="empty-catalog">
+                    <p>No items found</p>
+                </div>
+            `;
+            return;
+        }
+    
+        let html = '';
+        this.filteredItems.forEach(item => {
+            const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+    
+            html += `
+                <div class="item-card${item.actual_qty <= 0 ? ' sold-out' : ''}" data-item="${item.name}">
+                    <div class="item-image" style="background-image: url('${imageUrl}')">
                         <div class="sold-out-badge">Sold Out</div>
-                        <div class="item-info">
-                            <div class="item-name">${item.item_name}</div>
-                            <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
-                            ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
-                        </div>
                     </div>
-                `;
-            });
-
-            this.elements.catalogGrid.innerHTML = html;
-
-            // Add click handlers
-            const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
-            itemCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    if (card.classList.contains('sold-out')) {
-                        return;
-                    }
-                    const itemName = card.dataset.item;
-                    const item = this.items.find(i => i.name === itemName);
-                    if (item) {
-                        this.handleItemClick(item);
-                    }
-                });
-            });
-
-            // Apply sold-out state to rendered items
-            itemCards.forEach(card => {
+                    <div class="item-info">
+                        <div class="item-name">${item.item_name}</div>
+                        <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
+                        ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
+                    </div>
+                </div>
+            `;
+        });
+    
+        this.elements.catalogGrid.innerHTML = html;
+    
+        // Add click handlers
+        const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
+        itemCards.forEach(card => {
+            card.addEventListener('click', () => {
+                if (card.classList.contains('sold-out')) {
+                    return;
+                }
                 const itemName = card.dataset.item;
                 const item = this.items.find(i => i.name === itemName);
                 if (item) {
-                    this.updateItemStock(item.name, item.actual_qty);
+                    this.handleItemClick(item);
                 }
             });
-        },
+        });
+    
+        // Apply sold-out state to rendered items
+        itemCards.forEach(card => {
+            const itemName = card.dataset.item;
+            const item = this.items.find(i => i.name === itemName);
+            if (item) {
+                this.updateItemStock(item.name, item.actual_qty);
+            }
+        });
+    },
         
         renderCart: function() {
             if (this.cart.length === 0) {
@@ -511,13 +514,11 @@ frappe.ready(async function() {
             if (card) {
                 if (actualQty <= 0) {
                     card.classList.add('sold-out');
-                    card.style.pointerEvents = 'none';
                 } else {
                     card.classList.remove('sold-out');
-                    card.style.pointerEvents = '';
                 }
             }
-        },
+        }
 
         refreshStockLevels: async function() {
             try {
