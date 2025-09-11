@@ -69,7 +69,8 @@ frappe.ready(async function() {
 
         // Payment state
         paymentRequest: null,
-        paymentMethod: 'qr_code',
+        // Default will be set when opening payment modal
+        paymentMethod: 'cash',
         cashAmount: 0,
         paymentTimer: null,
         paymentCountdown: 300, // 5 minutes
@@ -685,22 +686,32 @@ frappe.ready(async function() {
         
         openPaymentModal: function() {
             const totals = this.calculateTotals();
-            
+
             // Set payment amount
             this.elements.paymentAmount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
-            
-            // Set cash amount to 0
+
+            // Reset cash fields
             this.cashAmount = 0;
             this.elements.cashAmount.value = `${CURRENCY_SYMBOL} 0.00`;
             this.elements.changeAmount.textContent = `${CURRENCY_SYMBOL} 0.00`;
-            
-            // Set default payment method
-            this.paymentMethod = 'qr_code';
+
+            // Determine default payment method based on settings
+            const mode = PAYMENT_SETTINGS.payment_mode || 'Mixed';
+            if (mode === 'Cash Only') {
+                this.paymentMethod = 'cash';
+            } else if (PAYMENT_SETTINGS.gateway_enabled) {
+                this.paymentMethod = 'qr_code';
+            } else {
+                // Gateway unavailable, fall back to cash
+                this.paymentMethod = 'cash';
+            }
+
+            // Update UI for the selected method and reevaluate confirm button
             this.togglePaymentMethod();
-            
+
             // Show modal
             this.elements.paymentModal.style.display = 'flex';
-            
+
             // If payment gateway is enabled and QR selected, request payment QR
             if (this.paymentMethod === 'qr_code' && PAYMENT_SETTINGS.gateway_enabled) {
                 this.requestPaymentQR();
