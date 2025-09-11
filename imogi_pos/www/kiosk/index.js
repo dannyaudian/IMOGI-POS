@@ -758,7 +758,8 @@ frappe.ready(async function() {
                 const orderResponse = await frappe.call({
                     method: 'imogi_pos.api.orders.create_order',
                     args: {
-                        order_type: this.orderType,
+                        order_type: 'Kiosk',
+                        service_type: this.orderType,
                         branch: CURRENT_BRANCH,
                         pos_profile: POS_PROFILE.name,
                         customer: 'Walk-in Customer',
@@ -1011,7 +1012,8 @@ frappe.ready(async function() {
                     const orderResponse = await frappe.call({
                         method: 'imogi_pos.api.orders.create_order',
                         args: {
-                            order_type: this.orderType,
+                            order_type: 'Kiosk',
+                            service_type: this.orderType,
                             branch: CURRENT_BRANCH,
                             pos_profile: POS_PROFILE.name,
                             customer: 'Walk-in Customer',
