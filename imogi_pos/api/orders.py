@@ -64,7 +64,7 @@ def ensure_update_stock_enabled(pos_profile):
         )
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None):
+def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None):
     """
     Creates a new POS Order.
     
@@ -75,6 +75,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         table (str, optional): Restaurant Table name. Required for Dine-in.
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
+        service_type (str, optional): Service type for kiosk orders (Takeaway/Dine-in).
     
     Returns:
         dict: Created POS Order details
@@ -136,6 +137,9 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
 
     if order_type == "Kiosk":
         order_doc.queue_number = get_next_queue_number(branch)
+
+    if service_type:
+        order_doc.service_type = service_type
 
     if items:
         if isinstance(items, str):
