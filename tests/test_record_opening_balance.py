@@ -1,4 +1,5 @@
 import importlib
+import re
 import sys
 import types
 
@@ -36,7 +37,7 @@ def public_module():
     class SessionDoc:
         def __init__(self, data):
             self.data = data
-            self.name = "SESSION-001"
+            self.name = "SHF-20230101-001"
             self.meta = types.SimpleNamespace(get_field=lambda x: None)
 
         def insert(self, ignore_permissions=False):
@@ -95,6 +96,16 @@ def public_module():
 
     frappe.defaults = Defaults()
 
+    class DB:
+        def get_value(self, doctype, name, fields, as_dict=False):
+            if as_dict:
+                return types.SimpleNamespace(
+                    root_type="Asset", balance_must_be=None, company="Test Company"
+                )
+            return None
+
+    frappe.db = DB()
+
     def get_cached_doc(doctype):
         if doctype == "Restaurant Settings":
             return types.SimpleNamespace(
@@ -136,7 +147,8 @@ def test_record_opening_balance_inserts(public_module):
 
     result = public.record_opening_balance("terminal", 100)
 
-    assert result == {"status": "ok"}
+    assert result["status"] == "ok"
+    assert re.match(r"^SHF-\d{8}-\d{3}$", result["shift_id"])
     assert cache[("active_devices", "cashier@example.com")] == "terminal"
     # first insert is the session document
     assert inserted[0]["opening_balance"] == 100
@@ -206,7 +218,8 @@ def test_record_opening_balance_auto_creates_accounts(public_module, monkeypatch
 
     result = public.record_opening_balance("terminal", 75)
 
-    assert result == {"status": "ok"}
+    assert result["status"] == "ok"
+    assert re.match(r"^SHF-\d{8}-\d{3}$", result["shift_id"])
     assert calls["created"] is True
     je = inserted[1]
     assert je["accounts"][0]["account"] == "Drawer"
