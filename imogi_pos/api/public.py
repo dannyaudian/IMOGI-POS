@@ -257,10 +257,16 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
 
     # --- Validasi & hitung dari denominasi
     denominations = denominations or []
-    opening_balance = 0
-    for d in denominations:
-        opening_balance += flt(d.get("value")) * flt(d.get("qty"))
-    opening_balance = flt(opening_balance)
+    if denominations:
+        total = 0
+        for d in denominations:
+            value = d.get("value", d.get("nominal"))
+            qty = d.get("qty", d.get("quantity"))
+            total += flt(value) * flt(qty)
+        opening_balance = flt(total)
+    else:
+        opening_balance = flt(opening_balance)
+
     if opening_balance <= 0:
         frappe.throw(_("Opening balance must be greater than 0"))
 
