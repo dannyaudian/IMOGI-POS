@@ -235,8 +235,14 @@ def check_permission(doctype, perm_type="read"):
 
 
 @frappe.whitelist()
-def record_opening_balance(device_type, opening_balance):
-    """Record the opening balance for a user's device session."""
+def record_opening_balance(device_type, denominations):
+    """Record the opening balance for a user's device session.
+
+    Args:
+        device_type (str): The type of device being used.
+        denominations (list[dict]): List of ``{"value": x, "qty": y}`` items
+            describing the cash denominations provided by the cashier.
+    """
     from frappe.utils import flt, now, nowdate
     from frappe import _
     import frappe
@@ -248,7 +254,11 @@ def record_opening_balance(device_type, opening_balance):
     if cache.hget("active_devices", user):
         frappe.throw(_("Active device already registered for user"))
 
-    # --- Validasi input
+    # --- Validasi & hitung dari denominasi
+    denominations = denominations or []
+    opening_balance = 0
+    for d in denominations:
+        opening_balance += flt(d.get("value")) * flt(d.get("qty"))
     opening_balance = flt(opening_balance)
     if opening_balance <= 0:
         frappe.throw(_("Opening balance must be greater than 0"))
@@ -259,6 +269,7 @@ def record_opening_balance(device_type, opening_balance):
         "user": user,
         "device": device_type,
         "opening_balance": opening_balance,
+        "denominations": denominations,
         "timestamp": now(),
     })
     doc.insert(ignore_permissions=True)
@@ -372,7 +383,7 @@ def record_opening_balance(device_type, opening_balance):
     # --- SET LOCK cache SETELAH semua sukses agar tidak nyangkut bila error di atas
     cache.hset("active_devices", user, device_type)
 
-    return {"status": "ok", "shift_id": doc.name}
+    return {"status": "ok", "shift_id": doc.name, "opening_balance": opening_balance}
 
 
 
