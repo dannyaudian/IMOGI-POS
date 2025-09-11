@@ -43,6 +43,10 @@ frappe.ready(async function() {
         discountPercent: 0,
         discountAmount: 0,
 
+        // Order type and table
+        orderType: 'Takeaway',
+        tableNumber: null,
+
         // Tracking the created POS Order
         posOrder: null,
 
@@ -705,8 +709,32 @@ frappe.ready(async function() {
                 this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
             }
         },
-        
+
+        ensureTableNumber: async function() {
+            if (this.orderType === 'Dine-in' && !this.tableNumber) {
+                const values = await frappe.prompt([
+                    {
+                        fieldname: 'table_number',
+                        label: __('Table Number'),
+                        fieldtype: 'Data',
+                        reqd: 1
+                    }
+                ], __('Table Required'));
+                const table = values && values.table_number;
+                if (!table) {
+                    frappe.msgprint(__('Table number is required for Dine-in orders.'));
+                    return false;
+                }
+                this.tableNumber = table;
+                localStorage.setItem('imogi_table_number', table);
+            }
+            return true;
+        },
+
         requestPaymentQR: async function() {
+            if (!(await this.ensureTableNumber())) {
+                return;
+            }
             this.showLoading('Generating payment QR code...');
 
             try {
@@ -714,10 +742,11 @@ frappe.ready(async function() {
                 const orderResponse = await frappe.call({
                     method: 'imogi_pos.api.orders.create_order',
                     args: {
-                        order_type: 'Kiosk',
+                        order_type: this.orderType,
                         branch: CURRENT_BRANCH,
                         pos_profile: POS_PROFILE.name,
                         customer: 'Walk-in Customer',
+                        table: this.tableNumber,
                         items: this.cart
                     }
                 });
@@ -947,6 +976,9 @@ frappe.ready(async function() {
         },
         
         completeOrder: async function() {
+            if (!(await this.ensureTableNumber())) {
+                return;
+            }
             this.showLoading('Completing your order...');
             
             try {
@@ -962,10 +994,11 @@ frappe.ready(async function() {
                     const orderResponse = await frappe.call({
                         method: 'imogi_pos.api.orders.create_order',
                         args: {
-                            order_type: 'Kiosk',
+                            order_type: this.orderType,
                             branch: CURRENT_BRANCH,
                             pos_profile: POS_PROFILE.name,
                             customer: 'Walk-in Customer',
+                            table: this.tableNumber,
                             items: this.cart
                         }
                     });
@@ -1203,7 +1236,23 @@ frappe.ready(async function() {
     function formatNumber(number) {
          return formatRupiah(number);
     }
-    
+
+    // Determine service type and table number
+    const params = new URLSearchParams(window.location.search);
+    const serviceParam = params.get('service') || localStorage.getItem('imogi_service_type');
+    let orderType = 'Takeaway';
+    if (serviceParam && serviceParam.toLowerCase().includes('dine')) {
+        orderType = 'Dine-in';
+    }
+    localStorage.setItem('imogi_service_type', orderType);
+    KioskApp.orderType = orderType;
+
+    const tableParam = params.get('table') || localStorage.getItem('imogi_table_number');
+    if (tableParam) {
+        KioskApp.tableNumber = tableParam;
+        localStorage.setItem('imogi_table_number', tableParam);
+    }
+
     // Initialize the app
     KioskApp.init();
 });
