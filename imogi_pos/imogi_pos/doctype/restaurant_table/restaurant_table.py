@@ -69,32 +69,15 @@ class RestaurantTable(Document):
     
     def set_status(self, status, pos_order=None):
         """Set table status and update current order"""
-        valid_statuses = ["Available", "Occupied", "Reserved", "Dirty", "Inactive"]
-        
-        if status not in valid_statuses:
-            frappe.throw(_("Invalid status: {0}").format(status))
-        
-        # If setting to Available, clear current order
-        if status == "Available":
-            self.current_pos_order = None
-        # If setting to Occupied, require a POS Order
-        elif status == "Occupied" and not pos_order and not self.current_pos_order:
-            frappe.throw(_("A POS Order is required when setting table to Occupied"))
-        
-        # Update status and order
+        self.reload()
         self.status = status
         if pos_order:
             self.current_pos_order = pos_order
-            
-        self.save()
-        
-        # Publish realtime update
+        elif status == "Available":
+            self.current_pos_order = None
+        self.save(ignore_version=True)
         self.publish_table_update()
-        
-        return {
-            "status": self.status,
-            "current_pos_order": self.current_pos_order
-        }
+        return {"status": self.status, "current_pos_order": self.current_pos_order}
     
     def publish_table_update(self):
         """Publish realtime update for table status change"""
