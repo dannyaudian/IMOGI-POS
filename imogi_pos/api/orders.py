@@ -63,6 +63,36 @@ def ensure_update_stock_enabled(pos_profile):
             frappe.ValidationError,
         )
 
+
+@frappe.whitelist()
+def get_next_available_table(branch):
+    """Return the lowest-numbered available table for a branch."""
+    validate_branch_access(branch)
+    tables = frappe.get_all(
+        "Restaurant Table",
+        filters={"branch": branch, "status": "Available"},
+        pluck="name",
+    )
+
+    if not tables:
+        frappe.throw(_("No tables are currently available"), frappe.ValidationError)
+
+    numbers = []
+    for name in tables:
+        try:
+            numbers.append(int(name))
+        except (ValueError, TypeError):
+            try:
+                number = frappe.db.get_value("Restaurant Table", name, "table_number")
+                numbers.append(int(number))
+            except Exception:
+                pass
+
+    if not numbers:
+        frappe.throw(_("No tables are currently available"), frappe.ValidationError)
+
+    return str(min(numbers))
+
 @frappe.whitelist()
 def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None):
     """

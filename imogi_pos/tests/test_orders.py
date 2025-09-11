@@ -121,6 +121,23 @@ def frappe_env(monkeypatch):
     frappe.db = DB()
     frappe.new_doc = new_doc
     frappe.get_doc = get_doc
+    def get_all(doctype, filters=None, fields=None, pluck=None):
+        if doctype == "Restaurant Table":
+            results = []
+            for t in tables.values():
+                match = True
+                if filters:
+                    for key, val in filters.items():
+                        if getattr(t, key) != val:
+                            match = False
+                            break
+                if match:
+                    results.append({"name": t.name})
+            if pluck:
+                return [r[pluck] for r in results]
+            return results
+        return []
+    frappe.get_all = get_all
     frappe.has_permission = has_permission
     frappe.throw = throw
     frappe.ValidationError = Exception

@@ -747,34 +747,27 @@ frappe.ready(async function() {
 
         ensureTableNumber: async function() {
             if (this.orderType === 'Dine-in' && !this.tableNumber) {
-                let values;
                 try {
-                    values = await frappe.prompt([
-                        {
-                            fieldname: 'table_number',
-                            label: __('Table Number'),
-                            fieldtype: 'Data',
-                            reqd: 1
-                        }
-                    ], __('Table Required'));
-                } catch (e) {
-                    // User closed the prompt without entering a table number
+                    const { message } = await frappe.call({
+                        method: 'imogi_pos.api.orders.get_next_available_table',
+                        args: { branch: CURRENT_BRANCH }
+                    });
+
+                    this.tableNumber = message;
+                    localStorage.setItem('imogi_table_number', message);
                     frappe.msgprint({
-                        title: __('Table Required'),
-                        message: __('Table numbers are mandatory for dine-in orders.'),
+                        title: __('Table Assigned'),
+                        message: __('Please proceed to table {0}').format(message),
+                        indicator: 'green'
+                    });
+                } catch (e) {
+                    frappe.msgprint({
+                        title: __('No Table Available'),
+                        message: e.message || __('All tables are currently occupied. Please wait for a table to become available.'),
                         indicator: 'orange'
                     });
                     return false;
                 }
-
-                const table = values && values.table_number;
-                if (!table) {
-                    frappe.msgprint(__('Table number is required for Dine-in orders.'));
-                    return false;
-                }
-
-                this.tableNumber = table;
-                localStorage.setItem('imogi_table_number', table);
             }
             return true;
         },
