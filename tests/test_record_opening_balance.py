@@ -81,6 +81,17 @@ def public_module():
     frappe.get_doc = get_doc
     frappe.new_doc = new_doc
 
+    def db_get_value(doctype, name, field, as_dict=False):
+        if isinstance(field, (list, tuple)):
+            return types.SimpleNamespace(
+                root_type="Asset", balance_must_be=None, company="Test Company"
+            )
+        if field == "balance_must_be":
+            return None
+        return None
+
+    frappe.db = types.SimpleNamespace(get_value=db_get_value)
+
     settings_doc = types.SimpleNamespace(
         big_cash_account="Kas Besar", petty_cash_account="Kas Kecil"
     )
@@ -134,12 +145,14 @@ def public_module():
 def test_record_opening_balance_inserts(public_module):
     public, inserted, cache, _ = public_module
 
-    result = public.record_opening_balance("terminal", 100)
+    denoms = [{"value": 50, "qty": 2}]
+    result = public.record_opening_balance("terminal", denoms)
 
-    assert result == {"status": "ok"}
+    assert result == {"status": "ok", "shift_id": "SESSION-001", "opening_balance": 100.0}
     assert cache[("active_devices", "cashier@example.com")] == "terminal"
     # first insert is the session document
     assert inserted[0]["opening_balance"] == 100
+    assert inserted[0]["denominations"] == denoms
     assert inserted[0]["user"] == "cashier@example.com"
     # second insert is the journal entry
     je = inserted[1]
@@ -156,7 +169,7 @@ def test_record_opening_balance_rejects_existing(public_module):
     cache[("active_devices", "cashier@example.com")] = "terminal"
 
     with pytest.raises(Exc):
-        public.record_opening_balance("other", 50)
+        public.record_opening_balance("other", [{"value": 50, "qty": 1}])
 
 
 def test_record_opening_balance_creates_journal_entry(public_module, monkeypatch):
@@ -170,7 +183,8 @@ def test_record_opening_balance_creates_journal_entry(public_module, monkeypatch
 
     monkeypatch.setattr(frappe, "get_cached_doc", lambda d: Settings())
 
-    public.record_opening_balance("terminal", 250)
+    denoms = [{"value": 100, "qty": 2}, {"value": 50, "qty": 1}]
+    public.record_opening_balance("terminal", denoms)
 
     # Session doc is inserted first, journal entry second
     je = inserted[1]
@@ -204,9 +218,10 @@ def test_record_opening_balance_auto_creates_accounts(public_module, monkeypatch
     monkeypatch.setattr(frappe, "get_cached_doc", fake_get_cached_doc)
     monkeypatch.setattr(install, "create_cash_accounts", fake_create_cash_accounts)
 
-    result = public.record_opening_balance("terminal", 75)
+    denoms = [{"value": 50, "qty": 1}, {"value": 20, "qty": 1}, {"value": 5, "qty": 1}]
+    result = public.record_opening_balance("terminal", denoms)
 
-    assert result == {"status": "ok"}
+    assert result == {"status": "ok", "shift_id": "SESSION-001", "opening_balance": 75.0}
     assert calls["created"] is True
     je = inserted[1]
     assert je["accounts"][0]["account"] == "Drawer"

@@ -8,6 +8,7 @@
         "user",
         "device",
         "opening_balance",
+        "denominations",
         "timestamp"
     ],
     "fields": [
@@ -30,6 +31,11 @@
             "fieldtype": "Currency",
             "label": "Opening Balance",
             "in_list_view": 1
+        },
+        {
+            "fieldname": "denominations",
+            "fieldtype": "JSON",
+            "label": "Denominations"
         },
         {
             "fieldname": "timestamp",
