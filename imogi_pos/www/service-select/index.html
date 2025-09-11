@@ -1,6 +1,7 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <style>
   .service-select {
@@ -40,12 +41,12 @@
 {% block page_content %}
 <div class="service-select">
   <a class="service-link" data-service="dine_in" href="/kiosk?service=dine-in">
-    <i class="fa fa-utensils"></i>
+    <i class="fa-solid fa-utensils"></i>
     <span>{{ _("Makan di Tempat") }}</span>
     <p class="description">{{ _("Masuk dan nikmati makanan di tempat kami") }}</p>
   </a>
   <a class="service-link" data-service="take_away" href="/kiosk?service=take-away">
-    <i class="fa fa-shopping-bag"></i>
+    <i class="fa-solid fa-bag-shopping"></i>
     <span>{{ _("Bawa Pulang") }}</span>
     <p class="description">{{ _("Ambil dan nikmati makanan Anda di mana saja") }}</p>
   </a>
