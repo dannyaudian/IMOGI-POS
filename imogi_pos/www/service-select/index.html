@@ -2,62 +2,19 @@
 
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
-<style>
-  .service-select {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    padding: 2rem;
-  }
-  .service-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: #FF8800;
-    color: #fff;
-    padding: 1.5rem;
-    border-radius: 8px;
-    text-align: center;
-    width: 200px;
-  }
-  .service-card i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-  }
-  .service-card h2 {
-    margin: 0.5rem 0;
-    font-size: 1.3rem;
-  }
-  .service-card p {
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-  }
-  .service-card .select-service {
-    background-color: #fff;
-    color: #FF8800;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-</style>
+<link rel="stylesheet" href="/assets/imogi_pos/css/service-select.css">
 {% endblock %}
 
 {% block page_content %}
-<h1>Pilih Layanan</h1>
-<div class="service-select">
-  <div class="service-card" data-service="dine_in" data-href="/kiosk?service=dine-in">
-    <i class="fa fa-utensils"></i>
-    <h2>{{ _("Dine In") }}</h2>
-    <p>{{ _("Nikmati makanan di tempat.") }}</p>
-    <button class="select-service">{{ _("Pilih") }}</button>
-  </div>
-  <div class="service-card" data-service="take_away" data-href="/kiosk?service=take-away">
-    <i class="fa fa-shopping-bag"></i>
-    <h2>{{ _("Take Away") }}</h2>
-    <p>{{ _("Ambil pesanan untuk dibawa pulang.") }}</p>
-    <button class="select-service">{{ _("Pilih") }}</button>
-  </div>
+<div class="service-select-container">
+  <a class="service-card" data-service="dine_in" href="/kiosk?service=dine-in">
+    <i class="icon fa fa-utensils"></i>
+    <span class="description">{{ _("Dine In") }}</span>
+  </a>
+  <a class="service-card" data-service="take_away" href="/kiosk?service=take-away">
+    <i class="icon fa fa-shopping-bag"></i>
+    <span class="description">{{ _("Take Away") }}</span>
+  </a>
 </div>
 {% endblock %}
 
