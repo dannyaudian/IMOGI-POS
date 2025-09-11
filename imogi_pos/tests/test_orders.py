@@ -17,7 +17,14 @@ def frappe_env(monkeypatch):
             self.floor = floor
         def save(self):
             tables[self.name] = self
+        def reload(self):
+            current = tables[self.name]
+            self.status = current.status
+            self.current_pos_order = current.current_pos_order
         def set_status(self, status, pos_order=None):
+            current = tables[self.name]
+            if self.status != current.status:
+                raise frappe.exceptions.TimestampMismatchError("conflict")
             self.status = status
             self.current_pos_order = pos_order
             self.save()
@@ -142,6 +149,10 @@ def frappe_env(monkeypatch):
     frappe.throw = throw
     frappe.ValidationError = Exception
     frappe.PermissionError = Exception
+    frappe.exceptions = types.ModuleType("exceptions")
+    class TimestampMismatchError(Exception):
+        pass
+    frappe.exceptions.TimestampMismatchError = TimestampMismatchError
     frappe.parse_json = parse_json
     frappe._ = lambda x: x
     frappe.whitelist = lambda *a, **kw: (lambda f: f)
@@ -153,6 +164,7 @@ def frappe_env(monkeypatch):
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
+    sys.modules['frappe.exceptions'] = frappe.exceptions
     global orders, tables, pos_profiles, items, customers
     orders = {}
     tables = {
