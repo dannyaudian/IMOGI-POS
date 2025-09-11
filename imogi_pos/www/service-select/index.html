@@ -4,53 +4,36 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <style>
-  /* Style dasar untuk tampilan yang dipercantik */
+  /* Style dasar untuk tampilan */
   body {
     background-color: #afafaf;
     color: #f8f8f8;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    position: relative;
-    overflow-x: hidden;
-  }
-  
-  /* Efek pola background */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.05) 0%, transparent 20%),
-      radial-gradient(circle at 90% 80%, rgba(0, 0, 0, 0.05) 0%, transparent 20%),
-      radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.03) 0%, transparent 40%);
-    z-index: -1;
   }
 
-  /* Logo dan header styling */
+  /* Header branding */
   .header-branding {
     text-align: center;
     padding: 2rem 0;
   }
   
   .restaurant-logo {
-    max-width: 180px;
+    max-width: 120px;
     margin-bottom: 1rem;
   }
   
   .restaurant-name {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: #333;
     margin-bottom: 0.5rem;
   }
   
   .welcome-text {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: #555;
     max-width: 600px;
-    margin: 0 auto 2rem;
+    margin: 0 auto 1.5rem;
     text-align: center;
   }
 
@@ -59,10 +42,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 3rem;
-    padding: 2rem 1rem 4rem;
+    gap: 2rem;
+    padding: 1rem;
     min-height: 60vh;
-    perspective: 1000px;
   }
 
   .service-link {
@@ -70,116 +52,52 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    padding: 3rem 2rem;
+    gap: 1rem;
+    padding: 2.5rem;
     width: 480px;
     height: 480px;
-    border-radius: 12px;
+    border-radius: 8px;
     background-color: #fe9c2b;
-    border: none;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid #333;
+    transition: all 0.3s ease;
     text-decoration: none;
     color: #fff;
     text-align: center;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     position: relative;
-    overflow: hidden;
-    transform-style: preserve-3d;
-  }
-  
-  /* Circle decoration in the background */
-  .service-link::before {
-    content: "";
-    position: absolute;
-    width: 140%;
-    height: 140%;
-    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
-    top: -20%;
-    left: -20%;
-    z-index: 0;
   }
 
   .service-link:hover {
-    transform: translateY(-15px) rotateX(5deg);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transform: translateY(-10px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
     background-color: #2c2c2c;
-    border-color: #444;
-  }
-  
-  .service-link::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 10px;
-    background: linear-gradient(90deg, #ff6b00, #ff9a00);
-    z-index: 1;
-  }
-  
-  .service-link:hover::after {
-    background: linear-gradient(90deg, #ffffff, #cccccc);
   }
 
-  .service-content {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-  }
-
-  .service-icon {
-    font-size: 5.5rem;
-    margin-bottom: 1.5rem;
+  .service-link i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
     color: #000000;
     transition: all 0.3s ease;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    position: relative;
-  }
-  
-  /* Decorative elements around icons */
-  .service-icon::before {
-    content: "";
-    position: absolute;
-    width: 120px;
-    height: 120px;
-    background-color: rgba(255,255,255,0.1);
-    border-radius: 50%;
-    z-index: -1;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    transition: all 0.3s ease;
-  }
-  
-  .service-link:hover .service-icon::before {
-    background-color: rgba(255,255,255,0.2);
-    width: 130px;
-    height: 130px;
   }
 
-  .service-title {
-    font-size: 2.5rem;
+  .service-link span {
+    font-size: 2rem;
     font-weight: 700;
     margin-bottom: 1rem;
     color: #000000;
     transition: all 0.3s ease;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
   }
 
-  .service-description {
+  .service-link .description {
     font-size: 1.2rem;
     color: #000000;
-    line-height: 1.6;
+    line-height: 1.5;
     max-width: 320px;
     transition: all 0.3s ease;
   }
-  
-  /* Additional decorative icon for each service */
-  .deco-icon {
+
+  /* Icon tambahan */
+  .service-link .deco-icon {
     position: absolute;
     font-size: 1.5rem;
     opacity: 0.4;
@@ -187,49 +105,40 @@
     transition: all 0.3s ease;
   }
   
-  .deco-icon-1 {
-    top: 10%;
-    right: 10%;
+  .service-link .deco-icon-1 {
+    top: 1.5rem;
+    right: 1.5rem;
   }
   
-  .deco-icon-2 {
-    bottom: 10%;
-    left: 10%;
+  .service-link .deco-icon-2 {
+    bottom: 1.5rem;
+    left: 1.5rem;
   }
-  
-  .service-link:hover .deco-icon {
-    transform: scale(1.2) rotate(15deg);
-    opacity: 0.7;
-    color: #fff;
-  }
-  
-  /* "Continue" arrow at the bottom */
-  .continue-arrow {
+
+  /* Arrow untuk continue */
+  .service-link .continue-arrow {
     position: absolute;
     bottom: 1.5rem;
     right: 1.5rem;
     font-size: 1.5rem;
-    color: rgba(0,0,0,0.5);
+    color: rgba(0,0,0,0.6);
     transition: all 0.3s ease;
-  }
-  
-  .service-link:hover .continue-arrow {
-    transform: translateX(5px);
-    color: #fff;
   }
 
   /* Efek hover - mengubah semua teks dan ikon menjadi putih */
-  .service-link:hover .service-icon,
-  .service-link:hover .service-title,
-  .service-link:hover .service-description {
+  .service-link:hover i,
+  .service-link:hover span,
+  .service-link:hover .description,
+  .service-link:hover .deco-icon,
+  .service-link:hover .continue-arrow {
     color: #ffffff;
   }
 
-  /* Style untuk modal pemilihan meja */
+  /* Style untuk modal */
   .dine-in-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -239,60 +148,18 @@
 
   .dine-in-modal {
     background: #fe9c2b;
-    padding: 2.5rem;
-    border-radius: 16px;
+    padding: 2rem;
+    border-radius: 12px;
     width: 90%;
     max-width: 400px;
     color: #000000;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
-    animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
     border: none;
     position: relative;
     overflow: hidden;
   }
-  
-  /* Modal decorative pattern */
-  .dine-in-modal::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      radial-gradient(circle at 90% 10%, rgba(255, 255, 255, 0.2) 0%, transparent 20%),
-      radial-gradient(circle at 10% 90%, rgba(255, 255, 255, 0.2) 0%, transparent 20%);
-    z-index: 0;
-  }
-  
-  .modal-content {
-    position: relative;
-    z-index: 1;
-  }
 
-  .dine-in-modal h3 {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    font-size: 1.8rem;
-    text-align: center;
-    font-weight: 700;
-    color: #000000;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid rgba(0,0,0,0.1);
-    position: relative;
-  }
-  
-  .dine-in-modal h3::after {
-    content: "";
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 2px;
-    background-color: #000;
-  }
-  
+  /* Icon di modal */
   .modal-icon {
     text-align: center;
     margin-bottom: 1.5rem;
@@ -308,19 +175,28 @@
     border-radius: 50%;
   }
 
+  .dine-in-modal h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    text-align: center;
+    font-weight: 700;
+    color: #000000;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(0,0,0,0.1);
+  }
+
   .dine-in-modal label {
     display: block;
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     margin-bottom: 0.5rem;
     font-weight: 600;
     color: #000000;
-    font-size: 1.1rem;
   }
 
   .dine-in-modal select {
     width: 100%;
     padding: 1rem;
-    margin-top: 0.25rem;
     background-color: #ffffff;
     color: #000000;
     border: none;
@@ -334,11 +210,6 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
 
-  .dine-in-modal select:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
-  }
-
   .dine-in-table-list {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -347,7 +218,7 @@
   }
 
   .dine-in-table-list .table-item {
-    padding: 1rem 0.5rem;
+    padding: 0.75rem;
     font-size: 1.1rem;
     border: none;
     background: #ffffff;
@@ -379,27 +250,23 @@
   .dine-in-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 2.5rem;
+    margin-top: 2rem;
   }
 
   .dine-in-footer button {
-    padding: 0.75rem 2rem;
+    padding: 0.75rem 1.5rem;
     border: none;
     border-radius: 8px;
     font-weight: 600;
     font-size: 1.1rem;
     cursor: pointer;
     transition: all 0.3s ease;
+    background: #ffffff;
+    color: #000000;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
 
-  #dine-in-cancel {
-    background: #ffffff;
-    color: #000000;
-  }
-
-  #dine-in-cancel:hover {
+  .dine-in-footer button:hover {
     background: #2c2c2c;
     color: #ffffff;
     transform: translateY(-3px);
@@ -416,31 +283,35 @@
     border-left: 3px solid #ff3333;
   }
 
-  /* Footer decorative elements */
+  /* Footer style */
   .page-footer {
     text-align: center;
-    padding: 2rem 0;
+    padding: 1.5rem 0;
     color: #555;
     font-size: 0.9rem;
   }
   
   .footer-decoration {
     margin-bottom: 1rem;
-    font-size: 1.5rem;
   }
   
   .footer-decoration i {
     margin: 0 0.5rem;
     opacity: 0.7;
+    font-size: 1.2rem;
   }
 
-  /* Animasi untuk modal */
+  /* Animasi */
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Media query untuk layar kecil */
+  .dine-in-modal {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  /* Media query untuk responsif */
   @media (max-width: 1100px) {
     .service-select {
       flex-direction: column;
@@ -452,15 +323,6 @@
       max-width: 400px;
       height: auto;
       aspect-ratio: 1/1;
-      padding: 2rem;
-    }
-    
-    .service-icon {
-      font-size: 4rem;
-    }
-    
-    .service-title {
-      font-size: 2rem;
     }
   }
   
@@ -476,11 +338,11 @@
       font-size: 3rem;
     }
     
-    .service-title {
-      font-size: 1.5rem;
+    .service-link span {
+      font-size: 1.8rem;
     }
     
-    .service-description {
+    .service-link .description {
       font-size: 1rem;
     }
     
@@ -496,49 +358,48 @@
 {% endblock %}
 
 {% block page_content %}
-<!-- Optional Logo/Header Section -->
+<!-- Header dengan logo dan nama restoran -->
 <div class="header-branding">
   <img src="/assets/imogi_pos/images/logo.png" alt="Restaurant Logo" class="restaurant-logo">
   <h1 class="restaurant-name">IMOGI Restaurant</h1>
   <p class="welcome-text">Selamat datang di IMOGI Restaurant. Silakan pilih layanan yang Anda inginkan.</p>
 </div>
 
+<!-- Pilihan layanan -->
 <div class="service-select">
+  <!-- Dine In -->
   <a class="service-link" data-service="dine_in" href="#">
-    <div class="service-content">
-      <i class="fa-solid fa-utensils service-icon"></i>
-      <h2 class="service-title">Dine In</h2>
-      <p class="service-description">Masuk dan nikmati makanan di tempat kami dengan suasana yang nyaman</p>
-      
-      <!-- Decorative elements -->
-      <i class="fa-solid fa-wine-glass deco-icon deco-icon-1"></i>
-      <i class="fa-solid fa-plate-wheat deco-icon deco-icon-2"></i>
-      <i class="fa-solid fa-arrow-right continue-arrow"></i>
-    </div>
+    <i class="fa-solid fa-utensils"></i>
+    <span>Dine In</span>
+    <p class="description">Masuk dan nikmati makanan di tempat kami dengan suasana yang nyaman</p>
+    
+    <!-- Icon-icon dekoratif -->
+    <i class="fa-solid fa-wine-glass deco-icon deco-icon-1"></i>
+    <i class="fa-solid fa-plate-wheat deco-icon deco-icon-2"></i>
+    <i class="fa-solid fa-arrow-right continue-arrow"></i>
   </a>
   
+  <!-- Take Away -->
   <a class="service-link" data-service="take_away" href="/kiosk?service=take-away">
-    <div class="service-content">
-      <i class="fa-solid fa-bag-shopping service-icon"></i>
-      <h2 class="service-title">Take Away</h2>
-      <p class="service-description">Ambil dan nikmati makanan Anda di mana saja dengan praktis</p>
-      
-      <!-- Decorative elements -->
-      <i class="fa-solid fa-box deco-icon deco-icon-1"></i>
-      <i class="fa-solid fa-mug-hot deco-icon deco-icon-2"></i>
-      <i class="fa-solid fa-arrow-right continue-arrow"></i>
-    </div>
+    <i class="fa-solid fa-bag-shopping"></i>
+    <span>Take Away</span>
+    <p class="description">Ambil dan nikmati makanan Anda di mana saja dengan praktis</p>
+    
+    <!-- Icon-icon dekoratif -->
+    <i class="fa-solid fa-box deco-icon deco-icon-1"></i>
+    <i class="fa-solid fa-mug-hot deco-icon deco-icon-2"></i>
+    <i class="fa-solid fa-arrow-right continue-arrow"></i>
   </a>
 </div>
 
-<!-- Optional Footer -->
+<!-- Footer dekoratif -->
 <div class="page-footer">
   <div class="footer-decoration">
     <i class="fa-solid fa-star"></i>
     <i class="fa-solid fa-utensils"></i>
     <i class="fa-solid fa-star"></i>
   </div>
-  <p>© IMOGI Restaurant 2025. Semua Hak Dilindungi.</p>
+  <p>© IMOGI Restaurant 2025</p>
 </div>
 {% endblock %}
 
@@ -576,18 +437,16 @@
     modal.className = 'dine-in-overlay';
     modal.innerHTML = `
       <div class="dine-in-modal">
-        <div class="modal-content">
-          <div class="modal-icon">
-            <i class="fa-solid fa-chair"></i>
-          </div>
-          <h3>Dine In</h3>
-          <label>Pilih Zona</label>
-          <select id="dine-in-zone"><option value="">Silakan pilih zona</option></select>
-          <div class="dine-in-table-list" id="dine-in-table-list"></div>
-          <div class="dine-in-error" id="dine-in-error"></div>
-          <div class="dine-in-footer">
-            <button id="dine-in-cancel">Kembali</button>
-          </div>
+        <div class="modal-icon">
+          <i class="fa-solid fa-chair"></i>
+        </div>
+        <h3>Dine In</h3>
+        <label>Pilih Zona</label>
+        <select id="dine-in-zone"><option value="">Silakan pilih zona</option></select>
+        <div class="dine-in-table-list" id="dine-in-table-list"></div>
+        <div class="dine-in-error" id="dine-in-error"></div>
+        <div class="dine-in-footer">
+          <button id="dine-in-cancel">Kembali</button>
         </div>
       </div>
     `;
