@@ -3,69 +3,67 @@ frappe.ready(() => {
   const device = params.get('device') || 'kiosk';
   const next = params.get('next') || '/kiosk';
 
-  localStorage.setItem('imogi_device', device);
-
   const form = document.getElementById('opening-balance-form');
   const amountInput = document.getElementById('new-opening-balance');
 
-  const timestampElement = document.getElementById('timestamp');
-  const userElement = document.getElementById('user');
-  const deviceElement = document.getElementById('device');
-  const openingBalanceElement = document.getElementById('opening_balance');
+  const elTs = document.getElementById('timestamp');
+  const elUser = document.getElementById('user');
+  const elDev = document.getElementById('device');
+  const elOB  = document.getElementById('opening_balance');
 
-  // Fungsi untuk format angka menjadi Rupiah
-  function formatRupiah(angka) {
-    let number_string = angka.toString().replace(/[^,\d]/g, '');
-    let split = number_string.split(',');
-    let sisa = split[0].length % 3;
-    let rupiah = split[0].substr(0, sisa);
-    let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-
-    if (ribuan) {
-      let separator = sisa ? '.' : '';
-      rupiah += separator + ribuan.join('.');
-    }
-
-    rupiah = split[1] !== undefined ? rupiah + ',' + split[1] : rupiah;
-    return 'Rp ' + rupiah;
+  // --- Formatter & parser Rupiah ---
+  function formatRupiah(val) {
+    const digits = String(val).replace(/[^\d]/g, '');
+    if (!digits) return 'Rp 0';
+    // sisipkan titik setiap 3 digit dari belakang
+    const withDots = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return 'Rp ' + withDots;
+  }
+  function parseRupiah(str) {
+    const digits = String(str || '').replace(/[^\d]/g, '');
+    return digits ? parseInt(digits, 10) : 0;
   }
 
-  // Fetch session data
+  // Isi panel kiri (ambil session terakhir kalau ada)
   frappe.call({
     method: 'imogi_pos.api.public.get_cashier_device_sessions',
     callback: (r) => {
-      const sessions = r.message || [];
-      if (sessions.length > 0) {
-        const s = sessions[0]; // Take the first session for display
-
-        timestampElement.innerText = s.timestamp;
-        userElement.innerText = s.user;
-        deviceElement.innerText = s.device;
-        openingBalanceElement.innerText = formatRupiah(s.opening_balance); // Format Rupiah
-      }
-    },
+      const s = (r.message || [])[0];
+      if (!s) return;
+      if (elTs)   elTs.textContent = s.timestamp || '';
+      if (elUser) elUser.textContent = s.user || '';
+      if (elDev)  elDev.textContent = s.device || '';
+      if (elOB)   elOB.textContent  = formatRupiah(s.opening_balance || 0);
+    }
   });
 
-  // Handle form submit for opening balance
+  // Format saat user mengetik
+  amountInput.addEventListener('input', (e) => {
+    const raw = parseRupiah(e.target.value);
+    e.target.value = formatRupiah(raw);
+  });
+
+  // Pre-fill tampilan input agar jelas
+  amountInput.value = formatRupiah(0);
+
+  // Submit: kirim angka bersih ke backend
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const amount = parseFloat(amountInput.value.replace(/[^\d.-]/g, '')); // Clean any existing currency symbols
-    const formattedAmount = formatRupiah(amount); // Format the input value as Rupiah
-    amountInput.value = formattedAmount; // Display formatted Rupiah in the input
+    const opening_balance = parseRupiah(amountInput.value); // angka murni
 
-    // Submit the amount as a number (unformatted) to the backend
     frappe.call({
       method: 'imogi_pos.api.public.record_opening_balance',
-      args: { device_type: device, opening_balance: amount },
+      args: { device_type: device, opening_balance },
       callback: () => {
+        // opsional: update panel kiri sebelum pindah halaman
+        if (elOB) elOB.textContent = formatRupiah(opening_balance);
         window.location.href = next;
       },
+      error: (err) => {
+        // tampilkan pesan error dari backend (mis. session masih aktif)
+        const msg = err?.message || err?._server_messages || __('Failed to open session');
+        frappe.msgprint(msg);
+      }
     });
-  });
-
-  // Format the amount input when the user types
-  amountInput.addEventListener('input', (e) => {
-    const value = e.target.value;
-    e.target.value = formatRupiah(value.replace(/[^\d.-]/g, '')); // Reformat as the user types
   });
 });
