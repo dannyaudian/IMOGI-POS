@@ -142,15 +142,16 @@ body {
   color: white;
 }
 
+/* PERBAIKAN: Grid layout dengan gap yang lebih kecil dan ukuran minimum kartu lebih kecil */
 .catalog-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
-  align-content: flex-start;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
-
-/* Item Card - Important part */
+/* PERBAIKAN: Item card dengan proporsi yang lebih baik */
 .item-card {
   background-color: white;
   border-radius: 8px;
@@ -161,7 +162,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 240px;
+  min-height: 220px;
+  position: relative;
 }
 
 .item-card:hover {
@@ -169,16 +171,22 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* PERBAIKAN: Ukuran gambar yang konsisten */
 .item-image {
   width: 100%;
-  height: 160px;
+  height: 140px;
   background-size: cover;
   background-position: center;
   background-color: #f3f4f6;
+  position: relative;
 }
 
+/* PERBAIKAN: Struktur info yang lebih baik */
 .item-info {
   padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 .item-name {
@@ -188,17 +196,47 @@ body {
   font-size: 0.95rem;
 }
 
+/* PERBAIKAN: Posisi harga di bawah */
 .item-price {
   color: var(--brand-primary);
   font-weight: 700;
   font-size: 0.95rem;
-  margin-top: 0.25rem;
+  margin-top: auto;
+  padding-top: 0.25rem;
 }
 
 .item-has-variants {
   font-size: 0.75rem;
   color: var(--text-light);
   margin-top: 0.25rem;
+}
+
+/* PERBAIKAN: Badge sold out sebagai overlay pada gambar */
+.sold-out-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  z-index: 1;
+}
+
+/* Item kartu sold out dengan opacity dan tidak dapat diklik */
+.item-card.sold-out {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* Menyembunyikan badge untuk item yang tidak sold out */
+.item-card:not(.sold-out) .sold-out-badge {
+  display: none;
 }
 
 /* Cart Section */
@@ -692,13 +730,20 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Perbaikan untuk empty catalog */
+.empty-catalog {
+  grid-column: 1 / -1;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-light);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .kiosk-container {
     grid-template-columns: 1fr;
     grid-template-rows: 60vh 40vh;
   }
-  
   
   .cart-section {
     border-left: none;
