@@ -1,5 +1,5 @@
 frappe.ready(() => {
-  document.querySelectorAll('.service-card').forEach((link) => {
+  document.querySelectorAll('.service-link').forEach((link) => {
     const service = link.getAttribute('data-service');
 
     if (service === 'dine_in') {
@@ -11,6 +11,7 @@ frappe.ready(() => {
     }
 
     if (service) {
+      const href = link.getAttribute('href');
       link.addEventListener('click', () => {
         localStorage.setItem('imogi_service_type', service);
         window.location.href = href;
