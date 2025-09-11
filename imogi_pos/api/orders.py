@@ -11,6 +11,7 @@ from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
 from frappe.exceptions import TimestampMismatchError
 
+WORKFLOW_CLOSED_STATES = ("Closed", "Cancelled", "Returned")
 def validate_item_is_sales_item(doc, method=None):
     """Ensure the linked Item is a sales item before saving POS Order Item.
 
@@ -134,7 +135,10 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 _("Table {0} does not belong to branch {1}").format(table, branch)
             )
 
-        if table_doc.status == "Occupied" and table_doc.current_pos_order:
+        # Resolve any lingering order linked to this table
+        table_doc.ensure_available_for_new_order()
+
+        if table_doc.current_pos_order:
             _safe_throw(
                 _("Table {0} is already occupied").format(table)
             )
@@ -240,11 +244,22 @@ def open_or_create_for_table(table, floor, pos_profile):
     branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     if not branch:
         frappe.throw(_("Branch not configured in POS Profile"), frappe.ValidationError)
-    
+
     validate_branch_access(branch)
-    
-    # STUB: Check for existing open order for this table
-    # For demo, assume no existing order and create a new one
+
+    table_doc = frappe.get_doc("Restaurant Table", table)
+
+    if table_doc.current_pos_order:
+        state = frappe.db.get_value(
+            "POS Order", table_doc.current_pos_order, "workflow_state"
+        )
+        if state in WORKFLOW_CLOSED_STATES:
+            table_doc.set_status("Available")
+        else:
+            existing_order = frappe.get_doc("POS Order", table_doc.current_pos_order)
+            validate_branch_access(existing_order.branch)
+            return existing_order.as_dict()
+
     return create_order("Dine-in", branch, pos_profile, table)
 
 @frappe.whitelist()
@@ -369,6 +384,21 @@ def merge_tables(target_table, source_tables):
         "merged_at": now_datetime(),
         "status": "Merged",
     }
+
+@frappe.whitelist()
+def update_order_status(pos_order, status):
+    """Update an order's workflow state and free its table when completed."""
+    order_doc = frappe.get_doc("POS Order", pos_order)
+    validate_branch_access(order_doc.branch)
+
+    order_doc.db_set("workflow_state", status, update_modified=False)
+    order_doc.workflow_state = status
+
+    if status in WORKFLOW_CLOSED_STATES and order_doc.table:
+        table_doc = frappe.get_doc("Restaurant Table", order_doc.table)
+        table_doc.set_status("Available")
+
+    return {"name": order_doc.name, "workflow_state": order_doc.workflow_state}
 
 @frappe.whitelist()
 def set_order_type(pos_order, order_type):

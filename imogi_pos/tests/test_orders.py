@@ -30,6 +30,18 @@ def frappe_env(monkeypatch):
             self.save()
             return {"status": self.status, "current_pos_order": self.current_pos_order}
 
+        def ensure_available_for_new_order(self):
+            if not self.current_pos_order:
+                return
+            state = orders[self.current_pos_order].workflow_state
+            if state in ("Closed", "Cancelled", "Returned"):
+                self.set_status("Available")
+            else:
+                frappe.throw(
+                    f"POS Order {self.current_pos_order} is still {state}",
+                    frappe.ValidationError,
+                )
+
     class StubOrder:
         def __init__(self, name):
             self.doctype = "POS Order"
@@ -46,6 +58,8 @@ def frappe_env(monkeypatch):
             return self
         def save(self):
             orders[self.name] = self
+        def db_set(self, fieldname, value, update_modified=False):
+            setattr(self, fieldname, value)
         def append(self, field, value):
             if isinstance(value, dict):
                 value = types.SimpleNamespace(**value)
@@ -285,3 +299,30 @@ def test_create_order_accepts_string_discounts(frappe_env):
 
     assert order.totals == pytest.approx(194.8)
     assert order.discount_amount == pytest.approx(27.2)
+
+
+def test_update_order_status_clears_table(frappe_env):
+    frappe, orders_module = frappe_env
+    order = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+    assert tables["T1"].status == "Occupied"
+    orders_module.update_order_status(order["name"], "Closed")
+    assert tables["T1"].status == "Available"
+    assert tables["T1"].current_pos_order is None
+
+
+def test_create_order_clears_stale_order(frappe_env):
+    frappe, orders_module = frappe_env
+    old = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+    orders[old["name"]].workflow_state = "Closed"
+    tables["T1"].status = "Available"
+    tables["T1"].current_pos_order = old["name"]
+    new = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+    assert new["name"] != old["name"]
+    assert tables["T1"].current_pos_order == new["name"]
+
+
+def test_open_or_create_for_table_reuses_existing_order(frappe_env):
+    frappe, orders_module = frappe_env
+    existing = orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
+    result = orders_module.open_or_create_for_table("T1", "F1", "P1")
+    assert result["name"] == existing["name"]
