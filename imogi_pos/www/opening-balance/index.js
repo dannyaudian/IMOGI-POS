@@ -1,71 +1,71 @@
 frappe.ready(() => {
   const params = new URLSearchParams(window.location.search);
   const device = params.get('device') || 'kiosk';
-    const next = params.get('next') || '/service-select';
+  const next = params.get('next') || '/kiosk';
 
   localStorage.setItem('imogi_device', device);
 
   const form = document.getElementById('opening-balance-form');
-  const amountInput = document.getElementById('opening-balance');
-  const sessionList = document.getElementById('session-list');
+  const amountInput = document.getElementById('new-opening-balance');
 
+  const timestampElement = document.getElementById('timestamp');
+  const userElement = document.getElementById('user');
+  const deviceElement = document.getElementById('device');
+  const openingBalanceElement = document.getElementById('opening_balance');
+
+  // Fungsi untuk format angka menjadi Rupiah
+  function formatRupiah(angka) {
+    let number_string = angka.toString().replace(/[^,\d]/g, '');
+    let split = number_string.split(',');
+    let sisa = split[0].length % 3;
+    let rupiah = split[0].substr(0, sisa);
+    let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+    if (ribuan) {
+      let separator = sisa ? '.' : '';
+      rupiah += separator + ribuan.join('.');
+    }
+
+    rupiah = split[1] !== undefined ? rupiah + ',' + split[1] : rupiah;
+    return 'Rp ' + rupiah;
+  }
+
+  // Fetch session data
   frappe.call({
     method: 'imogi_pos.api.public.get_cashier_device_sessions',
-    args: { device },
     callback: (r) => {
       const sessions = r.message || [];
-      sessions.forEach((s) => {
-        const card = document.createElement('div');
-        card.className = 'card';
+      if (sessions.length > 0) {
+        const s = sessions[0]; // Take the first session for display
 
-        const body = document.createElement('div');
-        body.className = 'card-body';
-
-        const formattedTimestamp = frappe.datetime.str_to_user(s.timestamp);
-        const formattedBalance = frappe.format_currency(s.opening_balance);
-
-        body.innerHTML = `
-          <div class="form-group">
-            <label>${__('Timestamp')}</label>
-            <input class="form-control" value="${formattedTimestamp}" readonly />
-          </div>
-          <div class="form-group">
-            <label>${__('User')}</label>
-            <input class="form-control" value="${s.user}" readonly />
-          </div>
-          <div class="form-group">
-            <label>${__('Device')}</label>
-            <input class="form-control" value="${s.device}" readonly />
-          </div>
-          <div class="form-group">
-            <label>${__('Opening Balance')}</label>
-            <input class="form-control" value="${formattedBalance}" readonly />
-          </div>
-        `;
-
-        card.appendChild(body);
-        sessionList.appendChild(card);
-      });
-    },
-    error: (err) => {
-      console.error(err);
-      frappe.msgprint(__('Failed to load sessions'));
+        timestampElement.innerText = s.timestamp;
+        userElement.innerText = s.user;
+        deviceElement.innerText = s.device;
+        openingBalanceElement.innerText = formatRupiah(s.opening_balance); // Format Rupiah
+      }
     },
   });
 
+  // Handle form submit for opening balance
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const amount = parseFloat(amountInput.value);
+    const amount = parseFloat(amountInput.value.replace(/[^\d.-]/g, '')); // Clean any existing currency symbols
+    const formattedAmount = formatRupiah(amount); // Format the input value as Rupiah
+    amountInput.value = formattedAmount; // Display formatted Rupiah in the input
+
+    // Submit the amount as a number (unformatted) to the backend
     frappe.call({
       method: 'imogi_pos.api.public.record_opening_balance',
       args: { device_type: device, opening_balance: amount },
       callback: () => {
         window.location.href = next;
       },
-      error: (err) => {
-        console.error(err);
-        frappe.msgprint(__('Failed to record opening balance'));
-      },
     });
+  });
+
+  // Format the amount input when the user types
+  amountInput.addEventListener('input', (e) => {
+    const value = e.target.value;
+    e.target.value = formatRupiah(value.replace(/[^\d.-]/g, '')); // Reformat as the user types
   });
 });
