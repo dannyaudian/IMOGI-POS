@@ -676,9 +676,14 @@ frappe.ready(async function() {
             }
         },
         
-        handleCheckout: function() {
+        handleCheckout: async function() {
             if (!this.cart.length) return;
-            
+
+            // Ensure table number is set for dine-in orders
+            if (!(await this.ensureTableNumber())) {
+                return;
+            }
+
             // Open payment modal
             this.openPaymentModal();
         },
@@ -728,19 +733,32 @@ frappe.ready(async function() {
 
         ensureTableNumber: async function() {
             if (this.orderType === 'Dine-in' && !this.tableNumber) {
-                const values = await frappe.prompt([
-                    {
-                        fieldname: 'table_number',
-                        label: __('Table Number'),
-                        fieldtype: 'Data',
-                        reqd: 1
-                    }
-                ], __('Table Required'));
+                let values;
+                try {
+                    values = await frappe.prompt([
+                        {
+                            fieldname: 'table_number',
+                            label: __('Table Number'),
+                            fieldtype: 'Data',
+                            reqd: 1
+                        }
+                    ], __('Table Required'));
+                } catch (e) {
+                    // User closed the prompt without entering a table number
+                    frappe.msgprint({
+                        title: __('Table Required'),
+                        message: __('Table numbers are mandatory for dine-in orders.'),
+                        indicator: 'orange'
+                    });
+                    return false;
+                }
+
                 const table = values && values.table_number;
                 if (!table) {
                     frappe.msgprint(__('Table number is required for Dine-in orders.'));
                     return false;
                 }
+
                 this.tableNumber = table;
                 localStorage.setItem('imogi_table_number', table);
             }
