@@ -143,55 +143,44 @@
   }
 
   /* Grid layout untuk tampilan kotak-kotak */
- .catalog-grid {
-   display: grid;
-   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-   gap: 12px;
-   padding: 0.75rem;
-   overflow-y: auto;
- }
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
 
 
   /* Item card kotak dengan aspect ratio 1:1 */
-  .item-card {
-   background-color: white;
-   border-radius: 8px;
-   overflow: hidden;
-   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-   cursor: pointer;
-   transition: transform 0.2s, box-shadow 0.2s;
-   display: flex;
-   flex-direction: column;
-   min-height: 240px;
-   margin-bottom: 5px;
- }
+.item-card {
+  min-height: 220px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
  
  .item-card:hover {
    transform: translateY(-4px);
    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
  }
 
-  .item-image {
-    width: 100%;
-    height: 180px;
-    background-size: cover;
-    background-position: center;
-    background-color: #f3f4f6;
-  }
+.item-image {
+  height: 150px;
+  background-size: cover;
+  background-position: center;
+}
 
-  .item-info {
-    padding: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-  }
+.item-info {
+  padding: 8px 12px;
+}
   
-  .item-name {
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-    line-height: 1.2;
-    font-size: 1rem;
-  }
+.item-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}  
 
   .item-code {
     font-size: 0.75rem;
@@ -199,12 +188,11 @@
     margin-bottom: 0.25rem;
   }
 
-  .item-price {
-    color: var(--brand-primary);
-    font-weight: 700;
-    font-size: 1rem;
-    margin-top: auto;
-  }
+.item-price {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
 
   .item-has-variants {
     font-size: 0.75rem;
@@ -784,6 +772,20 @@
       border-top: 1px solid var(--border-color);
     }
   }
+
+ @media (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  
+  .item-card {
+    min-height: 200px;
+  }
+  
+  .item-image {
+    height: 130px;
+  }
+}
 </style>
 
 {% endblock %}
