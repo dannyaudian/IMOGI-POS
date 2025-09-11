@@ -11,54 +11,51 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
-  /* Header branding dengan spacing lebih efisien */
+  /* Header branding */
   .header-branding {
     text-align: center;
-    padding: 1.5rem 0 1rem;
+    padding: 2rem 0;
   }
   
   .restaurant-logo {
-    max-width: 180px;
-    margin-bottom: 0.5rem;
+    max-width: 120px;
+    margin-bottom: 1rem;
   }
   
   .restaurant-name {
     font-size: 2rem;
     font-weight: 700;
     color: #333;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
   }
   
   .welcome-text {
     font-size: 1.1rem;
     color: #555;
     max-width: 600px;
-    margin: 0 auto 1rem;
+    margin: 0 auto 1.5rem;
     text-align: center;
   }
 
-  /* Perbaikan spacing untuk service selection */
+  /* Service Selection Styles */
   .service-select {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 2rem;
-    padding: 0.5rem 1rem 2rem;
-    min-height: 50vh;
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 1rem;
+    min-height: 60vh;
   }
 
-  /* Menyesuaikan ukuran card */
   .service-link {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 2rem;
-    width: 420px;
-    height: 420px;
+    gap: 1rem;
+    padding: 2.5rem;
+    width: 480px;
+    height: 480px;
     border-radius: 8px;
     background-color: #fe9c2b;
     border: 1px solid #333;
@@ -77,24 +74,24 @@
   }
 
   .service-link i {
-    font-size: 3.5rem;
-    margin-bottom: 0.75rem;
+    font-size: 4rem;
+    margin-bottom: 1rem;
     color: #000000;
     transition: all 0.3s ease;
   }
 
   .service-link span {
-    font-size: 1.8rem;
+    font-size: 2rem;
     font-weight: 700;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     color: #000000;
     transition: all 0.3s ease;
   }
 
   .service-link .description {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     color: #000000;
-    line-height: 1.4;
+    line-height: 1.5;
     max-width: 320px;
     transition: all 0.3s ease;
   }
@@ -289,14 +286,13 @@
   /* Footer style */
   .page-footer {
     text-align: center;
-    padding: 1rem 0;
+    padding: 1.5rem 0;
     color: #555;
     font-size: 0.9rem;
-    margin-top: 1rem;
   }
   
   .footer-decoration {
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
   }
   
   .footer-decoration i {
@@ -330,47 +326,6 @@
     }
   }
   
-  @media (max-height: 800px) {
-    .header-branding {
-      padding: 1rem 0 0.5rem;
-    }
-    
-    .restaurant-logo {
-      max-width: 150px;
-    }
-    
-    .restaurant-name {
-      font-size: 1.8rem;
-    }
-    
-    .welcome-text {
-      font-size: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .service-link {
-      width: 380px;
-      height: 380px;
-      padding: 1.5rem;
-    }
-    
-    .service-link i {
-      font-size: 3rem;
-    }
-    
-    .service-link span {
-      font-size: 1.6rem;
-    }
-    
-    .service-link .description {
-      font-size: 1rem;
-    }
-    
-    .page-footer {
-      padding: 0.5rem 0;
-    }
-  }
-  
   @media (max-width: 500px) {
     .service-link {
       width: 100%;
@@ -379,12 +334,12 @@
       padding: 1.5rem;
     }
     
-    .service-link i {
+    .service-icon {
       font-size: 3rem;
     }
     
     .service-link span {
-      font-size: 1.6rem;
+      font-size: 1.8rem;
     }
     
     .service-link .description {
@@ -405,8 +360,8 @@
 {% block page_content %}
 <!-- Header dengan logo dan nama restoran -->
 <div class="header-branding">
-  <img src="../service-select/images/imogi.png" alt="Restaurant Logo" class="restaurant-logo">
-  <h1 class="restaurant-name">Restaurant</h1>
+  <img src="/assets/imogi_pos/images/logo.png" alt="Restaurant Logo" class="restaurant-logo">
+  <h1 class="restaurant-name">IMOGI Restaurant</h1>
   <p class="welcome-text">Selamat datang di IMOGI Restaurant. Silakan pilih layanan yang Anda inginkan.</p>
 </div>
 
