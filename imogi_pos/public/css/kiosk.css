@@ -212,7 +212,8 @@
   margin-bottom: var(--spacing-1);
 }
 
-.item-description {
+.item-description,
+.item-desc {
   font-size: var(--font-size-sm);
   color: var(--color-gray-600);
   margin-bottom: var(--spacing-2);
@@ -1025,6 +1026,7 @@
 
 
   .item-description,
+  .item-desc,
   .cart-item-options,
   .step-text {
     color: var(--color-gray-400);

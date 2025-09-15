@@ -698,6 +698,7 @@ imogi_pos.kiosk = {
                     ${item.image ? `<div class="item-image"><img src="${item.image}" alt="${item.item_name}"></div>` : ''}
                     <div class="item-details">
                         <div class="item-name">${item.item_name}</div>
+                        ${item.description ? `<div class="item-desc">${item.description}</div>` : ''}
                         <div class="item-price">${this.formatCurrency(item.rate || 0)}</div>
                     </div>
                     ${itemIcon}
