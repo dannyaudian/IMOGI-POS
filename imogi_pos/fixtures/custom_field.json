@@ -1015,7 +1015,7 @@
     "fieldname": "menu_category",
     "fieldtype": "Select",
     "label": "Menu Category",
-    "options": "\nAppetizer\nMain Course\nDessert\nBeverage\nSpecial",
+    "options": "\nAppetizer\nMain Course\nDessert\nBeverage\nSpecial\nAllura\nSugus\nTea\nCoffe",
     "insert_after": "item_group",
     "is_system_generated": 0,
     "module": "IMOGI POS",
