@@ -89,3 +89,25 @@ def get_item_options(item):
             result["toppings"] = [t.strip() for t in toppings_field.split(",") if t.strip()]
 
     return result
+
+
+# Mapping of menu categories to default item option flags
+MENU_FLAG_MAP = {
+    "dessert": {"has_size": 1, "has_topping": 1},
+    "beverage": {"has_size": 1},
+    "main course": {"has_spice": 1},
+    "appetizer": {"has_spice": 1},
+}
+
+
+def set_item_flags(doc, method=None):
+    """Set item option flags based on the menu category.
+
+    Args:
+        doc (frappe.model.document.Document): The Item document being saved.
+        method (str, optional): The event method name (unused).
+    """
+    category = (doc.get("menu_category") or "").lower()
+    flags = MENU_FLAG_MAP.get(category, {})
+    for field in ("has_size", "has_spice", "has_topping"):
+        doc.set(field, flags.get(field, 0))
