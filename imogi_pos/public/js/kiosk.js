@@ -1009,19 +1009,53 @@ imogi_pos.kiosk = {
             if (field === 'topping') {
                 fieldsHtml += `<div class="option-group"><label>${title}</label>` +
                     choices.map(opt => {
-                        const { label, value, price = 0 } = opt;
-                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
+                        const { label, value, price = 0, default: isDefault } = opt;
+                        const checkedAttr = isDefault ? ' checked' : '';
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"${checkedAttr}> ${label}</label>`;
                     }).join('') + '</div>';
             } else {
                 // Select inputs are treated as required by default
                 fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}" data-required="1">` +
                     `<option value="" data-price="0">Select ${title}</option>` +
                     choices.map(opt => {
-                        const { label, value, price = 0 } = opt;
-                        return `<option value="${value}" data-price="${price}">${label}</option>`;
+                        const { label, value, price = 0, default: isDefault } = opt;
+                        const selectedAttr = isDefault ? ' selected' : '';
+                        return `<option value="${value}" data-price="${price}"${selectedAttr}>${label}</option>`;
                     }).join('') + '</select></div>';
             }
         });
+
+        const quantityControlHtml = `
+            <div class="option-group quantity-group">
+                <label>Quantity</label>
+                <div class="quantity-control">
+                    <button type="button" class="quantity-btn" data-change="-1">-</button>
+                    <input type="number" class="quantity-input" min="1" value="1">
+                    <button type="button" class="quantity-btn" data-change="1">+</button>
+                </div>
+            </div>
+        `;
+
+        const summaryHtml = `
+            <div class="option-summary">
+                <div class="summary-row">
+                    <span>Base Price</span>
+                    <span class="summary-value" data-summary="base">--</span>
+                </div>
+                <div class="summary-row">
+                    <span>Option Surcharge</span>
+                    <span class="summary-value" data-summary="options">${this.formatCurrency(0)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Quantity</span>
+                    <span class="summary-value" data-summary="quantity">1</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Total</span>
+                    <span class="summary-value" data-summary="total">--</span>
+                </div>
+            </div>
+        `;
 
         modalContainer.innerHTML = `
             <div class="modal-overlay">
@@ -1030,7 +1064,7 @@ imogi_pos.kiosk = {
                         <h3>Select Options</h3>
                         <button class="modal-close">&times;</button>
                     </div>
-                    <div class="modal-body">${fieldsHtml}</div>
+                    <div class="modal-body">${fieldsHtml}${quantityControlHtml}${summaryHtml}</div>
                     <div class="modal-footer">
                         <button class="modal-cancel">Cancel</button>
                         <button class="modal-confirm">Add</button>
@@ -1046,14 +1080,136 @@ imogi_pos.kiosk = {
         const cancelBtn = modalContainer.querySelector('.modal-cancel');
         if (cancelBtn) cancelBtn.addEventListener('click', close);
 
-        // Remove error highlight when changing selection
-        modalContainer.querySelectorAll('.option-select').forEach(sel => {
+        const quantityInput = modalContainer.querySelector('.quantity-input');
+        const quantityButtons = modalContainer.querySelectorAll('.quantity-btn');
+        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        const optionSelects = modalContainer.querySelectorAll('.option-select');
+        const optionCheckboxes = modalContainer.querySelectorAll('.option-checkbox');
+        const summaryBaseEl = modalContainer.querySelector('[data-summary="base"]');
+        const summaryOptionEl = modalContainer.querySelector('[data-summary="options"]');
+        const summaryQtyEl = modalContainer.querySelector('[data-summary="quantity"]');
+        const summaryTotalEl = modalContainer.querySelector('[data-summary="total"]');
+
+        let basePrice = 0;
+        let hasBasePrice = false;
+
+        const parsePrice = (value) => {
+            const price = parseFloat(value);
+            return isNaN(price) ? 0 : price;
+        };
+
+        const getQuantity = () => {
+            if (!quantityInput) return 1;
+            let value = parseInt(quantityInput.value, 10);
+            if (isNaN(value) || value < 1) {
+                value = 1;
+            }
+            if (quantityInput.value !== String(value)) {
+                quantityInput.value = value;
+            }
+            return value;
+        };
+
+        const computeOptionSurcharge = () => {
+            let total = 0;
+            optionSelects.forEach(sel => {
+                const opt = sel.options[sel.selectedIndex];
+                if (opt && sel.value) {
+                    total += parsePrice(opt.dataset.price);
+                }
+            });
+            optionCheckboxes.forEach(cb => {
+                if (cb.checked) {
+                    total += parsePrice(cb.dataset.price);
+                }
+            });
+            return total;
+        };
+
+        const updateSummary = () => {
+            const optionPrice = computeOptionSurcharge();
+            const qty = getQuantity();
+
+            if (summaryBaseEl) {
+                summaryBaseEl.textContent = hasBasePrice ? this.formatCurrency(basePrice) : '--';
+            }
+            if (summaryOptionEl) {
+                summaryOptionEl.textContent = this.formatCurrency(optionPrice);
+            }
+            if (summaryQtyEl) {
+                summaryQtyEl.textContent = qty;
+            }
+            if (summaryTotalEl) {
+                const total = (basePrice + optionPrice) * qty;
+                summaryTotalEl.textContent = hasBasePrice ? this.formatCurrency(total) : '--';
+            }
+            if (confirmBtn) {
+                const total = (basePrice + optionPrice) * qty;
+                confirmBtn.textContent = hasBasePrice ? `Add ${this.formatCurrency(total)}` : 'Add';
+            }
+        };
+
+        // Remove error highlight when changing selection and keep summary in sync
+        optionSelects.forEach(sel => {
             sel.addEventListener('change', () => {
                 sel.style.removeProperty('border-color');
+                updateSummary();
             });
         });
 
-        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        optionCheckboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                updateSummary();
+            });
+        });
+
+        quantityButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const change = parseInt(btn.dataset.change, 10) || 0;
+                const current = getQuantity();
+                let next = current + change;
+                if (next < 1) next = 1;
+                if (quantityInput) {
+                    quantityInput.value = next;
+                }
+                updateSummary();
+            });
+        });
+
+        if (quantityInput) {
+            ['change', 'input'].forEach(evt => {
+                quantityInput.addEventListener(evt, () => {
+                    updateSummary();
+                });
+            });
+        }
+
+        const catalogItem = this.state.catalogItems.find(item => item.name === itemName);
+        if (catalogItem && typeof catalogItem.rate !== 'undefined') {
+            basePrice = parsePrice(catalogItem.rate);
+            hasBasePrice = true;
+        }
+
+        updateSummary();
+
+        if (!hasBasePrice) {
+            frappe.call({
+                method: 'frappe.client.get_value',
+                args: {
+                    doctype: 'Item',
+                    filters: { name: itemName },
+                    fieldname: ['standard_rate']
+                },
+                callback: (resp) => {
+                    if (resp && resp.message) {
+                        basePrice = parsePrice(resp.message.standard_rate);
+                        hasBasePrice = true;
+                        updateSummary();
+                    }
+                }
+            });
+        }
+
         if (confirmBtn) {
             confirmBtn.addEventListener('click', () => {
                 const selectedOptions = {};
@@ -1061,11 +1217,11 @@ imogi_pos.kiosk = {
                 const missing = [];
 
                 // Validate required select options
-                modalContainer.querySelectorAll('.option-select').forEach(sel => {
+                optionSelects.forEach(sel => {
                     const key = sel.dataset.option;
                     const opt = sel.options[sel.selectedIndex];
                     const value = sel.value;
-                    const price = parseFloat(opt.dataset.price || 0);
+                    const price = opt ? parsePrice(opt.dataset.price) : 0;
 
                     // Highlight missing required selections
                     sel.style.removeProperty('border-color');
@@ -1088,17 +1244,53 @@ imogi_pos.kiosk = {
                 }
 
                 const toppings = [];
-                modalContainer.querySelectorAll('.option-checkbox:checked').forEach(cb => {
+                optionCheckboxes.forEach(cb => {
+                    if (!cb.checked) return;
                     toppings.push(cb.value);
-                    optionPrice += parseFloat(cb.dataset.price || 0);
+                    optionPrice += parsePrice(cb.dataset.price);
                 });
                 if (toppings.length > 0) {
                     selectedOptions.topping = toppings;
                 }
 
-                selectedOptions.price = optionPrice;
-                this.addItemToCart(itemName, selectedOptions);
-                close();
+                const qty = getQuantity();
+
+                const finalizeAdd = () => {
+                    const totalPrice = (basePrice + optionPrice) * qty;
+                    selectedOptions.price = optionPrice;
+                    const message = hasBasePrice
+                        ? `Total: ${this.formatCurrency(totalPrice)}`
+                        : `Estimated total: ${this.formatCurrency(totalPrice)}`;
+                    this.showToast(message);
+                    this.addItemToCart(itemName, selectedOptions, qty);
+                    close();
+                };
+
+                const ensureBasePrice = () => {
+                    if (hasBasePrice) {
+                        finalizeAdd();
+                        return;
+                    }
+                    frappe.call({
+                        method: 'frappe.client.get_value',
+                        args: {
+                            doctype: 'Item',
+                            filters: { name: itemName },
+                            fieldname: ['standard_rate']
+                        },
+                        callback: (resp) => {
+                            if (resp && resp.message) {
+                                basePrice = parsePrice(resp.message.standard_rate);
+                                hasBasePrice = true;
+                                updateSummary();
+                            }
+                            finalizeAdd();
+                        },
+                        error: finalizeAdd
+                    });
+                };
+
+                ensureBasePrice();
             });
         }
     },
@@ -1126,8 +1318,10 @@ imogi_pos.kiosk = {
     /**
      * Add item to cart
      * @param {string} itemName - Item name to add
+     * @param {Object} [options] - Selected options
+     * @param {number} [quantity=1] - Quantity to add
      */
-    addItemToCart: function(itemName, options = {}) {
+    addItemToCart: function(itemName, options = {}, quantity = 1) {
         // Get item details
         frappe.call({
             method: 'frappe.client.get',
@@ -1142,6 +1336,7 @@ imogi_pos.kiosk = {
                     // Calculate rate with additional option price
                     const optionPrice = options.price || 0;
                     const rate = (item.standard_rate || 0) + optionPrice;
+                    const qty = Math.max(1, parseInt(quantity, 10) || 1);
 
                     // Check if item is already in cart with same options
                     const existingItemIndex = this.state.cart.findIndex(cartItem =>
@@ -1151,7 +1346,7 @@ imogi_pos.kiosk = {
 
                     if (existingItemIndex !== -1) {
                         // Increment quantity
-                        this.state.cart[existingItemIndex].qty += 1;
+                        this.state.cart[existingItemIndex].qty += qty;
                         this.state.cart[existingItemIndex].amount =
                             this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
                     } else {
@@ -1159,9 +1354,9 @@ imogi_pos.kiosk = {
                         this.state.cart.push({
                             item: itemName,
                             item_name: item.item_name,
-                            qty: 1,
+                            qty: qty,
                             rate: rate,
-                            amount: rate,
+                            amount: rate * qty,
                             notes: '',
                             options: options
                         });
