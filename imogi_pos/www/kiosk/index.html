@@ -935,6 +935,24 @@
   </div>
 </div>
 
+<!-- Item Detail Modal -->
+<div class="modal-overlay item-detail-modal" id="item-detail-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Customize Item") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-item-image" id="item-detail-image"></div>
+      <div id="item-options" class="options-section"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-item-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-item-add">{{ _("Add to Order") }}</button>
+    </div>
+  </div>
+</div>
+
 <!-- Payment Modal -->
 <div class="modal-overlay payment-modal" id="payment-modal">
   <div class="modal-container">
