@@ -81,10 +81,10 @@ MENU_FLAG_MAP = {
     "main course": {"has_spice": 1},
     "appetizer": {"has_spice": 1},
     "special": {"has_size": 1, "has_spice": 1, "has_topping": 1},
-    "Allura": {"has_size": 1, "has_topping": 1},
-    "Sugus": {"has_size": 1, "has_topping": 1},
-    "Tea": {"has_size": 1, "has_topping": 1},
-    "Coffee": {"has_size": 1, "has_topping": 1},  # Coffee usually has size and topping
+    "allura": {"has_size": 1, "has_topping": 1},
+    "sugus": {"has_size": 1, "has_topping": 1},
+    "tea": {"has_size": 1, "has_topping": 1},
+    "coffee": {"has_size": 1, "has_topping": 1},  # Coffee usually has size and topping
 }
 
 
