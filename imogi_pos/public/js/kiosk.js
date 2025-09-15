@@ -964,7 +964,8 @@ imogi_pos.kiosk = {
                         return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
                     }).join('') + '</div>';
             } else {
-                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                // Select inputs are treated as required by default
+                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}" data-required="1">` +
                     `<option value="" data-price="0">Select ${title}</option>` +
                     choices.map(opt => {
                         const { label, value, price = 0 } = opt;
@@ -996,22 +997,46 @@ imogi_pos.kiosk = {
         const cancelBtn = modalContainer.querySelector('.modal-cancel');
         if (cancelBtn) cancelBtn.addEventListener('click', close);
 
+        // Remove error highlight when changing selection
+        modalContainer.querySelectorAll('.option-select').forEach(sel => {
+            sel.addEventListener('change', () => {
+                sel.style.removeProperty('border-color');
+            });
+        });
+
         const confirmBtn = modalContainer.querySelector('.modal-confirm');
         if (confirmBtn) {
             confirmBtn.addEventListener('click', () => {
                 const selectedOptions = {};
                 let optionPrice = 0;
+                const missing = [];
 
+                // Validate required select options
                 modalContainer.querySelectorAll('.option-select').forEach(sel => {
                     const key = sel.dataset.option;
                     const opt = sel.options[sel.selectedIndex];
                     const value = sel.value;
                     const price = parseFloat(opt.dataset.price || 0);
+
+                    // Highlight missing required selections
+                    sel.style.removeProperty('border-color');
+                    const required = sel.dataset.required === '1';
+                    if (required && !value) {
+                        missing.push(this.toTitleCase(key));
+                        sel.style.borderColor = 'var(--color-danger)';
+                        return; // Skip adding to selectedOptions
+                    }
+
                     if (value) {
                         selectedOptions[key] = value;
                         optionPrice += price;
                     }
                 });
+
+                if (missing.length) {
+                    this.showError('Please select: ' + missing.join(', '));
+                    return;
+                }
 
                 const toppings = [];
                 modalContainer.querySelectorAll('.option-checkbox:checked').forEach(cb => {
