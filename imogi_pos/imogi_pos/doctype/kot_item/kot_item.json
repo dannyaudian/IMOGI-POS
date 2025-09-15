@@ -13,6 +13,7 @@
         "workflow_state",
         "pos_order_item",
         "item_options",
+        "options_display",
         "notes",
         "last_edited_by"
     ],
@@ -65,6 +66,13 @@
             "fieldname": "item_options",
             "fieldtype": "JSON",
             "label": "Item Options"
+        },
+        {
+            "fieldname": "options_display",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Options",
+            "read_only": 1
         },
         {
             "fieldname": "notes",
