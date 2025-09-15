@@ -12,6 +12,7 @@
         "column_break_5",
         "notes",
         "item_options",
+        "options_display",
         "kitchen_section",
         "kitchen",
         "kitchen_station",
@@ -63,6 +64,13 @@
             "fieldname": "item_options",
             "fieldtype": "JSON",
             "label": "Item Options"
+        },
+        {
+            "fieldname": "options_display",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Options",
+            "read_only": 1
         },
         {
             "fieldname": "kitchen_section",
