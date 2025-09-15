@@ -650,8 +650,12 @@ frappe.ready(async function() {
             const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
             this.elements.itemDetailImage.style.backgroundImage = `url('${imageUrl}')`;
             this.elements.itemDetailModal.querySelector('.modal-title').textContent = item.item_name;
-            this.elements.itemOptions.innerHTML = '';
 
+            // Clear and hide options section while loading
+            this.elements.itemOptions.innerHTML = '';
+            this.elements.itemOptions.classList.add('hidden');
+
+            // Show modal
             this.elements.itemDetailModal.style.display = 'flex';
 
             this.showLoading('Loading options...');
@@ -707,12 +711,18 @@ frappe.ready(async function() {
                 html += `</div></div>`;
             }
 
-            container.innerHTML = html;
+            if (html) {
+                container.innerHTML = html;
+                container.classList.remove('hidden');
+            } else {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+            }
         },
 
         confirmItemOptions: function() {
             const container = this.elements.itemOptions;
-            const selected = { toppings: [] };
+            const selectedOptions = { toppings: [] };
             let extra = 0;
 
             const sizeGroup = container.querySelector('[data-group="size"]');
@@ -722,8 +732,8 @@ frappe.ready(async function() {
                     this.showError('Please select size');
                     return;
                 }
-                selected.size = { name: input.value, price: Number(input.dataset.price || 0) };
-                extra += selected.size.price;
+                selectedOptions.size = { name: input.value, price: Number(input.dataset.price || 0) };
+                extra += selectedOptions.size.price;
             }
 
             const spiceGroup = container.querySelector('[data-group="spice"]');
@@ -733,7 +743,7 @@ frappe.ready(async function() {
                     this.showError('Please select spice level');
                     return;
                 }
-                selected.spice = { name: input.value };
+                selectedOptions.spice = { name: input.value };
             }
 
             const toppingGroup = container.querySelector('[data-group="topping"]');
@@ -741,13 +751,13 @@ frappe.ready(async function() {
                 const inputs = toppingGroup.querySelectorAll('input[name="topping-option"]:checked');
                 inputs.forEach(inp => {
                     const price = Number(inp.dataset.price || 0);
-                    selected.toppings.push({ name: inp.value, price });
+                    selectedOptions.toppings.push({ name: inp.value, price });
                     extra += price;
                 });
             }
 
-            selected.extra_price = extra;
-            this.addItemToCart(this.selectedOptionItem, selected, this.pendingNotes);
+            selectedOptions.extra_price = extra;
+            this.addItemToCart(this.selectedOptionItem, selectedOptions, this.pendingNotes);
             this.closeItemDetailModal();
         },
 
