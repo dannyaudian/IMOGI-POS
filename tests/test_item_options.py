@@ -61,3 +61,22 @@ def test_get_item_options_skip_inactive():
 
     assert result == {"sizes": [{"option_name": "Large", "additional_price": 0}]}
 
+
+def test_set_item_flags_applies_defaults():
+    """Ensure MENU_FLAG_MAP values are applied to the Item document."""
+    item_doc = types.SimpleNamespace(menu_category="Dessert")
+
+    def setter(name, value):
+        setattr(item_doc, name, value)
+
+    item_doc.set = setter
+    item_doc.get = lambda key: getattr(item_doc, key, None)
+
+    items = load_items_with_doc(item_doc)
+    items.set_item_flags(item_doc)
+    unload_items_module()
+
+    assert item_doc.has_size_option == 1
+    assert item_doc.has_topping_option == 1
+    assert getattr(item_doc, "has_spice_option", 0) == 0
+
