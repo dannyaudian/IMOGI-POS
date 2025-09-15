@@ -1171,5 +1171,6 @@
     "dt": "Sales Invoice Item",
     "doctype": "Custom Field",
     "name": "Sales Invoice Item-pos_display_details"
+
   }
 ]
