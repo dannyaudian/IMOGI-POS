@@ -1501,6 +1501,13 @@
 }
 
 /* Success Modal */
+.success-modal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
 .success-modal .modal-container {
   text-align: center;
   padding: 2rem;
