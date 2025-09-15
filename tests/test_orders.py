@@ -108,3 +108,15 @@ def test_concurrent_create_order_fails_gracefully(frappe_env, monkeypatch):
     monkeypatch.setattr(frappe, "get_doc", original_get_doc)
 
 
+def test_create_order_stores_item_options(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order(
+        "Dine-in",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "item_options": {"size": "Large"}},
+    )
+    created_order = order_utils.orders[result["name"]]
+    assert created_order.items[0].item_options == {"size": "Large"}
+
+

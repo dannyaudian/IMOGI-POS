@@ -219,7 +219,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         item_details = frappe.db.get_value(
             "POS Order Item",
             row_name,
-            ["item", "qty", "notes", "kitchen", "kitchen_station"],
+            ["item", "qty", "notes", "kitchen", "kitchen_station", "item_options"],
             as_dict=True,
         )
 
@@ -242,6 +242,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                 "pos_order_item": row_name,
                 "workflow_state": "Queued",
                 "notes": item_details.get("notes"),
+                "item_options": item_details.get("item_options"),
             },
         )
 

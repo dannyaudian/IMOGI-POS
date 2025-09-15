@@ -61,3 +61,20 @@ def test_get_item_options_skip_inactive():
 
     assert result == {"sizes": [{"option_name": "Large", "additional_price": 0}]}
 
+
+def test_get_item_options_ignores_blank_rows():
+    item_doc = types.SimpleNamespace(
+        has_size_option=1,
+        has_spice_option=0,
+        has_topping_option=0,
+        item_size_options=[
+            types.SimpleNamespace(option_name="", additional_price=1),
+            types.SimpleNamespace(option_name="Medium", additional_price=1),
+        ],
+    )
+    items = load_items_with_doc(item_doc)
+    result = items.get_item_options("ITEM-1")
+    unload_items_module()
+
+    assert result == {"sizes": [{"option_name": "Medium", "additional_price": 1}]}
+
