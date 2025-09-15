@@ -81,7 +81,13 @@ def test_get_next_available_table_returns_smallest_available(frappe_env):
 
 def test_create_order_with_item_options(frappe_env):
     frappe, orders_module = frappe_env
-    opts = {"size": {"name": "Large"}, "spice": {"name": "Hot"}, "toppings": [{"name": "Cheese"}]}
+    opts = {
+        "size": {"name": "Large"},
+        "spice": {"name": "Hot"},
+        "toppings": [{"name": "Cheese"}],
+        "sugar": {"name": "Less"},
+        "ice": {"name": "No Ice"},
+    }
     result = orders_module.create_order(
         "Dine-in", "BR-1", "P1", table="T1", items={"item": "SALES-ITEM", "item_options": opts}
     )
@@ -124,9 +130,9 @@ def test_create_order_stores_item_options(frappe_env):
         "Dine-in",
         "BR-1",
         "P1",
-        items={"item": "SALES-ITEM", "item_options": {"size": "Large"}},
+        items={"item": "SALES-ITEM", "item_options": {"size": "Large", "sugar": "Less", "ice": "No Ice"}},
     )
     created_order = order_utils.orders[result["name"]]
-    assert created_order.items[0].item_options == {"size": "Large"}
+    assert created_order.items[0].item_options == {"size": "Large", "sugar": "Less", "ice": "No Ice"}
 
 

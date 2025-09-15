@@ -970,6 +970,8 @@ def test_build_invoice_items_adds_customization_fields(billing_module):
         item_size_options=[Row(option_name="Large", additional_price=1)],
         item_spice_options=[],
         item_topping_options=[Row(option_name="Cheese", additional_price=2)],
+        item_sugar_options=[Row(option_name="Less", additional_price=1)],
+        item_ice_options=[Row(option_name="No Ice", additional_price=0)],
     )
     frappe.get_cached_doc = lambda doctype, name: item_doc
 
@@ -980,13 +982,25 @@ def test_build_invoice_items_adds_customization_fields(billing_module):
             self.qty = 1
             self.rate = 13
             self.amount = 13
-            self.item_options = {"size": {"name": "Large"}, "toppings": [{"name": "Cheese"}]}
+            self.item_options = {
+                "size": {"name": "Large"},
+                "toppings": [{"name": "Cheese"}],
+                "sugar": {"name": "Less"},
+                "ice": {"name": "No Ice"},
+            }
             self.notes = ''
 
     order = types.SimpleNamespace(items=[OrderItem()])
     items = billing.build_invoice_items(order, mode="Counter")
 
-    assert items[0]["pos_customizations_delta"] == 3
-    assert items[0]["pos_customizations"] == {"size": ["Large"], "toppings": ["Cheese"]}
+    assert items[0]["pos_customizations_delta"] == 4
+    assert items[0]["pos_customizations"] == {
+        "size": ["Large"],
+        "toppings": ["Cheese"],
+        "sugar": ["Less"],
+        "ice": ["No Ice"],
+    }
     assert "Size: Large" in items[0]["pos_display_details"]
     assert "Toppings: Cheese" in items[0]["pos_display_details"]
+    assert "Sugar: Less" in items[0]["pos_display_details"]
+    assert "Ice: No Ice" in items[0]["pos_display_details"]
