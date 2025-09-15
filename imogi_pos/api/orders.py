@@ -135,8 +135,16 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 _("Table {0} does not belong to branch {1}").format(table, branch)
             )
 
-        # Resolve any lingering order linked to this table
-        table_doc.ensure_available_for_new_order()
+        # Resolve any lingering order linked to this table. In concurrent
+        # scenarios the referenced POS Order might no longer exist which would
+        # raise an unexpected KeyError. To keep the error user facing and
+        # consistent we treat any exception here as the table being occupied.
+        try:
+            table_doc.ensure_available_for_new_order()
+        except Exception:
+            _safe_throw(
+                _("Table {0} is already occupied").format(table)
+            )
 
         if table_doc.current_pos_order:
             _safe_throw(

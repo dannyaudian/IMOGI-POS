@@ -37,7 +37,16 @@ def get_item_options(item):
         if not name:
             return None
         price = getattr(row, "additional_price", 0) or 0
-        return {"label": name, "value": name, "price": price}
+        opt = {"label": name, "value": name, "price": price}
+
+        # Some child tables may provide a flag indicating a default option.
+        # The field name can vary (``default``/``is_default``), so we check
+        # both to keep the helper generic. When present, the option is marked
+        # so the frontend can auto-select it on load.
+        if getattr(row, "default", None) or getattr(row, "is_default", None):
+            opt["default"] = 1
+
+        return opt
 
     def collect(child_rows):
         return [opt for opt in (to_option(row) for row in child_rows or []) if opt]

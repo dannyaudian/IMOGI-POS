@@ -234,6 +234,16 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         if not getattr(kot_doc, "kitchen", None):
             kot_doc.kitchen = item_details.get("kitchen")
 
+        options = item_details.get("item_options")
+        if isinstance(options, dict):
+            cleaned = {}
+            for key, val in options.items():
+                if isinstance(val, dict):
+                    cleaned[key] = val
+                else:
+                    cleaned[key] = {"name": val}
+            options = cleaned
+
         kot_doc.append(
             "items",
             {
@@ -243,7 +253,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                 "pos_order_item": row_name,
                 "workflow_state": "Queued",
                 "notes": item_details.get("notes"),
-                "item_options": item_details.get("item_options"),
+                "item_options": options,
             },
         )
 
