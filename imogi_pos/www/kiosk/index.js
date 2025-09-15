@@ -231,7 +231,8 @@ frappe.ready(async function() {
                     method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
                         warehouse: POS_PROFILE_DATA.warehouse,
-                        limit: 500
+                        limit: 500,
+                        pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null
                     }
                 });
 
@@ -546,7 +547,8 @@ frappe.ready(async function() {
                     method: 'imogi_pos.api.variants.get_items_with_stock',
                     args: {
                         warehouse: POS_PROFILE_DATA.warehouse,
-                        limit: 500
+                        limit: 500,
+                        pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null
                     }
                 });
                 if (response.message) {

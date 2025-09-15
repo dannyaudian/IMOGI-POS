@@ -45,12 +45,16 @@ def get_order_branch(pos_order):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items_with_stock(warehouse=None, limit=500):
+def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None):
     """Return POS items with stock and allowed payment methods.
 
     Args:
         warehouse (str, optional): Warehouse to fetch stock levels from.
         limit (int, optional): Maximum number of items to return. Defaults to 500.
+        pos_menu_profile (str, optional): If provided, only items for this
+            POS Menu Profile will be returned. Each item uses its own
+            ``pos_menu_profile`` if set, falling back to its Item Group's
+            ``default_pos_menu_profile``.
 
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
@@ -72,9 +76,29 @@ def get_items_with_stock(warehouse=None, limit=500):
             "photo",
             "default_kitchen",
             "default_kitchen_station",
+            "pos_menu_profile",
         ],
         limit_page_length=limit,
     )
+
+    # Map of item group -> default POS Menu Profile
+    group_defaults = {}
+    groups = {d.item_group for d in items if d.item_group}
+    if groups:
+        group_rows = frappe.get_all(
+            "Item Group",
+            filters={"name": ["in", list(groups)]},
+            fields=["name", "default_pos_menu_profile"],
+        )
+        group_defaults = {g.name: g.default_pos_menu_profile for g in group_rows}
+
+    # Resolve effective POS Menu Profile for each item
+    for item in items:
+        item.pos_menu_profile = item.pos_menu_profile or group_defaults.get(item.item_group)
+
+    # If a profile filter is provided, apply it
+    if pos_menu_profile:
+        items = [d for d in items if d.pos_menu_profile == pos_menu_profile]
 
     item_names = [d.name for d in items]
 
