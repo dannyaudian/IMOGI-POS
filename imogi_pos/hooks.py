@@ -91,7 +91,8 @@ scheduler_events = {
 
 jinja = {
     "methods": [
-        "imogi_pos.utils.branding.get_brand_context"
+        "imogi_pos.utils.branding.get_brand_context",
+        "imogi_pos.utils.printing.format_kot_options",
     ]
 }
 
