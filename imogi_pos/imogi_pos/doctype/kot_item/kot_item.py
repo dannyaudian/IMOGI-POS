@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+import json
 from frappe.model.document import Document
 
 from imogi_pos.utils.options import format_options_for_display
@@ -15,7 +16,7 @@ class KOTItem(Document):
     def before_save(self):
         self.set_last_edited_by()
         self.set_options_display()
-    
+
     def set_last_edited_by(self):
         """Set last_edited_by field to current user"""
         self.last_edited_by = frappe.session.user
