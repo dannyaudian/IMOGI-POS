@@ -23,6 +23,12 @@ def format_options_for_display(options: Union[str, Dict[str, Any], List[Any], No
             # If parsing fails just return the original string
             return options
 
+        while isinstance(options, str):
+            try:
+                options = json.loads(options)
+            except Exception:
+                break
+
     parts: List[str] = []
 
     if isinstance(options, dict):
