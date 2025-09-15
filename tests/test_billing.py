@@ -958,3 +958,35 @@ def test_request_payment_requires_sales_invoice(billing_module):
         billing.request_payment(None)
 
     assert 'Missing Sales Invoice' in str(exc.value)
+
+
+def test_build_invoice_items_adds_customization_fields(billing_module):
+    billing, frappe = billing_module
+
+    class Row(types.SimpleNamespace):
+        pass
+
+    item_doc = types.SimpleNamespace(
+        item_size_options=[Row(option_name="Large", additional_price=1)],
+        item_spice_options=[],
+        item_topping_options=[Row(option_name="Cheese", additional_price=2)],
+    )
+    frappe.get_cached_doc = lambda doctype, name: item_doc
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 1
+            self.rate = 13
+            self.amount = 13
+            self.item_options = {"size": {"name": "Large"}, "toppings": [{"name": "Cheese"}]}
+            self.notes = ''
+
+    order = types.SimpleNamespace(items=[OrderItem()])
+    items = billing.build_invoice_items(order, mode="Counter")
+
+    assert items[0]["pos_customizations_delta"] == 3
+    assert items[0]["pos_customizations"] == {"size": ["Large"], "toppings": ["Cheese"]}
+    assert "Size: Large" in items[0]["pos_display_details"]
+    assert "Toppings: Cheese" in items[0]["pos_display_details"]
