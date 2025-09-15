@@ -111,6 +111,27 @@ The app supports multiple domains through the `imogi_pos_domain` field in POS Pr
 
 When not set to "Restaurant", the UI will hide restaurant-specific elements and API endpoints will restrict access to restaurant functions.
 
+## Item Options
+
+Items can expose configurable categories such as sizes, spice levels, or toppings. These are retrieved via the
+`get_item_options` API and stored on each POS Order Item using the `item_options` field.
+
+```python
+# Fetch available options for an item
+frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
+# Returns: {"sizes": [{"option_name": "Large", "additional_price": 0}]}
+
+# Example of adding an item with selected options to an order
+{
+    "item": "ITEM-001",
+    "qty": 1,
+    "item_options": {
+        "sizes": [{"option_name": "Large"}],
+        "toppings": [{"option_name": "Cheese"}]
+    }
+}
+```
+
 ## Stock Updates
 
 Inventory deduction is controlled by the POS Profile. Enable **Update Stock** on each profile for branches where sales should affect stock levels. After an order is created the system fires an `after_create_order` hook, allowing integrators to reserve or deduct stock before the Sales Invoice is generated.

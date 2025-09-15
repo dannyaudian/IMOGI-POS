@@ -60,7 +60,6 @@
             "label": "Notes"
         },
         {
-            "default": "{}",
             "fieldname": "item_options",
             "fieldtype": "JSON",
             "label": "Item Options"

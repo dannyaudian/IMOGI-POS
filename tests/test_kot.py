@@ -54,7 +54,7 @@ def kot_module():
                     "notes": "Note",
                     "kitchen": "KIT-1",
                     "kitchen_station": "ST-1",
-                    "item_options": {"size": {"name": "Large"}},
+                    "item_options": {"size": "Large"},
                 }
                 if isinstance(fieldname, (list, tuple)):
                     return data if as_dict else [data.get(f) for f in fieldname]
@@ -149,6 +149,12 @@ def test_send_items_to_kitchen_accepts_order_dict(kot_module):
     assert result["pos_order"] == "POS-1"
 
 
+def test_send_items_to_kitchen_includes_item_options(kot_module):
+    kot, frappe = kot_module
+    result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
+    assert result["items"][0]["item_options"] == {"size": "Large"}
+
+
 def test_send_items_to_kitchen_requires_station(kot_module):
     kot, frappe = kot_module
 
@@ -182,7 +188,7 @@ def test_send_items_to_kitchen_requires_station(kot_module):
                 "notes": "Note",
                 "kitchen": "KIT-1",
                 "kitchen_station": None,
-                "item_options": {"size": {"name": "Large"}},
+                "item_options": {"size": "Large"},
             }
             if isinstance(fieldname, (list, tuple)):
                 return data if as_dict else [data.get(f) for f in fieldname]

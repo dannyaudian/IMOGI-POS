@@ -220,14 +220,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         item_details = frappe.db.get_value(
             "POS Order Item",
             row_name,
-            [
-                "item",
-                "qty",
-                "notes",
-                "kitchen",
-                "kitchen_station",
-                "item_options",
-            ],
+            ["item", "qty", "notes", "kitchen", "kitchen_station", "item_options"],
             as_dict=True,
         )
 
