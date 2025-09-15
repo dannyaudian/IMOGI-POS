@@ -34,18 +34,24 @@ def test_get_item_options_structure():
         has_size_option=1,
         has_spice_option=1,
         has_topping_option=1,
+        has_sugar_option=1,
+        has_ice_option=1,
         item_size_options=[types.SimpleNamespace(option_name="Large", additional_price=0)],
         item_spice_options=[types.SimpleNamespace(option_name="Hot", additional_price=0)],
         item_topping_options=[types.SimpleNamespace(option_name="Cheese", additional_price=0)],
+        item_sugar_options=[types.SimpleNamespace(option_name="Less", additional_price=0)],
+        item_ice_options=[types.SimpleNamespace(option_name="No Ice", additional_price=0)],
     )
     items = load_items_with_doc(item_doc)
     result = items.get_item_options("ITEM-1")
     unload_items_module()
 
-    assert set(result.keys()) == {"size", "spice", "topping"}
+    assert set(result.keys()) == {"size", "spice", "topping", "sugar", "ice"}
     assert result["size"] == [{"label": "Large", "value": "Large", "price": 0}]
     assert result["spice"] == [{"label": "Hot", "value": "Hot", "price": 0}]
     assert result["topping"] == [{"label": "Cheese", "value": "Cheese", "price": 0}]
+    assert result["sugar"] == [{"label": "Less", "value": "Less", "price": 0}]
+    assert result["ice"] == [{"label": "No Ice", "value": "No Ice", "price": 0}]
 
 
 def test_get_item_options_skip_inactive():
@@ -98,5 +104,27 @@ def test_set_item_flags_special_category():
     assert doc.get("has_size_option") == 1
     assert doc.get("has_spice_option") == 1
     assert doc.get("has_topping_option") == 1
+
+
+def test_set_item_flags_beverage_category():
+    items = load_items_with_doc(None)
+
+    class DummyDoc:
+        def __init__(self):
+            self._data = {"menu_category": "Beverage"}
+
+        def get(self, key):
+            return self._data.get(key)
+
+        def set(self, key, value):
+            self._data[key] = value
+
+    doc = DummyDoc()
+    items.set_item_flags(doc)
+    unload_items_module()
+
+    assert doc.get("has_size_option") == 1
+    assert doc.get("has_sugar_option") == 1
+    assert doc.get("has_ice_option") == 1
 
 

@@ -955,7 +955,7 @@ imogi_pos.kiosk = {
 
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
-            if (!['size', 'spice', 'topping'].includes(field)) return;
+            if (!['size', 'spice', 'topping', 'sugar', 'ice'].includes(field)) return;
             const title = this.toTitleCase(field);
             if (field === 'topping') {
                 fieldsHtml += `<div class="option-group"><label>${title}</label>` +
