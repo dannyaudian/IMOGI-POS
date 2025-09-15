@@ -61,11 +61,17 @@ def get_item_options(item):
 
 
 # Mapping of menu categories to default item option flags
+#
+# The keys in this mapping correspond to the ``menu_category`` value on the
+# Item document.  Each category maps to a set of option flags that should be
+# enabled by default when an Item is saved with that category.  The flags are
+# the boolean fields introduced in this change (``has_size_option``,
+# ``has_spice_option`` and ``has_topping_option``).
 MENU_FLAG_MAP = {
-    "dessert": {"has_size": 1, "has_topping": 1},
-    "beverage": {"has_size": 1},
-    "main course": {"has_spice": 1},
-    "appetizer": {"has_spice": 1},
+    "dessert": {"has_size_option": 1, "has_topping_option": 1},
+    "beverage": {"has_size_option": 1},
+    "main course": {"has_spice_option": 1},
+    "appetizer": {"has_spice_option": 1},
 }
 
 
@@ -78,5 +84,5 @@ def set_item_flags(doc, method=None):
     """
     category = (doc.get("menu_category") or "").lower()
     flags = MENU_FLAG_MAP.get(category, {})
-    for field in ("has_size", "has_spice", "has_topping"):
+    for field in ("has_size_option", "has_spice_option", "has_topping_option"):
         doc.set(field, flags.get(field, 0))

@@ -130,6 +130,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
                         "workflow_state as status",
                         "qty",
                         "notes",
+                        "item_options",
                     ],
                     order_by="idx asc",
                 ),

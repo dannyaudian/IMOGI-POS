@@ -140,6 +140,7 @@ def test_send_items_to_kitchen_creates_ticket(kot_module):
     assert frappe.db.requested_field != "item_code"
     assert frappe.db.looked_up_item == "ITEM-1"
     assert [item["pos_order_item"] for item in result["items"]] == ["ROW-1"]
+    assert result["items"][0]["item_options"] == {"size": {"name": "Large"}}
 
 
 def test_send_items_to_kitchen_accepts_order_dict(kot_module):
