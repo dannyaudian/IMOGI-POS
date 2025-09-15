@@ -1095,6 +1095,7 @@ imogi_pos.kiosk = {
 
                     // Update UI
                     this.renderCart();
+                    this.showToast('Item added to cart');
 
                     // Show prompt for notes if enabled
                     if (this.settings.allowNotes) {
