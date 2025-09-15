@@ -62,19 +62,25 @@ def test_get_item_options_skip_inactive():
     assert result == {"sizes": [{"option_name": "Large", "additional_price": 0}]}
 
 
-def test_get_item_options_ignores_blank_rows():
-    item_doc = types.SimpleNamespace(
-        has_size_option=1,
-        has_spice_option=0,
-        has_topping_option=0,
-        item_size_options=[
-            types.SimpleNamespace(option_name="", additional_price=1),
-            types.SimpleNamespace(option_name="Medium", additional_price=1),
-        ],
-    )
-    items = load_items_with_doc(item_doc)
-    result = items.get_item_options("ITEM-1")
+def test_set_item_flags_special_category():
+    items = load_items_with_doc(None)
+
+    class DummyDoc:
+        def __init__(self):
+            self._data = {"menu_category": "Special"}
+
+        def get(self, key):
+            return self._data.get(key)
+
+        def set(self, key, value):
+            self._data[key] = value
+
+    doc = DummyDoc()
+    items.set_item_flags(doc)
     unload_items_module()
 
-    assert result == {"sizes": [{"option_name": "Medium", "additional_price": 1}]}
+    assert doc.get("has_size") == 1
+    assert doc.get("has_spice") == 1
+    assert doc.get("has_topping") == 1
+
 

@@ -59,24 +59,26 @@ def get_item_options(item):
 
     return result
 
-
-# Mapping of menu categories to default item option flags
+# Mapping of menu categories to default item option flags.
 #
-# The keys in this mapping correspond to the ``menu_category`` value on the
-# Item document.  Each category maps to a set of option flags that should be
-# enabled by default when an Item is saved with that category.  The flags are
-# the boolean fields introduced in this change (``has_size_option``,
-# ``has_spice_option`` and ``has_topping_option``).
+# Categories:
+# - ``dessert``: enables ``has_size`` and ``has_topping``
+# - ``beverage``: enables ``has_size``
+# - ``main course`` / ``appetizer``: enable ``has_spice``
+# - ``special``: enables ``has_size``, ``has_spice`` and ``has_topping``
 MENU_FLAG_MAP = {
-    "dessert": {"has_size_option": 1, "has_topping_option": 1},
-    "beverage": {"has_size_option": 1},
-    "main course": {"has_spice_option": 1},
-    "appetizer": {"has_spice_option": 1},
+    "dessert": {"has_size": 1, "has_topping": 1},
+    "beverage": {"has_size": 1},
+    "main course": {"has_spice": 1},
+    "appetizer": {"has_spice": 1},
+    "special": {"has_size": 1, "has_spice": 1, "has_topping": 1},
 }
 
 
 def set_item_flags(doc, method=None):
     """Set item option flags based on the menu category.
+
+    Categories are defined in :data:`MENU_FLAG_MAP`.
 
     Args:
         doc (frappe.model.document.Document): The Item document being saved.
