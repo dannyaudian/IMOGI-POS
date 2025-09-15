@@ -1138,5 +1138,29 @@
     "dt": "Item",
     "doctype": "Custom Field",
     "name": "Item-default_kitchen_station"
+  },
+  {
+    "fieldname": "pos_menu_profile",
+    "fieldtype": "Link",
+    "label": "POS Menu Profile",
+    "options": "POS Menu Profile",
+    "insert_after": "item_group",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item",
+    "doctype": "Custom Field",
+    "name": "Item-pos_menu_profile"
+  },
+  {
+    "fieldname": "default_pos_menu_profile",
+    "fieldtype": "Link",
+    "label": "Default POS Menu Profile",
+    "options": "POS Menu Profile",
+    "insert_after": "parent_item_group",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item Group",
+    "doctype": "Custom Field",
+    "name": "Item Group-default_pos_menu_profile"
   }
 ]
