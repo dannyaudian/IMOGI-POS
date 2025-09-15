@@ -12,6 +12,7 @@
         "column_break_5",
         "workflow_state",
         "pos_order_item",
+        "item_options",
         "notes",
         "last_edited_by"
     ],
@@ -59,6 +60,11 @@
             "fieldtype": "Data",
             "label": "POS Order Item",
             "description": "Reference to the original POS Order Item"
+        },
+        {
+            "fieldname": "item_options",
+            "fieldtype": "JSON",
+            "label": "Item Options"
         },
         {
             "fieldname": "notes",
