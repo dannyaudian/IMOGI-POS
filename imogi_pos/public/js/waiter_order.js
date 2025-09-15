@@ -377,6 +377,11 @@ imogi_pos.waiter_order = {
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
+                    ${item.options ? `
+                        <div class="item-option">
+                            ${this.formatSelectedOptions(item.options)} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
+                        </div>
+                    ` : ''}
                     <div class="item-details">
                         <div class="item-price">${this.formatCurrency(item.rate)}</div>
                         <div class="item-qty-controls">
@@ -1167,11 +1172,11 @@ imogi_pos.waiter_order = {
             card.addEventListener('click', () => {
                 const itemName = card.dataset.item;
                 const hasVariants = card.dataset.hasVariants === '1';
-                
+
                 if (hasVariants) {
                     this.showVariantPicker(itemName);
                 } else {
-                    this.addItemToOrder(itemName);
+                    this.handleItemSelection(itemName);
                 }
             });
         });
@@ -1328,13 +1333,11 @@ imogi_pos.waiter_order = {
             variantCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
-                    this.addItemToOrder(itemName);
-                    
-                    // Close modal
                     const modalContainer = this.container.querySelector('#modal-container');
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
+                    this.handleItemSelection(itemName);
                 });
             });
         }
@@ -1373,19 +1376,149 @@ imogi_pos.waiter_order = {
                 }
             });
             
-            // Show/hide variant
-            card.style.display = show ? '' : 'none';
+        // Show/hide variant
+        card.style.display = show ? '' : 'none';
+    });
+    },
+
+    /**
+     * Handle item selection and fetch option details
+     * @param {string} itemName - Selected item name
+     */
+    handleItemSelection: function(itemName) {
+        frappe.call({
+            method: 'imogi_pos.api.items.get_item_options',
+            args: { item: itemName },
+            callback: (r) => {
+                const data = r.message || {};
+                if (Object.keys(data).length === 0) {
+                    this.addItemToOrder(itemName);
+                } else {
+                    this.showItemOptionsModal(itemName, data);
+                }
+            },
+            error: () => {
+                this.addItemToOrder(itemName);
+            }
         });
+    },
+
+    /**
+     * Show dynamic item options modal
+     * @param {string} itemName - Item to add
+     * @param {Object} optionsData - Options returned from server
+     */
+    showItemOptionsModal: function(itemName, optionsData) {
+        const modalContainer = this.container.querySelector('#modal-container');
+        if (!modalContainer) return;
+
+        let fieldsHtml = '';
+        Object.entries(optionsData).forEach(([field, choices]) => {
+            const title = this.toTitleCase(field);
+            if (field === 'topping') {
+                fieldsHtml += `<div class="option-group"><label>${title}</label>` +
+                    choices.map(opt => {
+                        const label = opt.label || opt.value || opt;
+                        const value = opt.value || opt.label || opt;
+                        const price = opt.price || 0;
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
+                    }).join('') + '</div>';
+            } else {
+                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                    `<option value="" data-price="0">Select ${title}</option>` +
+                    choices.map(opt => {
+                        const label = opt.label || opt.value || opt;
+                        const value = opt.value || opt.label || opt;
+                        const price = opt.price || 0;
+                        return `<option value="${value}" data-price="${price}">${label}</option>`;
+                    }).join('') + '</select></div>';
+            }
+        });
+
+        modalContainer.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Select Options</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">${fieldsHtml}</div>
+                    <div class="modal-footer">
+                        <button class="modal-cancel">Cancel</button>
+                        <button class="modal-confirm">Add</button>
+                    </div>
+                </div>
+            </div>`;
+
+        modalContainer.classList.add('active');
+
+        const close = () => modalContainer.classList.remove('active');
+        const closeBtn = modalContainer.querySelector('.modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        const cancelBtn = modalContainer.querySelector('.modal-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+
+        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                const selectedOptions = {};
+                let optionPrice = 0;
+
+                modalContainer.querySelectorAll('.option-select').forEach(sel => {
+                    const key = sel.dataset.option;
+                    const opt = sel.options[sel.selectedIndex];
+                    const value = sel.value;
+                    const price = parseFloat(opt.dataset.price || 0);
+                    if (value) {
+                        selectedOptions[key] = value;
+                        optionPrice += price;
+                    }
+                });
+
+                const toppings = [];
+                modalContainer.querySelectorAll('.option-checkbox:checked').forEach(cb => {
+                    toppings.push(cb.value);
+                    optionPrice += parseFloat(cb.dataset.price || 0);
+                });
+                if (toppings.length > 0) {
+                    selectedOptions.topping = toppings;
+                }
+
+                selectedOptions.price = optionPrice;
+                this.addItemToOrder(itemName, selectedOptions);
+                close();
+            });
+        }
+    },
+
+    /**
+     * Convert string to title case
+     */
+    toTitleCase: function(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
+
+    /**
+     * Format selected options for display
+     */
+    formatSelectedOptions: function(options) {
+        if (!options) return '';
+        return Object.entries(options)
+            .filter(([k]) => k !== 'price')
+            .map(([k, v]) => {
+                const val = Array.isArray(v) ? v.join(', ') : v;
+                return `${this.toTitleCase(k)}: ${val}`;
+            }).join(', ');
     },
     
     /**
      * Add item to order
      * @param {string} itemName - Item name to add
      */
-    addItemToOrder: function(itemName) {
+    addItemToOrder: function(itemName, options = {}) {
         // Show loading indicator
         this.showLoading(true, 'Adding item...');
-        
+
         // Get item details
         frappe.call({
             method: 'frappe.client.get',
@@ -1396,16 +1529,21 @@ imogi_pos.waiter_order = {
             callback: (response) => {
                 if (response.message) {
                     const item = response.message;
-                    
-                    // Check if item is already in order
-                    const existingItemIndex = this.state.orderItems.findIndex(orderItem => 
-                        orderItem.item === itemName && !orderItem.notes
+
+                    // Calculate rate including option price
+                    const optionPrice = options.price || 0;
+                    const rate = (item.standard_rate || 0) + optionPrice;
+
+                    // Check if item is already in order with same options
+                    const existingItemIndex = this.state.orderItems.findIndex(orderItem =>
+                        orderItem.item === itemName && !orderItem.notes &&
+                        JSON.stringify(orderItem.options || {}) === JSON.stringify(options)
                     );
-                    
+
                     if (existingItemIndex !== -1) {
                         // Increment quantity
                         this.state.orderItems[existingItemIndex].qty += 1;
-                        this.state.orderItems[existingItemIndex].amount = 
+                        this.state.orderItems[existingItemIndex].amount =
                             this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
                     } else {
                         // Add new item
@@ -1413,18 +1551,19 @@ imogi_pos.waiter_order = {
                             item: itemName,
                             item_name: item.item_name,
                             qty: 1,
-                            rate: item.standard_rate || 0,
-                            amount: item.standard_rate || 0,
-                            notes: ''
+                            rate: rate,
+                            amount: rate,
+                            notes: '',
+                            options: options
                         });
                     }
-                    
+
                     // Update UI
                     this.updateOrderPanel();
-                    
+
                     // Hide loading indicator
                     this.showLoading(false);
-                    
+
                     // Show prompt for notes
                     this.promptForNotes(existingItemIndex !== -1 ? existingItemIndex : this.state.orderItems.length - 1);
                 } else {
