@@ -1635,6 +1635,12 @@ imogi_pos.kitchen_display = {
         if (options.spice) {
             parts.push(`Spice: ${options.spice.name}`);
         }
+        if (options.sugar) {
+            parts.push(`Sugar: ${options.sugar.name}`);
+        }
+        if (options.ice) {
+            parts.push(`Ice: ${options.ice.name}`);
+        }
         if (options.toppings && options.toppings.length) {
             parts.push(`Toppings: ${options.toppings.map(t => t.name).join(', ')}`);
         }
