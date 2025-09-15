@@ -417,7 +417,7 @@ frappe.ready(async function() {
                             <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
                             <button class="qty-btn qty-plus" data-index="${index}">+</button>
                         </div>
-                        ${item.options ? `<div class="cart-item-options">${this.formatItemOptions(item.options)}</div>` : ''}
+                        ${item.item_options ? `<div class="cart-item-options">${this.formatItemOptions(item.item_options)}</div>` : ''}
                         ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ''}
                         <div class="cart-item-remove" data-index="${index}">&times;</div>
                     </div>
@@ -761,9 +761,9 @@ frappe.ready(async function() {
             this.closeItemDetailModal();
         },
 
-        addItemToCart: function(item, options = {}, notes = '') {
-            const rate = (item.standard_rate || 0) + (options.extra_price || 0);
-            const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes && JSON.stringify(i.options || {}) === JSON.stringify(options));
+        addItemToCart: function(item, item_options = {}, notes = '') {
+            const rate = (item.standard_rate || 0) + (item_options.extra_price || 0);
+            const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes && JSON.stringify(i.item_options || {}) === JSON.stringify(item_options));
 
             if (existingIndex >= 0) {
                 this.cart[existingIndex].qty += 1;
@@ -776,7 +776,7 @@ frappe.ready(async function() {
                     rate: rate,
                     amount: rate,
                     notes: notes,
-                    options: options,
+                    item_options: item_options,
                     kitchen: item.default_kitchen,
                     kitchen_station: item.default_kitchen_station
                 });
