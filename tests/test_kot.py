@@ -152,7 +152,7 @@ def test_send_items_to_kitchen_accepts_order_dict(kot_module):
 def test_send_items_to_kitchen_includes_item_options(kot_module):
     kot, frappe = kot_module
     result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
-    assert result["items"][0]["item_options"] == {"size": "Large"}
+    assert result["items"][0]["item_options"] == {"size": {"name": "Large"}}
 
 
 def test_send_items_to_kitchen_requires_station(kot_module):

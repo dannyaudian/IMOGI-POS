@@ -161,12 +161,23 @@ def build_invoice_items(order_doc, mode):
         item_code = item.item
         item_name = getattr(item, "item_name", None) or item_names.get(item_code)
 
+        # Calculate pricing taking into account any customization delta stored on
+        # the POS Order Item. This value represents additional charges from
+        # selected options (e.g. extra toppings) and is applied on the total
+        # amount for the row.
+        customization_delta = flt(getattr(item, "pos_customizations_delta", 0))
+        amount = flt(getattr(item, "amount", 0)) + customization_delta
+        qty = flt(getattr(item, "qty", 0)) or 0
+        rate = flt(getattr(item, "rate", 0))
+        if qty:
+            rate = amount / qty
+
         invoice_item = {
             "item_code": item_code,
             "item_name": item_name,
-            "qty": item.qty,
-            "rate": item.rate,
-            "amount": item.amount,
+            "qty": qty,
+            "rate": rate,
+            "amount": amount,
             "description": item_name,
         }
 

@@ -62,6 +62,22 @@ def test_get_item_options_skip_inactive():
     assert result == {"size": [{"label": "Large", "value": "Large", "price": 0}]}
 
 
+def test_get_item_options_marks_default():
+    item_doc = types.SimpleNamespace(
+        has_size_option=1,
+        has_spice_option=0,
+        has_topping_option=0,
+        item_size_options=[
+            types.SimpleNamespace(option_name="Large", additional_price=0, default=1)
+        ],
+    )
+    items = load_items_with_doc(item_doc)
+    result = items.get_item_options("ITEM-1")
+    unload_items_module()
+
+    assert result["size"][0]["default"] == 1
+
+
 def test_set_item_flags_special_category():
     items = load_items_with_doc(None)
 

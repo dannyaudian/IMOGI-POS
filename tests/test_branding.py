@@ -11,7 +11,9 @@ def public_module():
     sys.path.insert(0, os.getcwd())
     utils = types.ModuleType("frappe.utils")
     utils.now = lambda: "now"
+    utils.nowdate = lambda: "today"
     utils.get_url = lambda path=None: f"http://test/{path}" if path else "http://test"
+    utils.flt = float
 
     frappe = types.ModuleType("frappe")
 
