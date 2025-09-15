@@ -1079,6 +1079,7 @@ imogi_pos.kitchen_display = {
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-status-badge">${itemStatus}</div>
                         </div>
+                        ${item.item_options ? `<div class="item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
@@ -1369,6 +1370,7 @@ imogi_pos.kitchen_display = {
                                 <option value="Served" ${itemStatus === 'Served' ? 'selected' : ''}>Served</option>
                             </select>
                         </div>
+                        ${item.item_options ? `<div class="item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
@@ -1615,7 +1617,30 @@ imogi_pos.kitchen_display = {
             }, 300);
         }, 3000);
     },
-    
+
+    /**
+     * Format item options into human readable text
+     * @param {Object|string} options - Item options
+     * @returns {string} Formatted options text
+     */
+    formatItemOptions: function(options) {
+        if (!options) return '';
+        if (typeof options === 'string') {
+            try { options = JSON.parse(options); } catch (e) { return options; }
+        }
+        const parts = [];
+        if (options.size) {
+            parts.push(`Size: ${options.size.name}`);
+        }
+        if (options.spice) {
+            parts.push(`Spice: ${options.spice.name}`);
+        }
+        if (options.toppings && options.toppings.length) {
+            parts.push(`Toppings: ${options.toppings.map(t => t.name).join(', ')}`);
+        }
+        return parts.join(' | ');
+    },
+
     /**
      * Format date and time
      * @param {string} datetime - ISO datetime string

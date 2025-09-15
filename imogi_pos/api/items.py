@@ -59,7 +59,6 @@ def get_item_options(item):
 
     return result
 
-
 # Mapping of menu categories to default item option flags.
 #
 # Categories:
@@ -87,5 +86,5 @@ def set_item_flags(doc, method=None):
     """
     category = (doc.get("menu_category") or "").lower()
     flags = MENU_FLAG_MAP.get(category, {})
-    for field in ("has_size", "has_spice", "has_topping"):
+    for field in ("has_size_option", "has_spice_option", "has_topping_option"):
         doc.set(field, flags.get(field, 0))

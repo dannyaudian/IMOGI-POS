@@ -713,11 +713,11 @@ imogi_pos.kiosk = {
             card.addEventListener('click', () => {
                 const itemName = card.dataset.item;
                 const hasVariants = card.dataset.hasVariants === '1';
-                
+
                 if (hasVariants) {
                     this.showVariantPicker(itemName);
                 } else {
-                    this.addItemToCart(itemName);
+                    this.handleItemSelection(itemName);
                 }
             });
         });
@@ -874,13 +874,11 @@ imogi_pos.kiosk = {
             variantCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
-                    this.addItemToCart(itemName);
-                    
-                    // Close modal
                     const modalContainer = this.container.querySelector('#modal-container');
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
+                    this.handleItemSelection(itemName);
                 });
             });
         }
@@ -922,6 +920,136 @@ imogi_pos.kiosk = {
             // Show/hide variant
             card.style.display = show ? '' : 'none';
         });
+    },
+
+    /**
+     * Handle item selection and fetch option details
+     * @param {string} itemName - Selected item name
+     */
+    handleItemSelection: function(itemName) {
+        frappe.call({
+            method: 'imogi_pos.api.items.get_item_options',
+            args: { item: itemName },
+            callback: (r) => {
+                const data = r.message || {};
+                if (Object.keys(data).length === 0) {
+                    this.addItemToCart(itemName);
+                } else {
+                    this.showItemOptionsModal(itemName, data);
+                }
+            },
+            error: () => {
+                this.addItemToCart(itemName);
+            }
+        });
+    },
+
+    /**
+     * Show dynamic item options modal
+     * @param {string} itemName - Item to add
+     * @param {Object} optionsData - Options returned from server
+     */
+    showItemOptionsModal: function(itemName, optionsData) {
+        const modalContainer = this.container.querySelector('#modal-container');
+        if (!modalContainer) return;
+
+        let fieldsHtml = '';
+        Object.entries(optionsData).forEach(([field, choices]) => {
+            const title = this.toTitleCase(field);
+            if (field === 'topping') {
+                fieldsHtml += `<div class="option-group"><label>${title}</label>` +
+                    choices.map(opt => {
+                        const label = opt.label || opt.value || opt;
+                        const value = opt.value || opt.label || opt;
+                        const price = opt.price || 0;
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
+                    }).join('') + '</div>';
+            } else {
+                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                    `<option value="" data-price="0">Select ${title}</option>` +
+                    choices.map(opt => {
+                        const label = opt.label || opt.value || opt;
+                        const value = opt.value || opt.label || opt;
+                        const price = opt.price || 0;
+                        return `<option value="${value}" data-price="${price}">${label}</option>`;
+                    }).join('') + '</select></div>';
+            }
+        });
+
+        modalContainer.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Select Options</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">${fieldsHtml}</div>
+                    <div class="modal-footer">
+                        <button class="modal-cancel">Cancel</button>
+                        <button class="modal-confirm">Add</button>
+                    </div>
+                </div>
+            </div>`;
+
+        modalContainer.classList.add('active');
+
+        const close = () => modalContainer.classList.remove('active');
+        const closeBtn = modalContainer.querySelector('.modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        const cancelBtn = modalContainer.querySelector('.modal-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+
+        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                const selectedOptions = {};
+                let optionPrice = 0;
+
+                modalContainer.querySelectorAll('.option-select').forEach(sel => {
+                    const key = sel.dataset.option;
+                    const opt = sel.options[sel.selectedIndex];
+                    const value = sel.value;
+                    const price = parseFloat(opt.dataset.price || 0);
+                    if (value) {
+                        selectedOptions[key] = value;
+                        optionPrice += price;
+                    }
+                });
+
+                const toppings = [];
+                modalContainer.querySelectorAll('.option-checkbox:checked').forEach(cb => {
+                    toppings.push(cb.value);
+                    optionPrice += parseFloat(cb.dataset.price || 0);
+                });
+                if (toppings.length > 0) {
+                    selectedOptions.topping = toppings;
+                }
+
+                selectedOptions.price = optionPrice;
+                this.addItemToCart(itemName, selectedOptions);
+                close();
+            });
+        }
+    },
+
+    /**
+     * Convert string to title case
+     */
+    toTitleCase: function(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
+
+    /**
+     * Format selected options for display
+     */
+    formatSelectedOptions: function(options) {
+        if (!options) return '';
+        return Object.entries(options)
+            .filter(([k]) => k !== 'price')
+            .map(([k, v]) => {
+                const val = Array.isArray(v) ? v.join(', ') : v;
+                return `${this.toTitleCase(k)}: ${val}`;
+            }).join(', ');
     },
     
     /**
@@ -1112,9 +1240,9 @@ imogi_pos.kiosk = {
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
-                    ${item.options && item.options.name ? `
+                    ${item.options ? `
                         <div class="item-option">
-                            ${item.options.name} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
+                            ${this.formatSelectedOptions(item.options)} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
                         </div>
                     ` : ''}
                     <div class="item-details">

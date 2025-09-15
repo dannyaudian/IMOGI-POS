@@ -83,3 +83,4 @@ def test_set_item_flags_special_category():
     assert doc.get("has_spice") == 1
     assert doc.get("has_topping") == 1
 
+

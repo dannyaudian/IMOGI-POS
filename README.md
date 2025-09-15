@@ -93,6 +93,15 @@ The fixtures will automatically be loaded after migration due to the `after_migr
 4. **Configure Tables and Floor Layout**: Use the Table Layout Editor
 5. **Assign User Roles**: Assign appropriate roles (Restaurant Manager, Cashier, Waiter, Kitchen Staff)
 
+## Item Option Fields
+
+Items support configurable options that can be toggled per menu category:
+
+- `menu_category` selects the type of item (Appetizer, Main Course, Dessert, etc.)
+- Boolean flags (`has_size_option`, `has_spice_option`, `has_topping_option`) enable child tables for additional choices
+- Each child table (`item_size_options`, `item_spice_options`, `item_topping_options`) stores option names with an optional `additional_price`
+- When saving an item, the `menu_category` automatically sets these flags using `MENU_FLAG_MAP`
+
 ## Domain Switching
 
 The app supports multiple domains through the `imogi_pos_domain` field in POS Profile:
@@ -101,6 +110,27 @@ The app supports multiple domains through the `imogi_pos_domain` field in POS Pr
 - **Retail/Service**: Coming in future updates - will hide restaurant-specific features
 
 When not set to "Restaurant", the UI will hide restaurant-specific elements and API endpoints will restrict access to restaurant functions.
+
+## Item Options
+
+Items can expose configurable categories such as sizes, spice levels, or toppings. These are retrieved via the
+`get_item_options` API and stored on each POS Order Item using the `item_options` field.
+
+```python
+# Fetch available options for an item
+frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
+# Returns: {"sizes": [{"option_name": "Large", "additional_price": 0}]}
+
+# Example of adding an item with selected options to an order
+{
+    "item": "ITEM-001",
+    "qty": 1,
+    "item_options": {
+        "sizes": [{"option_name": "Large"}],
+        "toppings": [{"option_name": "Cheese"}]
+    }
+}
+```
 
 ## Stock Updates
 

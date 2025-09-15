@@ -79,6 +79,16 @@ def test_get_next_available_table_returns_smallest_available(frappe_env):
     assert result == "1"
 
 
+def test_create_order_with_item_options(frappe_env):
+    frappe, orders_module = frappe_env
+    opts = {"size": {"name": "Large"}, "spice": {"name": "Hot"}, "toppings": [{"name": "Cheese"}]}
+    result = orders_module.create_order(
+        "Dine-in", "BR-1", "P1", table="T1", items={"item": "SALES-ITEM", "item_options": opts}
+    )
+    order_doc = order_utils.orders[result["name"]]
+    assert order_doc.items[0].item_options == opts
+
+
 def test_concurrent_create_order_fails_gracefully(frappe_env, monkeypatch):
     frappe, orders_module = frappe_env
     # Prepare a stale table document as if fetched before the first call committed
@@ -106,5 +116,17 @@ def test_concurrent_create_order_fails_gracefully(frappe_env, monkeypatch):
         orders_module.create_order("Dine-in", "BR-1", "P1", table="T1")
 
     monkeypatch.setattr(frappe, "get_doc", original_get_doc)
+
+
+def test_create_order_stores_item_options(frappe_env):
+    frappe, orders_module = frappe_env
+    result = orders_module.create_order(
+        "Dine-in",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "item_options": {"size": "Large"}},
+    )
+    created_order = order_utils.orders[result["name"]]
+    assert created_order.items[0].item_options == {"size": "Large"}
 
 
