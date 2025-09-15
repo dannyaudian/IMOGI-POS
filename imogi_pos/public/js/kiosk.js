@@ -928,7 +928,7 @@ imogi_pos.kiosk = {
      * Add item to cart
      * @param {string} itemName - Item name to add
      */
-    addItemToCart: function(itemName) {
+    addItemToCart: function(itemName, options = {}) {
         // Get item details
         frappe.call({
             method: 'frappe.client.get',
@@ -939,16 +939,21 @@ imogi_pos.kiosk = {
             callback: (response) => {
                 if (response.message) {
                     const item = response.message;
-                    
-                    // Check if item is already in cart
-                    const existingItemIndex = this.state.cart.findIndex(cartItem => 
-                        cartItem.item === itemName && !cartItem.notes
+
+                    // Calculate rate with additional option price
+                    const optionPrice = options.price || 0;
+                    const rate = (item.standard_rate || 0) + optionPrice;
+
+                    // Check if item is already in cart with same options
+                    const existingItemIndex = this.state.cart.findIndex(cartItem =>
+                        cartItem.item === itemName && !cartItem.notes &&
+                        JSON.stringify(cartItem.options || {}) === JSON.stringify(options)
                     );
-                    
+
                     if (existingItemIndex !== -1) {
                         // Increment quantity
                         this.state.cart[existingItemIndex].qty += 1;
-                        this.state.cart[existingItemIndex].amount = 
+                        this.state.cart[existingItemIndex].amount =
                             this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
                     } else {
                         // Add new item
@@ -956,15 +961,16 @@ imogi_pos.kiosk = {
                             item: itemName,
                             item_name: item.item_name,
                             qty: 1,
-                            rate: item.standard_rate || 0,
-                            amount: item.standard_rate || 0,
-                            notes: ''
+                            rate: rate,
+                            amount: rate,
+                            notes: '',
+                            options: options
                         });
                     }
-                    
+
                     // Update UI
                     this.renderCart();
-                    
+
                     // Show prompt for notes if enabled
                     if (this.settings.allowNotes) {
                         this.promptForNotes(this.state.cart.length - 1);
@@ -1106,6 +1112,11 @@ imogi_pos.kiosk = {
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
+                    ${item.options && item.options.name ? `
+                        <div class="item-option">
+                            ${item.options.name} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
+                        </div>
+                    ` : ''}
                     <div class="item-details">
                         <div class="item-price">${this.formatCurrency(item.rate)}</div>
                         <div class="item-qty-controls">
