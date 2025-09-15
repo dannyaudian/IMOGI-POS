@@ -683,84 +683,105 @@ frappe.ready(async function() {
         },
 
         renderItemDetailOptions: function(options) {
-            const container = this.elements.itemOptions;
-            const { sizes = [], spices = [], toppings = [] } = options;
-            let html = '';
-
-            if (sizes.length) {
-                html += `<div class="option-block" data-group="size" data-required="1"><div class="option-title">Size</div><div class="option-group">`;
-                sizes.forEach(opt => {
-                    const priceText = opt.price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(opt.price)})` : '';
-                    html += `<label><input type="radio" name="size-option" value="${opt.name}" data-price="${opt.price || 0}"> ${opt.name}${priceText}</label>`;
-                });
-                html += `</div></div>`;
-            }
-
-            if (spices.length) {
-                html += `<div class="option-block" data-group="spice" data-required="1"><div class="option-title">Spice</div><div class="option-group">`;
-                spices.forEach(opt => {
-                    html += `<label><input type="radio" name="spice-option" value="${opt.name}"> ${opt.name}</label>`;
-                });
-                html += `</div></div>`;
-            }
-
-            if (toppings.length) {
-                html += `<div class="option-block" data-group="topping"><div class="option-title">Toppings</div><div class="option-group">`;
-                toppings.forEach(opt => {
-                    const priceText = opt.price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(opt.price)})` : '';
-                    html += `<label><input type="checkbox" name="topping-option" value="${opt.name}" data-price="${opt.price || 0}"> ${opt.name}${priceText}</label>`;
-                });
-                html += `</div></div>`;
-            }
-
-            if (html) {
-                container.innerHTML = html;
-                container.classList.remove('hidden');
-            } else {
-                container.innerHTML = '';
-                container.classList.add('hidden');
-            }
+          const container = this.elements.itemOptions;
+        
+          // Terima dua bentuk kunci: sizes/spices/toppings ATAU size/spice/topping
+          const sizes    = options.sizes    || options.size    || [];
+          const spices   = options.spices   || options.spice   || [];
+          const toppings = options.toppings || options.topping || [];
+        
+          let html = '';
+        
+          // Helper untuk ambil nama/price/default lintas-bentuk
+          const getName    = opt => opt.name || opt.label || opt.value || '';
+          const getPrice   = opt => Number(opt.price || 0);
+          const isDefault  = opt => !!(opt.default || opt.is_default);
+        
+          if (sizes.length) {
+            html += `<div class="option-block" data-group="size" data-required="1">
+              <div class="option-title">Size</div>
+              <div class="option-group">`;
+            sizes.forEach((opt, i) => {
+              const name = getName(opt);
+              const price = getPrice(opt);
+              const checked = isDefault(opt) ? 'checked' : '';
+              const priceText = price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(price)})` : '';
+              html += `<label><input type="radio" name="size-option" value="${name}" data-price="${price}" ${checked}> ${name}${priceText}</label>`;
+            });
+            html += `</div></div>`;
+          }
+        
+          if (spices.length) {
+            html += `<div class="option-block" data-group="spice" data-required="1">
+              <div class="option-title">Spice</div>
+              <div class="option-group">`;
+            spices.forEach((opt) => {
+              const name = getName(opt);
+              const checked = isDefault(opt) ? 'checked' : '';
+              html += `<label><input type="radio" name="spice-option" value="${name}" ${checked}> ${name}</label>`;
+            });
+            html += `</div></div>`;
+          }
+        
+          if (toppings.length) {
+            html += `<div class="option-block" data-group="topping">
+              <div class="option-title">Toppings</div>
+              <div class="option-group">`;
+            toppings.forEach((opt) => {
+              const name = getName(opt);
+              const price = getPrice(opt);
+              const checked = isDefault(opt) ? 'checked' : '';
+              const priceText = price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(price)})` : '';
+              html += `<label><input type="checkbox" name="topping-option" value="${name}" data-price="${price}" ${checked}> ${name}${priceText}</label>`;
+            });
+            html += `</div></div>`;
+          }
+        
+          if (html) {
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+          } else {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+          }
         },
 
+
         confirmItemOptions: function() {
-            const container = this.elements.itemOptions;
-            const selectedOptions = { toppings: [] };
-            let extra = 0;
-
-            const sizeGroup = container.querySelector('[data-group="size"]');
-            if (sizeGroup) {
-                const input = sizeGroup.querySelector('input[name="size-option"]:checked');
-                if (!input) {
-                    this.showError('Please select size');
-                    return;
-                }
-                selectedOptions.size = { name: input.value, price: Number(input.dataset.price || 0) };
-                extra += selectedOptions.size.price;
-            }
-
-            const spiceGroup = container.querySelector('[data-group="spice"]');
-            if (spiceGroup) {
-                const input = spiceGroup.querySelector('input[name="spice-option"]:checked');
-                if (!input) {
-                    this.showError('Please select spice level');
-                    return;
-                }
-                selectedOptions.spice = { name: input.value };
-            }
-
-            const toppingGroup = container.querySelector('[data-group="topping"]');
-            if (toppingGroup) {
-                const inputs = toppingGroup.querySelectorAll('input[name="topping-option"]:checked');
-                inputs.forEach(inp => {
-                    const price = Number(inp.dataset.price || 0);
-                    selectedOptions.toppings.push({ name: inp.value, price });
-                    extra += price;
-                });
-            }
-
-            selectedOptions.extra_price = extra;
-            this.addItemToCart(this.selectedOptionItem, selectedOptions, this.pendingNotes);
-            this.closeItemDetailModal();
+          const container = this.elements.itemOptions;
+          const selectedOptions = { toppings: [] };
+          let extra = 0;
+        
+          const sizeGroup = container.querySelector('[data-group="size"]');
+          if (sizeGroup) {
+            const input = sizeGroup.querySelector('input[name="size-option"]:checked');
+            if (!input) { this.showError('Please select size'); return; }
+            const name = input.value;
+            const price = Number(input.dataset.price || 0);
+            selectedOptions.size = { name, price };
+            extra += price;
+          }
+        
+          const spiceGroup = container.querySelector('[data-group="spice"]');
+          if (spiceGroup) {
+            const input = spiceGroup.querySelector('input[name="spice-option"]:checked');
+            if (!input) { this.showError('Please select spice level'); return; }
+            selectedOptions.spice = { name: input.value };
+          }
+        
+          const toppingGroup = container.querySelector('[data-group="topping"]');
+          if (toppingGroup) {
+            const inputs = toppingGroup.querySelectorAll('input[name="topping-option"]:checked');
+            inputs.forEach(inp => {
+              const price = Number(inp.dataset.price || 0);
+              selectedOptions.toppings.push({ name: inp.value, price });
+              extra += price;
+            });
+          }
+        
+          selectedOptions.extra_price = extra;
+          this.addItemToCart(this.selectedOptionItem, selectedOptions, this.pendingNotes);
+          this.closeItemDetailModal();
         },
 
         addItemToCart: function(item, item_options = {}, notes = '') {
