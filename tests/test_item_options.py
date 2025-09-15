@@ -14,7 +14,7 @@ def load_items_with_doc(item_doc):
 
     frappe.whitelist = whitelist
     frappe._ = lambda x: x
-    frappe.get_doc = lambda *a, **k: item_doc
+    frappe.get_cached_doc = lambda *a, **k: item_doc
 
     sys.modules["frappe"] = frappe
 
@@ -42,10 +42,10 @@ def test_get_item_options_structure():
     result = items.get_item_options("ITEM-1")
     unload_items_module()
 
-    assert set(result.keys()) == {"sizes", "spices", "toppings"}
-    assert result["sizes"] == [{"option_name": "Large", "additional_price": 0}]
-    assert result["spices"] == [{"option_name": "Hot", "additional_price": 0}]
-    assert result["toppings"] == [{"option_name": "Cheese", "additional_price": 0}]
+    assert set(result.keys()) == {"size", "spice", "topping"}
+    assert result["size"] == [{"label": "Large", "value": "Large", "price": 0}]
+    assert result["spice"] == [{"label": "Hot", "value": "Hot", "price": 0}]
+    assert result["topping"] == [{"label": "Cheese", "value": "Cheese", "price": 0}]
 
 
 def test_get_item_options_skip_inactive():
@@ -59,7 +59,7 @@ def test_get_item_options_skip_inactive():
     result = items.get_item_options("ITEM-1")
     unload_items_module()
 
-    assert result == {"sizes": [{"option_name": "Large", "additional_price": 0}]}
+    assert result == {"size": [{"label": "Large", "value": "Large", "price": 0}]}
 
 
 def test_set_item_flags_special_category():
@@ -79,8 +79,8 @@ def test_set_item_flags_special_category():
     items.set_item_flags(doc)
     unload_items_module()
 
-    assert doc.get("has_size") == 1
-    assert doc.get("has_spice") == 1
-    assert doc.get("has_topping") == 1
+    assert doc.get("has_size_option") == 1
+    assert doc.get("has_spice_option") == 1
+    assert doc.get("has_topping_option") == 1
 
 
