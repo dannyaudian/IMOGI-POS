@@ -955,22 +955,19 @@ imogi_pos.kiosk = {
 
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
+            if (!['size', 'spice', 'topping'].includes(field)) return;
             const title = this.toTitleCase(field);
             if (field === 'topping') {
                 fieldsHtml += `<div class="option-group"><label>${title}</label>` +
                     choices.map(opt => {
-                        const label = opt.label || opt.value || opt;
-                        const value = opt.value || opt.label || opt;
-                        const price = opt.price || 0;
+                        const { label, value, price = 0 } = opt;
                         return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
                     }).join('') + '</div>';
             } else {
                 fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}">` +
                     `<option value="" data-price="0">Select ${title}</option>` +
                     choices.map(opt => {
-                        const label = opt.label || opt.value || opt;
-                        const value = opt.value || opt.label || opt;
-                        const price = opt.price || 0;
+                        const { label, value, price = 0 } = opt;
                         return `<option value="${value}" data-price="${price}">${label}</option>`;
                     }).join('') + '</select></div>';
             }

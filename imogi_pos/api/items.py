@@ -20,7 +20,7 @@ def get_item_options(item):
 
     Returns:
         dict: Only contains keys for active categories with list of dictionaries
-        having ``option_name`` and ``additional_price``.
+        having ``label``, ``value`` and ``price``.
     """
 
     result = {}
@@ -28,34 +28,34 @@ def get_item_options(item):
         return result
 
     try:
-        item_doc = frappe.get_doc("Item", item)
+        item_doc = frappe.get_cached_doc("Item", item)
     except Exception:
         return result
 
+    def to_option(row):
+        name = getattr(row, "option_name", None)
+        if not name:
+            return None
+        price = getattr(row, "additional_price", 0) or 0
+        return {"label": name, "value": name, "price": price}
+
     def collect(child_rows):
-        options = []
-        for row in child_rows or []:
-            name = getattr(row, "option_name", None)
-            if not name:
-                continue
-            price = getattr(row, "additional_price", 0)
-            options.append({"option_name": name, "additional_price": price})
-        return options
+        return [opt for opt in (to_option(row) for row in child_rows or []) if opt]
 
     if getattr(item_doc, "has_size_option", 0):
         size_opts = collect(getattr(item_doc, "item_size_options", []))
         if size_opts:
-            result["sizes"] = size_opts
+            result["size"] = size_opts
 
     if getattr(item_doc, "has_spice_option", 0):
         spice_opts = collect(getattr(item_doc, "item_spice_options", []))
         if spice_opts:
-            result["spices"] = spice_opts
+            result["spice"] = spice_opts
 
     if getattr(item_doc, "has_topping_option", 0):
         topping_opts = collect(getattr(item_doc, "item_topping_options", []))
         if topping_opts:
-            result["toppings"] = topping_opts
+            result["topping"] = topping_opts
 
     return result
 
@@ -86,5 +86,5 @@ def set_item_flags(doc, method=None):
     """
     category = (doc.get("menu_category") or "").lower()
     flags = MENU_FLAG_MAP.get(category, {})
-    for field in ("has_size_option", "has_spice_option", "has_topping_option"):
-        doc.set(field, flags.get(field, 0))
+    for base in ("has_size", "has_spice", "has_topping"):
+        doc.set(f"{base}_option", flags.get(base, 0))

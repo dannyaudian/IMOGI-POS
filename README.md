@@ -119,15 +119,20 @@ Items can expose configurable categories such as sizes, spice levels, or topping
 ```python
 # Fetch available options for an item
 frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
-# Returns: {"sizes": [{"option_name": "Large", "additional_price": 0}]}
+# Returns:
+# {
+#   "size":   [{"label": "Large",  "value": "Large",  "price": 0}],
+#   "spice":  [{"label": "Hot",    "value": "Hot",    "price": 0}],
+#   "topping": [{"label": "Cheese", "value": "Cheese", "price": 0}]
+# }
 
 # Example of adding an item with selected options to an order
 {
     "item": "ITEM-001",
     "qty": 1,
     "item_options": {
-        "sizes": [{"option_name": "Large"}],
-        "toppings": [{"option_name": "Cheese"}]
+        "size": "Large",
+        "topping": ["Cheese"]
     }
 }
 ```
