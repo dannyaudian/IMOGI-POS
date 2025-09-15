@@ -9,6 +9,7 @@ from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.kitchen.kot_service import update_kot_item_state as service_update_kot_item_state
+from imogi_pos.utils.options import format_options_for_display
 
 def check_restaurant_domain(pos_profile):
     """
@@ -244,6 +245,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                     cleaned[key] = {"name": val}
             options = cleaned
 
+        options_display = format_options_for_display(options)
         kot_doc.append(
             "items",
             {
@@ -254,6 +256,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                 "workflow_state": "Queued",
                 "notes": item_details.get("notes"),
                 "item_options": options,
+                "options_display": options_display,
             },
         )
 
