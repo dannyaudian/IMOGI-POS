@@ -4,17 +4,25 @@
 import frappe
 from frappe.model.document import Document
 
+from imogi_pos.utils.options import format_options_for_display
+
 
 class KOTItem(Document):
     def validate(self):
         self.set_last_edited_by()
-    
+        self.set_options_display()
+
     def before_save(self):
         self.set_last_edited_by()
+        self.set_options_display()
     
     def set_last_edited_by(self):
         """Set last_edited_by field to current user"""
         self.last_edited_by = frappe.session.user
+
+    def set_options_display(self):
+        """Generate human readable options string"""
+        self.options_display = format_options_for_display(getattr(self, "item_options", None))
     
     def update_pos_order_item(self):
         """Update the corresponding POS Order Item counters"""
