@@ -195,7 +195,7 @@ frappe.ready(async function() {
             });
             
             // Payment method selection
-            const paymentOptions = document.querySelectorAll('.payment-option');
+            const paymentOptions = document.querySelectorAll('button.payment-option');
             paymentOptions.forEach(option => {
                 option.addEventListener('click', () => {
                     paymentOptions.forEach(o => o.classList.remove('selected'));
@@ -1031,9 +1031,9 @@ frappe.ready(async function() {
                 this.togglePaymentMethod();
 
                 // Update UI selection
-                const paymentOptions = document.querySelectorAll('.payment-option');
+                const paymentOptions = document.querySelectorAll('button.payment-option');
                 paymentOptions.forEach(o => o.classList.remove('selected'));
-                const cashOption = document.querySelector('.payment-option[data-method="cash"]');
+                const cashOption = document.querySelector('button.payment-option[data-method="cash"]');
                 if (cashOption) {
                     cashOption.classList.add('selected');
                 }
@@ -1126,7 +1126,7 @@ frappe.ready(async function() {
             this.elements.paymentStatus.textContent = 'Payment expired. Please try again.';
             
             // Switch to cash as fallback
-            const cashOption = document.querySelector('.payment-option[data-method="cash"]');
+            const cashOption = document.querySelector('button.payment-option[data-method="cash"]');
             if (cashOption) {
                 cashOption.click();
             }

@@ -703,6 +703,7 @@
     padding: 1rem;
     border: 1px solid var(--border-color);
     border-radius: 6px;
+    background: none;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
@@ -962,18 +963,18 @@
     </div>
     <div class="modal-body">
       <div class="payment-options">
-        <div class="payment-option selected" data-method="qr_code">
+        <button type="button" class="payment-option selected" data-method="qr_code">
           <div class="payment-option-icon">
             <i class="fa fa-qrcode"></i>
           </div>
           <div class="payment-option-name">{{ _("QR Payment") }}</div>
-        </div>
-        <div class="payment-option" data-method="cash">
+        </button>
+        <button type="button" class="payment-option" data-method="cash">
           <div class="payment-option-icon">
             <i class="fa fa-money"></i>
           </div>
           <div class="payment-option-name">{{ _("Cash") }}</div>
-        </div>
+        </button>
       </div>
       
       <div class="payment-amount" id="payment-amount">
