@@ -1140,27 +1140,37 @@
     "name": "Item-default_kitchen_station"
   },
   {
-    "fieldname": "pos_menu_profile",
-    "fieldtype": "Link",
-    "label": "POS Menu Profile",
-    "options": "POS Menu Profile",
-    "insert_after": "item_group",
+    "fieldname": "pos_customizations",
+    "fieldtype": "JSON",
+    "label": "POS Customizations",
+    "insert_after": "description",
     "is_system_generated": 0,
     "module": "IMOGI POS",
-    "dt": "Item",
+    "dt": "Sales Invoice Item",
     "doctype": "Custom Field",
-    "name": "Item-pos_menu_profile"
+    "name": "Sales Invoice Item-pos_customizations"
   },
   {
-    "fieldname": "default_pos_menu_profile",
-    "fieldtype": "Link",
-    "label": "Default POS Menu Profile",
-    "options": "POS Menu Profile",
-    "insert_after": "parent_item_group",
+    "fieldname": "pos_customizations_delta",
+    "fieldtype": "Currency",
+    "label": "POS Customizations Delta",
+    "insert_after": "pos_customizations",
     "is_system_generated": 0,
     "module": "IMOGI POS",
-    "dt": "Item Group",
+    "dt": "Sales Invoice Item",
     "doctype": "Custom Field",
-    "name": "Item Group-default_pos_menu_profile"
+    "name": "Sales Invoice Item-pos_customizations_delta"
+  },
+  {
+    "fieldname": "pos_display_details",
+    "fieldtype": "Small Text",
+    "label": "POS Display Details",
+    "insert_after": "pos_customizations_delta",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Sales Invoice Item",
+    "doctype": "Custom Field",
+    "name": "Sales Invoice Item-pos_display_details"
+
   }
 ]

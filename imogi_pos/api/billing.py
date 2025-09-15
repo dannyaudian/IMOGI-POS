@@ -70,6 +70,61 @@ def validate_pos_session(pos_profile, enforce_session=None):
     return active_session
 
 
+def _get_option_price(item_doc, table_name, option_name):
+    for row in getattr(item_doc, table_name, []) or []:
+        if getattr(row, "option_name", None) == option_name:
+            return flt(getattr(row, "additional_price", 0))
+    return 0
+
+
+def compute_customizations(order_item):
+    """Compute customization details for a POS Order item."""
+    options = getattr(order_item, "item_options", None) or {}
+    if isinstance(options, str):
+        options = frappe.parse_json(options)
+    if not isinstance(options, dict):
+        return 0, {}, ""
+
+    customizations = {}
+    total_delta = 0
+    summary_parts = []
+    item_doc = None
+
+    option_tables = {
+        "size": "item_size_options",
+        "spice": "item_spice_options",
+        "topping": "item_topping_options",
+        "toppings": "item_topping_options",
+    }
+
+    for group, selection in options.items():
+        if group == "extra_price" or selection in (None, "", []):
+            continue
+        if isinstance(selection, list):
+            names = [s.get("name") if isinstance(s, dict) else s for s in selection if s]
+        else:
+            names = [selection.get("name") if isinstance(selection, dict) else selection]
+        if not names:
+            continue
+
+        customizations[group] = names
+        summary_parts.append(f"{group.title()}: {', '.join(names)}")
+
+        table = option_tables.get(group)
+        if table:
+            if item_doc is None:
+                try:
+                    item_doc = frappe.get_cached_doc("Item", order_item.item)
+                except Exception:
+                    item_doc = None
+            if item_doc:
+                for name in names:
+                    total_delta += _get_option_price(item_doc, table, name)
+
+    summary = ", ".join(summary_parts)
+    return total_delta, customizations, summary
+
+
 def build_invoice_items(order_doc, mode):
     """Builds Sales Invoice Item dictionaries from a POS Order.
 
@@ -118,6 +173,13 @@ def build_invoice_items(order_doc, mode):
         if mode in ["Counter", "Kiosk", "Self-Order"] and getattr(item, "notes", None):
             invoice_item["description"] = f"{item_name}\n{item.notes}"
             invoice_item["has_notes"] = True
+
+        delta, customizations, summary = compute_customizations(item)
+        if customizations:
+            invoice_item["pos_customizations"] = customizations
+            invoice_item["pos_customizations_delta"] = delta
+            if summary:
+                invoice_item["pos_display_details"] = summary
 
         invoice_items.append(invoice_item)
 
