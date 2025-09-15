@@ -52,6 +52,8 @@ frappe.ready(async function() {
         searchQuery: '',
         selectedTemplateItem: null,
         selectedVariant: null,
+        selectedOptionItem: null,
+        pendingNotes: '',
         taxRate: 0,
         discountPercent: 0,
         discountAmount: 0,
@@ -94,6 +96,13 @@ frappe.ready(async function() {
             itemNotes: document.getElementById('item-notes'),
             variantAddBtn: document.getElementById('btn-variant-add'),
             variantCancelBtn: document.getElementById('btn-variant-cancel'),
+
+            // Item detail modal
+            itemDetailModal: document.getElementById('item-detail-modal'),
+            itemDetailImage: document.getElementById('item-detail-image'),
+            itemOptions: document.getElementById('item-options'),
+            itemAddBtn: document.getElementById('btn-item-add'),
+            itemCancelBtn: document.getElementById('btn-item-cancel'),
             
             // Payment modal
             paymentModal: document.getElementById('payment-modal'),
@@ -161,6 +170,17 @@ frappe.ready(async function() {
             });
             this.elements.variantAddBtn.addEventListener('click', () => {
                 this.addSelectedVariantToCart();
+            });
+
+            // Item detail modal
+            this.elements.itemDetailModal.querySelector('.modal-close').addEventListener('click', () => {
+                this.closeItemDetailModal();
+            });
+            this.elements.itemCancelBtn.addEventListener('click', () => {
+                this.closeItemDetailModal();
+            });
+            this.elements.itemAddBtn.addEventListener('click', () => {
+                this.confirmItemOptions();
             });
             
             // Payment modal
@@ -397,6 +417,7 @@ frappe.ready(async function() {
                             <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
                             <button class="qty-btn qty-plus" data-index="${index}">+</button>
                         </div>
+                        ${item.options ? `<div class="cart-item-options">${this.formatItemOptions(item.options)}</div>` : ''}
                         ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ''}
                         <div class="cart-item-remove" data-index="${index}">&times;</div>
                     </div>
@@ -580,8 +601,8 @@ frappe.ready(async function() {
                 // Open variant picker
                 this.openVariantPicker(item);
             } else {
-                // Add directly to cart
-                this.addItemToCart(item);
+                // Open detail modal for options
+                this.openItemDetailModal(item);
             }
         },
         
@@ -615,37 +636,158 @@ frappe.ready(async function() {
         
         addSelectedVariantToCart: function() {
             if (!this.selectedVariant) return;
-            
+
             const notes = this.elements.itemNotes ? this.elements.itemNotes.value : '';
-            
-            this.addItemToCart(this.selectedVariant, notes);
+
             this.closeVariantModal();
+            this.openItemDetailModal(this.selectedVariant, notes);
         },
-        
-        addItemToCart: function(item, notes = '') {
-            // Check if item already in cart
-            const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes);
-            
+
+        openItemDetailModal: async function(item, notes = '') {
+            this.selectedOptionItem = item;
+            this.pendingNotes = notes || '';
+
+            const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+            this.elements.itemDetailImage.style.backgroundImage = `url('${imageUrl}')`;
+            this.elements.itemDetailModal.querySelector('.modal-title').textContent = item.item_name;
+            this.elements.itemOptions.innerHTML = '';
+
+            this.elements.itemDetailModal.style.display = 'flex';
+
+            this.showLoading('Loading options...');
+            try {
+                const response = await frappe.call({
+                    method: 'imogi_pos.api.items.get_item_options',
+                    args: { item: item.name }
+                });
+                this.hideLoading();
+                const options = response.message || {};
+                this.renderItemDetailOptions(options);
+            } catch (error) {
+                console.error('Error loading item options:', error);
+                this.hideLoading();
+                this.showError('Failed to load item options.');
+            }
+        },
+
+        closeItemDetailModal: function() {
+            this.elements.itemDetailModal.style.display = 'none';
+            this.selectedOptionItem = null;
+            this.pendingNotes = '';
+        },
+
+        renderItemDetailOptions: function(options) {
+            const container = this.elements.itemOptions;
+            const { sizes = [], spices = [], toppings = [] } = options;
+            let html = '';
+
+            if (sizes.length) {
+                html += `<div class="option-block" data-group="size" data-required="1"><div class="option-title">Size</div><div class="option-group">`;
+                sizes.forEach(opt => {
+                    const priceText = opt.price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(opt.price)})` : '';
+                    html += `<label><input type="radio" name="size-option" value="${opt.name}" data-price="${opt.price || 0}"> ${opt.name}${priceText}</label>`;
+                });
+                html += `</div></div>`;
+            }
+
+            if (spices.length) {
+                html += `<div class="option-block" data-group="spice" data-required="1"><div class="option-title">Spice</div><div class="option-group">`;
+                spices.forEach(opt => {
+                    html += `<label><input type="radio" name="spice-option" value="${opt.name}"> ${opt.name}</label>`;
+                });
+                html += `</div></div>`;
+            }
+
+            if (toppings.length) {
+                html += `<div class="option-block" data-group="topping"><div class="option-title">Toppings</div><div class="option-group">`;
+                toppings.forEach(opt => {
+                    const priceText = opt.price ? ` (+${CURRENCY_SYMBOL} ${formatNumber(opt.price)})` : '';
+                    html += `<label><input type="checkbox" name="topping-option" value="${opt.name}" data-price="${opt.price || 0}"> ${opt.name}${priceText}</label>`;
+                });
+                html += `</div></div>`;
+            }
+
+            container.innerHTML = html;
+        },
+
+        confirmItemOptions: function() {
+            const container = this.elements.itemOptions;
+            const selected = { toppings: [] };
+            let extra = 0;
+
+            const sizeGroup = container.querySelector('[data-group="size"]');
+            if (sizeGroup) {
+                const input = sizeGroup.querySelector('input[name="size-option"]:checked');
+                if (!input) {
+                    this.showError('Please select size');
+                    return;
+                }
+                selected.size = { name: input.value, price: Number(input.dataset.price || 0) };
+                extra += selected.size.price;
+            }
+
+            const spiceGroup = container.querySelector('[data-group="spice"]');
+            if (spiceGroup) {
+                const input = spiceGroup.querySelector('input[name="spice-option"]:checked');
+                if (!input) {
+                    this.showError('Please select spice level');
+                    return;
+                }
+                selected.spice = { name: input.value };
+            }
+
+            const toppingGroup = container.querySelector('[data-group="topping"]');
+            if (toppingGroup) {
+                const inputs = toppingGroup.querySelectorAll('input[name="topping-option"]:checked');
+                inputs.forEach(inp => {
+                    const price = Number(inp.dataset.price || 0);
+                    selected.toppings.push({ name: inp.value, price });
+                    extra += price;
+                });
+            }
+
+            selected.extra_price = extra;
+            this.addItemToCart(this.selectedOptionItem, selected, this.pendingNotes);
+            this.closeItemDetailModal();
+        },
+
+        addItemToCart: function(item, options = {}, notes = '') {
+            const rate = (item.standard_rate || 0) + (options.extra_price || 0);
+            const existingIndex = this.cart.findIndex(i => i.item_code === item.name && i.notes === notes && JSON.stringify(i.options || {}) === JSON.stringify(options));
+
             if (existingIndex >= 0) {
-                // Update quantity
                 this.cart[existingIndex].qty += 1;
                 this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
             } else {
-                // Add new item
                 this.cart.push({
                     item_code: item.name,
                     item_name: item.item_name,
                     qty: 1,
-                    rate: item.standard_rate || 0,
-                    amount: item.standard_rate || 0,
+                    rate: rate,
+                    amount: rate,
                     notes: notes,
+                    options: options,
                     kitchen: item.default_kitchen,
                     kitchen_station: item.default_kitchen_station
                 });
             }
-            
+
             this.renderCart();
             this.updateCartTotals();
+        },
+
+        formatItemOptions: function(options) {
+            const parts = [];
+            if (options.size) {
+                parts.push(`Size: ${options.size.name}`);
+            }
+            if (options.spice) {
+                parts.push(`Spice: ${options.spice.name}`);
+            }
+            if (options.toppings && options.toppings.length) {
+                parts.push(`Toppings: ${options.toppings.map(t => t.name).join(', ')}`);
+            }
+            return parts.join(' | ');
         },
         
         updateCartItemQuantity: function(index, newQty) {

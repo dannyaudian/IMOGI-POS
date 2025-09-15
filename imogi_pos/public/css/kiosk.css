@@ -1218,6 +1218,12 @@
   font-style: italic;
 }
 
+.cart-item-options {
+  font-size: 0.9rem;
+  color: var(--brand-text);
+  margin-top: 0.25rem;
+}
+
 
 .cart-item-remove {
   position: absolute;
@@ -1313,6 +1319,48 @@
   border-radius: 4px;
   cursor: pointer;
 }
+/* Item Detail Modal */
+#item-detail-modal .modal-container {
+  max-width: 600px;
+}
+
+#item-detail-modal .options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#item-detail-modal .option-title {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+#item-detail-modal .option-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+#item-detail-modal .option-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#item-detail-modal .option-group input[type="radio"],
+#item-detail-modal .option-group input[type="checkbox"] {
+  accent-color: var(--accent-color);
+}
+
+@media (min-width: 480px) {
+  #item-detail-modal .option-group {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
 
 
 /* Payment Modal */
