@@ -1,13 +1,10 @@
 import importlib
 import sys
 import types
-import pytest
 
 
-@pytest.fixture
-def items_module():
+def load_items_with_doc(item_doc):
     sys.path.insert(0, ".")
-
     frappe = types.ModuleType("frappe")
 
     def whitelist(*args, **kwargs):
@@ -17,39 +14,50 @@ def items_module():
 
     frappe.whitelist = whitelist
     frappe._ = lambda x: x
-
-    # Stub get_doc to return empty object
-    frappe.get_doc = lambda *a, **k: types.SimpleNamespace()
-
-    def get_all(doctype, filters=None, fields=None, pluck=None):
-        if doctype == "Item Option":
-            return [
-                {"option_type": "Size", "option": "Large"},
-                {"option_type": "Spice Level", "option": "Hot"},
-            ]
-        if doctype == "Item Topping":
-            if pluck == "topping":
-                return ["Cheese"]
-            return [{"topping": "Cheese"}]
-        return []
-
-    frappe.get_all = get_all
+    frappe.get_doc = lambda *a, **k: item_doc
 
     sys.modules["frappe"] = frappe
 
     items = importlib.import_module("imogi_pos.api.items")
     importlib.reload(items)
+    return items
 
-    yield items
 
+def unload_items_module():
     sys.modules.pop("frappe", None)
     sys.modules.pop("imogi_pos.api.items", None)
     sys.path.pop(0)
 
 
-def test_get_item_options_structure(items_module):
-    result = items_module.get_item_options("ITEM-1")
-    assert set(result.keys()) == {"sizes", "spice_levels", "toppings"}
-    assert result["sizes"] == ["Large"]
-    assert result["spice_levels"] == ["Hot"]
-    assert result["toppings"] == ["Cheese"]
+def test_get_item_options_structure():
+    item_doc = types.SimpleNamespace(
+        has_size_option=1,
+        has_spice_option=1,
+        has_topping_option=1,
+        item_size_options=[types.SimpleNamespace(option_name="Large", additional_price=0)],
+        item_spice_options=[types.SimpleNamespace(option_name="Hot", additional_price=0)],
+        item_topping_options=[types.SimpleNamespace(option_name="Cheese", additional_price=0)],
+    )
+    items = load_items_with_doc(item_doc)
+    result = items.get_item_options("ITEM-1")
+    unload_items_module()
+
+    assert set(result.keys()) == {"sizes", "spices", "toppings"}
+    assert result["sizes"] == [{"option_name": "Large", "additional_price": 0}]
+    assert result["spices"] == [{"option_name": "Hot", "additional_price": 0}]
+    assert result["toppings"] == [{"option_name": "Cheese", "additional_price": 0}]
+
+
+def test_get_item_options_skip_inactive():
+    item_doc = types.SimpleNamespace(
+        has_size_option=1,
+        has_spice_option=0,
+        has_topping_option=0,
+        item_size_options=[types.SimpleNamespace(option_name="Large", additional_price=0)],
+    )
+    items = load_items_with_doc(item_doc)
+    result = items.get_item_options("ITEM-1")
+    unload_items_module()
+
+    assert result == {"sizes": [{"option_name": "Large", "additional_price": 0}]}
+
