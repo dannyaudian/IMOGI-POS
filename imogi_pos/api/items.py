@@ -6,87 +6,56 @@ from __future__ import unicode_literals
 import frappe
 
 
-def _get_child_field_values(child_list, fieldname):
-    """Helper to extract field values from a child table list."""
-    values = []
-    for row in child_list or []:
-        value = getattr(row, fieldname, None) or getattr(row, "name", None)
-        if value:
-            values.append(value)
-    return values
-
-
 @frappe.whitelist(allow_guest=True)
 def get_item_options(item):
-    """Retrieve available options for a given item.
+    """Retrieve available options for a given item using option flags.
+
+    The Item document may define flags ``has_size_option``, ``has_spice_option``
+    and ``has_topping_option``. When a flag is enabled, the corresponding child
+    table (``item_size_options``, ``item_spice_options`` or
+    ``item_topping_options``) is read and returned in the response.
 
     Args:
-        item (str): Item code or name
+        item (str): Item code or name.
 
     Returns:
-        dict: Dictionary with keys ``sizes``, ``spice_levels`` and ``toppings``.
+        dict: Only contains keys for active categories with list of dictionaries
+        having ``option_name`` and ``additional_price``.
     """
-    result = {"sizes": [], "spice_levels": [], "toppings": []}
 
+    result = {}
     if not item:
         return result
 
     try:
         item_doc = frappe.get_doc("Item", item)
     except Exception:
-        # Item not found, return empty options
         return result
 
-    # --- Fetch sizes and spice levels from Item Option doctype if available
-    try:
-        options = frappe.get_all(
-            "Item Option",
-            filters={"item": item},
-            fields=["option_type", "option"],
-        )
-        for opt in options:
-            opt_type = (opt.get("option_type") or "").lower()
-            option = opt.get("option")
-            if not option:
+    def collect(child_rows):
+        options = []
+        for row in child_rows or []:
+            name = getattr(row, "option_name", None)
+            if not name:
                 continue
-            if opt_type == "size":
-                result["sizes"].append(option)
-            elif opt_type in ("spice", "spice level", "spice_level"):
-                result["spice_levels"].append(option)
-    except Exception:
-        pass
+            price = getattr(row, "additional_price", 0)
+            options.append({"option_name": name, "additional_price": price})
+        return options
 
-    # --- Fetch toppings from Item Topping doctype if available
-    try:
-        toppings = frappe.get_all(
-            "Item Topping", filters={"item": item}, pluck="topping"
-        )
-        if toppings:
-            result["toppings"].extend(toppings)
-    except Exception:
-        pass
+    if getattr(item_doc, "has_size_option", 0):
+        size_opts = collect(getattr(item_doc, "item_size_options", []))
+        if size_opts:
+            result["sizes"] = size_opts
 
-    # --- Fallback to fields/child tables on Item document
-    if not result["sizes"] and hasattr(item_doc, "sizes"):
-        sizes_field = item_doc.sizes
-        if isinstance(sizes_field, list):
-            result["sizes"] = _get_child_field_values(sizes_field, "size")
-        elif isinstance(sizes_field, str):
-            result["sizes"] = [s.strip() for s in sizes_field.split(",") if s.strip()]
+    if getattr(item_doc, "has_spice_option", 0):
+        spice_opts = collect(getattr(item_doc, "item_spice_options", []))
+        if spice_opts:
+            result["spices"] = spice_opts
 
-    if not result["spice_levels"] and hasattr(item_doc, "spice_levels"):
-        spice_field = item_doc.spice_levels
-        if isinstance(spice_field, list):
-            result["spice_levels"] = _get_child_field_values(spice_field, "spice_level")
-        elif isinstance(spice_field, str):
-            result["spice_levels"] = [s.strip() for s in spice_field.split(",") if s.strip()]
-
-    if not result["toppings"] and hasattr(item_doc, "toppings"):
-        toppings_field = item_doc.toppings
-        if isinstance(toppings_field, list):
-            result["toppings"] = _get_child_field_values(toppings_field, "topping")
-        elif isinstance(toppings_field, str):
-            result["toppings"] = [t.strip() for t in toppings_field.split(",") if t.strip()]
+    if getattr(item_doc, "has_topping_option", 0):
+        topping_opts = collect(getattr(item_doc, "item_topping_options", []))
+        if topping_opts:
+            result["toppings"] = topping_opts
 
     return result
 
