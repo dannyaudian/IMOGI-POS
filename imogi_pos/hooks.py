@@ -61,7 +61,10 @@ doc_events = {
     },
     "Table Layout Node": {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
-}
+    },
+    "Item": {
+        "validate": "imogi_pos.api.items.set_item_flags",
+    },
 }
 
 fixtures = [

@@ -1035,10 +1035,43 @@
     "name": "Item-photo"
   },
   {
+    "fieldname": "has_size",
+    "fieldtype": "Check",
+    "label": "Has Size",
+    "insert_after": "photo",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item",
+    "doctype": "Custom Field",
+    "name": "Item-has_size"
+  },
+  {
+    "fieldname": "has_spice",
+    "fieldtype": "Check",
+    "label": "Has Spice",
+    "insert_after": "has_size",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item",
+    "doctype": "Custom Field",
+    "name": "Item-has_spice"
+  },
+  {
+    "fieldname": "has_topping",
+    "fieldtype": "Check",
+    "label": "Has Topping",
+    "insert_after": "has_spice",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item",
+    "doctype": "Custom Field",
+    "name": "Item-has_topping"
+  },
+  {
     "fieldname": "imogi_kitchen_routing_section",
     "fieldtype": "Section Break",
     "label": "Kitchen Routing",
-    "insert_after": "photo",
+    "insert_after": "has_topping",
     "depends_on": "eval:frappe.boot.imogi_pos_settings && frappe.boot.imogi_pos_settings.domain == 'Restaurant'",
     "is_system_generated": 0,
     "module": "IMOGI POS",
