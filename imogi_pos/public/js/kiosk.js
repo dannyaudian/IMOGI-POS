@@ -263,6 +263,54 @@ imogi_pos.kiosk = {
     },
 
     /**
+     * Show modal with options to continue shopping or view cart
+     */
+    showCartPrompt: function() {
+        const modalContainer = this.container.querySelector('#modal-container');
+        if (!modalContainer) return;
+
+        modalContainer.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Item Added</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p>What would you like to do next?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="continue-shopping-btn" class="modal-button">Continue Shopping</button>
+                        <button id="view-cart-btn" class="modal-button primary">View Cart</button>
+                    </div>
+                </div>
+            </div>`;
+
+        modalContainer.classList.add('active');
+
+        const close = () => modalContainer.classList.remove('active');
+
+        const closeBtn = modalContainer.querySelector('.modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+
+        const continueBtn = modalContainer.querySelector('#continue-shopping-btn');
+        if (continueBtn) continueBtn.addEventListener('click', close);
+
+        const viewCartBtn = modalContainer.querySelector('#view-cart-btn');
+        if (viewCartBtn) {
+            viewCartBtn.addEventListener('click', () => {
+                const cartSection = this.container.querySelector('.kiosk-cart');
+                if (cartSection) {
+                    cartSection.scrollIntoView({ behavior: 'smooth' });
+                    const checkoutBtn = cartSection.querySelector('#checkout-btn');
+                    if (checkoutBtn) checkoutBtn.focus();
+                }
+                close();
+            });
+        }
+    },
+
+    /**
      * Hide POS-session related UI elements
      */
     hidePOSSessionUI: function() {
@@ -1122,6 +1170,12 @@ imogi_pos.kiosk = {
                     // Update UI
                     this.renderCart();
                     this.showToast('Item added to cart');
+
+                    // Show notification
+                    this.showToast(`${item.item_name} added to cart`);
+
+                    // Show cart navigation modal
+                    this.showCartPrompt();
 
                     // Show prompt for notes if enabled
                     if (this.settings.allowNotes) {
