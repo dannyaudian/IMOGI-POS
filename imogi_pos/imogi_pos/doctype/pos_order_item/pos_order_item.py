@@ -4,6 +4,7 @@
 import frappe
 import json
 from frappe.model.document import Document
+from imogi_pos.utils.printing import format_kot_options
 
 
 class POSOrderItem(Document):
@@ -13,6 +14,10 @@ class POSOrderItem(Document):
         self.validate_item()
         self.set_last_edited_by()
         self.set_default_kitchen_station()
+        self.set_options_display()
+
+    def before_save(self):
+        self.set_options_display()
     
     def set_amount(self):
         """Calculate amount based on qty and rate"""
@@ -61,3 +66,7 @@ class POSOrderItem(Document):
         """Initialize counters object if not set"""
         if not self.counters:
             self.counters = json.dumps({})
+
+    def set_options_display(self):
+        """Format item_options into a display string"""
+        self.options_display = format_kot_options(self.item_options)
