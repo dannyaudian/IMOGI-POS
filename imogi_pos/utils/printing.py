@@ -15,6 +15,57 @@ import re
 import base64
 from typing import Dict, Any, Union, Optional, List
 
+
+def format_kot_options(options: Union[str, Dict[str, Any], List[Any], None]) -> str:
+    """Format item options for display on KOT tickets.
+
+    Args:
+        options: Item options as a dict, list or JSON string.
+
+    Returns:
+        str: Human-readable string representation of the options.
+    """
+
+    if not options:
+        return ""
+
+    if isinstance(options, str):
+        try:
+            options = json.loads(options)
+        except Exception:
+            return options
+
+    parts: List[str] = []
+
+    if isinstance(options, dict):
+        for key, value in options.items():
+            label = key.replace("_", " ").title()
+            if isinstance(value, dict):
+                name = value.get("name") or value.get("label") or str(value)
+                parts.append(f"{label}: {name}")
+            elif isinstance(value, list):
+                names = [
+                    (item.get("name") or item.get("label") or str(item))
+                    if isinstance(item, dict)
+                    else str(item)
+                    for item in value
+                ]
+                parts.append(f"{label}: {', '.join(names)}")
+            else:
+                parts.append(f"{label}: {value}")
+    elif isinstance(options, list):
+        names = [
+            (item.get("name") or item.get("label") or str(item))
+            if isinstance(item, dict)
+            else str(item)
+            for item in options
+        ]
+        parts.append(", ".join(names))
+    else:
+        return str(options)
+
+    return " | ".join(parts)
+
 def print_document(html_content: str, interface: str, adapter_config: Dict[str, Any], copies: int = 1) -> Dict[str, Any]:
     """
     Print a document using the specified interface and adapter configuration.
