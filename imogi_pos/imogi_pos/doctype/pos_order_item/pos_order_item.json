@@ -11,6 +11,7 @@
         "amount",
         "column_break_5",
         "notes",
+        "item_options",
         "kitchen_section",
         "kitchen",
         "kitchen_station",
@@ -57,6 +58,12 @@
             "fieldname": "notes",
             "fieldtype": "Small Text",
             "label": "Notes"
+        },
+        {
+            "default": "{}",
+            "fieldname": "item_options",
+            "fieldtype": "JSON",
+            "label": "Item Options"
         },
         {
             "fieldname": "kitchen_section",
