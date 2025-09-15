@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+import json
 from frappe.model.document import Document
 
 
@@ -11,10 +12,44 @@ class KOTItem(Document):
     
     def before_save(self):
         self.set_last_edited_by()
-    
+        self.set_options_display()
+
     def set_last_edited_by(self):
         """Set last_edited_by field to current user"""
         self.last_edited_by = frappe.session.user
+
+    def set_options_display(self):
+        """Parse item_options and build a summary string"""
+        options = self.item_options
+        if not options:
+            self.options_display = ""
+            return
+
+        # Parse JSON string to dict if necessary
+        if isinstance(options, str):
+            try:
+                options = frappe.parse_json(options)
+            except Exception:
+                try:
+                    options = json.loads(options)
+                except Exception:
+                    self.options_display = ""
+                    return
+
+        if not isinstance(options, dict):
+            self.options_display = ""
+            return
+
+        parts = []
+        for key, value in options.items():
+            label = key.replace("_", " ").title()
+            if isinstance(value, dict):
+                value = value.get("name") or value.get("value") or ", ".join(
+                    f"{k}: {v}" for k, v in value.items()
+                )
+            parts.append(f"{label}: {value}")
+
+        self.options_display = " | ".join(parts)
     
     def update_pos_order_item(self):
         """Update the corresponding POS Order Item counters"""
