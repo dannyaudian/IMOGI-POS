@@ -184,23 +184,28 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
     )
 
     for ticket in tickets:
+        items = frappe.get_all(
+            "KOT Item",
+            filters={"parent": ticket["name"]},
+            fields=[
+                "idx",
+                "item_code as item",
+                "item_name",
+                "workflow_state as status",
+                "qty",
+                "notes",
+                "item_options",
+            ],
+            order_by="idx asc",
+        )
+
+        for item in items:
+            item["options_display"] = format_options_for_display(item.get("item_options"))
+
         ticket.update(
             {
                 "pos_order": ticket.get("pos_order"),
-                "items": frappe.get_all(
-                    "KOT Item",
-                    filters={"parent": ticket["name"]},
-                    fields=[
-                        "idx",
-                        "item_code as item",
-                        "item_name",
-                        "workflow_state as status",
-                        "qty",
-                        "notes",
-                        "item_options",
-                    ],
-                    order_by="idx asc",
-                ),
+                "items": items,
             }
         )
 
