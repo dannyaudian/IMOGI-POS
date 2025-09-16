@@ -739,17 +739,24 @@ imogi_pos.kiosk = {
         items.forEach(item => {
             const hasVariants = item.has_variants === 1;
             const itemClass = hasVariants ? 'has-variants' : '';
-            const itemIcon = hasVariants ? '<i class="fa fa-list variant-icon"></i>' : '';
-            
+            const variantIndicator = hasVariants
+                ? `<span class="item-variant-indicator"><i class="fa fa-list variant-icon"></i></span>`
+                : '';
+            const description = item.description ? `<div class="item-desc">${item.description}</div>` : '';
+
             html += `
                 <div class="catalog-item ${itemClass}" data-item="${item.name}" data-has-variants="${hasVariants ? 1 : 0}">
                     ${item.image ? `<div class="item-image"><img src="${item.image}" alt="${item.item_name}"></div>` : ''}
                     <div class="item-details">
-                        <div class="item-name">${item.item_name}</div>
-                        ${item.description ? `<div class="item-desc">${item.description}</div>` : ''}
-                        <div class="item-price">${this.formatCurrency(item.rate || 0)}</div>
+                        <div class="item-header">
+                            <div class="item-name">${item.item_name}</div>
+                            ${variantIndicator}
+                        </div>
+                        <div class="item-body">
+                            ${description}
+                            <div class="item-price">${this.formatCurrency(item.rate || 0)}</div>
+                        </div>
                     </div>
-                    ${itemIcon}
                 </div>
             `;
         });
