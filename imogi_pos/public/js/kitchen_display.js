@@ -298,25 +298,34 @@ imogi_pos.kitchen_display = {
                     this.playSound('new_kot');
                 }
                 break;
-            
-            case 'update_kot':
-                if (data.kot) {
-                    this.updateKotInState(data.kot);
-                }
-                break;
-            
+
+            case 'kot_updated':
             case 'update_kot_status':
-                if (data.kot_name && data.status) {
-                    this.updateKotStatus(data.kot_name, data.status);
+                {
+                    const ticket = data.ticket || data.kot_name;
+                    const state = data.state || data.status;
+
+                    if (ticket && state) {
+                        this.updateKotStatus(ticket, state);
+                    } else if (data.kot) {
+                        this.updateKotInState(data.kot);
+                    }
                 }
                 break;
-            
+
+            case 'kot_item_updated':
             case 'update_item_status':
-                if (data.kot_name && data.item_idx !== undefined && data.status) {
-                    this.updateKotItemStatus(data.kot_name, data.item_idx, data.status);
+                {
+                    const ticket = data.ticket || data.kot_name;
+                    const item = (data.item !== undefined ? data.item : data.item_idx);
+                    const state = data.state || data.status;
+
+                    if (ticket && item !== undefined && state) {
+                        this.updateKotItemStatus(ticket, item, state);
+                    }
                 }
                 break;
-            
+
             case 'delete_kot':
                 if (data.kot_name) {
                     this.removeKotFromState(data.kot_name);
@@ -588,27 +597,48 @@ imogi_pos.kitchen_display = {
     /**
      * Update KOT item status
      * @param {string} kotName - KOT name
-     * @param {number} itemIdx - Item index
+     * @param {string|number} itemIdentifier - Item index or identifier
      * @param {string} status - New status
      */
-    updateKotItemStatus: function(kotName, itemIdx, status) {
+    updateKotItemStatus: function(kotName, itemIdentifier, status) {
         // Find the KOT in any of the lists
         let kot = null;
-        let statusKey = null;
-        
+
         Object.keys(this.state.kots).forEach(key => {
             const foundKot = this.state.kots[key].find(k => k.name === kotName);
             if (foundKot) {
                 kot = foundKot;
-                statusKey = key;
             }
         });
-        
-        if (!kot || !kot.items || !kot.items[itemIdx]) return;
-        
+
+        if (!kot || !kot.items || kot.items.length === 0) return;
+
+        let targetItem = null;
+
+        // Support both numeric indices and item identifiers
+        const parsedIndex = typeof itemIdentifier === 'number' ? itemIdentifier : parseInt(itemIdentifier, 10);
+        if (!Number.isNaN(parsedIndex)) {
+            if (kot.items[parsedIndex]) {
+                targetItem = kot.items[parsedIndex];
+            } else if (parsedIndex > 0 && kot.items[parsedIndex - 1]) {
+                targetItem = kot.items[parsedIndex - 1];
+            }
+
+            if (!targetItem) {
+                targetItem = kot.items.find(item => String(item.idx) === String(parsedIndex));
+            }
+        }
+
+        if (!targetItem && typeof itemIdentifier === 'string') {
+            targetItem = kot.items.find(item => item.name === itemIdentifier || String(item.idx) === itemIdentifier);
+        }
+
+        if (!targetItem) return;
+
         // Update the item status
-        kot.items[itemIdx].status = status;
-        
+        targetItem.status = status;
+        targetItem.workflow_state = status;
+
         // Re-render the KOT card
         const kotCard = this.container.querySelector(`.kot-card[data-kot="${kotName}"]`);
         if (kotCard) {
