@@ -1075,10 +1075,14 @@ imogi_pos.kitchen_display = {
 
                 itemsHtml += `
                     <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
-                        <div class="item-header">
-                            <div class="item-quantity">${item.qty}x</div>
-                            <div class="item-name">${item.item_name}</div>
-                            <div class="item-status-badge">${itemStatus}</div>
+                        <div class="kot-item-qty">${item.qty}x</div>
+                        <div class="kot-item-details">
+                            <div class="kot-item-name">
+                                ${item.item_name}
+                                <span class="item-status-badge">${itemStatus}</span>
+                            </div>
+                            ${optionsText ? `<div class="kot-item-note">${optionsText}</div>` : ""}
+                            ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
                         </div>
                         ${optionsHtml}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}

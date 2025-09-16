@@ -287,6 +287,20 @@
 
 .kot-item-name {
   font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+.item-status-badge {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-700);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
 }
 
 .item-options {
@@ -593,6 +607,11 @@
   .kot-item-note {
     background-color: var(--color-gray-850);
     border-color: var(--color-gray-600);
+  }
+
+  .item-status-badge {
+    background-color: var(--color-gray-700);
+    color: var(--color-gray-300);
   }
   
   .column-count {
