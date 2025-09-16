@@ -1369,9 +1369,8 @@ imogi_pos.kitchen_display = {
                                 <span class="item-status-badge">${itemStatus}</span>
                             </div>
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
+                            ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
                         </div>
-                        ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
-                        ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
 
