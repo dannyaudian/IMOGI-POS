@@ -17,7 +17,67 @@
 {% endblock %}
 
 {% block content %}
-<div id="kitchen-display"></div>
+<div id="kitchen-display" class="kitchen-display">
+  <header class="kitchen-header">
+    <div class="kitchen-header-left">
+      <h1 class="kitchen-title">{{ _("Kitchen Display") }}</h1>
+
+      <div class="station-selector">
+        <label class="station-label" for="kitchen-selector">{{ _("Kitchen") }}</label>
+        <select id="kitchen-selector" class="select">
+          <option value="">{{ _("All Kitchens") }}</option>
+        </select>
+      </div>
+
+      <div class="station-selector">
+        <label class="station-label" for="station-selector">{{ _("Station") }}</label>
+        <select id="station-selector" class="select">
+          <option value="">{{ _("All Stations") }}</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main class="kitchen-main">
+    <div class="kitchen-columns">
+      <section class="kitchen-column column-queued queued-column">
+        <div class="column-header">
+          <div class="column-title">{{ _("Queued") }}</div>
+          <div class="column-count" id="queued-count">0</div>
+        </div>
+        <div class="column-body column-content" id="queued-container">
+          <div class="empty-column">
+            <p>{{ _("No queued orders") }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="kitchen-column column-preparing preparing-column">
+        <div class="column-header">
+          <div class="column-title">{{ _("In Progress") }}</div>
+          <div class="column-count" id="preparing-count">0</div>
+        </div>
+        <div class="column-body column-content" id="preparing-container">
+          <div class="empty-column">
+            <p>{{ _("No orders in progress") }}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="kitchen-column column-ready ready-column">
+        <div class="column-header">
+          <div class="column-title">{{ _("Ready") }}</div>
+          <div class="column-count" id="ready-count">0</div>
+        </div>
+        <div class="column-body column-content" id="ready-container">
+          <div class="empty-column">
+            <p>{{ _("No ready orders") }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
 {% endblock %}
 
 {% block script %}

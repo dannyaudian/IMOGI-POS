@@ -195,12 +195,16 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
                 "qty",
                 "notes",
                 "item_options",
+                "options_display",
             ],
             order_by="idx asc",
         )
 
         for item in items:
-            item["options_display"] = format_options_for_display(item.get("item_options"))
+            raw_options = item.get("item_options")
+            if not raw_options and item.get("options_display"):
+                raw_options = item.get("options_display")
+            item["options_display"] = format_options_for_display(raw_options)
 
         ticket.update(
             {
