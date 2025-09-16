@@ -23,13 +23,13 @@
   const DOMAIN = '{{ domain }}';
   const BRANDING = {{ branding | tojson }};
 </script>
-{{ include_script('imogi_pos/js/nav.js') }}
-{{ include_script('imogi_pos/js/auth.js') }}
-{{ include_script('imogi_pos/js/branch.js') }}
+
+<script src="/assets/imogi_pos/js/nav.js"></script>
+<script src="/assets/imogi_pos/js/branch.js"></script>
+<script src="/assets/imogi_pos/js/service.js"></script>
 {{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}
 {{ include_script('imogi_pos/js/print/adapter_bridge.js') }}
 {{ include_script('imogi_pos/js/print/adapter_spool.js') }}
 {{ include_script('imogi_pos/js/print/adapter_lan.js') }}
-{{ include_script('imogi_pos/js/service.js') }}
 <script src="../customer_display_editor/index.js"></script>
 {% endblock %}
