@@ -16,216 +16,239 @@
   } */
   /* Kitchen Display System CSS */
 
+/* Kitchen Display System CSS - Fixed Version */
+
+/* Reset and base styles for kitchen display */
 .kitchen-display {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5f5;
-    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    background-color: #f5f5f5 !important;
+    min-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.kitchen-display * {
+    box-sizing: border-box;
 }
 
 /* Header Styles */
-.kitchen-header {
-    background: #2c3e50;
-    color: white;
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.kitchen-display .kitchen-header {
+    background: #2c3e50 !important;
+    color: white !important;
+    padding: 1rem 2rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    position: relative !important;
+    z-index: 10 !important;
 }
 
-.kitchen-header-left {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
+.kitchen-display .kitchen-header-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 2rem !important;
 }
 
-.kitchen-title {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
+.kitchen-display .kitchen-title {
+    margin: 0 !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: white !important;
 }
 
-.station-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+.kitchen-display .station-selector {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.25rem !important;
 }
 
-.station-label {
-    font-size: 0.75rem;
-    color: #bdc3c7;
+.kitchen-display .station-label {
+    font-size: 0.75rem !important;
+    color: #bdc3c7 !important;
 }
 
-.select {
-    padding: 0.5rem;
-    border: 1px solid #34495e;
-    border-radius: 4px;
-    background: #34495e;
-    color: white;
-    min-width: 120px;
+.kitchen-display .select {
+    padding: 0.5rem !important;
+    border: 1px solid #34495e !important;
+    border-radius: 4px !important;
+    background: #34495e !important;
+    color: white !important;
+    min-width: 120px !important;
 }
 
-.kitchen-header-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.kitchen-display .kitchen-header-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 1rem !important;
 }
 
 /* Search Styles */
-.search-container {
-    position: relative;
-    display: flex;
-    align-items: center;
+.kitchen-display .search-container {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
-.search-input {
-    padding: 0.5rem 1rem;
-    border: 1px solid #34495e;
-    border-radius: 4px;
-    background: white;
-    min-width: 200px;
+.kitchen-display .search-input {
+    padding: 0.5rem 1rem !important;
+    border: 1px solid #34495e !important;
+    border-radius: 4px !important;
+    background: white !important;
+    min-width: 200px !important;
+    color: #333 !important;
 }
 
-.search-button, .refresh-button {
-    padding: 0.5rem 1rem;
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.kitchen-display .search-button, 
+.kitchen-display .refresh-button {
+    padding: 0.5rem 1rem !important;
+    background: #3498db !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.9rem !important;
 }
 
-.search-button:hover, .refresh-button:hover {
-    background: #2980b9;
+.kitchen-display .search-button:hover, 
+.kitchen-display .refresh-button:hover {
+    background: #2980b9 !important;
 }
 
 /* Header Actions */
-.header-actions {
-    display: flex;
-    gap: 0.5rem;
+.kitchen-display .header-actions {
+    display: flex !important;
+    gap: 0.5rem !important;
 }
 
-.icon-button {
-    padding: 0.5rem;
-    background: #34495e;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.kitchen-display .icon-button {
+    padding: 0.5rem !important;
+    background: #34495e !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-.icon-button:hover {
-    background: #4a5f7a;
+.kitchen-display .icon-button:hover {
+    background: #4a5f7a !important;
 }
 
-.icon-button.active {
-    background: #27ae60;
+.kitchen-display .icon-button.active {
+    background: #27ae60 !important;
 }
 
 /* Main Layout */
-.kitchen-main {
-    padding: 1rem;
+.kitchen-display .kitchen-main {
+    padding: 1rem !important;
+    background: #f5f5f5 !important;
 }
 
-.kitchen-columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1rem;
-    max-width: 1200px;
-    margin: 0 auto;
+.kitchen-display .kitchen-columns {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 1rem !important;
+    max-width: 1400px !important;
+    margin: 0 auto !important;
 }
 
 /* Column Styles */
-.kitchen-column {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    overflow: hidden;
+.kitchen-display .kitchen-column {
+    background: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+    overflow: hidden !important;
+    min-height: 200px !important;
 }
 
-.kitchen-column.collapsed {
-    opacity: 0.7;
+.kitchen-display .kitchen-column.collapsed {
+    opacity: 0.7 !important;
 }
 
-.column-header {
-    padding: 1rem;
-    background: #ecf0f1;
-    border-bottom: 1px solid #bdc3c7;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.kitchen-display .column-header {
+    padding: 1rem !important;
+    background: #ecf0f1 !important;
+    border-bottom: 1px solid #bdc3c7 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
 }
 
-.queued-column .column-header {
-    background: #fff3cd;
-    color: #856404;
+.kitchen-display .queued-column .column-header {
+    background: #fff3cd !important;
+    color: #856404 !important;
 }
 
-.preparing-column .column-header {
-    background: #d1ecf1;
-    color: #0c5460;
+.kitchen-display .preparing-column .column-header {
+    background: #d1ecf1 !important;
+    color: #0c5460 !important;
 }
 
-.ready-column .column-header {
-    background: #d4edda;
-    color: #155724;
+.kitchen-display .ready-column .column-header {
+    background: #d4edda !important;
+    color: #155724 !important;
 }
 
-.column-title {
-    font-size: 1.1rem;
-    font-weight: 600;
+.kitchen-display .column-title {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
 }
 
-.column-count {
-    background: rgba(0,0,0,0.1);
-    padding: 0.25rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.875rem;
-    font-weight: 600;
+.kitchen-display .column-count {
+    background: rgba(0,0,0,0.1) !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 12px !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    min-width: 24px !important;
+    text-align: center !important;
 }
 
-.column-content {
-    padding: 1rem;
-    max-height: 70vh;
-    overflow-y: auto;
+.kitchen-display .column-content {
+    padding: 1rem !important;
+    max-height: 70vh !important;
+    overflow-y: auto !important;
 }
 
-.column-empty {
-    text-align: center;
-    color: #7f8c8d;
-    padding: 2rem;
+.kitchen-display .column-empty {
+    text-align: center !important;
+    color: #7f8c8d !important;
+    padding: 2rem 1rem !important;
+    font-style: italic !important;
 }
 
 /* KOT Card Styles */
-.kot-card {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    overflow: hidden;
-    transition: all 0.2s ease;
+.kitchen-display .kot-card {
+    background: white !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 8px !important;
+    margin-bottom: 1rem !important;
+    overflow: hidden !important;
+    transition: all 0.2s ease !important;
+    position: relative !important;
 }
 
-.kot-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
+.kitchen-display .kot-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    transform: translateY(-2px) !important;
 }
 
-.kot-card.sla-warning {
-    border-left: 4px solid #f39c12;
+.kitchen-display .kot-card.sla-warning {
+    border-left: 4px solid #f39c12 !important;
 }
 
-.kot-card.sla-critical {
-    border-left: 4px solid #e74c3c;
-    animation: pulse 2s infinite;
+.kitchen-display .kot-card.sla-critical {
+    border-left: 4px solid #e74c3c !important;
+    animation: pulse 2s infinite !important;
 }
 
 @keyframes pulse {
@@ -235,305 +258,411 @@
 }
 
 /* KOT Header */
-.kot-header {
-    padding: 1rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+.kitchen-display .kot-header {
+    padding: 1rem !important;
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6 !important;
 }
 
-.kot-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
+.kitchen-display .kot-info {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 0.5rem !important;
 }
 
-.kot-id {
-    font-weight: 600;
-    font-size: 1rem;
-    color: #2c3e50;
+.kitchen-display .kot-id {
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    color: #2c3e50 !important;
+    margin: 0 !important;
 }
 
-.kot-time {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: #6c757d;
-    font-size: 0.875rem;
+.kitchen-display .kot-time {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    color: #6c757d !important;
+    font-size: 0.875rem !important;
 }
 
-.kot-meta {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.8rem;
-    color: #6c757d;
+.kitchen-display .kot-meta {
+    display: flex !important;
+    gap: 1rem !important;
+    font-size: 0.8rem !important;
+    color: #6c757d !important;
+    flex-wrap: wrap !important;
+}
+
+.kitchen-display .kot-meta > div {
+    margin: 0 !important;
 }
 
 /* KOT Items */
-.kot-items {
-    padding: 1rem;
+.kitchen-display .kot-items {
+    padding: 1rem !important;
+    background: white !important;
 }
 
-.kot-items.collapsed {
-    display: none;
+.kitchen-display .kot-items.collapsed {
+    display: none !important;
 }
 
-.kot-item {
-    display: flex;
-    gap: 0.75rem;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f8f9fa;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+.kitchen-display .kot-item {
+    display: flex !important;
+    gap: 0.75rem !important;
+    padding: 0.5rem 0 !important;
+    border-bottom: 1px solid #f8f9fa !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+    align-items: flex-start !important;
 }
 
-.kot-item:hover {
-    background: #f8f9fa;
+.kitchen-display .kot-item:hover {
+    background: #f8f9fa !important;
 }
 
-.kot-item:last-child {
-    border-bottom: none;
+.kitchen-display .kot-item:last-child {
+    border-bottom: none !important;
 }
 
-.kot-item.queued {
-    border-left: 3px solid #ffc107;
+.kitchen-display .kot-item.queued {
+    border-left: 3px solid #ffc107 !important;
+    padding-left: 0.5rem !important;
 }
 
-.kot-item.in-progress {
-    border-left: 3px solid #17a2b8;
+.kitchen-display .kot-item.in-progress {
+    border-left: 3px solid #17a2b8 !important;
+    padding-left: 0.5rem !important;
 }
 
-.kot-item.ready {
-    border-left: 3px solid #28a745;
+.kitchen-display .kot-item.ready {
+    border-left: 3px solid #28a745 !important;
+    padding-left: 0.5rem !important;
 }
 
-.kot-item.served {
-    border-left: 3px solid #6c757d;
-    opacity: 0.6;
+.kitchen-display .kot-item.served {
+    border-left: 3px solid #6c757d !important;
+    padding-left: 0.5rem !important;
+    opacity: 0.6 !important;
 }
 
-.kot-item-qty {
-    font-weight: 600;
-    color: #495057;
-    min-width: 2rem;
+.kitchen-display .kot-item-qty {
+    font-weight: 600 !important;
+    color: #495057 !important;
+    min-width: 2rem !important;
+    text-align: center !important;
+    background: #e9ecef !important;
+    border-radius: 4px !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
 }
 
-.kot-item-details {
-    flex: 1;
+.kitchen-display .kot-item-details {
+    flex: 1 !important;
 }
 
-.kot-item-name {
-    font-weight: 500;
-    margin-bottom: 0.25rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.kitchen-display .kot-item-name {
+    font-weight: 500 !important;
+    margin-bottom: 0.25rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    color: #333 !important;
 }
 
-.item-status-badge {
-    background: #6c757d;
-    color: white;
-    padding: 0.125rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
+.kitchen-display .item-status-badge {
+    background: #6c757d !important;
+    color: white !important;
+    padding: 0.125rem 0.5rem !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
 }
 
-.kot-item-note {
-    color: #6c757d;
-    font-size: 0.875rem;
-    font-style: italic;
+.kitchen-display .kot-item-note {
+    color: #6c757d !important;
+    font-size: 0.875rem !important;
+    font-style: italic !important;
+    margin-bottom: 0.25rem !important;
 }
 
-.item-options {
-    margin-top: 0.25rem;
+.kitchen-display .item-options {
+    margin-top: 0.25rem !important;
 }
 
-.options-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+.kitchen-display .options-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.25rem !important;
 }
 
-.options-list li {
-    background: #e9ecef;
-    padding: 0.125rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    color: #495057;
+.kitchen-display .options-list li {
+    background: #e9ecef !important;
+    padding: 0.125rem 0.5rem !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    color: #495057 !important;
+}
+
+.kitchen-display .empty-items {
+    text-align: center !important;
+    color: #999 !important;
+    font-style: italic !important;
+    padding: 1rem !important;
 }
 
 /* KOT Actions */
-.kot-actions {
-    padding: 1rem;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+.kitchen-display .kot-actions {
+    padding: 1rem !important;
+    background: #f8f9fa !important;
+    border-top: 1px solid #dee2e6 !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
 }
 
-.kot-action-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    background: white;
-    color: #495057;
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+.kitchen-display .kot-action-btn {
+    padding: 0.5rem 1rem !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px !important;
+    background: white !important;
+    color: #495057 !important;
+    cursor: pointer !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    text-decoration: none !important;
 }
 
-.kot-action-btn:hover {
-    background: #e9ecef;
+.kitchen-display .kot-action-btn:hover {
+    background: #e9ecef !important;
+    text-decoration: none !important;
 }
 
-.kot-action-btn.primary {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
+.kitchen-display .kot-action-btn.primary {
+    background: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
 }
 
-.kot-action-btn.primary:hover {
-    background: #0056b3;
-    border-color: #0056b3;
+.kitchen-display .kot-action-btn.primary:hover {
+    background: #0056b3 !important;
+    border-color: #0056b3 !important;
 }
 
-.start-btn {
+.kitchen-display .start-btn {
     background: #ffc107 !important;
     color: #212529 !important;
     border-color: #ffc107 !important;
 }
 
-.ready-btn {
+.kitchen-display .start-btn:hover {
+    background: #e0a800 !important;
+    border-color: #d39e00 !important;
+}
+
+.kitchen-display .ready-btn {
     background: #28a745 !important;
     color: white !important;
     border-color: #28a745 !important;
 }
 
-.serve-btn {
+.kitchen-display .ready-btn:hover {
+    background: #218838 !important;
+    border-color: #1e7e34 !important;
+}
+
+.kitchen-display .serve-btn {
     background: #6c757d !important;
     color: white !important;
     border-color: #6c757d !important;
 }
 
+.kitchen-display .serve-btn:hover {
+    background: #5a6268 !important;
+    border-color: #545b62 !important;
+}
+
+.kitchen-display .print-btn,
+.kitchen-display .info-btn {
+    background: #17a2b8 !important;
+    color: white !important;
+    border-color: #17a2b8 !important;
+    min-width: 40px !important;
+    justify-content: center !important;
+}
+
+.kitchen-display .print-btn:hover,
+.kitchen-display .info-btn:hover {
+    background: #138496 !important;
+    border-color: #117a8b !important;
+}
+
 /* Compact View */
 .kitchen-display.compact-view .kot-card {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.5rem !important;
 }
 
 .kitchen-display.compact-view .kot-header,
 .kitchen-display.compact-view .kot-actions {
-    padding: 0.75rem;
+    padding: 0.75rem !important;
 }
 
 .kitchen-display.compact-view .kot-items {
-    padding: 0.5rem;
+    padding: 0.5rem !important;
 }
 
 .kitchen-display.compact-view .kot-item {
-    padding: 0.25rem 0;
+    padding: 0.25rem 0 !important;
+}
+
+.kitchen-display .kot-item-count {
+    background: rgba(0,0,0,0.1) !important;
+    color: #666 !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.kitchen-display .kot-toggle-btn {
+    background: none !important;
+    border: none !important;
+    color: #6c757d !important;
+    cursor: pointer !important;
+    padding: 0.25rem !important;
+    border-radius: 4px !important;
+}
+
+.kitchen-display .kot-toggle-btn:hover {
+    background: rgba(0,0,0,0.1) !important;
 }
 
 /* Modal Styles */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+.kitchen-display #modal-root {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1000 !important;
+    pointer-events: none !important;
 }
 
-#modal-root.active .modal-overlay {
-    display: flex;
+.kitchen-display #modal-root.active {
+    pointer-events: all !important;
 }
 
-.modal-container {
-    background: white;
-    border-radius: 8px;
-    max-width: 90vw;
-    max-height: 90vh;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+.kitchen-display .modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0,0,0,0.5) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 1001 !important;
 }
 
-.modal-header {
-    padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.kitchen-display #modal-root.active .modal-overlay {
+    display: flex !important;
 }
 
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #6c757d;
+.kitchen-display .modal-container {
+    background: white !important;
+    border-radius: 8px !important;
+    max-width: 90vw !important;
+    max-height: 90vh !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
 }
 
-.modal-body {
-    padding: 1.5rem;
-    max-height: 60vh;
-    overflow-y: auto;
+.kitchen-display .modal-header {
+    padding: 1rem 1.5rem !important;
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
 }
 
-.modal-footer {
-    padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
+.kitchen-display .modal-header h3 {
+    margin: 0 !important;
+    color: #333 !important;
 }
 
-.modal-button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    background: white;
-    cursor: pointer;
+.kitchen-display .modal-close {
+    background: none !important;
+    border: none !important;
+    font-size: 1.5rem !important;
+    cursor: pointer !important;
+    color: #6c757d !important;
+    padding: 0 !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-.modal-button.primary {
-    background: #007bff;
-    color: white;
-    border-color: #007bff;
+.kitchen-display .modal-body {
+    padding: 1.5rem !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+}
+
+.kitchen-display .modal-footer {
+    padding: 1rem 1.5rem !important;
+    background: #f8f9fa !important;
+    border-top: 1px solid #dee2e6 !important;
+    display: flex !important;
+    gap: 0.5rem !important;
+    justify-content: flex-end !important;
+}
+
+.kitchen-display .modal-button {
+    padding: 0.5rem 1rem !important;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 4px !important;
+    background: white !important;
+    cursor: pointer !important;
+    color: #495057 !important;
+}
+
+.kitchen-display .modal-button.primary {
+    background: #007bff !important;
+    color: white !important;
+    border-color: #007bff !important;
 }
 
 /* Toast Styles */
-.toast-container {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 2000;
+.kitchen-display .toast-container {
+    position: fixed !important;
+    top: 1rem !important;
+    right: 1rem !important;
+    z-index: 2000 !important;
 }
 
-.toast {
-    background: white;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    margin-bottom: 0.5rem;
-    overflow: hidden;
-    transform: translateX(100%);
-    animation: slideIn 0.3s ease forwards;
+.kitchen-display .toast {
+    background: white !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    margin-bottom: 0.5rem !important;
+    overflow: hidden !important;
+    transform: translateX(100%) !important;
+    animation: slideIn 0.3s ease forwards !important;
 }
 
-.toast.toast-hiding {
-    animation: slideOut 0.3s ease forwards;
+.kitchen-display .toast.toast-hiding {
+    animation: slideOut 0.3s ease forwards !important;
 }
 
 @keyframes slideIn {
@@ -544,49 +673,64 @@
     to { transform: translateX(100%); }
 }
 
-.toast-content {
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+.kitchen-display .toast-content {
+    padding: 1rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
 }
 
-.toast-error {
-    border-left: 4px solid #dc3545;
+.kitchen-display .toast-error {
+    border-left: 4px solid #dc3545 !important;
 }
 
-.toast-success {
-    border-left: 4px solid #28a745;
+.kitchen-display .toast-success {
+    border-left: 4px solid #28a745 !important;
 }
 
-.toast-icon {
-    font-size: 1.2rem;
+.kitchen-display .toast-icon {
+    font-size: 1.2rem !important;
 }
 
-.toast-error .toast-icon {
-    color: #dc3545;
+.kitchen-display .toast-error .toast-icon {
+    color: #dc3545 !important;
 }
 
-.toast-success .toast-icon {
-    color: #28a745;
+.kitchen-display .toast-success .toast-icon {
+    color: #28a745 !important;
+}
+
+.kitchen-display .toast-message {
+    color: #333 !important;
+    margin: 0 !important;
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+    .kitchen-display .kitchen-columns {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
 @media (max-width: 768px) {
-    .kitchen-columns {
-        grid-template-columns: 1fr;
+    .kitchen-display .kitchen-columns {
+        grid-template-columns: 1fr !important;
     }
     
-    .kitchen-header {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
+    .kitchen-display .kitchen-header {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        text-align: center !important;
     }
     
-    .kitchen-header-left,
-    .kitchen-header-right {
-        flex-direction: column;
-        gap: 0.5rem;
+    .kitchen-display .kitchen-header-left,
+    .kitchen-display .kitchen-header-right {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+
+    .kitchen-display .search-input {
+        min-width: 150px !important;
     }
 }
 </style>
