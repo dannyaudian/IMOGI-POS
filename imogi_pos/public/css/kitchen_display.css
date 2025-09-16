@@ -57,11 +57,79 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  background-color: rgba(255, 255, 255, 0.12);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+.search-input {
+  background: transparent;
+  border: none;
+  color: var(--brand-text);
+  flex: 1;
+  min-width: 140px;
+  font-size: var(--font-size-sm);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-button {
+  background: transparent;
+  border: none;
+  color: var(--brand-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.search-button:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.header-actions .icon-button {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--brand-text);
+  border-radius: var(--radius-md);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-actions .icon-button:hover,
+.header-actions .icon-button.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .refresh-button {
@@ -91,12 +159,15 @@
 .kitchen-main {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
   overflow: hidden;
   padding: var(--spacing-4);
 }
 
 /* ===== KITCHEN COLUMNS ===== */
 .kitchen-columns {
+  flex: 1;
   display: flex;
   width: 100%;
   gap: var(--spacing-4);
@@ -444,7 +515,7 @@
 
 /* ===== FILTERS AND SORTING ===== */
 .kitchen-filters {
-  margin-bottom: var(--spacing-4);
+  margin-bottom: 0;
   display: flex;
   gap: var(--spacing-3);
   align-items: center;

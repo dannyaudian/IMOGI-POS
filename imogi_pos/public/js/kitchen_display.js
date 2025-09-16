@@ -304,22 +304,16 @@ imogi_pos.kitchen_display = {
             filtersContainer.id = 'kitchen-filters';
             filtersContainer.className = 'kitchen-filters';
 
-            const controls = this.container.querySelector('.kitchen-controls');
-            if (controls && controls.parentNode) {
-                controls.parentNode.insertBefore(filtersContainer, controls.nextSibling);
+            const main = this.container.querySelector('.kitchen-main');
+            if (main) {
+                main.insertBefore(filtersContainer, main.firstChild);
             } else {
-                this.container.insertBefore(filtersContainer, this.container.firstChild);
+                this.container.appendChild(filtersContainer);
             }
         }
 
         filtersContainer.innerHTML = '';
-
-        if (!showKitchen && !showStation) {
-            filtersContainer.style.display = 'none';
-            return;
-        }
-
-        filtersContainer.style.display = '';
+        filtersContainer.style.display = 'none';
 
         const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
             ? this.options.kitchenSelector.slice(1)
@@ -328,92 +322,121 @@ imogi_pos.kitchen_display = {
             ? this.options.stationSelector.slice(1)
             : 'station-selector';
 
-        if (showKitchen) {
-            const kitchenGroup = document.createElement('div');
-            kitchenGroup.className = 'filter-group';
+        const kitchenSelect = this.container.querySelector(`#${kitchenSelectorId}`);
+        const stationSelect = this.container.querySelector(`#${stationSelectorId}`);
 
-            const kitchenLabel = document.createElement('span');
-            kitchenLabel.className = 'filter-label';
-            kitchenLabel.textContent = 'Kitchen';
-            kitchenGroup.appendChild(kitchenLabel);
+        const kitchenWrapper = kitchenSelect ? kitchenSelect.closest('.station-selector') : null;
+        const stationWrapper = stationSelect ? stationSelect.closest('.station-selector') : null;
 
-            const kitchenSelector = document.createElement('select');
-            kitchenSelector.id = kitchenSelectorId;
-            kitchenSelector.className = 'filter-select';
+        if (kitchenWrapper) {
+            kitchenWrapper.style.display = showKitchen ? '' : 'none';
+        }
+
+        if (stationWrapper) {
+            stationWrapper.style.display = showStation ? '' : 'none';
+        }
+
+        if (kitchenSelect) {
+            kitchenSelect.innerHTML = '';
 
             const defaultKitchenOption = document.createElement('option');
             defaultKitchenOption.value = '';
             defaultKitchenOption.textContent = 'All Kitchens';
-            kitchenSelector.appendChild(defaultKitchenOption);
+            kitchenSelect.appendChild(defaultKitchenOption);
 
-            this.state.kitchens.forEach(kitchen => {
-                const option = document.createElement('option');
-                option.value = kitchen.name;
-                option.textContent = kitchen.kitchen_name;
-                kitchenSelector.appendChild(option);
-            });
+            if (showKitchen && this.state.kitchens.length) {
+                this.state.kitchens.forEach(kitchen => {
+                    const option = document.createElement('option');
+                    option.value = kitchen.name;
+                    option.textContent = kitchen.kitchen_name;
+                    kitchenSelect.appendChild(option);
+                });
+                kitchenSelect.disabled = false;
+            } else {
+                kitchenSelect.disabled = true;
+            }
 
-            kitchenSelector.value = this.settings.kitchen || '';
-
-            kitchenSelector.addEventListener('change', () => {
-                this.settings.kitchen = kitchenSelector.value;
+            kitchenSelect.value = this.settings.kitchen || '';
+            kitchenSelect.onchange = () => {
+                this.settings.kitchen = kitchenSelect.value;
                 this.saveSettings();
-                this.loadKotTickets();
-            });
-
-            kitchenGroup.appendChild(kitchenSelector);
-            filtersContainer.appendChild(kitchenGroup);
+                this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+            };
         }
 
-        if (showStation) {
-            const stationGroup = document.createElement('div');
-            stationGroup.className = 'filter-group';
-
-            const stationLabel = document.createElement('span');
-            stationLabel.className = 'filter-label';
-            stationLabel.textContent = 'Station';
-            stationGroup.appendChild(stationLabel);
-
-            const stationSelector = document.createElement('select');
-            stationSelector.id = stationSelectorId;
-            stationSelector.className = 'filter-select';
+        if (stationSelect) {
+            stationSelect.innerHTML = '';
 
             const defaultStationOption = document.createElement('option');
             defaultStationOption.value = '';
             defaultStationOption.textContent = 'All Stations';
-            stationSelector.appendChild(defaultStationOption);
+            stationSelect.appendChild(defaultStationOption);
 
-            this.state.stations.forEach(station => {
-                const option = document.createElement('option');
-                option.value = station.name;
-                option.textContent = station.station_name;
-                stationSelector.appendChild(option);
-            });
+            if (showStation && this.state.stations.length) {
+                this.state.stations.forEach(station => {
+                    const option = document.createElement('option');
+                    option.value = station.name;
+                    option.textContent = station.station_name;
+                    stationSelect.appendChild(option);
+                });
+                stationSelect.disabled = false;
+            } else {
+                stationSelect.disabled = true;
+            }
 
-            stationSelector.value = this.settings.station || '';
-
-            stationSelector.addEventListener('change', () => {
-                this.settings.station = stationSelector.value;
+            stationSelect.value = this.settings.station || '';
+            stationSelect.onchange = () => {
+                this.settings.station = stationSelect.value;
                 this.saveSettings();
-                this.loadKotTickets();
-            });
-
-            stationGroup.appendChild(stationSelector);
-            filtersContainer.appendChild(stationGroup);
+                this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+            };
         }
-        
-        // Bind change events
-        kitchenSelector.addEventListener('change', () => {
-            this.settings.kitchen = kitchenSelector.value;
-            this.saveSettings();
-            this.safeStep('fetching KOT tickets', () => this.fetchTickets());
-        });
+    },
 
-        stationSelector.addEventListener('change', () => {
-            this.settings.station = stationSelector.value;
-            this.saveSettings();
-            this.safeStep('fetching KOT tickets', () => this.fetchTickets());
-        });
+    clearKitchenFilters: function() {
+        const filtersContainer = this.container.querySelector('#kitchen-filters');
+        if (filtersContainer) {
+            filtersContainer.innerHTML = '';
+            filtersContainer.style.display = 'none';
+        }
+
+        const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
+            ? this.options.kitchenSelector.slice(1)
+            : 'kitchen-selector';
+        const stationSelectorId = this.options.stationSelector && this.options.stationSelector.startsWith('#')
+            ? this.options.stationSelector.slice(1)
+            : 'station-selector';
+
+        const kitchenSelect = this.container.querySelector(`#${kitchenSelectorId}`);
+        const stationSelect = this.container.querySelector(`#${stationSelectorId}`);
+
+        if (kitchenSelect) {
+            kitchenSelect.innerHTML = '';
+            const defaultKitchenOption = document.createElement('option');
+            defaultKitchenOption.value = '';
+            defaultKitchenOption.textContent = 'All Kitchens';
+            kitchenSelect.appendChild(defaultKitchenOption);
+            kitchenSelect.disabled = true;
+
+            const wrapper = kitchenSelect.closest('.station-selector');
+            if (wrapper) {
+                wrapper.style.display = 'none';
+            }
+        }
+
+        if (stationSelect) {
+            stationSelect.innerHTML = '';
+            const defaultStationOption = document.createElement('option');
+            defaultStationOption.value = '';
+            defaultStationOption.textContent = 'All Stations';
+            stationSelect.appendChild(defaultStationOption);
+            stationSelect.disabled = true;
+
+            const wrapper = stationSelect.closest('.station-selector');
+            if (wrapper) {
+                wrapper.style.display = 'none';
+            }
+        }
     },
     
     /**
@@ -828,67 +851,103 @@ imogi_pos.kitchen_display = {
      * Render the main UI
      */
     renderUI: function() {
+        this.container.classList.add('kitchen-display');
+        this.container.classList.toggle('compact-view', this.state.viewMode === 'compact');
+
+        const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
+            ? this.options.kitchenSelector.slice(1)
+            : 'kitchen-selector';
+        const stationSelectorId = this.options.stationSelector && this.options.stationSelector.startsWith('#')
+            ? this.options.stationSelector.slice(1)
+            : 'station-selector';
+
         this.container.innerHTML = `
-            <div class="kitchen-display-layout ${this.state.viewMode === 'compact' ? 'compact-view' : ''}">
-                <div class="kitchen-controls">
+            <header class="kitchen-header">
+                <div class="kitchen-header-left">
+                    <h1 class="kitchen-title">Kitchen Display</h1>
+                    <div class="station-selector" style="display: none;">
+                        <label class="station-label" for="${kitchenSelectorId}">Kitchen</label>
+                        <select id="${kitchenSelectorId}" class="select" disabled>
+                            <option value="">All Kitchens</option>
+                        </select>
+                    </div>
+                    <div class="station-selector" style="display: none;">
+                        <label class="station-label" for="${stationSelectorId}">Station</label>
+                        <select id="${stationSelectorId}" class="select" disabled>
+                            <option value="">All Stations</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="kitchen-header-right">
                     <div class="search-container">
                         <input type="text" id="kot-search" placeholder="Search orders..." class="search-input">
-                        <button id="search-btn" class="search-button">
+                        <button id="search-btn" class="search-button" title="Search">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
-                    <div class="view-controls">
-                        <button id="refresh-btn" class="control-button" title="Refresh">
+                    <div class="header-actions">
+                        <button id="refresh-btn" class="refresh-button" title="Refresh">
                             <i class="fa fa-sync"></i>
+                            <span>Refresh</span>
                         </button>
-                        <button id="view-mode-btn" class="control-button" title="${this.state.viewMode === 'compact' ? 'Switch to Full View' : 'Switch to Compact View'}">
+                        <button id="view-mode-btn" class="icon-button" title="${this.state.viewMode === 'compact' ? 'Switch to Full View' : 'Switch to Compact View'}">
                             <i class="fa ${this.state.viewMode === 'compact' ? 'fa-expand' : 'fa-compress'}"></i>
                         </button>
-                        <button id="sort-mode-btn" class="control-button" title="Sort: ${this.state.sortMode}">
+                        <button id="sort-mode-btn" class="icon-button" title="Sort: ${this.state.sortMode}">
                             <i class="fa fa-sort"></i>
                         </button>
-                        <button id="sound-toggle-btn" class="control-button ${this.settings.sound.enabled ? 'active' : ''}" title="${this.settings.sound.enabled ? 'Mute Sounds' : 'Enable Sounds'}">
+                        <button id="sound-toggle-btn" class="icon-button ${this.settings.sound.enabled ? 'active' : ''}" title="${this.settings.sound.enabled ? 'Mute Sounds' : 'Enable Sounds'}">
                             <i class="fa ${this.settings.sound.enabled ? 'fa-volume-up' : 'fa-volume-mute'}"></i>
                         </button>
-                        <button id="settings-btn" class="control-button" title="Settings">
+                        <button id="settings-btn" class="icon-button" title="Settings">
                             <i class="fa fa-cog"></i>
                         </button>
                     </div>
                 </div>
-
+            </header>
+            <main class="kitchen-main">
                 <div id="kitchen-filters" class="kitchen-filters" style="display: none;"></div>
-
                 <div class="kitchen-columns">
-                    <div class="kitchen-column queued-column">
+                    <section class="kitchen-column column-queued queued-column">
                         <div class="column-header">
-                            <h3>Queued</h3>
+                            <div class="column-title">Queued</div>
                             <div class="column-count" id="queued-count">0</div>
                         </div>
-                        <div class="column-content" id="queued-container"></div>
-                    </div>
-                    
-                    <div class="kitchen-column preparing-column">
+                        <div class="column-body column-content" id="queued-container">
+                            <div class="column-empty empty-column">
+                                <p>No queued orders</p>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="kitchen-column column-preparing preparing-column">
                         <div class="column-header">
-                            <h3>In Progress</h3>
+                            <div class="column-title">In Progress</div>
                             <div class="column-count" id="preparing-count">0</div>
                         </div>
-                        <div class="column-content" id="preparing-container"></div>
-                    </div>
-                    
-                    <div class="kitchen-column ready-column">
+                        <div class="column-body column-content" id="preparing-container">
+                            <div class="column-empty empty-column">
+                                <p>No orders in progress</p>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="kitchen-column column-ready ready-column">
                         <div class="column-header">
-                            <h3>Ready</h3>
+                            <div class="column-title">Ready</div>
                             <div class="column-count" id="ready-count">0</div>
                         </div>
-                        <div class="column-content" id="ready-container"></div>
-                    </div>
+                        <div class="column-body column-content" id="ready-container">
+                            <div class="column-empty empty-column">
+                                <p>No ready orders</p>
+                            </div>
+                        </div>
+                    </section>
                 </div>
-            </div>
-            
+            </main>
+
             <div id="modal-root"></div>
             <div id="toast-container" class="toast-container"></div>
         `;
-        
+
     },
     
     /**
@@ -963,7 +1022,7 @@ imogi_pos.kitchen_display = {
         this.saveSettings();
         
         // Update container class
-        this.container.querySelector('.kitchen-display-layout').classList.toggle('compact-view', this.state.viewMode === 'compact');
+        this.container.classList.toggle('compact-view', this.state.viewMode === 'compact');
         
         // Update button icon
         const viewModeBtn = this.container.querySelector('#view-mode-btn');
@@ -1214,7 +1273,7 @@ imogi_pos.kitchen_display = {
     renderKotColumn: function(container, kots, status) {
         if (kots.length === 0) {
             container.innerHTML = `
-                <div class="empty-column">
+                <div class="column-empty empty-column">
                     <p>No ${status.toLowerCase()} orders</p>
                 </div>
             `;
