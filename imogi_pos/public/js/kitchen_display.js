@@ -1067,11 +1067,12 @@ imogi_pos.kitchen_display = {
         
         // Build items HTML
         let itemsHtml = '';
+        const optionContentMap = [];
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                const optionsText = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+                const optionsHtml = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
 
                 itemsHtml += `
                     <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
@@ -1080,10 +1081,14 @@ imogi_pos.kitchen_display = {
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-status-badge">${itemStatus}</div>
                         </div>
-                        ${optionsText ? `<div class="item-options">${optionsText}</div>` : ""}
+                        ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
+
+                if (optionsHtml) {
+                    optionContentMap.push({ idx: item.idx, html: optionsHtml });
+                }
             });
         } else {
             itemsHtml = `<div class="empty-items">No items</div>`;
@@ -1137,7 +1142,14 @@ imogi_pos.kitchen_display = {
                 </button>
             </div>
         `;
-        
+
+        optionContentMap.forEach(({ idx, html }) => {
+            const optionsContainer = card.querySelector(`.item-options[data-options-idx="${idx}"]`);
+            if (optionsContainer) {
+                optionsContainer.innerHTML = html;
+            }
+        });
+
         // Add compact view markup if needed
         if (this.state.viewMode === 'compact') {
             // Add item count badge
@@ -1621,32 +1633,81 @@ imogi_pos.kitchen_display = {
     },
 
     /**
-     * Format item options into human readable text
+     * Format item options into a human readable HTML list
      * @param {Object|string} options - Item options
-     * @returns {string} Formatted options text
+     * @returns {string} Formatted options HTML
      */
     formatItemOptions: function(options) {
         if (!options) return '';
-        if (typeof options === 'string') {
-            try { options = JSON.parse(options); } catch (e) { return options; }
+
+        const escapeHtml = (value) => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const extractDisplayValue = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                return String(value);
+            }
+
+            if (typeof value === 'object') {
+                if (value.name) return String(value.name);
+                if (value.label) return String(value.label);
+                if (value.value) return String(value.value);
+            }
+
+            return '';
+        };
+
+        let parsedOptions = options;
+        if (typeof parsedOptions === 'string') {
+            try {
+                parsedOptions = JSON.parse(parsedOptions);
+            } catch (e) {
+                const fallbackValue = extractDisplayValue(parsedOptions);
+                return fallbackValue ? `<ul class="options-list"><li>${escapeHtml(fallbackValue)}</li></ul>` : '';
+            }
         }
-        const parts = [];
-        if (options.size) {
-            parts.push(`Size: ${options.size.name}`);
+
+        if (!parsedOptions || typeof parsedOptions !== 'object') {
+            const fallbackValue = extractDisplayValue(parsedOptions);
+            return fallbackValue ? `<ul class="options-list"><li>${escapeHtml(fallbackValue)}</li></ul>` : '';
         }
-        if (options.spice) {
-            parts.push(`Spice: ${options.spice.name}`);
+
+        const listItems = [];
+        const addOption = (label, optionValue) => {
+            const displayValue = extractDisplayValue(optionValue);
+            if (!displayValue) return;
+            listItems.push(`<li>${escapeHtml(label)}: ${escapeHtml(displayValue)}</li>`);
+        };
+
+        addOption('Size', parsedOptions.size);
+        addOption('Spice', parsedOptions.spice);
+        addOption('Sugar', parsedOptions.sugar);
+        addOption('Ice', parsedOptions.ice);
+
+        if (Array.isArray(parsedOptions.toppings) && parsedOptions.toppings.length) {
+            const toppings = parsedOptions.toppings
+                .map(topping => extractDisplayValue(topping))
+                .filter(Boolean)
+                .map(value => escapeHtml(value));
+
+            if (toppings.length) {
+                listItems.push(`<li>Toppings: ${toppings.join(', ')}</li>`);
+            }
         }
-        if (options.sugar) {
-            parts.push(`Sugar: ${options.sugar.name}`);
+
+        if (!listItems.length) {
+            return '';
         }
-        if (options.ice) {
-            parts.push(`Ice: ${options.ice.name}`);
-        }
-        if (options.toppings && options.toppings.length) {
-            parts.push(`Toppings: ${options.toppings.map(t => t.name).join(', ')}`);
-        }
-        return parts.join(' | ');
+
+        return `<ul class="options-list">${listItems.join('')}</ul>`;
     },
 
     /**
