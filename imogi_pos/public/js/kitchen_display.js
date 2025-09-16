@@ -1102,7 +1102,26 @@ imogi_pos.kitchen_display = {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                const optionsHtml = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+                const optionsDisplay = (item.options_display || '').trim();
+                let optionsHtml = '';
+
+                if (optionsDisplay) {
+                    const optionParts = optionsDisplay
+                        .split('|')
+                        .map(part => part.trim())
+                        .filter(Boolean);
+
+                    if (optionParts.length) {
+                        const listItems = optionParts
+                            .map(part => `<li>${this.escapeHtml(part)}</li>`)
+                            .join('');
+                        optionsHtml = `<ul class="options-list">${listItems}</ul>`;
+                    } else {
+                        optionsHtml = `<ul class="options-list"><li>${this.escapeHtml(optionsDisplay)}</li></ul>`;
+                    }
+                } else if (item.item_options) {
+                    optionsHtml = this.formatItemOptions(item.item_options);
+                }
 
                 itemsHtml += `
                     <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
@@ -1112,7 +1131,6 @@ imogi_pos.kitchen_display = {
                                 ${item.item_name}
                                 <span class="item-status-badge">${itemStatus}</span>
                             </div>
-                            ${optionsText ? `<div class="kot-item-note">${optionsText}</div>` : ""}
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
                         </div>
                         ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
