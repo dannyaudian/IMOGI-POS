@@ -306,7 +306,7 @@ imogi_pos.kitchen_display = {
         if (!filtersContainer) {
             filtersContainer = document.createElement('div');
             filtersContainer.id = 'kitchen-filters';
-            filtersContainer.className = 'kitchen-filters';
+            filtersContainer.className = 'kitchen-filters hidden';
 
             const main = this.container.querySelector('.kitchen-main');
             if (main) {
@@ -317,7 +317,7 @@ imogi_pos.kitchen_display = {
         }
 
         filtersContainer.innerHTML = '';
-        filtersContainer.style.display = 'none';
+        filtersContainer.classList.add('hidden');
 
         const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
             ? this.options.kitchenSelector.slice(1)
@@ -333,11 +333,11 @@ imogi_pos.kitchen_display = {
         const stationWrapper = stationSelect ? stationSelect.closest('.station-selector') : null;
 
         if (kitchenWrapper) {
-            kitchenWrapper.style.display = showKitchen ? '' : 'none';
+            kitchenWrapper.classList.toggle('hidden', !showKitchen);
         }
 
         if (stationWrapper) {
-            stationWrapper.style.display = showStation ? '' : 'none';
+            stationWrapper.classList.toggle('hidden', !showStation);
         }
 
         if (kitchenSelect) {
@@ -403,7 +403,7 @@ imogi_pos.kitchen_display = {
         const filtersContainer = this.container.querySelector('#kitchen-filters');
         if (filtersContainer) {
             filtersContainer.innerHTML = '';
-            filtersContainer.style.display = 'none';
+            filtersContainer.classList.add('hidden');
         }
 
         const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
@@ -426,7 +426,7 @@ imogi_pos.kitchen_display = {
 
             const wrapper = kitchenSelect.closest('.station-selector');
             if (wrapper) {
-                wrapper.style.display = 'none';
+                wrapper.classList.add('hidden');
             }
         }
 
@@ -440,7 +440,7 @@ imogi_pos.kitchen_display = {
 
             const wrapper = stationSelect.closest('.station-selector');
             if (wrapper) {
-                wrapper.style.display = 'none';
+                wrapper.classList.add('hidden');
             }
         }
     },
@@ -998,13 +998,13 @@ imogi_pos.kitchen_display = {
             <header class="kitchen-header">
                 <div class="kitchen-header-left">
                     <h1 class="kitchen-title">Kitchen Display</h1>
-                    <div class="station-selector" style="display: none;">
+                    <div class="station-selector hidden">
                         <label class="station-label" for="${kitchenSelectorId}">Kitchen</label>
                         <select id="${kitchenSelectorId}" class="select" disabled>
                             <option value="">All Kitchens</option>
                         </select>
                     </div>
-                    <div class="station-selector" style="display: none;">
+                    <div class="station-selector hidden">
                         <label class="station-label" for="${stationSelectorId}">Station</label>
                         <select id="${stationSelectorId}" class="select" disabled>
                             <option value="">All Stations</option>
@@ -1039,7 +1039,7 @@ imogi_pos.kitchen_display = {
                 </div>
             </header>
             <main class="kitchen-main">
-                <div id="kitchen-filters" class="kitchen-filters" style="display: none;"></div>
+                <div id="kitchen-filters" class="kitchen-filters hidden"></div>
                 <div class="kitchen-columns">
                     <section class="kitchen-column column-queued queued-column">
                         <div class="column-header">
