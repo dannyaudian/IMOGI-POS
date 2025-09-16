@@ -2339,6 +2339,7 @@ imogi_pos.kitchen_display = {
     }
 };
 
+// Di akhir file kitchen_display.js, pastikan kode ini terlihat seperti berikut:
 imogi_pos.kitchen_display.lifecycle = {
     init: imogi_pos.kitchen_display.init.bind(imogi_pos.kitchen_display),
     fetchTickets: imogi_pos.kitchen_display.fetchTickets.bind(imogi_pos.kitchen_display),
