@@ -5,6 +5,17 @@
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/kitchen_display.css">
+<style>
+  :root {
+    --brand-primary: {{ branding.primary_color }};
+    --brand-accent: {{ branding.accent_color }};
+    --brand-header-bg: {{ branding.header_bg }};
+    {% if branding.text_color %}
+    --brand-text: {{ branding.text_color }};
+    {% endif %}
+  } */
+  /* Kitchen Display System CSS
+</style>
 {% endblock %}
 
 {% block content %}
