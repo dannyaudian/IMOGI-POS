@@ -274,19 +274,21 @@
 
 .options-list {
   margin: var(--spacing-1) 0 0;
-  padding-left: var(--spacing-4);
-  list-style: disc;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
   color: var(--color-gray-700);
   font-size: var(--font-size-sm);
 }
 
 .options-list li {
-  margin-bottom: var(--spacing-0-5);
+  background-color: var(--color-gray-50);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-left: 3px solid var(--color-gray-200);
   line-height: 1.4;
-}
-
-.options-list li:last-child {
-  margin-bottom: 0;
 }
 
 .kot-item-qty {
