@@ -74,25 +74,69 @@
 {% endblock %}
 
 {% block script %}
-<script>
-  // Konstanta global yang dibutuhkan
-  const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
-  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
-  const DOMAIN = '{{ domain }}';
-  const BRANDING = {{ branding | tojson }};
-</script>
-
-<!-- Load script dalam urutan yang benar -->
+<!-- Script lainnya tetap seperti semula -->
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/branch.js"></script>
 <script src="/assets/imogi_pos/js/kitchen_display.js"></script>
 
-<!-- Script inisialisasi KDS -->
+<!-- Tambahkan script debugging ini -->
 <script>
-  /**
-   * Tampilkan pesan error jika terjadi masalah
-   */
-  function showError(message, details) {
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Loaded, checking for kitchen_display objects:');
+    
+    // Cek ketersediaan imogi_pos
+    if (typeof imogi_pos === 'undefined') {
+      console.error('imogi_pos tidak tersedia!');
+      showDebugError('imogi_pos tidak tersedia');
+      return;
+    }
+    
+    console.log('imogi_pos tersedia:', imogi_pos);
+    
+    // Cek ketersediaan kitchen_display
+    if (typeof imogi_pos.kitchen_display === 'undefined') {
+      console.error('imogi_pos.kitchen_display tidak tersedia!');
+      showDebugError('imogi_pos.kitchen_display tidak tersedia');
+      return;
+    }
+    
+    console.log('kitchen_display tersedia:', imogi_pos.kitchen_display);
+    
+    // Cek ketersediaan lifecycle
+    if (typeof imogi_pos.kitchen_display.lifecycle === 'undefined') {
+      console.error('imogi_pos.kitchen_display.lifecycle tidak tersedia!');
+      showDebugError('lifecycle tidak tersedia dalam kitchen_display');
+      return;
+    }
+    
+    console.log('lifecycle tersedia:', imogi_pos.kitchen_display.lifecycle);
+    
+    // Cek ketersediaan lifecycle.init
+    if (typeof imogi_pos.kitchen_display.lifecycle.init !== 'function') {
+      console.error('imogi_pos.kitchen_display.lifecycle.init bukan fungsi!');
+      showDebugError('lifecycle.init bukan fungsi');
+      return;
+    }
+    
+    console.log('lifecycle.init tersedia dan siap dipanggil');
+    
+    // Inisialisasi kitchen_display
+    try {
+      console.log('Mencoba inisialisasi kitchen_display...');
+      imogi_pos.kitchen_display.lifecycle.init({
+        container: '#kitchen-display',
+        kitchenSelector: '#kitchen-selector',
+        stationSelector: '#station-selector',
+        refreshInterval: 30000
+      });
+      console.log('Inisialisasi berhasil!');
+    } catch (error) {
+      console.error('Error saat inisialisasi:', error);
+      showDebugError('Error saat inisialisasi: ' + (error.message || error));
+    }
+  });
+  
+  function showDebugError(message) {
     const container = document.getElementById('kitchen-display');
     if (!container) return;
     
@@ -102,65 +146,15 @@
           <i class="fas fa-exclamation-triangle"></i>
         </div>
         <h2 style="font-size: 24px; margin-bottom: 16px;">Error Kitchen Display</h2>
-        <p style="font-size: 16px; margin-bottom: 20px;">${message || 'Modul Kitchen Display tidak dapat dimuat'}</p>
-        ${details ? `<div style="background-color: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; max-width: 600px; text-align: left;"><pre style="margin: 0; white-space: pre-wrap;">${details}</pre></div>` : ''}
+        <p style="font-size: 16px; margin-bottom: 20px;">Fungsi inisialisasi Kitchen Display tidak tersedia</p>
+        <div style="background-color: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; max-width: 600px; text-align: left;">
+          <p style="margin: 0;">${message}</p>
+        </div>
         <button onclick="location.reload()" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; gap: 8px;">
           <i class="fas fa-sync"></i> Muat Ulang Halaman
         </button>
       </div>
     `;
   }
-
-  // Inisialisasi Kitchen Display System ketika DOM siap
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Loaded, inisialisasi Kitchen Display System...');
-    
-    // Periksa ketersediaan objek yang dibutuhkan
-    if (typeof frappe === 'undefined') {
-      return showError('Frappe tidak tersedia', 'Framework Frappe belum dimuat dengan benar.');
-    }
-    
-    if (typeof imogi_pos === 'undefined') {
-      return showError('Modul imogi_pos tidak tersedia', 'Pastikan library imogi_pos dimuat dengan benar.');
-    }
-    
-    if (typeof imogi_pos.kitchen_display === 'undefined') {
-      return showError('Modul Kitchen Display tidak tersedia', 'File kitchen_display.js mungkin tidak dimuat dengan benar.');
-    }
-    
-    if (typeof imogi_pos.kitchen_display.lifecycle === 'undefined' || 
-        typeof imogi_pos.kitchen_display.lifecycle.init !== 'function') {
-      return showError('Fungsi inisialisasi Kitchen Display tidak tersedia', 
-                      'Objek lifecycle.init tidak ditemukan dalam kitchen_display.js.');
-    }
-    
-    // Pastikan Font Awesome dimuat
-    if (!document.querySelector('link[href*="font-awesome"]')) {
-      const faLink = document.createElement('link');
-      faLink.rel = 'stylesheet';
-      faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
-      document.head.appendChild(faLink);
-    }
-
-    // Jeda kecil untuk memastikan semua script dimuat
-    setTimeout(function() {
-      try {
-        // Inisialisasi Kitchen Display
-        console.log('Menginisialisasi Kitchen Display...');
-        imogi_pos.kitchen_display.lifecycle.init({
-          container: '#kitchen-display',
-          kitchenSelector: '#kitchen-selector',
-          stationSelector: '#station-selector',
-          refreshInterval: 30000
-        }).catch(err => {
-          console.error('Error saat inisialisasi Kitchen Display:', err);
-          showError('Error saat inisialisasi Kitchen Display', err.message || err);
-        });
-      } catch (err) {
-        console.error('Gagal menginisialisasi Kitchen Display:', err);
-        showError('Gagal menginisialisasi Kitchen Display', err.message || err);
-      }
-    }, 300); // Tunggu 300ms untuk memastikan semua library dimuat
-  });
 </script>
 {% endblock %}
