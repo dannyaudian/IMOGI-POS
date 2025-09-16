@@ -737,14 +737,16 @@ imogi_pos.kitchen_display = {
         // Apply search filter if set
         if (this.state.searchTerm) {
             const searchTerm = this.state.searchTerm.toLowerCase();
-            
+            const getTableName = (kot) => kot.table || kot.table_name || '';
+
             Object.keys(filteredKots).forEach(status => {
                 filteredKots[status] = filteredKots[status].filter(kot => {
                     // Search in KOT name
                     if (kot.name.toLowerCase().includes(searchTerm)) return true;
-                    
+
                     // Search in table name
-                    if (kot.table_name && kot.table_name.toLowerCase().includes(searchTerm)) return true;
+                    const tableName = getTableName(kot);
+                    if (tableName && tableName.toLowerCase().includes(searchTerm)) return true;
                     
                     // Search in order name
                     if (kot.pos_order && kot.pos_order.toLowerCase().includes(searchTerm)) return true;
@@ -792,10 +794,12 @@ imogi_pos.kitchen_display = {
                 case 'table':
                     // Sort by table name
                     filteredKots[status].sort((a, b) => {
-                        if (!a.table_name && !b.table_name) return 0;
-                        if (!a.table_name) return 1;
-                        if (!b.table_name) return -1;
-                        return a.table_name.localeCompare(b.table_name);
+                        const aTable = a.table || a.table_name;
+                        const bTable = b.table || b.table_name;
+                        if (!aTable && !bTable) return 0;
+                        if (!aTable) return 1;
+                        if (!bTable) return -1;
+                        return aTable.localeCompare(bTable);
                     });
                     break;
             }
