@@ -3,6 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
+import uuid
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
@@ -27,31 +28,153 @@ def check_restaurant_domain(pos_profile):
                     frappe.ValidationError)
 
 
-def publish_kitchen_update(kot_ticket, kitchen=None, station=None):
+def _normalise_kot_item(item):
+    """Return a serialisable representation of a KOT Item."""
+    if hasattr(item, "as_dict"):
+        item = item.as_dict()
+
+    if isinstance(item, dict):
+        normalised = dict(item)
+    else:
+        normalised = {"value": item}
+
+    status = (
+        normalised.get("workflow_state")
+        or normalised.get("status")
+        or normalised.get("state")
+    )
+
+    if status:
+        normalised.setdefault("workflow_state", status)
+        normalised.setdefault("status", status)
+
+    return normalised
+
+
+def publish_kitchen_update(
+    kot_ticket,
+    kitchen=None,
+    station=None,
+    event_type="kot_updated",
+    changed_items=None,
+):
     """
     Publishes realtime updates to kitchen display systems.
-    
+
     Args:
-        kot_ticket (dict): KOT ticket details
+        kot_ticket (Union[dict, str, Document]): KOT ticket details or name
         kitchen (str, optional): Kitchen name for targeted updates
         station (str, optional): Kitchen station name for targeted updates
+        event_type (str, optional): Type of event being broadcast
+        changed_items (list, optional): Collection of KOT items affected by the event
     """
-    # Get branch information to include in payload
-    branch = frappe.db.get_value("KOT Ticket", kot_ticket["name"], "branch")
-    
-    # Basic payload with branch context
+    if not kot_ticket:
+        return
+
+    ticket_doc = None
+
+    if isinstance(kot_ticket, str):
+        try:
+            ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
+            kot_ticket = ticket_doc.as_dict()
+        except Exception:
+            kot_ticket = {"name": kot_ticket}
+    elif hasattr(kot_ticket, "as_dict"):
+        ticket_doc = kot_ticket
+        kot_ticket = ticket_doc.as_dict()
+    elif isinstance(kot_ticket, dict):
+        kot_ticket = dict(kot_ticket)
+    else:
+        return
+
+    ticket_name = kot_ticket.get("name")
+    if not ticket_name:
+        return
+
+    if ticket_doc is None:
+        try:
+            ticket_doc = frappe.get_doc("KOT Ticket", ticket_name)
+        except Exception:
+            ticket_doc = None
+
+    items = kot_ticket.get("items") or []
+    if not isinstance(items, list):
+        items = []
+
+    if not items and ticket_doc is not None:
+        items = [
+            _normalise_kot_item(item)
+            for item in getattr(ticket_doc, "items", [])
+        ]
+    else:
+        items = [_normalise_kot_item(item) for item in items]
+
+    kot_ticket["items"] = items
+
+    branch = kot_ticket.get("branch") or frappe.db.get_value(
+        "KOT Ticket", ticket_name, "branch"
+    )
+
+    kitchen = (
+        kitchen
+        or kot_ticket.get("kitchen")
+        or (ticket_doc and getattr(ticket_doc, "kitchen", None))
+        or frappe.db.get_value("KOT Ticket", ticket_name, "kitchen")
+    )
+
+    station = (
+        station
+        or kot_ticket.get("kitchen_station")
+        or (ticket_doc and getattr(ticket_doc, "kitchen_station", None))
+        or frappe.db.get_value("KOT Ticket", ticket_name, "kitchen_station")
+    )
+
+    changed_items_payload = []
+    for changed in changed_items or []:
+        if isinstance(changed, str):
+            try:
+                changed = frappe.get_doc("KOT Item", changed)
+            except Exception:
+                continue
+        changed_items_payload.append(_normalise_kot_item(changed))
+
+    event_id = None
+    generate_hash = getattr(frappe, "generate_hash", None)
+    if callable(generate_hash):
+        event_id = generate_hash(16)
+    else:
+        event_id = uuid.uuid4().hex
+
+    action_alias = {
+        "kot_created": "new_kot",
+        "kot_updated": "kot_updated",
+        "kot_item_updated": "kot_item_updated",
+        "kot_removed": "delete_kot",
+    }.get(event_type, event_type)
+
     payload = {
+        "event_id": event_id,
+        "event_type": event_type,
+        "action": action_alias,
         "kot_ticket": kot_ticket,
+        "kot": kot_ticket,
+        "kot_name": ticket_name,
+        "ticket": ticket_name,
         "branch": branch,
-        "timestamp": now_datetime().isoformat()
+        "kitchen": kitchen,
+        "station": station,
+        "timestamp": now_datetime().isoformat(),
     }
-    
-    # Publish to all relevant channels
-    publish_realtime(f"kitchen:all", payload)
-    
+
+    if changed_items_payload:
+        payload["changed_items"] = changed_items_payload
+        payload["updated_items"] = changed_items_payload
+
+    publish_realtime("kitchen:all", payload)
+
     if kitchen:
         publish_realtime(f"kitchen:{kitchen}", payload)
-    
+
     if station:
         publish_realtime(f"kitchen:station:{station}", payload)
 
@@ -352,7 +475,12 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     kot_ticket = kot_doc.as_dict()
     
     # Publish updates to kitchen and table displays
-    publish_kitchen_update(kot_ticket)
+    publish_kitchen_update(
+        kot_ticket,
+        event_type="kot_created",
+        kitchen=kot_ticket.get("kitchen"),
+        station=kot_ticket.get("kitchen_station"),
+    )
     
     if order_doc.table:
         publish_table_update(pos_order, order_doc.table, "kot_created")
