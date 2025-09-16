@@ -1004,30 +1004,44 @@ imogi_pos.kiosk = {
 
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
+            if (!Array.isArray(choices)) return;
             if (!['size', 'spice', 'topping', 'sugar', 'ice'].includes(field)) return;
+
             const title = this.toTitleCase(field);
-            if (field === 'topping') {
-                fieldsHtml += `<div class="option-group"><label>${title}</label>` +
-                    choices.map(opt => {
-                        const { label, value, price = 0, default: isDefault } = opt;
-                        const checkedAttr = isDefault ? ' checked' : '';
-                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"${checkedAttr}> ${label}</label>`;
-                    }).join('') + '</div>';
-            } else {
-                // Select inputs are treated as required by default
-                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}" data-required="1">` +
-                    `<option value="" data-price="0">Select ${title}</option>` +
-                    choices.map(opt => {
-                        const { label, value, price = 0, default: isDefault } = opt;
-                        const selectedAttr = isDefault ? ' selected' : '';
-                        return `<option value="${value}" data-price="${price}"${selectedAttr}>${label}</option>`;
-                    }).join('') + '</select></div>';
-            }
+            const isTopping = field === 'topping';
+            const optionType = isTopping ? 'checkbox' : 'radio';
+            const requiredAttr = isTopping ? '' : ' data-required="1"';
+
+            fieldsHtml += `
+                <div class="option-group" data-option="${field}"${requiredAttr}>
+                    <div class="option-group-title">${title}</div>
+                    <div class="option-cards">
+                        ${choices.map((opt, index) => {
+                            const { label, value, price = 0, default: isDefault } = opt;
+                            const optionId = `option-${field}-${index}`;
+                            const rawPrice = parseFloat(price);
+                            const priceValue = Number.isFinite(rawPrice) ? rawPrice : 0;
+                            const priceDisplay = priceValue ? `<span class="option-card-price">+${this.formatCurrency(priceValue)}</span>` : '';
+                            const checkedAttr = isDefault ? ' checked' : '';
+                            const nameAttr = isTopping ? `option-${field}[]` : `option-${field}`;
+                            return `
+                                <div class="option-card-wrapper">
+                                    <input type="${optionType}" id="${optionId}" class="option-input" name="${nameAttr}" data-option="${field}" value="${value}" data-price="${priceValue}"${checkedAttr}>
+                                    <label for="${optionId}" class="option-card">
+                                        <span class="option-card-label">${label}</span>
+                                        ${priceDisplay}
+                                    </label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
         });
 
         const quantityControlHtml = `
             <div class="option-group quantity-group">
-                <label>Quantity</label>
+                <div class="option-group-title">Quantity</div>
                 <div class="quantity-control">
                     <button type="button" class="quantity-btn" data-change="-1">-</button>
                     <input type="number" class="quantity-input" min="1" value="1">
@@ -1083,8 +1097,8 @@ imogi_pos.kiosk = {
         const quantityInput = modalContainer.querySelector('.quantity-input');
         const quantityButtons = modalContainer.querySelectorAll('.quantity-btn');
         const confirmBtn = modalContainer.querySelector('.modal-confirm');
-        const optionSelects = modalContainer.querySelectorAll('.option-select');
-        const optionCheckboxes = modalContainer.querySelectorAll('.option-checkbox');
+        const optionInputs = modalContainer.querySelectorAll('.option-input');
+        const optionGroups = modalContainer.querySelectorAll('.option-group[data-option]');
         const summaryBaseEl = modalContainer.querySelector('[data-summary="base"]');
         const summaryOptionEl = modalContainer.querySelector('[data-summary="options"]');
         const summaryQtyEl = modalContainer.querySelector('[data-summary="quantity"]');
@@ -1112,15 +1126,9 @@ imogi_pos.kiosk = {
 
         const computeOptionSurcharge = () => {
             let total = 0;
-            optionSelects.forEach(sel => {
-                const opt = sel.options[sel.selectedIndex];
-                if (opt && sel.value) {
-                    total += parsePrice(opt.dataset.price);
-                }
-            });
-            optionCheckboxes.forEach(cb => {
-                if (cb.checked) {
-                    total += parsePrice(cb.dataset.price);
+            optionInputs.forEach(input => {
+                if (input.checked) {
+                    total += parsePrice(input.dataset.price);
                 }
             });
             return total;
@@ -1150,15 +1158,12 @@ imogi_pos.kiosk = {
         };
 
         // Remove error highlight when changing selection and keep summary in sync
-        optionSelects.forEach(sel => {
-            sel.addEventListener('change', () => {
-                sel.style.removeProperty('border-color');
-                updateSummary();
-            });
-        });
-
-        optionCheckboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
+        optionInputs.forEach(input => {
+            input.addEventListener('change', () => {
+                const group = input.closest('.option-group');
+                if (group) {
+                    group.classList.remove('option-group-error');
+                }
                 updateSummary();
             });
         });
@@ -1216,41 +1221,42 @@ imogi_pos.kiosk = {
                 let optionPrice = 0;
                 const missing = [];
 
-                // Validate required select options
-                optionSelects.forEach(sel => {
-                    const key = sel.dataset.option;
-                    const opt = sel.options[sel.selectedIndex];
-                    const value = sel.value;
-                    const price = opt ? parsePrice(opt.dataset.price) : 0;
+                optionGroups.forEach(group => {
+                    const key = group.dataset.option;
+                    const required = group.dataset.required === '1';
+                    const inputs = group.querySelectorAll('.option-input');
+                    const selected = Array.from(inputs).filter(input => input.checked);
 
-                    // Highlight missing required selections
-                    sel.style.removeProperty('border-color');
-                    const required = sel.dataset.required === '1';
-                    if (required && !value) {
+                    group.classList.remove('option-group-error');
+
+                    if (required && selected.length === 0) {
                         missing.push(this.toTitleCase(key));
-                        sel.style.borderColor = 'var(--color-danger)';
-                        return; // Skip adding to selectedOptions
+                        group.classList.add('option-group-error');
+                        return;
                     }
 
-                    if (value) {
-                        selectedOptions[key] = value;
-                        optionPrice += price;
+                    if (selected.length === 0) {
+                        return;
+                    }
+
+                    if (selected[0].type === 'checkbox') {
+                        const values = selected.map(input => {
+                            optionPrice += parsePrice(input.dataset.price);
+                            return input.value;
+                        });
+                        if (values.length) {
+                            selectedOptions[key] = values;
+                        }
+                    } else {
+                        const input = selected[0];
+                        optionPrice += parsePrice(input.dataset.price);
+                        selectedOptions[key] = input.value;
                     }
                 });
 
                 if (missing.length) {
                     this.showError('Please select: ' + missing.join(', '));
                     return;
-                }
-
-                const toppings = [];
-                optionCheckboxes.forEach(cb => {
-                    if (!cb.checked) return;
-                    toppings.push(cb.value);
-                    optionPrice += parsePrice(cb.dataset.price);
-                });
-                if (toppings.length > 0) {
-                    selectedOptions.topping = toppings;
                 }
 
                 const qty = getQuantity();
