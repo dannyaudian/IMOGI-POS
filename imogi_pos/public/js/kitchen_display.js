@@ -1071,7 +1071,7 @@ imogi_pos.kitchen_display = {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                const optionsText = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+                const optionsHtml = this.getItemOptionsMarkup(item);
 
                 itemsHtml += `
                     <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
@@ -1080,7 +1080,7 @@ imogi_pos.kitchen_display = {
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-status-badge">${itemStatus}</div>
                         </div>
-                        ${optionsText ? `<div class="item-options">${optionsText}</div>` : ""}
+                        ${optionsHtml}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
@@ -1356,7 +1356,7 @@ imogi_pos.kitchen_display = {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                const optionsText = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+                const optionsHtml = this.getItemOptionsMarkup(item);
 
                 itemsHtml += `
                     <div class="kot-detail-item ${itemStatusClass}">
@@ -1372,7 +1372,7 @@ imogi_pos.kitchen_display = {
                                 <option value="Served" ${itemStatus === 'Served' ? 'selected' : ''}>Served</option>
                             </select>
                         </div>
-                        ${optionsText ? `<div class="item-options">${optionsText}</div>` : ""}
+                        ${optionsHtml}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
@@ -1618,6 +1618,97 @@ imogi_pos.kitchen_display = {
                 }
             }, 300);
         }, 3000);
+    },
+
+    /**
+     * Build markup for item option chips
+     * @param {Object} item - KOT item data
+     * @returns {string} HTML string for rendered options
+     */
+    getItemOptionsMarkup: function(item) {
+        const optionParts = this.getItemOptionParts(item);
+        if (!optionParts.length) {
+            return '';
+        }
+
+        const chips = optionParts
+            .map(part => `<span class="option-chip">${this.escapeHtml(part)}</span>`)
+            .join('');
+
+        return `<div class="item-options">${chips}</div>`;
+    },
+
+    /**
+     * Extract option labels from an item
+     * @param {Object} item - KOT item data
+     * @returns {string[]} Array of option labels
+     */
+    getItemOptionParts: function(item) {
+        if (!item) {
+            return [];
+        }
+
+        const displayParts = this.getOptionPartsFromValue(item.options_display);
+        if (displayParts.length) {
+            return displayParts;
+        }
+
+        return this.getOptionPartsFromValue(item.item_options);
+    },
+
+    /**
+     * Normalize option data into an array of strings
+     * @param {*} options - Option data
+     * @returns {string[]} Array of option labels
+     */
+    getOptionPartsFromValue: function(options) {
+        if (!options) {
+            return [];
+        }
+
+        let formatted = '';
+
+        if (typeof options === 'string') {
+            const trimmed = options.trim();
+            if (!trimmed) {
+                return [];
+            }
+
+            formatted = trimmed;
+            const parsed = this.formatItemOptions(options);
+            if (parsed && parsed !== options) {
+                formatted = parsed;
+            }
+        } else {
+            formatted = this.formatItemOptions(options);
+        }
+
+        if (!formatted) {
+            return [];
+        }
+
+        return formatted
+            .split('|')
+            .map(part => part.trim())
+            .filter(Boolean);
+    },
+
+    /**
+     * Escape HTML entities in a string
+     * @param {string} value - Value to escape
+     * @returns {string} Escaped string
+     */
+    escapeHtml: function(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     /**
