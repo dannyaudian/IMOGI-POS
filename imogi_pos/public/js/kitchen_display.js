@@ -50,7 +50,8 @@ imogi_pos.kitchen_display = {
         sortMode: 'time', // time, priority, table
         selectedKot: null,
         audioContext: null,
-        hasKitchenFilters: false
+        hasKitchenFilters: false,
+        recentEventIds: []
     },
     
     /**
@@ -278,12 +279,15 @@ imogi_pos.kitchen_display = {
                         this.clearKitchenFilters();
                     }
 
+                    this.setupRealTimeUpdates();
+
                     resolve();
                 },
                 error: (err) => {
                     console.error('Error loading kitchens:', err);
                     this.showError('Unable to fetch kitchen filters. Showing last known data.');
                     this.clearKitchenFilters();
+                    this.setupRealTimeUpdates();
                     resolve();
                 }
             });
@@ -360,7 +364,8 @@ imogi_pos.kitchen_display = {
             kitchenSelect.onchange = () => {
                 this.settings.kitchen = kitchenSelect.value;
                 this.saveSettings();
-                this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+                this.safeStep('fetching KOT tickets', () => this.fetchTickets())
+                    .finally(() => this.setupRealTimeUpdates());
             };
         }
 
@@ -388,7 +393,8 @@ imogi_pos.kitchen_display = {
             stationSelect.onchange = () => {
                 this.settings.station = stationSelect.value;
                 this.saveSettings();
-                this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+                this.safeStep('fetching KOT tickets', () => this.fetchTickets())
+                    .finally(() => this.setupRealTimeUpdates());
             };
         }
     },
@@ -458,29 +464,42 @@ imogi_pos.kitchen_display = {
      * Set up realtime updates
      */
     setupRealTimeUpdates: function() {
-        // Listen for updates on all kitchens
-        frappe.realtime.on('kitchen:all', (data) => {
-            if (data && data.action) {
-                this.handleKitchenUpdate(data);
-            }
-        });
-        
-        // Listen for updates on specific kitchen
-        if (this.settings.kitchen) {
-            frappe.realtime.on(`kitchen:${this.settings.kitchen}`, (data) => {
-                if (data && data.action) {
-                    this.handleKitchenUpdate(data);
+        if (!frappe.realtime || typeof frappe.realtime.on !== 'function') {
+            return;
+        }
+
+        if (!this._realtimeHandlers) {
+            this._realtimeHandlers = [];
+        }
+
+        if (this._realtimeHandlers.length && typeof frappe.realtime.off === 'function') {
+            this._realtimeHandlers.forEach(({ channel, handler }) => {
+                try {
+                    frappe.realtime.off(channel, handler);
+                } catch (error) {
+                    // Ignore failures when detaching handlers
+                    console.warn('Failed to remove realtime handler', error);
                 }
             });
         }
-        
-        // Listen for updates on specific station
+
+        this._realtimeHandlers = [];
+
+        const subscribe = (channel) => {
+            if (!channel) return;
+            const handler = (data) => this.handleKitchenUpdate(data, channel);
+            frappe.realtime.on(channel, handler);
+            this._realtimeHandlers.push({ channel, handler });
+        };
+
+        subscribe('kitchen:all');
+
+        if (this.settings.kitchen) {
+            subscribe(`kitchen:${this.settings.kitchen}`);
+        }
+
         if (this.settings.station) {
-            frappe.realtime.on(`kitchen:station:${this.settings.station}`, (data) => {
-                if (data && data.action) {
-                    this.handleKitchenUpdate(data);
-                }
-            });
+            subscribe(`kitchen:station:${this.settings.station}`);
         }
     },
     
@@ -489,47 +508,161 @@ imogi_pos.kitchen_display = {
      * @param {Object} data - Update data
      */
     handleKitchenUpdate: function(data) {
-        switch (data.action) {
+        if (!data) {
+            return;
+        }
+
+        const eventType = data.event_type || data.action;
+
+        if (!Array.isArray(this.state.recentEventIds)) {
+            this.state.recentEventIds = [];
+        }
+
+        if (data.event_id) {
+            if (this.state.recentEventIds.includes(data.event_id)) {
+                return;
+            }
+
+            this.state.recentEventIds.push(data.event_id);
+            if (this.state.recentEventIds.length > 50) {
+                this.state.recentEventIds.shift();
+            }
+        }
+
+        if (this.settings.branch && data.branch && data.branch !== this.settings.branch) {
+            return;
+        }
+
+        const matchesKitchen = !this.settings.kitchen || !data.kitchen || data.kitchen === this.settings.kitchen;
+        const matchesStation = !this.settings.station || !data.station || data.station === this.settings.station;
+
+        if (!matchesKitchen || !matchesStation) {
+            return;
+        }
+
+        const rawKot = data.kot_ticket || data.kot;
+        const kot = this.normalizeKotPayload(rawKot);
+
+        if (!kot) {
+            const identifier = data.kot_name || data.ticket;
+            const status = data.state || data.status;
+            const itemIdentifier = data.item !== undefined ? data.item : data.item_idx;
+
+            switch (eventType) {
+                case 'kot_updated':
+                case 'update_kot_status':
+                    if (identifier && status) {
+                        this.updateKotStatus(identifier, status);
+                    }
+                    break;
+
+                case 'kot_item_updated':
+                case 'update_item_status':
+                    if (identifier && itemIdentifier !== undefined && status) {
+                        this.updateKotItemStatus(identifier, itemIdentifier, status);
+                    }
+                    break;
+
+                case 'kot_removed':
+                case 'delete_kot':
+                    if (identifier) {
+                        this.removeKotFromState(identifier);
+                    }
+                    break;
+            }
+            return;
+        }
+
+        const changedItems = Array.isArray(data.changed_items || data.updated_items)
+            ? data.changed_items || data.updated_items
+            : [];
+        const normalizedChanges = changedItems
+            .map(item => this.normalizeKotItem(item))
+            .filter(Boolean);
+
+        switch (eventType) {
+            case 'kot_created':
             case 'new_kot':
-                if (data.kot) {
-                    this.updateKotInState(data.kot);
-                    this.playSound('new_kot');
-                }
+                this.updateKotInState(kot);
+                this.playSound('new_kot');
                 break;
 
             case 'kot_updated':
             case 'update_kot_status':
-                {
-                    const ticket = data.ticket || data.kot_name;
-                    const state = data.state || data.status;
-
-                    if (ticket && state) {
-                        this.updateKotStatus(ticket, state);
-                    } else if (data.kot) {
-                        this.updateKotInState(data.kot);
-                    }
+                if (['Served', 'Cancelled'].includes(kot.workflow_state)) {
+                    this.removeKotFromState(kot.name);
+                } else {
+                    this.updateKotInState(kot);
                 }
                 break;
 
             case 'kot_item_updated':
             case 'update_item_status':
-                {
-                    const ticket = data.ticket || data.kot_name;
-                    const item = (data.item !== undefined ? data.item : data.item_idx);
-                    const state = data.state || data.status;
-
-                    if (ticket && item !== undefined && state) {
-                        this.updateKotItemStatus(ticket, item, state);
-                    }
+                if (['Served', 'Cancelled'].includes(kot.workflow_state)) {
+                    this.removeKotFromState(kot.name);
+                    break;
                 }
+
+                if (normalizedChanges.length) {
+                    normalizedChanges.forEach(item => {
+                        const identifier = item.name || item.idx || item.item || item.item_code;
+                        const status = item.workflow_state || item.status;
+                        if (identifier && status) {
+                            this.updateKotItemStatus(kot.name, identifier, status);
+                        }
+                    });
+                }
+
+                this.updateKotInState(kot);
                 break;
 
+            case 'kot_removed':
             case 'delete_kot':
-                if (data.kot_name) {
-                    this.removeKotFromState(data.kot_name);
+                this.removeKotFromState(kot.name);
+                break;
+
+            default:
+                if (kot.workflow_state && ['Served', 'Cancelled'].includes(kot.workflow_state)) {
+                    this.removeKotFromState(kot.name);
+                } else {
+                    this.updateKotInState(kot);
                 }
                 break;
         }
+    },
+
+    normalizeKotPayload: function(kot) {
+        if (!kot) {
+            return null;
+        }
+
+        const normalizedKot = Object.assign({}, kot);
+
+        if (Array.isArray(normalizedKot.items)) {
+            normalizedKot.items = normalizedKot.items.map(item => this.normalizeKotItem(item)).filter(Boolean);
+        } else {
+            normalizedKot.items = [];
+        }
+
+        return normalizedKot;
+    },
+
+    normalizeKotItem: function(item) {
+        if (!item) {
+            return null;
+        }
+
+        const normalizedItem = Object.assign({}, item);
+
+        if (normalizedItem.workflow_state && !normalizedItem.status) {
+            normalizedItem.status = normalizedItem.workflow_state;
+        }
+
+        if (normalizedItem.status && !normalizedItem.workflow_state) {
+            normalizedItem.workflow_state = normalizedItem.status;
+        }
+
+        return normalizedItem;
     },
     
     /**

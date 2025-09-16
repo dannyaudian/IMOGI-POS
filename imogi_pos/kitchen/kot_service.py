@@ -153,7 +153,7 @@ class KOTService:
         
         # Send realtime notifications to kitchen displays
         if send_to_kitchen:
-            self._publish_kot_updates(tickets)
+            self._publish_kot_updates(tickets, event_type="kot_created")
         
         return {
             "tickets": [t.name for t in tickets],
@@ -284,7 +284,12 @@ class KOTService:
         self._update_pos_order_state_if_needed(ticket.pos_order)
         
         # Send realtime updates
-        self._publish_kot_updates([ticket])
+        changed_map = {ticket.name: updated_items} if updated_items else None
+        self._publish_kot_updates(
+            [ticket],
+            event_type="kot_updated",
+            changed_item_names=changed_map,
+        )
         
         return {
             "ticket": ticket.name,
@@ -627,94 +632,92 @@ class KOTService:
             if current_state != new_pos_state:
                 frappe.db.set_value("POS Order", pos_order, "workflow_state", new_pos_state)
     
-    def _publish_kot_updates(self, tickets: List[Dict]) -> None:
+    def _publish_kot_updates(
+        self,
+        tickets: List[Dict],
+        event_type: str = "kot_updated",
+        changed_item_names: Optional[Dict[str, List[str]]] = None,
+    ) -> None:
         """
         Publish realtime updates for KOT tickets
-        
+
         Args:
             tickets: List of KOT Ticket documents
+            event_type: Type of update that occurred
+            changed_item_names: Mapping of ticket names to lists of updated KOT Item names
         """
+        from imogi_pos.api.kot import publish_kitchen_update
+
+        changed_item_names = changed_item_names or {}
+
         for ticket in tickets:
-            # Publish to kitchen station channel
-            if ticket.kitchen_station:
+            ticket_doc = ticket
+            if not hasattr(ticket_doc, "as_dict"):
+                ticket_doc = frappe.get_doc("KOT Ticket", ticket)
+
+            changed_items = []
+            item_names = changed_item_names.get(ticket_doc.name, [])
+            for item_name in item_names:
+                try:
+                    changed_items.append(frappe.get_doc("KOT Item", item_name))
+                except Exception:
+                    continue
+
+            publish_kitchen_update(
+                ticket_doc,
+                event_type=event_type,
+                changed_items=changed_items,
+            )
+
+            if ticket_doc.table:
+                payload = {
+                    "action": "kot_updated",
+                    "event_type": event_type,
+                    "ticket": ticket_doc.name,
+                    "state": ticket_doc.workflow_state,
+                }
                 frappe.publish_realtime(
-                    f"kitchen:station:{ticket.kitchen_station}",
-                    {
-                        "action": "kot_updated",
-                        "ticket": ticket.name,
-                        "state": ticket.workflow_state,
-                        "branch": ticket.branch
-                    }
+                    f"table:{ticket_doc.table}",
+                    payload,
                 )
-            
-            # If there's a kitchen linked to the station, publish to kitchen channel
-            station_kitchen = frappe.db.get_value("Kitchen Station", ticket.kitchen_station, "kitchen")
-            if station_kitchen:
-                frappe.publish_realtime(
-                    f"kitchen:{station_kitchen}",
-                    {
-                        "action": "kot_updated",
-                        "ticket": ticket.name,
-                        "station": ticket.kitchen_station,
-                        "state": ticket.workflow_state,
-                        "branch": ticket.branch
-                    }
-                )
-                
-            # If there's a table, publish to table channel
-            if ticket.table:
-                frappe.publish_realtime(
-                    f"table:{ticket.table}",
-                    {
-                        "action": "kot_updated",
-                        "ticket": ticket.name,
-                        "state": ticket.workflow_state
-                    }
-                )
-                
-                # Also publish to floor channel if available
-                if ticket.floor:
+
+                if ticket_doc.floor:
                     frappe.publish_realtime(
-                        f"table_display:floor:{ticket.floor}",
+                        f"table_display:floor:{ticket_doc.floor}",
                         {
                             "action": "table_updated",
-                            "table": ticket.table,
-                            "has_kot_updates": True
-                        }
+                            "table": ticket_doc.table,
+                            "has_kot_updates": True,
+                        },
                     )
     
     def _publish_kot_item_update(self, item: Dict) -> None:
         """
         Publish realtime update for a single KOT Item
-        
+
         Args:
             item: KOT Item document
         """
         ticket = frappe.get_doc("KOT Ticket", item.parent)
-        
-        # Publish to kitchen station channel
-        if ticket.kitchen_station:
-            frappe.publish_realtime(
-                f"kitchen:station:{ticket.kitchen_station}",
-                {
-                    "action": "kot_item_updated",
-                    "ticket": ticket.name,
-                    "item": item.name,
-                    "state": item.workflow_state,
-                    "branch": ticket.branch
-                }
-            )
-            
-        # If there's a table, publish to table channel
+
+        from imogi_pos.api.kot import publish_kitchen_update
+
+        publish_kitchen_update(
+            ticket,
+            event_type="kot_item_updated",
+            changed_items=[item],
+        )
+
         if ticket.table:
             frappe.publish_realtime(
                 f"table:{ticket.table}",
                 {
                     "action": "kot_item_updated",
+                    "event_type": "kot_item_updated",
                     "ticket": ticket.name,
                     "item": item.name,
-                    "state": item.workflow_state
-                }
+                    "state": item.workflow_state,
+                },
             )
     
     def _validate_restaurant_domain(self, pos_profile: str) -> None:
