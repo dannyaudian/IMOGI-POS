@@ -1287,6 +1287,8 @@ imogi_pos.kitchen_display = {
         kots.forEach(kot => {
             const kotCard = document.createElement('div');
             kotCard.className = 'kot-card';
+            const statusClass = kot.workflow_state.toLowerCase().replace(/\s+/g, '-');
+            kotCard.classList.add(statusClass);
             kotCard.dataset.kot = kot.name;
             
             // Calculate time elapsed
