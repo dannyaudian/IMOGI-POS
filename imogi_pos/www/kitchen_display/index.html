@@ -3,6 +3,7 @@
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/kitchen_display.css">
 <style>
   :root {
     --primary-color: {{ branding.primary_color }};
@@ -25,5 +26,6 @@
 </script>
 {{ include_script('imogi_pos/js/nav.js') }}
 {{ include_script('imogi_pos/js/branch.js') }}
+{{ include_script('imogi_pos/js/kitchen_display.js') }}
 <script src="../kitchen_display/index.js"></script>
 {% endblock %}
