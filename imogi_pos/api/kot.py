@@ -58,7 +58,7 @@ def publish_kitchen_update(kot_ticket, kitchen=None, station=None):
 def publish_table_update(pos_order, table, event_type="kot_update"):
     """
     Publishes realtime updates to table displays.
-    
+
     Args:
         pos_order (str): POS Order name
         table (str): Table name
@@ -69,7 +69,7 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
 
     # Get order details
     order_doc = frappe.get_doc("POS Order", pos_order)
-    
+
     # Basic payload
     payload = {
         "pos_order": pos_order,
@@ -80,13 +80,79 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
         "workflow_state": order_doc.workflow_state,
         "timestamp": now_datetime().isoformat()
     }
-    
+
     # Publish to table channel
     publish_realtime(f"table:{table}", payload)
-    
+
     # Publish to floor channel if available
     if payload["floor"]:
         publish_realtime(f"table_display:floor:{payload['floor']}", payload)
+
+
+@frappe.whitelist()
+def get_kitchens_and_stations(branch=None):
+    """Return active kitchens and kitchen stations for the kitchen display.
+
+    Args:
+        branch (str, optional): Branch name to filter results by.
+
+    Returns:
+        dict: A dictionary with ``kitchens`` and ``stations`` lists ready for the
+            kitchen display frontend.
+    """
+
+    if branch in ("", "null", "None"):
+        branch = None
+
+    if branch:
+        validate_branch_access(branch)
+
+    kitchen_filters = {"is_active": 1}
+    if branch:
+        kitchen_filters["branch"] = branch
+
+    kitchens = frappe.get_all(
+        "Kitchen",
+        filters=kitchen_filters,
+        fields=[
+            "name",
+            "kitchen_name",
+            "branch",
+            "default_station",
+            "default_target_queue_time",
+            "default_target_prep_time",
+        ],
+        order_by="kitchen_name asc",
+    )
+
+    stations = frappe.get_all(
+        "Kitchen Station",
+        filters={"is_active": 1},
+        fields=["name", "station_name", "kitchen", "branch"],
+        order_by="station_name asc",
+    )
+
+    if branch:
+        kitchen_names = {kitchen["name"] for kitchen in kitchens}
+        filtered_stations = []
+
+        for station in stations:
+            station_branch = station.get("branch")
+            if station_branch == branch or station.get("kitchen") in kitchen_names:
+                filtered_stations.append(station)
+
+        stations = filtered_stations
+
+    kitchen_lookup = {kitchen["name"]: kitchen["kitchen_name"] for kitchen in kitchens}
+    for station in stations:
+        kitchen_name = kitchen_lookup.get(station.get("kitchen"))
+        if kitchen_name:
+            station.setdefault("kitchen_name", kitchen_name)
+
+    return {
+        "kitchens": kitchens,
+        "stations": stations,
+    }
 
 
 @frappe.whitelist()
