@@ -304,6 +304,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
         filters=filters,
         fields=["name", "table", "workflow_state", "creation", "pos_order"],
         order_by="creation asc",
+        limit_page_length=0,
     )
 
     for ticket in tickets:
@@ -321,6 +322,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
                 "options_display",
             ],
             order_by="idx asc",
+            limit_page_length=0,
         )
 
         for item in items:
