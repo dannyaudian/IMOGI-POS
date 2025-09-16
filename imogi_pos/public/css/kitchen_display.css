@@ -11,6 +11,10 @@
  */
 
 /* ===== LAYOUT STRUCTURE ===== */
+.hidden {
+  display: none;
+}
+
 .kitchen-display {
   display: flex;
   flex-direction: column;
