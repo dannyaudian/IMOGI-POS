@@ -1,13 +1,14 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
-<!-- Load Font Awesome untuk ikon -->
+<!-- Font Awesome untuk ikon -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-<!-- Load CSS dasar -->
+<!-- CSS dasar -->
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
-<!-- Load Kitchen Display CSS -->
+<!-- CSS Kitchen Display -->
 <link rel="stylesheet" href="/assets/imogi_pos/css/kitchen_display.css">
+
 <style>
   /* CSS kritis yang dibutuhkan */
   :root {
@@ -19,12 +20,8 @@
     {% endif %}
   }
   
-  /* Utility classes */
-  .hidden {
-    display: none !important;
-  }
+  .hidden { display: none !important; }
   
-  /* Style dasar untuk container utama */
   #kitchen-display {
     font-family: 'Roboto', 'Open Sans', sans-serif;
     height: 100vh;
@@ -32,10 +29,45 @@
     flex-direction: column;
     background-color: #f5f5f5;
     color: #333;
-    position: relative;
   }
   
-  /* Loading indicator */
+  .kitchen-header {
+    background-color: #fff;
+    padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .kitchen-columns {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+  }
+  
+  .kitchen-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e0e0e0;
+    overflow: hidden;
+  }
+  
+  .kot-card {
+    background-color: #fff;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    border-left: 4px solid #ddd;
+  }
+  
+  .queued { border-left-color: #ff9800; }
+  .in-progress { border-left-color: #2196f3; }
+  .ready { border-left-color: #4caf50; }
+  
   .loading-indicator {
     display: flex;
     flex-direction: column;
@@ -43,7 +75,6 @@
     justify-content: center;
     height: 100%;
     padding: 40px;
-    text-align: center;
   }
   
   .spinner {
@@ -68,89 +99,104 @@
   <!-- Loading indicator -->
   <div class="loading-indicator">
     <div class="spinner"></div>
-    <p>Memuat Kitchen Display System...</p>
+    <p>Memuat Kitchen Display...</p>
   </div>
 </div>
 {% endblock %}
 
 {% block script %}
-<!-- Script lainnya tetap seperti semula -->
+<script>
+  // Konstanta global
+  const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
+  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
+  const DOMAIN = '{{ domain }}';
+  const BRANDING = {{ branding | tojson }};
+</script>
+
+<!-- Script utama -->
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/branch.js"></script>
 <script src="/assets/imogi_pos/js/kitchen_display.js"></script>
 
-<!-- Tambahkan script debugging ini -->
+<!-- Perbaikan langsung untuk lifecycle -->
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM Loaded, checking for kitchen_display objects:');
+    console.log('Menginisialisasi Kitchen Display dengan perbaikan...');
     
-    // Cek ketersediaan imogi_pos
-    if (typeof imogi_pos === 'undefined') {
-      console.error('imogi_pos tidak tersedia!');
-      showDebugError('imogi_pos tidak tersedia');
-      return;
-    }
-    
-    console.log('imogi_pos tersedia:', imogi_pos);
-    
-    // Cek ketersediaan kitchen_display
-    if (typeof imogi_pos.kitchen_display === 'undefined') {
-      console.error('imogi_pos.kitchen_display tidak tersedia!');
-      showDebugError('imogi_pos.kitchen_display tidak tersedia');
-      return;
-    }
-    
-    console.log('kitchen_display tersedia:', imogi_pos.kitchen_display);
-    
-    // Cek ketersediaan lifecycle
-    if (typeof imogi_pos.kitchen_display.lifecycle === 'undefined') {
-      console.error('imogi_pos.kitchen_display.lifecycle tidak tersedia!');
-      showDebugError('lifecycle tidak tersedia dalam kitchen_display');
-      return;
-    }
-    
-    console.log('lifecycle tersedia:', imogi_pos.kitchen_display.lifecycle);
-    
-    // Cek ketersediaan lifecycle.init
-    if (typeof imogi_pos.kitchen_display.lifecycle.init !== 'function') {
-      console.error('imogi_pos.kitchen_display.lifecycle.init bukan fungsi!');
-      showDebugError('lifecycle.init bukan fungsi');
-      return;
-    }
-    
-    console.log('lifecycle.init tersedia dan siap dipanggil');
-    
-    // Inisialisasi kitchen_display
-    try {
-      console.log('Mencoba inisialisasi kitchen_display...');
-      imogi_pos.kitchen_display.lifecycle.init({
-        container: '#kitchen-display',
-        kitchenSelector: '#kitchen-selector',
-        stationSelector: '#station-selector',
-        refreshInterval: 30000
-      });
-      console.log('Inisialisasi berhasil!');
-    } catch (error) {
-      console.error('Error saat inisialisasi:', error);
-      showDebugError('Error saat inisialisasi: ' + (error.message || error));
-    }
+    // Menunggu untuk memastikan imogi_pos dan kitchen_display dimuat
+    setTimeout(function() {
+      if (typeof imogi_pos === 'undefined') {
+        showError('imogi_pos tidak tersedia');
+        return;
+      }
+      
+      if (typeof imogi_pos.kitchen_display === 'undefined') {
+        showError('kitchen_display tidak tersedia');
+        return;
+      }
+      
+      // Membuat objek lifecycle secara manual
+      if (typeof imogi_pos.kitchen_display.lifecycle === 'undefined') {
+        console.log('Membuat objek lifecycle secara manual');
+        imogi_pos.kitchen_display.lifecycle = {
+          init: function(options) {
+            return imogi_pos.kitchen_display.init(options);
+          },
+          fetchTickets: function() {
+            return imogi_pos.kitchen_display.fetchTickets();
+          },
+          renderColumns: function() {
+            return imogi_pos.kitchen_display.renderColumns();
+          },
+          bindEvents: function() {
+            return imogi_pos.kitchen_display.bindEvents();
+          }
+        };
+      }
+      
+      // Inisialisasi Kitchen Display langsung menggunakan objek asli jika lifecycle gagal
+      try {
+        if (typeof imogi_pos.kitchen_display.lifecycle.init === 'function') {
+          console.log('Menginisialisasi menggunakan lifecycle...');
+          imogi_pos.kitchen_display.lifecycle.init({
+            container: '#kitchen-display',
+            kitchenSelector: '#kitchen-selector',
+            stationSelector: '#station-selector',
+            refreshInterval: 30000
+          });
+        } else if (typeof imogi_pos.kitchen_display.init === 'function') {
+          console.log('Menginisialisasi langsung menggunakan init...');
+          imogi_pos.kitchen_display.init({
+            container: '#kitchen-display',
+            kitchenSelector: '#kitchen-selector',
+            stationSelector: '#station-selector',
+            refreshInterval: 30000
+          });
+        } else {
+          showError('Fungsi init tidak tersedia');
+        }
+      } catch (err) {
+        console.error('Error saat inisialisasi:', err);
+        showError('Error saat inisialisasi: ' + (err.message || String(err)));
+      }
+    }, 300);
   });
   
-  function showDebugError(message) {
+  function showError(message) {
     const container = document.getElementById('kitchen-display');
     if (!container) return;
     
     container.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; height: 100%;">
+      <div style="text-align: center; padding: 40px;">
         <div style="color: #f44336; font-size: 64px; margin-bottom: 20px;">
           <i class="fas fa-exclamation-triangle"></i>
         </div>
-        <h2 style="font-size: 24px; margin-bottom: 16px;">Error Kitchen Display</h2>
-        <p style="font-size: 16px; margin-bottom: 20px;">Fungsi inisialisasi Kitchen Display tidak tersedia</p>
-        <div style="background-color: #f9f9f9; padding: 12px; border-radius: 4px; margin-bottom: 20px; max-width: 600px; text-align: left;">
-          <p style="margin: 0;">${message}</p>
+        <h2>Error Kitchen Display</h2>
+        <p>Fungsi inisialisasi Kitchen Display tidak tersedia</p>
+        <div style="background-color: #f9f9f9; padding: 12px; border-radius: 4px; margin: 20px auto; max-width: 600px; text-align: left;">
+          <p>${message}</p>
         </div>
-        <button onclick="location.reload()" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <button onclick="location.reload()" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 20px;">
           <i class="fas fa-sync"></i> Muat Ulang Halaman
         </button>
       </div>
