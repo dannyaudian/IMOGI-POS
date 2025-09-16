@@ -1116,6 +1116,13 @@ imogi_pos.kiosk = {
             </div>
         `;
 
+        const notesFieldHtml = this.settings.allowNotes ? `
+            <div class="option-group notes-group">
+                <div class="option-group-title">Special Instructions</div>
+                <textarea class="item-notes" placeholder="Any special instructions for this item?"></textarea>
+            </div>
+        ` : '';
+
         const summaryHtml = `
             <div class="option-summary">
                 <div class="summary-row">
@@ -1144,7 +1151,7 @@ imogi_pos.kiosk = {
                         <h3>Select Options</h3>
                         <button class="modal-close">&times;</button>
                     </div>
-                    <div class="modal-body">${fieldsHtml}${quantityControlHtml}</div>
+                    <div class="modal-body">${fieldsHtml}${quantityControlHtml}${notesFieldHtml}</div>
                     <div class="option-footer">
                         ${summaryHtml}
                         <button type="button" class="modal-confirm btn btn-primary btn-lg">Add</button>
@@ -1168,6 +1175,7 @@ imogi_pos.kiosk = {
         const quantityInput = modalContainer.querySelector('.quantity-input');
         const quantityButtons = modalContainer.querySelectorAll('.quantity-btn');
         const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        const notesInput = modalContainer.querySelector('.item-notes');
         const optionInputs = modalContainer.querySelectorAll('.option-input');
         const optionGroups = modalContainer.querySelectorAll('.option-group[data-option]');
         const summaryBaseEl = modalContainer.querySelector('[data-summary="base"]');
@@ -1348,7 +1356,8 @@ imogi_pos.kiosk = {
                         ? `Total: ${this.formatCurrency(totalPrice)}`
                         : `Estimated total: ${this.formatCurrency(totalPrice)}`;
                     this.showToast(message);
-                    this.addItemToCart(itemName, selectedOptions, qty);
+                    const notes = notesInput ? notesInput.value.trim() : '';
+                    this.addItemToCart(itemName, selectedOptions, qty, notes);
                     close();
                 };
 
@@ -1406,8 +1415,9 @@ imogi_pos.kiosk = {
      * @param {string} itemName - Item name to add
      * @param {Object} [options] - Selected options
      * @param {number} [quantity=1] - Quantity to add
+     * @param {string} [notes=''] - Notes for the item
      */
-    addItemToCart: function(itemName, options = {}, quantity = 1) {
+    addItemToCart: function(itemName, options = {}, quantity = 1, notes = '') {
         // Get item details
         frappe.call({
             method: 'frappe.client.get',
@@ -1423,10 +1433,12 @@ imogi_pos.kiosk = {
                     const optionPrice = options.price || 0;
                     const rate = (item.standard_rate || 0) + optionPrice;
                     const qty = Math.max(1, parseInt(quantity, 10) || 1);
+                    const itemNotes = (notes || '').trim();
 
                     // Check if item is already in cart with same options
                     const existingItemIndex = this.state.cart.findIndex(cartItem =>
-                        cartItem.item === itemName && !cartItem.notes &&
+                        cartItem.item === itemName &&
+                        (cartItem.notes || '') === itemNotes &&
                         JSON.stringify(cartItem.options || {}) === JSON.stringify(options)
                     );
 
@@ -1443,7 +1455,7 @@ imogi_pos.kiosk = {
                             qty: qty,
                             rate: rate,
                             amount: rate * qty,
-                            notes: '',
+                            notes: itemNotes,
                             options: options
                         });
                     }
@@ -1457,11 +1469,6 @@ imogi_pos.kiosk = {
 
                     // Show cart navigation modal
                     this.showCartPrompt();
-
-                    // Show prompt for notes if enabled
-                    if (this.settings.allowNotes) {
-                        this.promptForNotes(this.state.cart.length - 1);
-                    }
                 } else {
                     this.showError('Failed to add item');
                 }
