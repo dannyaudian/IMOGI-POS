@@ -705,7 +705,7 @@ imogi_pos.kitchen_display = {
                 </div>
             </div>
             
-            <div id="modal-container" class="modal-container"></div>
+            <div id="modal-root"></div>
             <div id="toast-container" class="toast-container"></div>
         `;
         
@@ -840,12 +840,12 @@ imogi_pos.kitchen_display = {
      * Show settings modal
      */
     showSettings: function() {
-        const modalContainer = this.container.querySelector('#modal-container');
+        const modalContainer = this.container.querySelector('#modal-root');
         if (!modalContainer) return;
         
         modalContainer.innerHTML = `
             <div class="modal-overlay">
-                <div class="modal-content">
+                <div class="modal-container">
                     <div class="modal-header">
                         <h3>Kitchen Display Settings</h3>
                         <button class="modal-close">&times;</button>
@@ -1428,12 +1428,12 @@ imogi_pos.kitchen_display = {
         }
         
         // Show modal
-        const modalContainer = this.container.querySelector('#modal-container');
+        const modalContainer = this.container.querySelector('#modal-root');
         if (!modalContainer) return;
         
         modalContainer.innerHTML = `
             <div class="modal-overlay">
-                <div class="modal-content">
+                <div class="modal-container">
                     <div class="modal-header">
                         <h3>KOT Details: ${kot.name}</h3>
                         <button class="modal-close">&times;</button>
