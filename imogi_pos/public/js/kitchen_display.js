@@ -1071,7 +1071,8 @@ imogi_pos.kitchen_display = {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                
+                const optionsText = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+
                 itemsHtml += `
                     <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
                         <div class="item-header">
@@ -1079,7 +1080,7 @@ imogi_pos.kitchen_display = {
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-status-badge">${itemStatus}</div>
                         </div>
-                        ${item.item_options ? `<div class="item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
+                        ${optionsText ? `<div class="item-options">${optionsText}</div>` : ""}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
@@ -1355,7 +1356,8 @@ imogi_pos.kitchen_display = {
             kot.items.forEach(item => {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
-                
+                const optionsText = item.options_display || (item.item_options ? this.formatItemOptions(item.item_options) : '');
+
                 itemsHtml += `
                     <div class="kot-detail-item ${itemStatusClass}">
                         <div class="item-info">
@@ -1370,7 +1372,7 @@ imogi_pos.kitchen_display = {
                                 <option value="Served" ${itemStatus === 'Served' ? 'selected' : ''}>Served</option>
                             </select>
                         </div>
-                        ${item.item_options ? `<div class="item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
+                        ${optionsText ? `<div class="item-options">${optionsText}</div>` : ""}
                         ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
