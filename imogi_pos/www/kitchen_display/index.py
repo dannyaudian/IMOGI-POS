@@ -5,6 +5,7 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.restaurant_settings import get_default_branch
 
 
 def get_context(context):
@@ -17,7 +18,11 @@ def get_context(context):
     context.pos_profile = pos_profile
 
     context.branding = get_branding_info(pos_profile)
-    context.branch = get_current_branch(pos_profile)
+
+    branch = get_current_branch(pos_profile)
+    if not branch:
+        branch = get_default_branch()
+    context.branch = branch
     context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
     context.title = _("Kitchen Display")
 
