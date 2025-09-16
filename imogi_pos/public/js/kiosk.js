@@ -1137,13 +1137,13 @@ imogi_pos.kiosk = {
                         <h3>Select Options</h3>
                         <button class="modal-close">&times;</button>
                     </div>
-                    <div class="modal-body">
-                        ${headerHtml}
-                        ${fieldsHtml}${quantityControlHtml}${summaryHtml}
+                    <div class="modal-body">${fieldsHtml}${quantityControlHtml}</div>
+                    <div class="option-footer">
+                        ${summaryHtml}
+                        <button type="button" class="modal-confirm btn btn-primary btn-lg">Add</button>
                     </div>
                     <div class="modal-footer">
                         <button class="modal-cancel">Cancel</button>
-                        <button class="modal-confirm">Add</button>
                     </div>
                 </div>
             </div>`;
