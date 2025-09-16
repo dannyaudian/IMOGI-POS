@@ -1002,6 +1002,65 @@ imogi_pos.kiosk = {
         const modalContainer = this.container.querySelector('#modal-container');
         if (!modalContainer) return;
 
+        const catalogItem = this.state.catalogItems.find(item => item.name === itemName);
+        let itemHeaderData = {
+            image: catalogItem ? catalogItem.image : '',
+            name: catalogItem ? (catalogItem.item_name || itemName) : itemName,
+            description: catalogItem
+                ? (catalogItem.short_description || catalogItem.description || '')
+                : ''
+        };
+
+        const headerHtml = `
+            <div class="modal-item-header">
+                <div class="modal-item-image" data-modal-item-image></div>
+                <div class="modal-item-info">
+                    <div class="modal-item-name" data-modal-item-name></div>
+                    <div class="modal-item-desc" data-modal-item-desc></div>
+                </div>
+            </div>
+        `;
+
+        const escapeAttr = (value) => {
+            if (!value) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+
+        const applyHeaderData = (data) => {
+            const headerImageEl = modalContainer.querySelector('[data-modal-item-image]');
+            const headerNameEl = modalContainer.querySelector('[data-modal-item-name]');
+            const headerDescEl = modalContainer.querySelector('[data-modal-item-desc]');
+
+            const resolvedName = data && data.name ? data.name : itemName;
+            if (headerNameEl) {
+                headerNameEl.textContent = resolvedName;
+            }
+
+            if (headerImageEl) {
+                if (data && data.image) {
+                    headerImageEl.innerHTML = `<img src="${data.image}" alt="${escapeAttr(resolvedName)}">`;
+                    headerImageEl.style.display = '';
+                } else {
+                    headerImageEl.innerHTML = '';
+                    headerImageEl.style.display = 'none';
+                }
+            }
+
+            if (headerDescEl) {
+                if (data && data.description) {
+                    headerDescEl.innerHTML = data.description;
+                    headerDescEl.style.display = '';
+                } else {
+                    headerDescEl.innerHTML = '';
+                    headerDescEl.style.display = 'none';
+                }
+            }
+        };
+
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
             if (!['size', 'spice', 'topping', 'sugar', 'ice'].includes(field)) return;
@@ -1064,7 +1123,10 @@ imogi_pos.kiosk = {
                         <h3>Select Options</h3>
                         <button class="modal-close">&times;</button>
                     </div>
-                    <div class="modal-body">${fieldsHtml}${quantityControlHtml}${summaryHtml}</div>
+                    <div class="modal-body">
+                        ${headerHtml}
+                        ${fieldsHtml}${quantityControlHtml}${summaryHtml}
+                    </div>
                     <div class="modal-footer">
                         <button class="modal-cancel">Cancel</button>
                         <button class="modal-confirm">Add</button>
@@ -1073,6 +1135,8 @@ imogi_pos.kiosk = {
             </div>`;
 
         modalContainer.classList.add('active');
+
+        applyHeaderData(itemHeaderData);
 
         const close = () => modalContainer.classList.remove('active');
         const closeBtn = modalContainer.querySelector('.modal-close');
@@ -1192,23 +1256,32 @@ imogi_pos.kiosk = {
 
         updateSummary();
 
-        if (!hasBasePrice) {
-            frappe.call({
-                method: 'frappe.client.get_value',
-                args: {
-                    doctype: 'Item',
-                    filters: { name: itemName },
-                    fieldname: ['standard_rate']
-                },
-                callback: (resp) => {
-                    if (resp && resp.message) {
-                        basePrice = parsePrice(resp.message.standard_rate);
+        frappe.call({
+            method: 'frappe.client.get_value',
+            args: {
+                doctype: 'Item',
+                filters: { name: itemName },
+                fieldname: ['standard_rate', 'image', 'item_name', 'short_description', 'description']
+            },
+            callback: (resp) => {
+                if (resp && resp.message) {
+                    const info = resp.message;
+                    if (typeof info.standard_rate !== 'undefined') {
+                        basePrice = parsePrice(info.standard_rate);
                         hasBasePrice = true;
-                        updateSummary();
                     }
+
+                    itemHeaderData = {
+                        image: info.image || itemHeaderData.image || '',
+                        name: info.item_name || itemHeaderData.name || itemName,
+                        description: (info.short_description || info.description || itemHeaderData.description || '')
+                    };
+
+                    applyHeaderData(itemHeaderData);
+                    updateSummary();
                 }
-            });
-        }
+            }
+        });
 
         if (confirmBtn) {
             confirmBtn.addEventListener('click', () => {
