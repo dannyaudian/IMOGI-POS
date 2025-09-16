@@ -165,80 +165,213 @@ imogi_pos.kitchen_display = {
      * @returns {Promise} Promise resolving when kitchens are loaded
      */
     loadKitchens: function() {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             frappe.call({
                 method: 'imogi_pos.api.kot.get_kitchens_and_stations',
                 args: {
                     branch: this.settings.branch
                 },
                 callback: (response) => {
-                    if (response.message) {
-                        this.state.kitchens = response.message.kitchens || [];
-                        this.state.stations = response.message.stations || [];
-                        
-                        // Populate kitchen selector
-                        this.populateKitchenSelector();
-                        
+                    const message = response && response.message;
+
+                    if (!message) {
+                        console.error('Failed to load kitchens');
+                        this.showError('Failed to load kitchen filters.');
+                        this.state.kitchens = [];
+                        this.state.stations = [];
+                        this.clearKitchenFilters();
                         resolve();
-                    } else {
-                        reject(new Error('Failed to load kitchens'));
+                        return;
                     }
+
+                    const kitchens = message.kitchens || [];
+                    const stations = message.stations || [];
+                    const previousKitchen = this.settings.kitchen;
+                    const previousStation = this.settings.station;
+                    let settingsChanged = false;
+
+                    this.state.kitchens = kitchens;
+                    this.state.stations = stations;
+
+                    if (kitchens.length === 1) {
+                        const [singleKitchen] = kitchens;
+                        if (singleKitchen && previousKitchen !== singleKitchen.name) {
+                            this.settings.kitchen = singleKitchen.name;
+                            settingsChanged = true;
+                        }
+                    } else if (kitchens.length === 0) {
+                        if (previousKitchen) {
+                            this.settings.kitchen = '';
+                            settingsChanged = true;
+                        }
+                    } else if (previousKitchen && !kitchens.some(kitchen => kitchen.name === previousKitchen)) {
+                        this.settings.kitchen = '';
+                        settingsChanged = true;
+                    }
+
+                    if (stations.length === 1) {
+                        const [singleStation] = stations;
+                        if (singleStation && previousStation !== singleStation.name) {
+                            this.settings.station = singleStation.name;
+                            settingsChanged = true;
+                        }
+                    } else if (stations.length === 0) {
+                        if (previousStation) {
+                            this.settings.station = '';
+                            settingsChanged = true;
+                        }
+                    } else if (previousStation && !stations.some(station => station.name === previousStation)) {
+                        this.settings.station = '';
+                        settingsChanged = true;
+                    }
+
+                    if (settingsChanged) {
+                        this.saveSettings();
+                    }
+
+                    if (kitchens.length > 1 || stations.length > 1) {
+                        this.renderKitchenFilters({
+                            showKitchen: kitchens.length > 1,
+                            showStation: stations.length > 1
+                        });
+                    } else {
+                        this.clearKitchenFilters();
+                    }
+
+                    resolve();
                 },
-                error: reject
+                error: (err) => {
+                    console.error('Error loading kitchens:', err);
+                    this.showError('Unable to fetch kitchen filters. Showing last known data.');
+                    this.clearKitchenFilters();
+                    resolve();
+                }
             });
         });
     },
-    
+
     /**
-     * Populate kitchen selector dropdown
+     * Render kitchen and station filters when multiple options exist
+     * @param {Object} options
+     * @param {boolean} [options.showKitchen=false]
+     * @param {boolean} [options.showStation=false]
      */
-    populateKitchenSelector: function() {
-        const kitchenSelector = document.querySelector(this.options.kitchenSelector);
-        const stationSelector = document.querySelector(this.options.stationSelector);
-        
-        if (!kitchenSelector || !stationSelector) return;
-        
-        // Clear existing options
-        kitchenSelector.innerHTML = '<option value="">All Kitchens</option>';
-        stationSelector.innerHTML = '<option value="">All Stations</option>';
-        
-        // Add kitchen options
-        this.state.kitchens.forEach(kitchen => {
-            const option = document.createElement('option');
-            option.value = kitchen.name;
-            option.textContent = kitchen.kitchen_name;
-            kitchenSelector.appendChild(option);
-        });
-        
-        // Add station options
-        this.state.stations.forEach(station => {
-            const option = document.createElement('option');
-            option.value = station.name;
-            option.textContent = station.station_name;
-            stationSelector.appendChild(option);
-        });
-        
-        // Set selected values from settings
-        if (this.settings.kitchen) {
-            kitchenSelector.value = this.settings.kitchen;
+    renderKitchenFilters: function({ showKitchen = false, showStation = false } = {}) {
+        let filtersContainer = this.container.querySelector('#kitchen-filters');
+
+        if (!filtersContainer) {
+            filtersContainer = document.createElement('div');
+            filtersContainer.id = 'kitchen-filters';
+            filtersContainer.className = 'kitchen-filters';
+
+            const controls = this.container.querySelector('.kitchen-controls');
+            if (controls && controls.parentNode) {
+                controls.parentNode.insertBefore(filtersContainer, controls.nextSibling);
+            } else {
+                this.container.insertBefore(filtersContainer, this.container.firstChild);
+            }
         }
-        
-        if (this.settings.station) {
-            stationSelector.value = this.settings.station;
+
+        filtersContainer.innerHTML = '';
+
+        if (!showKitchen && !showStation) {
+            filtersContainer.style.display = 'none';
+            return;
         }
-        
-        // Bind change events
-        kitchenSelector.addEventListener('change', () => {
-            this.settings.kitchen = kitchenSelector.value;
-            this.saveSettings();
-            this.loadKotTickets();
-        });
-        
-        stationSelector.addEventListener('change', () => {
-            this.settings.station = stationSelector.value;
-            this.saveSettings();
-            this.loadKotTickets();
-        });
+
+        filtersContainer.style.display = '';
+
+        const kitchenSelectorId = this.options.kitchenSelector && this.options.kitchenSelector.startsWith('#')
+            ? this.options.kitchenSelector.slice(1)
+            : 'kitchen-selector';
+        const stationSelectorId = this.options.stationSelector && this.options.stationSelector.startsWith('#')
+            ? this.options.stationSelector.slice(1)
+            : 'station-selector';
+
+        if (showKitchen) {
+            const kitchenGroup = document.createElement('div');
+            kitchenGroup.className = 'filter-group';
+
+            const kitchenLabel = document.createElement('span');
+            kitchenLabel.className = 'filter-label';
+            kitchenLabel.textContent = 'Kitchen';
+            kitchenGroup.appendChild(kitchenLabel);
+
+            const kitchenSelector = document.createElement('select');
+            kitchenSelector.id = kitchenSelectorId;
+            kitchenSelector.className = 'filter-select';
+
+            const defaultKitchenOption = document.createElement('option');
+            defaultKitchenOption.value = '';
+            defaultKitchenOption.textContent = 'All Kitchens';
+            kitchenSelector.appendChild(defaultKitchenOption);
+
+            this.state.kitchens.forEach(kitchen => {
+                const option = document.createElement('option');
+                option.value = kitchen.name;
+                option.textContent = kitchen.kitchen_name;
+                kitchenSelector.appendChild(option);
+            });
+
+            kitchenSelector.value = this.settings.kitchen || '';
+
+            kitchenSelector.addEventListener('change', () => {
+                this.settings.kitchen = kitchenSelector.value;
+                this.saveSettings();
+                this.loadKotTickets();
+            });
+
+            kitchenGroup.appendChild(kitchenSelector);
+            filtersContainer.appendChild(kitchenGroup);
+        }
+
+        if (showStation) {
+            const stationGroup = document.createElement('div');
+            stationGroup.className = 'filter-group';
+
+            const stationLabel = document.createElement('span');
+            stationLabel.className = 'filter-label';
+            stationLabel.textContent = 'Station';
+            stationGroup.appendChild(stationLabel);
+
+            const stationSelector = document.createElement('select');
+            stationSelector.id = stationSelectorId;
+            stationSelector.className = 'filter-select';
+
+            const defaultStationOption = document.createElement('option');
+            defaultStationOption.value = '';
+            defaultStationOption.textContent = 'All Stations';
+            stationSelector.appendChild(defaultStationOption);
+
+            this.state.stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station.name;
+                option.textContent = station.station_name;
+                stationSelector.appendChild(option);
+            });
+
+            stationSelector.value = this.settings.station || '';
+
+            stationSelector.addEventListener('change', () => {
+                this.settings.station = stationSelector.value;
+                this.saveSettings();
+                this.loadKotTickets();
+            });
+
+            stationGroup.appendChild(stationSelector);
+            filtersContainer.appendChild(stationGroup);
+        }
+    },
+
+    /**
+     * Hide kitchen filters container
+     */
+    clearKitchenFilters: function() {
+        const filtersContainer = this.container.querySelector('#kitchen-filters');
+        if (!filtersContainer) return;
+
+        filtersContainer.innerHTML = '';
+        filtersContainer.style.display = 'none';
     },
     
     /**
@@ -353,7 +486,7 @@ imogi_pos.kitchen_display = {
                         preparing: [],
                         ready: []
                     };
-                    
+
                     // Process each KOT
                     response.message.forEach(kot => {
                         switch (kot.workflow_state) {
@@ -368,24 +501,23 @@ imogi_pos.kitchen_display = {
                                 break;
                         }
                     });
-                    
+
                     // Update state
                     this.state.kots = kots;
-                    
-                    // Apply filters and sorting
-                    this.filterAndSortKots();
-                    
-                    // Update UI
-                    this.renderKotColumns();
-                    
-                    // Check SLA status
-                    this.checkSlaBreach();
                 } else {
                     console.error('Failed to load KOT tickets');
+                    this.showError('Failed to load KOT tickets.');
                 }
+
+                this.filterAndSortKots();
+                this.renderKotColumns();
+                this.checkSlaBreach();
             },
             error: (err) => {
                 console.error('Error loading KOT tickets:', err);
+                this.showError('Unable to refresh KOT tickets.');
+                this.filterAndSortKots();
+                this.renderKotColumns();
             }
         });
     },
@@ -677,7 +809,9 @@ imogi_pos.kitchen_display = {
                         </button>
                     </div>
                 </div>
-                
+
+                <div id="kitchen-filters" class="kitchen-filters" style="display: none;"></div>
+
                 <div class="kitchen-columns">
                     <div class="kitchen-column queued-column">
                         <div class="column-header">
