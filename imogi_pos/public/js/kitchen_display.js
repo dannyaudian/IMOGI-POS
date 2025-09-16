@@ -49,14 +49,15 @@ imogi_pos.kitchen_display = {
         filterByItem: null,
         sortMode: 'time', // time, priority, table
         selectedKot: null,
-        audioContext: null
+        audioContext: null,
+        hasKitchenFilters: false
     },
     
     /**
      * Initialize the Kitchen Display
      * @param {Object} options - Configuration options
      */
-    init: function(options = {}) {
+    init: async function(options = {}) {
         this.options = Object.assign({
             container: '#kitchen-display',
             kitchenSelector: '#kitchen-selector',
@@ -64,31 +65,50 @@ imogi_pos.kitchen_display = {
             branchSelector: '#branch-selector',
             refreshInterval: 30000 // 30 seconds
         }, options);
-        
+
         this.container = document.querySelector(this.options.container);
         if (!this.container) {
             console.error('Kitchen Display container not found');
             return;
         }
-        
+
         // Initialize components
-        this.initializeNavigation();
-        this.initializeAudio();
-        this.loadSettings()
-            .then(() => {
-                this.renderUI();
-                this.bindEvents();
-                this.loadKitchens()
-                    .then(() => {
-                        this.loadKotTickets();
-                        this.setupRefreshInterval();
-                        this.setupRealTimeUpdates();
-                    });
-            })
-            .catch(err => {
-                console.error('Failed to initialize Kitchen Display:', err);
-                this.showError('Failed to initialize Kitchen Display. Please refresh the page.');
-            });
+        try {
+            this.initializeNavigation();
+        } catch (err) {
+            this.handleStepError('initializing navigation', err);
+        }
+
+        try {
+            this.initializeAudio();
+        } catch (err) {
+            this.handleStepError('initializing audio', err);
+        }
+
+        await this.safeStep('loading settings', () => this.loadSettings());
+        await this.safeStep('rendering interface', () => this.renderUI());
+
+        this.state.hasKitchenFilters = this.detectKitchenFilters();
+
+        await this.safeStep('binding interface events', () => this.bindEvents());
+
+        if (this.state.hasKitchenFilters) {
+            await this.safeStep('loading kitchen filters', () => this.loadKitchens());
+        }
+
+        await this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+
+        try {
+            this.setupRefreshInterval();
+        } catch (err) {
+            this.handleStepError('configuring auto refresh', err);
+        }
+
+        try {
+            this.setupRealTimeUpdates();
+        } catch (err) {
+            this.handleStepError('configuring realtime updates', err);
+        }
     },
     
     /**
@@ -102,9 +122,14 @@ imogi_pos.kitchen_display = {
                 showBranch: true,
                 showLogo: true,
                 backUrl: '/app',
-                onBranchChange: (branch) => {
+                onBranchChange: async (branch) => {
                     this.settings.branch = branch;
-                    this.loadKitchens().then(() => this.loadKotTickets());
+
+                    if (this.state.hasKitchenFilters) {
+                        await this.safeStep('loading kitchen filters', () => this.loadKitchens());
+                    }
+
+                    await this.safeStep('fetching KOT tickets', () => this.fetchTickets());
                 }
             });
         }
@@ -159,13 +184,28 @@ imogi_pos.kitchen_display = {
             sound: this.settings.sound
         }));
     },
-    
+
+    /**
+     * Determine whether kitchen or station filters are available
+     * @returns {boolean} True when filter controls exist in the DOM
+     */
+    detectKitchenFilters: function() {
+        const kitchenSelector = document.querySelector(this.options.kitchenSelector);
+        const stationSelector = document.querySelector(this.options.stationSelector);
+
+        return Boolean(kitchenSelector || stationSelector);
+    },
+
     /**
      * Load kitchens and stations
      * @returns {Promise} Promise resolving when kitchens are loaded
      */
     loadKitchens: function() {
-        return new Promise((resolve) => {
+        if (!this.state.hasKitchenFilters) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve, reject) => {
             frappe.call({
                 method: 'imogi_pos.api.kot.get_kitchens_and_stations',
                 args: {
@@ -361,17 +401,19 @@ imogi_pos.kitchen_display = {
             stationGroup.appendChild(stationSelector);
             filtersContainer.appendChild(stationGroup);
         }
-    },
+        
+        // Bind change events
+        kitchenSelector.addEventListener('change', () => {
+            this.settings.kitchen = kitchenSelector.value;
+            this.saveSettings();
+            this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+        });
 
-    /**
-     * Hide kitchen filters container
-     */
-    clearKitchenFilters: function() {
-        const filtersContainer = this.container.querySelector('#kitchen-filters');
-        if (!filtersContainer) return;
-
-        filtersContainer.innerHTML = '';
-        filtersContainer.style.display = 'none';
+        stationSelector.addEventListener('change', () => {
+            this.settings.station = stationSelector.value;
+            this.saveSettings();
+            this.safeStep('fetching KOT tickets', () => this.fetchTickets());
+        });
     },
     
     /**
@@ -385,7 +427,7 @@ imogi_pos.kitchen_display = {
         
         // Set up new refresh timer
         this.state.refreshTimer = setInterval(() => {
-            this.loadKotTickets();
+            this.safeStep('fetching KOT tickets', () => this.fetchTickets());
         }, this.settings.refreshInterval);
     },
     
@@ -468,58 +510,62 @@ imogi_pos.kitchen_display = {
     },
     
     /**
-     * Load KOT tickets from server
+     * Fetch KOT tickets from server
+     * @returns {Promise<Array>} List of KOT documents returned by the server
      */
-    loadKotTickets: function() {
-        frappe.call({
-            method: 'imogi_pos.api.kot.get_kots_for_kitchen',
-            args: {
-                kitchen: this.settings.kitchen,
-                station: this.settings.station,
-                branch: this.settings.branch
-            },
-            callback: (response) => {
-                if (response.message) {
-                    // Group KOTs by status
-                    const kots = {
-                        queued: [],
-                        preparing: [],
-                        ready: []
-                    };
+    fetchTickets: async function() {
+        const response = await new Promise((resolve, reject) => {
+            frappe.call({
+                method: 'imogi_pos.api.kot.get_kots_for_kitchen',
+                args: {
+                    kitchen: this.settings.kitchen,
+                    station: this.settings.station,
+                    branch: this.settings.branch
+                },
+                callback: resolve,
+                error: reject
+            });
+        });
 
-                    // Process each KOT
-                    response.message.forEach(kot => {
-                        switch (kot.workflow_state) {
-                            case 'Queued':
-                                kots.queued.push(kot);
-                                break;
-                            case 'In Progress':
-                                kots.preparing.push(kot);
-                                break;
-                            case 'Ready':
-                                kots.ready.push(kot);
-                                break;
-                        }
-                    });
+        if (!response || !response.message) {
+            throw new Error('Failed to load KOT tickets');
+        }
 
-                    // Update state
-                    this.state.kots = kots;
-                } else {
-                    console.error('Failed to load KOT tickets');
-                    this.showError('Failed to load KOT tickets.');
-                }
+        // Group KOTs by status
+        const kots = {
+            queued: [],
+            preparing: [],
+            ready: []
+        };
 
-                this.filterAndSortKots();
-                this.renderKotColumns();
-                this.checkSlaBreach();
-            },
-            error: (err) => {
-                console.error('Error loading KOT tickets:', err);
-                this.showError('Unable to refresh KOT tickets.');
-                this.filterAndSortKots();
-                this.renderKotColumns();
+        // Process each KOT
+        response.message.forEach(kot => {
+            switch (kot.workflow_state) {
+                case 'Queued':
+                    kots.queued.push(kot);
+                    break;
+                case 'In Progress':
+                    kots.preparing.push(kot);
+                    break;
+                case 'Ready':
+                    kots.ready.push(kot);
+                    break;
             }
         });
+
+        // Update state
+        this.state.kots = kots;
+
+        // Apply filters and sorting
+        this.filterAndSortKots();
+
+        // Update UI
+        this.renderColumns();
+
+        // Check SLA status
+        this.checkSlaBreach();
+
+        return response.message;
     },
     
     /**
@@ -650,7 +696,7 @@ imogi_pos.kitchen_display = {
         this.filterAndSortKots();
         
         // Update UI
-        this.renderKotColumns();
+        this.renderColumns();
     },
     
     /**
@@ -667,7 +713,7 @@ imogi_pos.kitchen_display = {
         this.filterAndSortKots();
         
         // Update UI
-        this.renderKotColumns();
+        this.renderColumns();
     },
     
     /**
@@ -722,7 +768,7 @@ imogi_pos.kitchen_display = {
             this.filterAndSortKots();
             
             // Update UI
-            this.renderKotColumns();
+            this.renderColumns();
         }
     },
     
@@ -843,8 +889,6 @@ imogi_pos.kitchen_display = {
             <div id="toast-container" class="toast-container"></div>
         `;
         
-        // Bind events
-        this.bindEvents();
     },
     
     /**
@@ -857,7 +901,7 @@ imogi_pos.kitchen_display = {
             searchInput.addEventListener('input', () => {
                 this.state.searchTerm = searchInput.value;
                 this.filterAndSortKots();
-                this.renderKotColumns();
+                this.renderColumns();
             });
         }
         
@@ -866,7 +910,7 @@ imogi_pos.kitchen_display = {
         if (searchBtn) {
             searchBtn.addEventListener('click', () => {
                 this.filterAndSortKots();
-                this.renderKotColumns();
+                this.renderColumns();
             });
         }
         
@@ -874,7 +918,7 @@ imogi_pos.kitchen_display = {
         const refreshBtn = this.container.querySelector('#refresh-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                this.loadKotTickets();
+                this.safeStep('fetching KOT tickets', () => this.fetchTickets());
             });
         }
         
@@ -929,7 +973,7 @@ imogi_pos.kitchen_display = {
         }
         
         // Re-render columns to apply new view mode
-        this.renderKotColumns();
+        this.renderColumns();
     },
     
     /**
@@ -951,7 +995,7 @@ imogi_pos.kitchen_display = {
         
         // Re-apply filters and sorting
         this.filterAndSortKots();
-        this.renderKotColumns();
+        this.renderColumns();
     },
     
     /**
@@ -1133,7 +1177,7 @@ imogi_pos.kitchen_display = {
     /**
      * Render KOT columns
      */
-    renderKotColumns: function() {
+    renderColumns: function() {
         const queuedContainer = this.container.querySelector('#queued-container');
         const preparingContainer = this.container.querySelector('#preparing-container');
         const readyContainer = this.container.querySelector('#ready-container');
@@ -1759,22 +1803,109 @@ imogi_pos.kitchen_display = {
     },
     
     /**
+     * Execute a step and surface errors without interrupting the flow
+     * @param {string} stepName - Description of the step being executed
+     * @param {Function} stepFn - Function representing the step
+     * @returns {Promise<*>} Result of the provided function or null when it fails
+     */
+    safeStep: async function(stepName, stepFn) {
+        try {
+            return await stepFn();
+        } catch (error) {
+            this.handleStepError(stepName, error);
+            return null;
+        }
+    },
+
+    /**
+     * Extract a human friendly message from different error shapes
+     * @param {*} error - Error object or message
+     * @returns {string} Normalized message
+     */
+    extractErrorMessage: function(error) {
+        if (!error) {
+            return 'Unknown error';
+        }
+
+        if (typeof error === 'string') {
+            return error;
+        }
+
+        if (error.message) {
+            return error.message;
+        }
+
+        if (error.exception) {
+            return error.exception;
+        }
+
+        if (error._server_messages) {
+            try {
+                const messages = JSON.parse(error._server_messages);
+                if (Array.isArray(messages) && messages.length) {
+                    return messages.join(', ');
+                }
+            } catch (e) {
+                // Ignore JSON parse errors and continue with fallback handling
+            }
+        }
+
+        if (error.toString && error.toString() !== '[object Object]') {
+            return error.toString();
+        }
+
+        return 'Unknown error';
+    },
+
+    /**
+     * Log and display an error toast for a failed step
+     * @param {string} stepName - Step description
+     * @param {*} error - Error object or message
+     */
+    handleStepError: function(stepName, error) {
+        const detail = this.extractErrorMessage(error);
+        const readableStep = stepName ? stepName.charAt(0).toUpperCase() + stepName.slice(1) : 'operation';
+
+        console.error(`Kitchen Display error while ${stepName || 'operation'}:`, error);
+
+        const prefix = stepName ? `Error while ${readableStep}` : 'Error';
+        this.showError(`${prefix}: ${detail}`);
+    },
+
+    /**
      * Show error message
      * @param {string} message - Error message
      */
     showError: function(message) {
-        const toastContainer = this.container.querySelector('#toast-container');
-        if (!toastContainer) return;
-        
+        if (!this.container) {
+            console.error('Kitchen Display container not available for showing errors.');
+            return;
+        }
+
+        let toastContainer = this.container.querySelector('#toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            this.container.appendChild(toastContainer);
+        }
+
+        const finalMessage = (typeof message === 'string' && message.trim()) ? message : 'An unexpected error occurred';
+
         const toast = document.createElement('div');
         toast.className = 'toast toast-error';
         toast.innerHTML = `
             <div class="toast-content">
                 <i class="fa fa-exclamation-circle toast-icon"></i>
-                <div class="toast-message">${message}</div>
+                <div class="toast-message"></div>
             </div>
         `;
-        
+
+        const messageContainer = toast.querySelector('.toast-message');
+        if (messageContainer) {
+            messageContainer.textContent = finalMessage;
+        }
+
         toastContainer.appendChild(toast);
         
         // Auto-remove after delay
@@ -1793,18 +1924,34 @@ imogi_pos.kitchen_display = {
      * @param {string} message - Toast message
      */
     showToast: function(message) {
-        const toastContainer = this.container.querySelector('#toast-container');
-        if (!toastContainer) return;
-        
+        if (!this.container) {
+            console.error('Kitchen Display container not available for showing toasts.');
+            return;
+        }
+
+        let toastContainer = this.container.querySelector('#toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            this.container.appendChild(toastContainer);
+        }
+
         const toast = document.createElement('div');
         toast.className = 'toast toast-success';
         toast.innerHTML = `
             <div class="toast-content">
                 <i class="fa fa-check-circle toast-icon"></i>
-                <div class="toast-message">${message}</div>
+                <div class="toast-message"></div>
             </div>
         `;
-        
+
+        const finalMessage = (typeof message === 'string' && message.trim()) ? message : 'Operation completed successfully';
+        const messageContainer = toast.querySelector('.toast-message');
+        if (messageContainer) {
+            messageContainer.textContent = finalMessage;
+        }
+
         toastContainer.appendChild(toast);
         
         // Auto-remove after delay
@@ -1993,8 +2140,15 @@ imogi_pos.kitchen_display = {
      */
     formatDateTime: function(datetime) {
         if (!datetime) return '';
-        
+
         const date = new Date(datetime);
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+};
+
+imogi_pos.kitchen_display.lifecycle = {
+    init: imogi_pos.kitchen_display.init.bind(imogi_pos.kitchen_display),
+    fetchTickets: imogi_pos.kitchen_display.fetchTickets.bind(imogi_pos.kitchen_display),
+    renderColumns: imogi_pos.kitchen_display.renderColumns.bind(imogi_pos.kitchen_display),
+    bindEvents: imogi_pos.kitchen_display.bindEvents.bind(imogi_pos.kitchen_display)
 };
