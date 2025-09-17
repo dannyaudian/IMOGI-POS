@@ -738,6 +738,13 @@ imogi_pos.kitchen_display = {
         if (this.state.searchTerm) {
             const searchTerm = this.state.searchTerm.toLowerCase();
             const getTableName = (kot) => kot.table || kot.table_name || '';
+            const matchesSearch = (value) => {
+                if (value === undefined || value === null) {
+                    return false;
+                }
+
+                return String(value).toLowerCase().includes(searchTerm);
+            };
 
             Object.keys(filteredKots).forEach(status => {
                 filteredKots[status] = filteredKots[status].filter(kot => {
@@ -747,12 +754,20 @@ imogi_pos.kitchen_display = {
                     // Search in table name
                     const tableName = getTableName(kot);
                     if (tableName && tableName.toLowerCase().includes(searchTerm)) return true;
-                    
+
                     // Search in order name
                     if (kot.pos_order && kot.pos_order.toLowerCase().includes(searchTerm)) return true;
-                    
+
+                    if (matchesSearch(kot.branch)) return true;
+                    if (matchesSearch(kot.kitchen)) return true;
+                    if (matchesSearch(kot.kitchen_station)) return true;
+                    if (matchesSearch(kot.floor)) return true;
+                    if (matchesSearch(kot.order_type)) return true;
+                    if (matchesSearch(kot.customer)) return true;
+                    if (matchesSearch(kot.created_by || kot.owner)) return true;
+
                     // Search in items
-                    if (kot.items && kot.items.some(item => 
+                    if (kot.items && kot.items.some(item =>
                         item.item_name.toLowerCase().includes(searchTerm) ||
                         (item.notes && item.notes.toLowerCase().includes(searchTerm))
                     )) return true;
@@ -1443,7 +1458,7 @@ imogi_pos.kitchen_display = {
             kotCard.dataset.kot = kot.name;
             
             // Calculate time elapsed
-            const creationTime = new Date(kot.creation);
+            const creationTime = new Date(kot.creation_time || kot.creation);
             const now = new Date();
             const elapsedSeconds = Math.floor((now - creationTime) / 1000);
             
@@ -1472,7 +1487,7 @@ imogi_pos.kitchen_display = {
      */
     renderKotCard: function(card, kot) {
         // Calculate elapsed time
-        const creationTime = new Date(kot.creation);
+        const creationTime = new Date(kot.creation_time || kot.creation);
         const now = new Date();
         const elapsedSeconds = Math.floor((now - creationTime) / 1000);
         const elapsedMinutes = Math.floor(elapsedSeconds / 60);
@@ -1535,19 +1550,44 @@ imogi_pos.kitchen_display = {
             itemsHtml = `<div class="empty-items">No items</div>`;
         }
         
+        const metaRows = [];
+
+        const addMetaRow = (label, value) => {
+            if (!this.hasValue(value)) {
+                return;
+            }
+
+            metaRows.push(`
+                <div class="kot-meta-row">
+                    <span class="meta-label">${this.escapeHtml(label)}:</span>
+                    <span class="meta-value">${this.escapeHtml(value)}</span>
+                </div>
+            `);
+        };
+
+        addMetaRow('Order', kot.pos_order);
+        addMetaRow('Table', kot.table);
+        addMetaRow('Priority', kot.priority);
+        addMetaRow('Branch', kot.branch);
+        addMetaRow('Kitchen', kot.kitchen);
+        addMetaRow('Station', kot.kitchen_station);
+        addMetaRow('Floor', kot.floor);
+        addMetaRow('Order Type', kot.order_type);
+        addMetaRow('Customer', kot.customer);
+
+        const metaHtml = metaRows.join('');
+
         // Build card HTML
         card.innerHTML = `
             <div class="kot-header">
                 <div class="kot-info">
-                    <div class="kot-id">${kot.name}</div>
+                    <div class="kot-id">${this.escapeHtml(kot.name)}</div>
                     <div class="kot-time">
-                        <i class="fa fa-clock"></i> ${elapsedText}
+                        <i class="fa fa-clock"></i> ${this.escapeHtml(elapsedText)}
                     </div>
                 </div>
                 <div class="kot-meta">
-                    ${kot.pos_order ? `<div class="kot-order">Order: ${kot.pos_order}</div>` : ''}
-                    ${kot.table ? `<div class="kot-table">Table: ${kot.table}</div>` : ''}
-                    ${kot.priority ? `<div class="kot-priority">Priority: ${kot.priority}</div>` : ''}
+                    ${metaHtml}
                 </div>
             </div>
             
@@ -1790,7 +1830,8 @@ imogi_pos.kitchen_display = {
         if (!kot) return;
         
         // Calculate elapsed time
-        const creationTime = new Date(kot.creation);
+        const creationTimestamp = kot.creation_time || kot.creation;
+        const creationTime = new Date(creationTimestamp);
         const now = new Date();
         const elapsedSeconds = Math.floor((now - creationTime) / 1000);
         const elapsedMinutes = Math.floor(elapsedSeconds / 60);
@@ -1833,37 +1874,59 @@ imogi_pos.kitchen_display = {
         } else {
             itemsHtml = `<div class="empty-items">No items</div>`;
         }
-        
+
+        const headerRows = [];
+        const addHeaderRow = (label, value, options = {}) => {
+            const { fallback = 'N/A', formatter } = options;
+            const hasActualValue = this.hasValue(value);
+            let displayValue = value;
+
+            if (hasActualValue && typeof formatter === 'function') {
+                displayValue = formatter(value);
+            }
+
+            if (!hasActualValue) {
+                displayValue = fallback;
+            }
+
+            headerRows.push(`
+                <div class="kot-info-row">
+                    <div class="info-label">${this.escapeHtml(label)}:</div>
+                    <div class="info-value">${this.escapeHtml(displayValue)}</div>
+                </div>
+            `);
+        };
+
+        const creationSource = creationTimestamp;
+        addHeaderRow('Order', kot.pos_order);
+        addHeaderRow('Customer', kot.customer);
+        addHeaderRow('Order Type', kot.order_type);
+        addHeaderRow('Branch', kot.branch);
+        addHeaderRow('Kitchen', kot.kitchen);
+        addHeaderRow('Station', kot.kitchen_station);
+        addHeaderRow('Table', kot.table);
+        addHeaderRow('Floor', kot.floor);
+        addHeaderRow('Created', creationSource, { formatter: (value) => this.formatDateTime(value) });
+        addHeaderRow('Created By', kot.created_by || kot.owner);
+        addHeaderRow('Elapsed', elapsedText, { fallback: '0m' });
+
+        const headerRowsHtml = headerRows.join('');
+
         // Show modal
         const modalContainer = this.container.querySelector('#modal-root');
         if (!modalContainer) return;
-        
+
         modalContainer.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-container">
                     <div class="modal-header">
-                        <h3>KOT Details: ${kot.name}</h3>
+                        <h3>KOT Details: ${this.escapeHtml(kot.name)}</h3>
                         <button class="modal-close">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="kot-details">
                             <div class="kot-details-header">
-                                <div class="kot-info-row">
-                                    <div class="info-label">Order:</div>
-                                    <div class="info-value">${kot.pos_order || 'N/A'}</div>
-                                </div>
-                                <div class="kot-info-row">
-                                    <div class="info-label">Table:</div>
-                                    <div class="info-value">${kot.table || 'N/A'}</div>
-                                </div>
-                                <div class="kot-info-row">
-                                    <div class="info-label">Created:</div>
-                                    <div class="info-value">${this.formatDateTime(kot.creation)}</div>
-                                </div>
-                                <div class="kot-info-row">
-                                    <div class="info-label">Elapsed:</div>
-                                    <div class="info-value">${elapsedText}</div>
-                                </div>
+                                ${headerRowsHtml}
                                 <div class="kot-info-row">
                                     <div class="info-label">Status:</div>
                                     <div class="info-value">
@@ -2247,6 +2310,27 @@ imogi_pos.kitchen_display = {
             .split('|')
             .map(part => part.trim())
             .filter(Boolean);
+    },
+
+    /**
+     * Check whether a value should be considered as present
+     * @param {*} value - Value to evaluate
+     * @returns {boolean} True when the value is non-empty
+     */
+    hasValue: function(value) {
+        if (value === undefined || value === null) {
+            return false;
+        }
+
+        if (typeof value === 'number') {
+            return true;
+        }
+
+        if (typeof value === 'string') {
+            return value.trim().length > 0;
+        }
+
+        return Boolean(value);
     },
 
     /**
