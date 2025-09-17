@@ -640,9 +640,13 @@ body {
 
 /* ===== VIEW MODE ===== */
 .compact-view .kot-items {
-  max-height: 1000px;
   overflow: hidden;
   transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.compact-view .kot-items:not(.collapsed) {
+  max-height: none;
+  padding: var(--spacing-md);
 }
 
 .compact-view .kot-items.collapsed {
