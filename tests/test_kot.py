@@ -212,6 +212,36 @@ def test_send_items_to_kitchen_requires_station(kot_module):
     assert "ITEM-1" in str(excinfo.value)
     assert not insert_called
 
+
+def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):
+    kot, frappe = kot_module
+
+    class Ticket(dict):
+        def __init__(self):
+            super().__init__(
+                name="KOT-1",
+                branch="BR-1",
+                kitchen="KIT-1",
+                kitchen_station="ST-1",
+                items=[{"name": "ITEM-1"}],
+            )
+            self.as_dict = {
+                "name": "KOT-1",
+                "branch": "BR-1",
+                "kitchen": "KIT-1",
+                "kitchen_station": "ST-1",
+                "items": [{"name": "ITEM-1"}],
+            }
+
+    ticket = Ticket()
+
+    frappe.realtime.calls.clear()
+
+    kot.publish_kitchen_update(ticket)
+
+    assert len(frappe.realtime.calls) == 3
+
+
 @pytest.fixture
 def kot_service_env():
     sys.path.insert(0, ".")
