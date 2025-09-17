@@ -242,6 +242,59 @@ def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):
     assert len(frappe.realtime.calls) == 3
 
 
+def test_get_kots_for_kitchen_handles_missing_priority_column(kot_module):
+    kot, frappe = kot_module
+
+    calls = {}
+
+    def mock_get_all(doctype, filters=None, fields=None, order_by=None, limit_page_length=None):
+        if doctype == "KOT Ticket":
+            calls["ticket_fields"] = list(fields)
+            return [
+                {
+                    "name": "KOT-1",
+                    "table": "TBL-1",
+                    "workflow_state": "Queued",
+                    "creation": datetime.datetime(2023, 1, 1, 0, 0, 0),
+                    "pos_order": "POS-1",
+                    "branch": "BR-1",
+                    "kitchen": "KIT-1",
+                    "kitchen_station": "ST-1",
+                    "floor": "FL-1",
+                    "order_type": "Dine In",
+                    "customer": "CUST-1",
+                    "creation_time": "2023-01-01 00:00:00",
+                    "created_by": "chef@example.com",
+                    "owner": "owner@example.com",
+                }
+            ]
+
+        if doctype == "KOT Item":
+            calls.setdefault("item_fields", []).append(list(fields))
+            return [
+                {
+                    "idx": 1,
+                    "item": "ITEM-1",
+                    "item_name": "Item 1",
+                    "status": "Queued",
+                    "qty": 1,
+                    "notes": None,
+                    "item_options": None,
+                    "options_display": None,
+                }
+            ]
+
+        raise AssertionError(f"Unexpected doctype requested: {doctype}")
+
+    frappe.get_all = mock_get_all
+    frappe.db.has_column = lambda doctype, column: False
+
+    tickets = kot.get_kots_for_kitchen()
+
+    assert "priority" not in calls["ticket_fields"]
+    assert tickets[0]["priority"] == 0
+
+
 @pytest.fixture
 def kot_service_env():
     sys.path.insert(0, ".")

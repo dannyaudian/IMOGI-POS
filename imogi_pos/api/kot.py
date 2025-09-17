@@ -299,31 +299,45 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
     if branch:
         filters["branch"] = branch
 
+    ticket_fields = [
+        "name",
+        "table",
+        "workflow_state",
+        "creation",
+        "pos_order",
+        "branch",
+        "kitchen",
+        "kitchen_station",
+        "floor",
+        "order_type",
+        "customer",
+        "creation_time",
+        "created_by",
+        "owner",
+    ]
+
+    has_priority_field = False
+    has_column = getattr(getattr(frappe, "db", None), "has_column", None)
+    if callable(has_column):
+        try:
+            has_priority_field = bool(has_column("KOT Ticket", "priority"))
+        except Exception:
+            has_priority_field = False
+
+    if has_priority_field:
+        ticket_fields.insert(11, "priority")
+
     tickets = frappe.get_all(
         "KOT Ticket",
         filters=filters,
-        fields=[
-            "name",
-            "table",
-            "workflow_state",
-            "creation",
-            "pos_order",
-            "branch",
-            "kitchen",
-            "kitchen_station",
-            "floor",
-            "order_type",
-            "customer",
-            "priority",
-            "creation_time",
-            "created_by",
-            "owner",
-        ],
+        fields=ticket_fields,
         order_by="creation asc",
         limit_page_length=0,
     )
 
     for ticket in tickets:
+        ticket.setdefault("priority", 0)
+
         items = frappe.get_all(
             "KOT Item",
             filters={"parent": ticket["name"]},
