@@ -249,6 +249,10 @@ body {
   overflow: hidden;
 }
 
+.kitchen-columns.has-collapsed {
+  gap: var(--spacing-md);
+}
+
 .kitchen-column {
   flex: 1;
   display: flex;
@@ -258,6 +262,30 @@ body {
   box-shadow: var(--shadow-md);
   overflow: hidden;
   min-width: 300px;
+  transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.kitchen-column.collapsed {
+  flex: 0 0 0;
+  max-width: 0;
+  min-width: 0;
+  opacity: 0;
+  transform: scale(0.98);
+  margin: 0;
+  box-shadow: none;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.kitchen-column.collapsed .column-header,
+.kitchen-column.collapsed .column-body {
+  opacity: 0;
+}
+
+.column-queued.collapsed .column-header,
+.column-preparing.collapsed .column-header,
+.column-ready.collapsed .column-header {
+  border-top-width: 0;
 }
 
 .column-header {
