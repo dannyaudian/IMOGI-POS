@@ -1411,6 +1411,7 @@ imogi_pos.kitchen_display = {
         this.renderKotColumn(readyContainer, this.state.filteredKots.ready, 'Ready');
 
         this.collapseEmptyColumns();
+        this.syncKotItemsCollapseState();
     },
 
     collapseEmptyColumns: function() {
@@ -1639,30 +1640,85 @@ imogi_pos.kitchen_display = {
 
         // Add compact view markup if needed
         if (this.state.viewMode === 'compact') {
+            const itemsContainer = card.querySelector('.kot-items');
+
             // Add item count badge
             const itemCount = kot.items ? kot.items.length : 0;
             const itemCountBadge = document.createElement('div');
             itemCountBadge.className = 'kot-item-count';
             itemCountBadge.textContent = itemCount;
             card.querySelector('.kot-header').appendChild(itemCountBadge);
-            
+
             // Make items collapsible
-            card.querySelector('.kot-items').classList.add('collapsed');
-            
+            if (itemsContainer) {
+                itemsContainer.classList.add('collapsed');
+            }
+
             // Add toggle button
             const toggleBtn = document.createElement('button');
             toggleBtn.className = 'kot-toggle-btn';
-            toggleBtn.innerHTML = '<i class="fa fa-chevron-down"></i>';
             toggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const itemsContainer = card.querySelector('.kot-items');
-                itemsContainer.classList.toggle('collapsed');
-                toggleBtn.innerHTML = itemsContainer.classList.contains('collapsed') ? 
-                    '<i class="fa fa-chevron-down"></i>' : 
-                    '<i class="fa fa-chevron-up"></i>';
+                this.toggleKotItemsCollapse(card);
             });
             card.querySelector('.kot-meta').appendChild(toggleBtn);
+            this.updateKotItemsToggleIndicator(card, itemsContainer);
         }
+    },
+
+    /**
+     * Synchronize collapse classes and toggle indicators after rendering
+     */
+    syncKotItemsCollapseState: function() {
+        const isCompact = this.state.viewMode === 'compact';
+        const cards = this.container.querySelectorAll('.kot-card');
+
+        cards.forEach(card => {
+            const itemsContainer = card.querySelector('.kot-items');
+            if (!itemsContainer) return;
+
+            if (!isCompact) {
+                itemsContainer.classList.remove('collapsed');
+            }
+
+            this.updateKotItemsToggleIndicator(card, itemsContainer);
+        });
+    },
+
+    /**
+     * Toggle the collapse state of a KOT items container
+     * @param {HTMLElement} card - KOT card element
+     * @param {boolean|null} forceState - Force collapse state when boolean, toggle when null
+     */
+    toggleKotItemsCollapse: function(card, forceState = null) {
+        const itemsContainer = card.querySelector('.kot-items');
+        if (!itemsContainer) return;
+
+        if (typeof forceState === 'boolean') {
+            itemsContainer.classList.toggle('collapsed', forceState);
+        } else {
+            itemsContainer.classList.toggle('collapsed');
+        }
+
+        this.updateKotItemsToggleIndicator(card, itemsContainer);
+    },
+
+    /**
+     * Update the toggle button icon based on collapse state
+     * @param {HTMLElement} card - KOT card element
+     * @param {HTMLElement|null} itemsContainer - Optional items container reference
+     */
+    updateKotItemsToggleIndicator: function(card, itemsContainer = null) {
+        const container = itemsContainer || card.querySelector('.kot-items');
+        if (!container) return;
+
+        const toggleBtn = card.querySelector('.kot-toggle-btn');
+        if (!toggleBtn) return;
+
+        const isCollapsed = container.classList.contains('collapsed');
+        toggleBtn.innerHTML = isCollapsed
+            ? '<i class="fa fa-chevron-down"></i>'
+            : '<i class="fa fa-chevron-up"></i>';
     },
     
     /**
