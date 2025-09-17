@@ -748,8 +748,8 @@ imogi_pos.kitchen_display = {
 
             Object.keys(filteredKots).forEach(status => {
                 filteredKots[status] = filteredKots[status].filter(kot => {
-                    // Search in KOT name
-                    if (kot.name.toLowerCase().includes(searchTerm)) return true;
+                    const kotName = (kot.name || '').toLowerCase();
+                    if (kotName.includes(searchTerm)) return true;
 
                     // Search in table name
                     const tableName = getTableName(kot);
@@ -767,11 +767,16 @@ imogi_pos.kitchen_display = {
                     if (matchesSearch(kot.created_by || kot.owner)) return true;
 
                     // Search in items
-                    if (kot.items && kot.items.some(item =>
-                        item.item_name.toLowerCase().includes(searchTerm) ||
-                        (item.notes && item.notes.toLowerCase().includes(searchTerm))
-                    )) return true;
-                    
+                    if (kot.items && kot.items.some(item => {
+                        const normalizedName = this.getItemDisplayName(item).toLowerCase();
+                        if (normalizedName.includes(searchTerm)) {
+                            return true;
+                        }
+
+                        const normalizedNotes = (item.notes || '').toLowerCase();
+                        return normalizedNotes.includes(searchTerm);
+                    })) return true;
+
                     return false;
                 });
             });
@@ -1509,6 +1514,7 @@ imogi_pos.kitchen_display = {
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
                 const optionsDisplay = (item.options_display || '').trim();
                 let optionsHtml = '';
+                const itemDisplayName = this.getItemDisplayName(item);
 
                 if (optionsDisplay) {
                     const optionParts = optionsDisplay
@@ -1533,7 +1539,7 @@ imogi_pos.kitchen_display = {
                         <div class="kot-item-qty">${item.qty}x</div>
                         <div class="kot-item-details">
                             <div class="kot-item-name">
-                                ${item.item_name}
+                                ${this.escapeHtml(itemDisplayName)}
                                 <span class="item-status-badge">${itemStatus}</span>
                             </div>
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
@@ -1851,12 +1857,13 @@ imogi_pos.kitchen_display = {
                 const itemStatus = item.status || 'Queued';
                 const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
                 const optionsHtml = this.getItemOptionsMarkup(item);
+                const itemDisplayName = this.getItemDisplayName(item);
 
                 itemsHtml += `
                     <div class="kot-detail-item ${itemStatusClass}">
                         <div class="item-info">
                             <div class="item-quantity">${item.qty}x</div>
-                            <div class="item-name">${item.item_name}</div>
+                            <div class="item-name">${this.escapeHtml(itemDisplayName)}</div>
                         </div>
                         <div class="item-status">
                             <select class="item-status-select" data-item-idx="${item.idx}">
@@ -2237,6 +2244,41 @@ imogi_pos.kitchen_display = {
                 }
             }, 300);
         }, 3000);
+    },
+
+    /**
+     * Safely extract the base name for a KOT item
+     * @param {Object} item - KOT item data
+     * @returns {string} Trimmed base name or empty string when unavailable
+     */
+    getItemBaseName: function(item) {
+        if (!item) {
+            return '';
+        }
+
+        const candidateValues = [item.item_name, item.item, item.name];
+        for (const value of candidateValues) {
+            if (value === undefined || value === null) {
+                continue;
+            }
+
+            const stringValue = String(value).trim();
+            if (stringValue) {
+                return stringValue;
+            }
+        }
+
+        return '';
+    },
+
+    /**
+     * Determine the display label for a KOT item, providing a fallback when necessary
+     * @param {Object} item - KOT item data
+     * @returns {string} Display name for rendering
+     */
+    getItemDisplayName: function(item) {
+        const baseName = this.getItemBaseName(item);
+        return baseName || 'Unnamed Item';
     },
 
     /**
