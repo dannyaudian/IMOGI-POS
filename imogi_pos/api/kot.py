@@ -79,7 +79,7 @@ def publish_kitchen_update(
             kot_ticket = ticket_doc.as_dict()
         except Exception:
             kot_ticket = {"name": kot_ticket}
-    elif hasattr(kot_ticket, "as_dict"):
+    elif callable(getattr(kot_ticket, "as_dict", None)):
         ticket_doc = kot_ticket
         kot_ticket = ticket_doc.as_dict()
     elif isinstance(kot_ticket, dict):
