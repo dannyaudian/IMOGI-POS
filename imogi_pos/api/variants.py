@@ -114,15 +114,22 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
 
     price_list_adjustment = 0.0
     price_list_currency = None
+    adjustment_field_available = frappe.db.has_column("Price List", "imogi_price_adjustment")
+
     if price_list:
+        fields = ["currency"]
+        if adjustment_field_available:
+            fields.append("imogi_price_adjustment")
+
         price_list_doc = frappe.db.get_value(
             "Price List",
             price_list,
-            ["currency", "imogi_price_adjustment"],
+            fields,
             as_dict=True,
         )
         if price_list_doc:
-            price_list_adjustment = flt(price_list_doc.get("imogi_price_adjustment") or 0)
+            if adjustment_field_available:
+                price_list_adjustment = flt(price_list_doc.get("imogi_price_adjustment") or 0)
             price_list_currency = price_list_doc.get("currency")
 
     # Apply price list rates when requested

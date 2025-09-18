@@ -98,17 +98,17 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
     # Load human readable labels and currency information in bulk
     price_list_names = [entry["name"] for entry in entries if entry.get("name")]
     price_meta: Dict[str, Dict[str, object]] = {}
+    adjustment_field_available = frappe.db.has_column("Price List", "imogi_price_adjustment")
+
     if price_list_names:
+        fields = ["name", "price_list_name", "currency", "enabled"]
+        if adjustment_field_available:
+            fields.append("imogi_price_adjustment")
+
         rows = frappe.get_all(
             "Price List",
             filters={"name": ["in", price_list_names]},
-            fields=[
-                "name",
-                "price_list_name",
-                "currency",
-                "enabled",
-                "imogi_price_adjustment",
-            ],
+            fields=fields,
         )
         price_meta = {row.name: row for row in rows}
 
@@ -127,7 +127,9 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
                 "currency": currency,
                 "is_default": 1 if name == default_name else 0,
                 "enabled": meta.get("enabled"),
-                "adjustment": flt(meta.get("imogi_price_adjustment") or 0),
+                "adjustment": flt(meta.get("imogi_price_adjustment") or 0)
+                if adjustment_field_available
+                else 0,
             }
         )
 
