@@ -9,6 +9,7 @@ from imogi_pos.utils.branding import (
 from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
+from imogi_pos.api.orders import user_can_apply_order_discounts
 
 def get_context(context):
     """Get context for kiosk page."""
@@ -63,6 +64,7 @@ def get_context(context):
     # UI Settings
     context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1))
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_kiosk", 1))
+    context.allow_discounts = cint(user_can_apply_order_discounts())
     
     # Get Queue Number if applicable
     context.next_queue_number = get_next_queue_number(context.branch) if context.branch else 1
