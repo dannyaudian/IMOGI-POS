@@ -57,6 +57,7 @@ frappe.ready(async function() {
         taxRate: 0,
         priceLists: [],
         selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
+        itemIndex: new Map(),
         serviceType: serviceType,
 
         // Order type and table
@@ -134,7 +135,130 @@ frappe.ready(async function() {
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text')
         },
-        
+
+        // Pricing helpers
+        normalizeNumber: function(value) {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : 0;
+        },
+
+        getPriceListByName: function(name) {
+            if (!name) {
+                return null;
+            }
+            return this.priceLists.find(pl => pl.name === name) || null;
+        },
+
+        getSelectedPriceListMeta: function() {
+            return this.getPriceListByName(this.selectedPriceList);
+        },
+
+        getSelectedPriceListAdjustment: function() {
+            const meta = this.getSelectedPriceListMeta();
+            if (!meta) {
+                return 0;
+            }
+            return this.normalizeNumber(meta.adjustment);
+        },
+
+        registerCatalogItem: function(item) {
+            if (!item || !item.name) {
+                return;
+            }
+            if (!this.itemIndex || typeof this.itemIndex.set !== 'function') {
+                this.itemIndex = new Map();
+            }
+            this.itemIndex.set(item.name, item);
+        },
+
+        getCatalogItem: function(itemCode) {
+            if (!itemCode) {
+                return null;
+            }
+            if (!this.itemIndex || typeof this.itemIndex.get !== 'function') {
+                return null;
+            }
+            return this.itemIndex.get(itemCode) || null;
+        },
+
+        applyPriceAdjustmentToItem: function(item) {
+            if (!item) {
+                return 0;
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(item, '_default_standard_rate')
+                || !Number.isFinite(item._default_standard_rate)) {
+                const baseSource = Object.prototype.hasOwnProperty.call(item, 'imogi_base_standard_rate')
+                    ? item.imogi_base_standard_rate
+                    : item.standard_rate;
+                item._default_standard_rate = this.normalizeNumber(baseSource);
+            }
+
+            if (item.has_explicit_price_list_rate && !Number.isFinite(item._explicit_standard_rate)) {
+                item._explicit_standard_rate = this.normalizeNumber(item.standard_rate);
+            }
+
+            const hasExplicit = Number.isFinite(item._explicit_standard_rate);
+            const baseRate = hasExplicit
+                ? this.normalizeNumber(item._explicit_standard_rate)
+                : this.normalizeNumber(item._default_standard_rate);
+            const adjustment = this.getSelectedPriceListAdjustment();
+            const finalRate = hasExplicit ? baseRate : baseRate + adjustment;
+
+            item.standard_rate = finalRate;
+            item._has_explicit_price = hasExplicit;
+            this.registerCatalogItem(item);
+
+            return finalRate;
+        },
+
+        applyPriceAdjustmentToItems: function(items) {
+            if (!Array.isArray(items)) {
+                return;
+            }
+            items.forEach(item => this.applyPriceAdjustmentToItem(item));
+        },
+
+        applyPriceAdjustmentToVariants: function(variants) {
+            if (!Array.isArray(variants)) {
+                return [];
+            }
+            return variants.map(variant => {
+                if (!variant) {
+                    return variant;
+                }
+                variant.has_explicit_price_list_rate = Number(variant.has_explicit_price_list_rate) ? 1 : 0;
+                if (variant.has_explicit_price_list_rate) {
+                    variant._explicit_standard_rate = this.normalizeNumber(variant.standard_rate);
+                } else if (!Object.prototype.hasOwnProperty.call(variant, '_explicit_standard_rate')) {
+                    variant._explicit_standard_rate = null;
+                }
+
+                if (!Object.prototype.hasOwnProperty.call(variant, '_default_standard_rate')
+                    || !Number.isFinite(variant._default_standard_rate)) {
+                    const baseSource = Object.prototype.hasOwnProperty.call(variant, 'imogi_base_standard_rate')
+                        ? variant.imogi_base_standard_rate
+                        : variant.standard_rate;
+                    variant._default_standard_rate = this.normalizeNumber(baseSource);
+                }
+
+                this.applyPriceAdjustmentToItem(variant);
+                return variant;
+            });
+        },
+
+        getAdjustedRateForItemCode: function(itemCode) {
+            const item = this.getCatalogItem(itemCode);
+            if (!item) {
+                return null;
+            }
+            if (Number.isFinite(item._explicit_standard_rate)) {
+                return this.normalizeNumber(item._explicit_standard_rate);
+            }
+            const baseRate = this.normalizeNumber(item._default_standard_rate);
+            return baseRate + this.getSelectedPriceListAdjustment();
+        },
+
         // Initialize
         init: async function() {
             this.setupEventListeners();
@@ -263,7 +387,8 @@ frappe.ready(async function() {
                 this.priceLists = lists.map(row => ({
                     name: row.name,
                     label: row.label || row.name,
-                    currency: row.currency || null
+                    currency: row.currency || null,
+                    adjustment: this.normalizeNumber(row.adjustment)
                 }));
 
                 const defaultName = response.default_price_list
@@ -408,19 +533,43 @@ frappe.ready(async function() {
                 priceMap = {};
             }
 
-            this.cart.forEach(item => {
-                const extra = this.getCartItemExtra(item);
-                const baseRate = Object.prototype.hasOwnProperty.call(priceMap, item.item_code)
-                    ? priceMap[item.item_code]
-                    : typeof item._base_rate === 'number'
-                        ? item._base_rate
-                        : (Number(item.rate) || 0) - extra;
+            const adjustment = this.getSelectedPriceListAdjustment();
 
-                item._base_rate = Number.isFinite(baseRate) ? baseRate : 0;
-                const safeExtra = Number.isFinite(extra) ? extra : 0;
-                item._extra_rate = safeExtra;
-                item.rate = item._base_rate + safeExtra;
-                item.amount = item.rate * item.qty;
+            this.cart.forEach(item => {
+                const extra = this.normalizeNumber(this.getCartItemExtra(item));
+                let baseRate;
+
+                if (Object.prototype.hasOwnProperty.call(priceMap, item.item_code)) {
+                    baseRate = this.normalizeNumber(priceMap[item.item_code]);
+                    const catalogItem = this.getCatalogItem(item.item_code);
+                    if (catalogItem) {
+                        catalogItem._explicit_standard_rate = baseRate;
+                        catalogItem.has_explicit_price_list_rate = 1;
+                        this.applyPriceAdjustmentToItem(catalogItem);
+                    }
+                } else {
+                    const catalogItem = this.getCatalogItem(item.item_code);
+                    if (catalogItem) {
+                        if (Number.isFinite(catalogItem._explicit_standard_rate)) {
+                            baseRate = this.normalizeNumber(catalogItem._explicit_standard_rate);
+                        } else {
+                            const defaultRate = this.normalizeNumber(catalogItem._default_standard_rate);
+                            baseRate = defaultRate + adjustment;
+                        }
+                    } else {
+                        const fallbackBase = typeof item._base_rate === 'number'
+                            ? item._base_rate
+                            : (Number(item.rate) || 0) - extra;
+                        baseRate = Number.isFinite(fallbackBase) ? fallbackBase : 0;
+                    }
+                }
+
+                const safeBase = Number.isFinite(baseRate) ? baseRate : 0;
+                item._base_rate = safeBase;
+                item._extra_rate = extra;
+                const finalRate = safeBase + extra;
+                item.rate = finalRate;
+                item.amount = finalRate * item.qty;
             });
         },
 
@@ -463,6 +612,27 @@ frappe.ready(async function() {
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
                     this.items = response.message.filter(item => !item.variant_of);
+
+                    if (this.itemIndex && typeof this.itemIndex.clear === 'function') {
+                        this.itemIndex.clear();
+                    } else {
+                        this.itemIndex = new Map();
+                    }
+
+                    this.items.forEach(item => {
+                        item.has_explicit_price_list_rate = Number(item.has_explicit_price_list_rate) ? 1 : 0;
+                        if (item.has_explicit_price_list_rate) {
+                            item._explicit_standard_rate = this.normalizeNumber(item.standard_rate);
+                        } else {
+                            item._explicit_standard_rate = null;
+                        }
+                        const baseSource = Object.prototype.hasOwnProperty.call(item, 'imogi_base_standard_rate')
+                            ? item.imogi_base_standard_rate
+                            : item.standard_rate;
+                        item._default_standard_rate = this.normalizeNumber(baseSource);
+                        this.applyPriceAdjustmentToItem(item);
+                    });
+
                     this.filteredItems = [...this.items];
 
                     // Load rates for items that don't have standard_rate
@@ -489,11 +659,20 @@ frappe.ready(async function() {
 
         loadItemRates: async function(force = false) {
             const priceList = this.selectedPriceList;
-            if (!priceList) {
+            if (!priceList || !this.items.length) {
                 return;
             }
+
+            if (force) {
+                this.items.forEach(item => {
+                    item.has_explicit_price_list_rate = 0;
+                    item._explicit_standard_rate = null;
+                });
+            }
+
             const targetItems = force ? this.items : this.items.filter(item => !item.standard_rate);
             if (!targetItems.length) {
+                this.applyPriceAdjustmentToItems(this.items);
                 return;
             }
 
@@ -512,17 +691,20 @@ frappe.ready(async function() {
                 });
 
                 if (response.message) {
-                    // Update item rates
                     response.message.forEach(price => {
-                        const item = this.items.find(i => i.name === price.item_code);
+                        const rate = this.normalizeNumber(price.price_list_rate);
+                        const item = this.getCatalogItem(price.item_code) || this.items.find(i => i.name === price.item_code);
                         if (item) {
-                            item.standard_rate = price.price_list_rate;
+                            item._explicit_standard_rate = rate;
+                            item.has_explicit_price_list_rate = 1;
                         }
                     });
                 }
             } catch (error) {
                 console.error('Error loading item rates:', error);
             }
+
+            this.applyPriceAdjustmentToItems(this.items);
         },
 
         loadTaxTemplate: async function() {
@@ -542,7 +724,8 @@ frappe.ready(async function() {
                     }
                 });
 
-                return (message && message.variants) || [];
+                const variants = (message && message.variants) || [];
+                return this.applyPriceAdjustmentToVariants(variants);
             } catch (error) {
                 console.error("Error loading variants:", error);
                 this.showError("Failed to load variants. Please try again.");

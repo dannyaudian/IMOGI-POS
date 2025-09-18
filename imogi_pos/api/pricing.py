@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Optional, Set
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
 def _extract_price_list_from_row(row: frappe.model.base.Document) -> Optional[str]:
@@ -101,7 +102,13 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
         rows = frappe.get_all(
             "Price List",
             filters={"name": ["in", price_list_names]},
-            fields=["name", "price_list_name", "currency", "enabled"],
+            fields=[
+                "name",
+                "price_list_name",
+                "currency",
+                "enabled",
+                "imogi_price_adjustment",
+            ],
         )
         price_meta = {row.name: row for row in rows}
 
@@ -120,6 +127,7 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
                 "currency": currency,
                 "is_default": 1 if name == default_name else 0,
                 "enabled": meta.get("enabled"),
+                "adjustment": flt(meta.get("imogi_price_adjustment") or 0),
             }
         )
 

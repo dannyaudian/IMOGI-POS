@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 def validate_branch_access(branch):
     """
@@ -112,6 +112,19 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
         )
         stock_map = {b.item_code: b.actual_qty for b in bin_rows}
 
+    price_list_adjustment = 0.0
+    price_list_currency = None
+    if price_list:
+        price_list_doc = frappe.db.get_value(
+            "Price List",
+            price_list,
+            ["currency", "imogi_price_adjustment"],
+            as_dict=True,
+        )
+        if price_list_doc:
+            price_list_adjustment = flt(price_list_doc.get("imogi_price_adjustment") or 0)
+            price_list_currency = price_list_doc.get("currency")
+
     # Apply price list rates when requested
     if price_list and item_names:
         price_rows = frappe.get_all(
@@ -143,13 +156,36 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
             payment_map.setdefault(row.parent, []).append(row.mode_of_payment)
 
     for item in items:
+        base_standard_rate = flt(item.standard_rate)
+        item["imogi_base_standard_rate"] = base_standard_rate
+        item["imogi_price_adjustment_amount"] = 0
+        item["imogi_price_adjustment_applied"] = 0
+        item["has_explicit_price_list_rate"] = 0
+
         item["actual_qty"] = stock_map.get(item.name, 0)
         item["payment_methods"] = payment_map.get(item.name, [])
-        if rate_map:
-            if item.name in rate_map:
-                item["standard_rate"] = rate_map[item.name]
-                if currency_map.get(item.name):
-                    item["currency"] = currency_map[item.name]
+
+        if rate_map and item.name in rate_map:
+            explicit_rate = flt(rate_map[item.name])
+            item["standard_rate"] = explicit_rate
+            item["has_explicit_price_list_rate"] = 1
+            item["imogi_base_standard_rate"] = explicit_rate
+            currency_value = currency_map.get(item.name) or price_list_currency
+            if currency_value:
+                item["currency"] = currency_value
+            continue
+
+        # Fall back to the item's own rate and apply adjustments if configured
+        final_rate = base_standard_rate
+        if price_list_currency:
+            item["currency"] = price_list_currency
+
+        if price_list and price_list_adjustment:
+            final_rate += price_list_adjustment
+            item["imogi_price_adjustment_amount"] = price_list_adjustment
+            item["imogi_price_adjustment_applied"] = 1
+
+        item["standard_rate"] = final_rate
 
     return items
 
