@@ -25,6 +25,8 @@
     "kot_print_format",
     "kot_group_by_kitchen_station",
     "print_notes_on_kot",
+    "menu_category_routing_section",
+    "menu_category_routes",
     "table_section",
     "default_floor",
     "default_table_layout_profile",
@@ -351,6 +353,19 @@
       "fieldname": "hide_inactive_items",
       "fieldtype": "Check",
       "label": "Hide Inactive Items"
+    },
+    {
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "menu_category_routing_section",
+      "fieldtype": "Section Break",
+      "label": "Menu Category Routing"
+    },
+    {
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "menu_category_routes",
+      "fieldtype": "Table",
+      "label": "Menu Category Routes",
+      "options": "Restaurant Menu Category Route"
     }
   ],
   "in_create": 1,

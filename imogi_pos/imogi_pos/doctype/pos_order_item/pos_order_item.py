@@ -4,6 +4,7 @@
 import frappe
 import json
 from frappe.model.document import Document
+from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
 from imogi_pos.utils.printing import format_kot_options
 
 from imogi_pos.utils.options import format_options_for_display
@@ -48,18 +49,37 @@ class POSOrderItem(Document):
             
         if not self.kitchen or not self.kitchen_station:
             item_defaults = frappe.db.get_value(
-                "Item", 
-                self.item, 
+                "Item",
+                self.item,
                 ["default_kitchen", "default_kitchen_station"],
                 as_dict=1
+            ) or {}
+
+            default_kitchen = (
+                item_defaults.get("default_kitchen")
+                if isinstance(item_defaults, dict)
+                else getattr(item_defaults, "default_kitchen", None)
             )
-            
-            if item_defaults:
-                if not self.kitchen and item_defaults.default_kitchen:
-                    self.kitchen = item_defaults.default_kitchen
-                    
-                if not self.kitchen_station and item_defaults.default_kitchen_station:
-                    self.kitchen_station = item_defaults.default_kitchen_station
+            default_station = (
+                item_defaults.get("default_kitchen_station")
+                if isinstance(item_defaults, dict)
+                else getattr(item_defaults, "default_kitchen_station", None)
+            )
+
+            if not self.kitchen and default_kitchen:
+                self.kitchen = default_kitchen
+
+            if not self.kitchen_station and default_station:
+                self.kitchen_station = default_station
+
+            if not self.kitchen or not self.kitchen_station:
+                mapped_kitchen, mapped_station = get_menu_category_kitchen_station(self.item)
+
+                if not self.kitchen and mapped_kitchen:
+                    self.kitchen = mapped_kitchen
+
+                if not self.kitchen_station and mapped_station:
+                    self.kitchen_station = mapped_station
     
     def init_counters(self):
         """Initialize counters object if not set"""
