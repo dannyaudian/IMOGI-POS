@@ -347,6 +347,50 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .success-receipt-summary-row { display: flex; justify-content: space-between; font-size: .95rem; }
 .success-receipt-summary-row.total { font-weight: 600; }
 
+
+.catalog-section,
+.cart-section{
+  min-height: 0;
+}
+
+/* sidebar/cart: kontainer jangan ikut scroll, hanya isi yang scroll */
+.cart-section{
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;             /* kunci frame */
+}
+
+/* area item di sidebar yang scroll */
+.cart-items{
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth di mobile */
+  padding-right: 6px;                /* ruang buat scrollbar */
+}
+
+/* katalog tetap scroll terpisah */
+.catalog-grid{
+  overflow-y: auto;
+}
+
+/* kategori (chip) tetap bisa geser horizontal */
+.catalog-categories{
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+@media (max-width: 860px){
+  .kiosk-container{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr; /* header katalog + area scroll */
+  }
+  .cart-section{
+    max-height: 50vh;  /* batas tinggi, sisanya scroll */
+  }
+}
+
+
 /* =========================================
    LOADING
 ========================================= */
