@@ -1071,7 +1071,7 @@ imogi_pos.kiosk = {
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
             if (!Array.isArray(choices)) return;
-            if (!['size', 'spice', 'topping', 'sugar', 'ice'].includes(field)) return;
+            if (!['size', 'spice', 'topping', 'sugar', 'ice', 'variant'].includes(field)) return;
 
             const title = this.toTitleCase(field);
             const isTopping = field === 'topping';
@@ -1402,12 +1402,38 @@ imogi_pos.kiosk = {
      */
     formatSelectedOptions: function(options) {
         if (!options) return '';
+        const extractValue = (value) => {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => extractValue(item))
+                    .filter(part => part !== '')
+                    .join(', ');
+            }
+
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (typeof value === 'object') {
+                const nested = value.name || value.label || value.value;
+                if (nested !== undefined && nested !== null && nested !== '') {
+                    return String(nested);
+                }
+                return '';
+            }
+
+            return String(value);
+        };
+
         return Object.entries(options)
-            .filter(([k]) => k !== 'price')
+            .filter(([k]) => !['price', 'extra_price'].includes(k))
             .map(([k, v]) => {
-                const val = Array.isArray(v) ? v.join(', ') : v;
+                const val = extractValue(v);
+                if (!val) return null;
                 return `${this.toTitleCase(k)}: ${val}`;
-            }).join(', ');
+            })
+            .filter(Boolean)
+            .join(', ');
     },
     
     /**
