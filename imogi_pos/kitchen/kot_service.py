@@ -3,6 +3,8 @@ from frappe import _
 from frappe.utils import now_datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 
+from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
+
 
 class KOTService:
     """
@@ -410,39 +412,78 @@ class KOTService:
         for item in items:
             # Get the kitchen station for this item
             station = item.get("kitchen_station")
-            
+            kitchen = item.get("kitchen")
+
             # If no station specified, try to get default from item master
-            if not station:
+            if not station or not kitchen:
                 item_defaults = frappe.db.get_value(
-                    "Item", 
-                    item.item, 
+                    "Item",
+                    item.item,
                     ["default_kitchen_station", "default_kitchen"],
                     as_dict=1
+                ) or {}
+
+                default_station = (
+                    item_defaults.get("default_kitchen_station")
+                    if isinstance(item_defaults, dict)
+                    else getattr(item_defaults, "default_kitchen_station", None)
                 )
-                
-                station = item_defaults.get("default_kitchen_station")
-                
-                # If still no station, use default kitchen's default station
-                if not station and item_defaults.get("default_kitchen"):
-                    kitchen = frappe.get_doc("Kitchen", item_defaults.get("default_kitchen"))
-                    station = kitchen.default_station
-            
+                default_kitchen = (
+                    item_defaults.get("default_kitchen")
+                    if isinstance(item_defaults, dict)
+                    else getattr(item_defaults, "default_kitchen", None)
+                )
+
+                if not kitchen and default_kitchen:
+                    kitchen = default_kitchen
+
+                if not station and default_station:
+                    station = default_station
+
+            # Try to map station/kitchen from menu category when still missing
+            if (not station or not kitchen) and getattr(item, "item", None):
+                mapped_kitchen, mapped_station = get_menu_category_kitchen_station(item.item)
+
+                if not kitchen and mapped_kitchen:
+                    kitchen = mapped_kitchen
+
+                if not station and mapped_station:
+                    station = mapped_station
+
+            # If still no station, use default kitchen's default station
+            if not station and kitchen:
+                kitchen_doc = frappe.get_doc("Kitchen", kitchen)
+                station = getattr(kitchen_doc, "default_station", None)
+
             # If still no station, use a fallback
             if not station:
                 # Get the default station from Restaurant Settings
                 station = frappe.db.get_single_value(
-                    "Restaurant Settings", 
+                    "Restaurant Settings",
                     "default_kitchen_station"
                 )
-                
+
                 # If still nothing, create a "Main" group
                 if not station:
                     station = "Main"
-            
+
+            # Ensure the item reflects any resolved routing
+            if kitchen and not item.get("kitchen"):
+                if isinstance(item, dict):
+                    item["kitchen"] = kitchen
+                else:
+                    setattr(item, "kitchen", kitchen)
+
+            if station and not item.get("kitchen_station"):
+                if isinstance(item, dict):
+                    item["kitchen_station"] = station
+                else:
+                    setattr(item, "kitchen_station", station)
+
             # Add item to the appropriate group
             if station not in grouped:
                 grouped[station] = []
-                
+
             grouped[station].append(item)
         
         return grouped
