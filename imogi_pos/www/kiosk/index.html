@@ -425,6 +425,12 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
 
+  .success-modal .modal-container {
+    max-width: 460px;
+    padding: 2rem;
+    text-align: center;
+  }
+
   .item-modal .modal-container {
     display: flex;
     overflow: hidden;
@@ -725,6 +731,111 @@
     text-align: center;
     margin: 1rem 0;
     color: var(--brand-primary);
+  }
+
+  .success-receipt {
+    margin-top: 1.5rem;
+    text-align: left;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .success-receipt.hidden {
+    display: none;
+  }
+
+  .success-receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .success-receipt-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .success-receipt-meta {
+    text-align: right;
+  }
+
+  .success-receipt-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-light);
+  }
+
+  .success-receipt-value {
+    font-weight: 600;
+    margin-top: 0.25rem;
+    color: var(--text-dark);
+  }
+
+  .success-receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+  }
+
+  .success-receipt-table th,
+  .success-receipt-table td {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+  }
+
+  .success-receipt-table th {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .success-receipt-table th:nth-child(2),
+  .success-receipt-table td:nth-child(2) {
+    text-align: center;
+    width: 70px;
+  }
+
+  .success-receipt-table th:last-child,
+  .success-receipt-table td:last-child {
+    text-align: right;
+  }
+
+  .success-receipt-item-name {
+    font-weight: 500;
+    color: var(--text-dark);
+  }
+
+  .success-receipt-item-options {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+  }
+
+  .success-receipt-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .success-receipt-summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+  }
+
+  .success-receipt-summary-row.total {
+    font-weight: 700;
+    font-size: 1.05rem;
   }
 
   /* Loading Overlay */
@@ -1107,7 +1218,9 @@
       <div class="success-queue" id="success-queue-number"></div>
       <div>{{ _("Please wait for your number to be called") }}</div>
     </div>
-    
+
+    <div class="success-receipt hidden" id="success-receipt"></div>
+
     <div class="mt-8">
       <button class="btn-done" id="btn-success-done">{{ _("Done") }}</button>
     </div>
