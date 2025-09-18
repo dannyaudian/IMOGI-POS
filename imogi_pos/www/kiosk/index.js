@@ -117,6 +117,7 @@ frappe.ready(async function() {
             itemDetailModal: document.getElementById('item-detail-modal'),
             itemDetailImage: document.getElementById('item-detail-image'),
             itemOptions: document.getElementById('item-options'),
+            itemDetailNotes: document.getElementById('item-detail-notes'),
             itemAddBtn: document.getElementById('btn-item-add'),
             itemCancelBtn: document.getElementById('btn-item-cancel'),
             
@@ -208,6 +209,18 @@ frappe.ready(async function() {
             this.elements.variantAddBtn.addEventListener('click', () => {
                 this.addSelectedVariantToCart();
             });
+
+            if (this.elements.itemNotes) {
+                this.elements.itemNotes.addEventListener('input', (event) => {
+                    this.pendingNotes = event.target.value || '';
+                });
+            }
+
+            if (this.elements.itemDetailNotes) {
+                this.elements.itemDetailNotes.addEventListener('input', (event) => {
+                    this.pendingNotes = event.target.value || '';
+                });
+            }
 
             // Item detail modal
             this.elements.itemDetailModal.querySelector('.modal-close').addEventListener('click', () => {
@@ -903,7 +916,8 @@ frappe.ready(async function() {
         openVariantPicker: async function(item) {
             this.selectedTemplateItem = item;
             this.selectedVariant = null;
-            
+            this.pendingNotes = '';
+
             // Reset notes
             if (this.elements.itemNotes) {
                 this.elements.itemNotes.value = '';
@@ -926,6 +940,10 @@ frappe.ready(async function() {
             this.elements.variantModal.style.display = 'none';
             this.selectedTemplateItem = null;
             this.selectedVariant = null;
+            if (this.elements.itemNotes) {
+                this.elements.itemNotes.value = '';
+            }
+            this.pendingNotes = '';
         },
         
         addSelectedVariantToCart: function() {
@@ -940,6 +958,9 @@ frappe.ready(async function() {
         openItemDetailModal: async function(item, notes = '') {
             this.selectedOptionItem = item;
             this.pendingNotes = notes || '';
+            if (this.elements.itemDetailNotes) {
+                this.elements.itemDetailNotes.value = this.pendingNotes;
+            }
 
             const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
             this.elements.itemDetailImage.style.backgroundImage = `url('${imageUrl}')`;
@@ -971,6 +992,9 @@ frappe.ready(async function() {
         closeItemDetailModal: function() {
             this.elements.itemDetailModal.style.display = 'none';
             this.selectedOptionItem = null;
+            if (this.elements.itemDetailNotes) {
+                this.elements.itemDetailNotes.value = '';
+            }
             this.pendingNotes = '';
         },
 
@@ -1100,9 +1124,13 @@ frappe.ready(async function() {
               extra += price;
             });
           }
-        
+
           selectedOptions.extra_price = Number(extra) || 0;
-          this.addItemToCart(this.selectedOptionItem, selectedOptions, this.pendingNotes);
+          const notesField = this.elements.itemDetailNotes;
+          const notesValue = notesField ? notesField.value : this.pendingNotes;
+          const finalNotes = notesValue || '';
+          this.pendingNotes = finalNotes;
+          this.addItemToCart(this.selectedOptionItem, selectedOptions, finalNotes);
           this.closeItemDetailModal();
         },
 
