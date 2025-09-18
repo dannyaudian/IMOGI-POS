@@ -113,10 +113,11 @@ button { font: inherit; }
 /* =========================================
    CATALOG GRID & ITEM CARDS
 ========================================= */
-.catalog-grid {
-  flex: 1; overflow: auto; padding: 16px;
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+.catalog-grid{
+  /* dari: repeat(auto-fill, minmax(200px, 1fr)) */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  justify-items: stretch;   /* pastikan kartu ikut melebar */
+  align-items: stretch;
 }
 
 .item-card {
