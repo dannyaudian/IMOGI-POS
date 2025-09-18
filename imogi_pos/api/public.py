@@ -418,17 +418,14 @@ def get_cashier_device_sessions(limit=5, device=None):
 
     Args:
         limit (int, optional): Number of records to fetch. Defaults to 5.
-        device (str, optional): Device type to filter sessions by. Defaults to None.
+        device (str, optional): Device type to filter sessions by. Defaults to "POS".
 
     Returns:
         list[dict]: List of session records.
     """
 
     user = frappe.session.user
-    filters = {"user": user}
-
-    if device:
-        filters["device"] = device
+    filters = {"user": user, "device": device or "POS"}
 
     return frappe.get_all(
         "Cashier Device Session",
