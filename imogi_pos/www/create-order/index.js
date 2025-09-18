@@ -532,7 +532,7 @@ frappe.ready(async function () {
             price_list: this.selectedPriceList || null,
           },
         });
-        return message || [];
+        return (message && message.variants) || [];
       } catch (err) {
         console.error("Error loading variants:", err);
         this.showError("Failed to load variants. Please try again.");

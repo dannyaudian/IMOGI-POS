@@ -516,28 +516,23 @@ frappe.ready(async function() {
 
         loadVariantsForTemplate: async function(templateItem) {
             this.showLoading('Loading variants...');
-            
+
             try {
-                const response = await frappe.call({
+                const { message } = await frappe.call({
                     method: 'imogi_pos.api.variants.get_item_variants',
                     args: {
                         template_item: templateItem.name,
                         price_list: this.selectedPriceList || null
                     }
                 });
-                
-                this.hideLoading();
-                
-                if (response.message) {
-                    return response.message;
-                }
-                
-                return [];
+
+                return (message && message.variants) || [];
             } catch (error) {
                 console.error("Error loading variants:", error);
                 this.showError("Failed to load variants. Please try again.");
-                this.hideLoading();
                 return [];
+            } finally {
+                this.hideLoading();
             }
         },
         
