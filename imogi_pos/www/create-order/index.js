@@ -1185,12 +1185,7 @@ frappe.ready(async function () {
       this.showLoading("Generating payment QR code...");
       try {
         // 1) Create POS Order
-        const discountPercent = Number.isFinite(this.discountPercent)
-          ? this.discountPercent
-          : 0;
-        const discountAmount = Number.isFinite(this.discountAmount)
-          ? this.discountAmount
-          : 0;
+        const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
         const orderArgs = {
           order_type: "Kiosk",
           service_type: this.orderType,
@@ -1399,12 +1394,7 @@ frappe.ready(async function () {
           this.invoiceName = invoice.name;
         } else {
           // Create order + invoice (cash)
-          const discountPercent = Number.isFinite(this.discountPercent)
-            ? this.discountPercent
-            : 0;
-          const discountAmount = Number.isFinite(this.discountAmount)
-            ? this.discountAmount
-            : 0;
+          const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
           const orderArgs = {
             order_type: "Kiosk",
             service_type: this.orderType,
@@ -1754,22 +1744,28 @@ frappe.ready(async function () {
     },
 
     // ====== UTILS ======
-    calculateTotals: function () {
-      const subtotal = this.cart.reduce((sum, it) => sum + it.amount, 0);
-      const tax = subtotal * this.taxRate;
-      const grossTotal = subtotal + tax;
-      const percentValue = Number.isFinite(this.discountPercent)
+    getNormalizedDiscounts: function () {
+      const discountPercent = Number.isFinite(this.discountPercent)
         ? Math.max(0, this.discountPercent)
         : 0;
-      const amountValue = Number.isFinite(this.discountAmount)
+      const discountAmount = Number.isFinite(this.discountAmount)
         ? Math.max(0, this.discountAmount)
         : 0;
 
       if (!Number.isFinite(this.discountPercent)) this.discountPercent = 0;
       if (!Number.isFinite(this.discountAmount)) this.discountAmount = 0;
 
-      const percentDiscount = grossTotal * (percentValue / 100);
-      const combinedDiscount = percentDiscount + amountValue;
+      return { discountPercent, discountAmount };
+    },
+
+    calculateTotals: function () {
+      const subtotal = this.cart.reduce((sum, it) => sum + it.amount, 0);
+      const tax = subtotal * this.taxRate;
+      const grossTotal = subtotal + tax;
+      const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
+
+      const percentDiscount = grossTotal * (discountPercent / 100);
+      const combinedDiscount = percentDiscount + discountAmount;
       const discount = Math.min(grossTotal, Math.max(0, combinedDiscount));
       const total = Math.max(0, grossTotal - discount);
       return { subtotal, tax, discount, total };
