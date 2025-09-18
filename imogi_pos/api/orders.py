@@ -12,6 +12,8 @@ from imogi_pos.api.queue import get_next_queue_number
 from frappe.exceptions import TimestampMismatchError
 
 WORKFLOW_CLOSED_STATES = ("Closed", "Cancelled", "Returned")
+
+
 def validate_item_is_sales_item(doc, method=None):
     """Ensure the linked Item is a sales item before saving POS Order Item.
 
@@ -40,6 +42,137 @@ def validate_item_is_sales_item(doc, method=None):
             _("Item {0} is not a sales item").format(identifier),
             frappe.ValidationError,
         )
+
+
+@frappe.whitelist()
+def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
+    """Append a new item row to an existing POS Order and recalculate totals."""
+
+    order_doc = frappe.get_doc("POS Order", pos_order)
+    validate_branch_access(order_doc.branch)
+
+    state = getattr(order_doc, "workflow_state", None)
+    if state in WORKFLOW_CLOSED_STATES:
+        frappe.throw(
+            _("Cannot modify order {0} in state {1}").format(order_doc.name, state),
+            frappe.ValidationError,
+        )
+
+    if item is None:
+        frappe.throw(_("Item is required"), frappe.ValidationError)
+
+    # Normalise the incoming item payload
+    item_payload = item
+    if isinstance(item_payload, str):
+        try:
+            parsed_item = frappe.parse_json(item_payload)
+        except Exception:
+            parsed_item = None
+        if isinstance(parsed_item, dict):
+            item_payload = parsed_item
+        else:
+            item_payload = {"item": item_payload}
+    elif not isinstance(item_payload, dict):
+        try:
+            item_payload = frappe.parse_json(item_payload)
+        except Exception:
+            item_payload = {}
+
+    if not isinstance(item_payload, dict):
+        frappe.throw(_("Invalid item payload"), frappe.ValidationError)
+
+    if not item_payload.get("item") and item_payload.get("item_code"):
+        item_payload["item"] = item_payload.get("item_code")
+
+    item_code = item_payload.get("item")
+    if not item_code:
+        frappe.throw(_("Item is required"), frappe.ValidationError)
+
+    # Quantity is either provided explicitly or inside the payload
+    qty_value = item_payload.get("qty") if item_payload.get("qty") not in (None, "") else qty
+    try:
+        qty_value = flt(qty_value)
+    except Exception:
+        frappe.throw(_("Quantity must be a number"), frappe.ValidationError)
+
+    if qty_value <= 0:
+        frappe.throw(_("Quantity must be greater than zero"), frappe.ValidationError)
+
+    # Determine rate precedence: explicit argument > payload > leave unset
+    rate_value = rate if rate not in (None, "") else item_payload.get("rate")
+    if rate_value not in (None, ""):
+        try:
+            rate_value = flt(rate_value)
+        except Exception:
+            frappe.throw(_("Rate must be a number"), frappe.ValidationError)
+    else:
+        rate_value = flt(frappe.db.get_value("Item", item_code, "standard_rate") or 0)
+
+    # Merge and normalise item options
+    options_value = item_options if item_options is not None else item_payload.get("item_options")
+    if isinstance(options_value, str) and options_value:
+        try:
+            options_value = frappe.parse_json(options_value)
+        except Exception:
+            frappe.throw(_("Invalid item options payload"), frappe.ValidationError)
+
+    row_data = {
+        "item": item_code,
+        "qty": qty_value,
+    }
+
+    row_data["rate"] = rate_value
+
+    if options_value is not None:
+        row_data["item_options"] = options_value
+
+    # Carry over other recognised optional fields from the payload
+    for key in ("notes", "kitchen", "kitchen_station"):
+        if key in item_payload and item_payload.get(key) is not None:
+            row_data[key] = item_payload.get(key)
+
+    row = order_doc.append("items", row_data)
+
+    validate_item_is_sales_item(row)
+
+    order_doc.save()
+
+    row_name = getattr(row, "name", None)
+
+    if hasattr(order_doc, "reload"):
+        try:
+            order_doc.reload()
+        except Exception:
+            pass
+
+    added_row = None
+    if row_name:
+        added_row = next(
+            (item_row for item_row in getattr(order_doc, "items", []) if getattr(item_row, "name", None) == row_name),
+            None,
+        )
+    if not added_row:
+        added_row = row
+
+    summary = {
+        "name": order_doc.name,
+        "workflow_state": order_doc.workflow_state,
+        "subtotal": flt(getattr(order_doc, "subtotal", 0)),
+        "pb1_amount": flt(getattr(order_doc, "pb1_amount", 0)),
+        "discount_amount": flt(getattr(order_doc, "discount_amount", 0)),
+        "discount_percent": flt(getattr(order_doc, "discount_percent", 0)),
+        "totals": flt(getattr(order_doc, "totals", 0)),
+        "item_count": len(getattr(order_doc, "items", []) or []),
+        "total_qty": sum(
+            flt(getattr(child, "qty", 0) or 0) for child in (getattr(order_doc, "items", []) or [])
+        ),
+    }
+
+    return {
+        "success": True,
+        "item": added_row.as_dict(),
+        "order": summary,
+    }
 
 def check_restaurant_domain(pos_profile):
     """
