@@ -95,6 +95,7 @@ def compute_customizations(order_item):
         "spice": "item_spice_options",
         "topping": "item_topping_options",
         "toppings": "item_topping_options",
+        "variant": "item_variant_options",
         "sugar": "item_sugar_options",
         "ice": "item_ice_options",
     }

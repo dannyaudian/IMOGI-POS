@@ -67,6 +67,11 @@ def get_item_options(item):
         if topping_opts:
             result["topping"] = topping_opts
 
+    if getattr(item_doc, "has_variant_option", 0):
+        variant_opts = collect(getattr(item_doc, "item_variant_options", []))
+        if variant_opts:
+            result["variant"] = variant_opts
+
     if getattr(item_doc, "has_sugar_option", 0):
         sugar_opts = collect(getattr(item_doc, "item_sugar_options", []))
         if sugar_opts:
