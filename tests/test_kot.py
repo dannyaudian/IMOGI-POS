@@ -242,6 +242,18 @@ def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):
     assert len(frappe.realtime.calls) == 3
 
 
+def test_normalise_kot_item_tolerates_as_dict_key(kot_module):
+    kot, _ = kot_module
+
+    item = {"name": "ITEM-1", "status": "Queued", "as_dict": None}
+
+    normalised = kot._normalise_kot_item(item)
+
+    assert normalised is not item
+    assert normalised["status"] == "Queued"
+    assert normalised["workflow_state"] == "Queued"
+
+
 def test_get_kots_for_kitchen_handles_missing_priority_column(kot_module):
     kot, frappe = kot_module
 

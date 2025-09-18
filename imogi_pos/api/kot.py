@@ -30,8 +30,9 @@ def check_restaurant_domain(pos_profile):
 
 def _normalise_kot_item(item):
     """Return a serialisable representation of a KOT Item."""
-    if hasattr(item, "as_dict"):
-        item = item.as_dict()
+    attr = getattr(item, "as_dict", None)
+    if callable(attr):
+        item = attr()
 
     if isinstance(item, dict):
         normalised = dict(item)
