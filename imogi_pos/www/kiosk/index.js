@@ -1,11 +1,5 @@
 frappe.ready(async function() {
     const POS_PROFILE_DATA = {};
-    const rawDiscountFlag =
-        typeof CAN_APPLY_DISCOUNTS === 'undefined' ? 0 : CAN_APPLY_DISCOUNTS;
-    const DISCOUNT_ALLOWED =
-        typeof rawDiscountFlag === 'boolean'
-            ? rawDiscountFlag
-            : Boolean(Number(rawDiscountFlag || 0));
 
     try {
         if (typeof POS_PROFILE === 'string') {
@@ -61,11 +55,8 @@ frappe.ready(async function() {
         selectedOptionItem: null,
         pendingNotes: '',
         taxRate: 0,
-        discountPercent: 0,
-        discountAmount: 0,
         priceLists: [],
         selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
-        canApplyDiscounts: DISCOUNT_ALLOWED,
         serviceType: serviceType,
 
         // Order type and table
@@ -98,8 +89,6 @@ frappe.ready(async function() {
             cartTax: document.getElementById('cart-tax'),
             cartDiscount: document.getElementById('cart-discount'),
             cartTotal: document.getElementById('cart-total'),
-            discountPercentInput: document.getElementById('discount-percent-input'),
-            discountAmountInput: document.getElementById('discount-amount-input'),
             checkoutBtn: document.getElementById('btn-checkout'),
             clearBtn: document.getElementById('btn-clear'),
             searchInput: document.getElementById('search-input'),
@@ -154,7 +143,6 @@ frappe.ready(async function() {
             await this.loadTaxTemplate();
             this.renderItems();
             this.updateCartTotals();
-            this.syncDiscountInputs();
             this.setupPrintService();
 
             // Setup realtime if available
@@ -182,17 +170,6 @@ frappe.ready(async function() {
                     this.selectCategory(pill.dataset.category);
                 }
             });
-
-            if (this.canApplyDiscounts && this.elements.discountPercentInput) {
-                this.elements.discountPercentInput.addEventListener('input', (event) => {
-                    this.handleDiscountInput(event, 'percent');
-                });
-            }
-            if (this.canApplyDiscounts && this.elements.discountAmountInput) {
-                this.elements.discountAmountInput.addEventListener('input', (event) => {
-                    this.handleDiscountInput(event, 'amount');
-                });
-            }
 
             // Cart buttons
             this.elements.checkoutBtn.addEventListener('click', this.handleCheckout.bind(this));
@@ -845,51 +822,6 @@ frappe.ready(async function() {
             this.renderItems();
         },
 
-        handleDiscountInput: function(event, type) {
-            if (!this.canApplyDiscounts) {
-                return;
-            }
-            if (!event || !event.target) {
-                return;
-            }
-            const rawValue = event.target.value.replace(/,/g, '.').trim();
-            if (rawValue === '') {
-                if (type === 'percent') {
-                    this.discountPercent = 0;
-                } else {
-                    this.discountAmount = 0;
-                }
-                this.updateCartTotals();
-                return;
-            }
-
-            if (!/^\d*\.?\d*$/.test(rawValue)) {
-                const fallback = type === 'percent' ? this.discountPercent : this.discountAmount;
-                event.target.value = fallback ? `${fallback}` : '0';
-                return;
-            }
-
-            const numericValue = Number(rawValue);
-            if (Number.isNaN(numericValue)) {
-                const fallback = type === 'percent' ? this.discountPercent : this.discountAmount;
-                event.target.value = fallback ? `${fallback}` : '0';
-                return;
-            }
-
-            const sanitized = Math.max(0, numericValue);
-            if (type === 'percent') {
-                this.discountPercent = sanitized;
-            } else {
-                this.discountAmount = sanitized;
-            }
-
-            if (numericValue < 0) {
-                event.target.value = sanitized ? `${sanitized}` : '0';
-            }
-
-            this.updateCartTotals();
-        },
-        
         handleItemClick: function(item) {
             if (item.has_variants) {
                 // Open variant picker
@@ -1315,7 +1247,6 @@ frappe.ready(async function() {
 
             try {
                 // Create POS Order first
-                const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
                 const orderArgs = {
                     order_type: 'Kiosk',
                     service_type: this.orderType,
@@ -1325,10 +1256,6 @@ frappe.ready(async function() {
                     items: this.cart,
                     selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
                 };
-                if (this.canApplyDiscounts) {
-                    orderArgs.discount_amount = discountAmount;
-                    orderArgs.discount_percent = discountPercent;
-                }
                 if (this.tableNumber) {
                     orderArgs.table = this.tableNumber;
                 }
@@ -1622,7 +1549,6 @@ frappe.ready(async function() {
                     invoice = { name: this.paymentRequest.invoice };
                 } else {
                     // Create POS Order and invoice
-                    const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
                     const orderArgs = {
                         order_type: 'Kiosk',
                         service_type: this.orderType,
@@ -1632,10 +1558,6 @@ frappe.ready(async function() {
                         items: this.cart,
                         selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
                     };
-                    if (this.canApplyDiscounts) {
-                        orderArgs.discount_amount = discountAmount;
-                        orderArgs.discount_percent = discountPercent;
-                    }
                     if (this.tableNumber) {
                         orderArgs.table = this.tableNumber;
                     }
@@ -2026,9 +1948,6 @@ frappe.ready(async function() {
         resetApp: function() {
             // Clear cart
             this.cart = [];
-            this.discountPercent = 0;
-            this.discountAmount = 0;
-            this.syncDiscountInputs();
             this.renderCart();
             this.updateCartTotals();
 
@@ -2050,39 +1969,11 @@ frappe.ready(async function() {
         },
 
         // Utils
-        getNormalizedDiscounts: function() {
-            if (!this.canApplyDiscounts) {
-                this.discountPercent = 0;
-                this.discountAmount = 0;
-                return { discountPercent: 0, discountAmount: 0 };
-            }
-            const discountPercent = Number.isFinite(this.discountPercent)
-                ? Math.max(0, this.discountPercent)
-                : 0;
-            const discountAmount = Number.isFinite(this.discountAmount)
-                ? Math.max(0, this.discountAmount)
-                : 0;
-
-            if (!Number.isFinite(this.discountPercent)) {
-                this.discountPercent = 0;
-            }
-            if (!Number.isFinite(this.discountAmount)) {
-                this.discountAmount = 0;
-            }
-
-            return { discountPercent, discountAmount };
-        },
-
         calculateTotals: function() {
             const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
             const tax = subtotal * this.taxRate;
-            const grossTotal = subtotal + tax;
-            const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
-
-            const percentDiscount = grossTotal * (discountPercent / 100);
-            const combinedDiscount = percentDiscount + discountAmount;
-            const discount = Math.min(grossTotal, Math.max(0, combinedDiscount));
-            const total = Math.max(0, grossTotal - discount);
+            const discount = 0;
+            const total = Math.max(0, subtotal + tax - discount);
 
             return {
                 subtotal,
@@ -2090,15 +1981,6 @@ frappe.ready(async function() {
                 discount,
                 total
             };
-        },
-
-        syncDiscountInputs: function() {
-            if (this.elements.discountPercentInput) {
-                this.elements.discountPercentInput.value = this.discountPercent > 0 ? `${this.discountPercent}` : '0';
-            }
-            if (this.elements.discountAmountInput) {
-                this.elements.discountAmountInput.value = this.discountAmount > 0 ? `${this.discountAmount}` : '0';
-            }
         },
 
         setupPrintService: function() {

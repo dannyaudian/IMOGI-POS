@@ -357,7 +357,7 @@ frappe.ready(function () {
   function createOrder(values) {
     showLoading('Creating order…');
     frappe.call({
-      method: 'imogi_pos.api.orders.create_order',
+      method: 'imogi_pos.api.orders.create_staff_order',
       args: {
         order_type : values.order_type,
         table      : values.table || null,

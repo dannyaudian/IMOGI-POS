@@ -4,12 +4,6 @@ frappe.ready(async function () {
   "use strict";
 
   const POS_PROFILE_DATA = {};
-  const rawDiscountFlag =
-    typeof CAN_APPLY_DISCOUNTS === "undefined" ? 0 : CAN_APPLY_DISCOUNTS;
-  const DISCOUNT_ALLOWED =
-    typeof rawDiscountFlag === "boolean"
-      ? rawDiscountFlag
-      : Boolean(Number(rawDiscountFlag || 0));
 
   // ---- Helper: normalisasi order type dari string bebas ----
   function normalizeOrderType(value) {
@@ -95,11 +89,8 @@ frappe.ready(async function () {
     selectedOptionItem: null,
     pendingNotes: "",
     taxRate: 0,
-    discountPercent: 0,
-    discountAmount: 0,
     priceLists: [],
     selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
-    canApplyDiscounts: DISCOUNT_ALLOWED,
 
     orderType: getDefaultOrderType(),
     tableNumber: null,
@@ -124,8 +115,6 @@ frappe.ready(async function () {
       cartTax: document.getElementById("cart-tax"),
       cartDiscount: document.getElementById("cart-discount"),
       cartTotal: document.getElementById("cart-total"),
-      discountPercentInput: document.getElementById("discount-percent-input"),
-      discountAmountInput: document.getElementById("discount-amount-input"),
       checkoutBtn: document.getElementById("btn-checkout"),
       clearBtn: document.getElementById("btn-clear"),
       searchInput: document.getElementById("search-input"),
@@ -180,7 +169,6 @@ frappe.ready(async function () {
       await this.loadTaxTemplate();
       this.renderItems();
       this.updateCartTotals();
-      this.syncDiscountInputs();
       this.setupPrintService();
 
       if (frappe.realtime) this.setupRealtimeUpdates();
@@ -209,17 +197,6 @@ frappe.ready(async function () {
           const pill = e.target.closest(".category-pill");
           if (pill) this.selectCategory(pill.dataset.category);
         });
-      }
-
-      if (this.canApplyDiscounts && this.elements.discountPercentInput) {
-        this.elements.discountPercentInput.addEventListener("input", (event) =>
-          this.handleDiscountInput(event, "percent")
-        );
-      }
-      if (this.canApplyDiscounts && this.elements.discountAmountInput) {
-        this.elements.discountAmountInput.addEventListener("input", (event) =>
-          this.handleDiscountInput(event, "amount")
-        );
       }
 
       // Cart buttons
@@ -843,41 +820,6 @@ frappe.ready(async function () {
       this.renderItems();
     },
 
-    handleDiscountInput: function (event, type) {
-      if (!this.canApplyDiscounts) return;
-      if (!event?.target) return;
-      const rawValue = event.target.value.replace(/,/g, ".").trim();
-      if (rawValue === "") {
-        if (type === "percent") this.discountPercent = 0;
-        else this.discountAmount = 0;
-        this.updateCartTotals();
-        return;
-      }
-
-      if (!/^\d*\.?\d*$/.test(rawValue)) {
-        const fallback = type === "percent" ? this.discountPercent : this.discountAmount;
-        event.target.value = fallback ? `${fallback}` : "";
-        return;
-      }
-
-      const numericValue = Number(rawValue);
-      if (Number.isNaN(numericValue)) {
-        const fallback = type === "percent" ? this.discountPercent : this.discountAmount;
-        event.target.value = fallback ? `${fallback}` : "";
-        return;
-      }
-
-      const sanitized = Math.max(0, numericValue);
-      if (type === "percent") this.discountPercent = sanitized;
-      else this.discountAmount = sanitized;
-
-      if (numericValue < 0) {
-        event.target.value = sanitized ? `${sanitized}` : "0";
-      }
-
-      this.updateCartTotals();
-    },
-
     handleItemClick: function (item) {
       if (item.has_variants) this.openVariantPicker(item);
       else this.openItemDetailModal(item);
@@ -1253,7 +1195,6 @@ frappe.ready(async function () {
       this.showLoading("Generating payment QR code...");
       try {
         // 1) Create POS Order
-        const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
         const orderArgs = {
           order_type: "Kiosk",
           service_type: this.orderType,
@@ -1264,10 +1205,6 @@ frappe.ready(async function () {
           selling_price_list:
             this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
         };
-        if (this.canApplyDiscounts) {
-          orderArgs.discount_amount = discountAmount;
-          orderArgs.discount_percent = discountPercent;
-        }
         if (this.tableNumber) orderArgs.table = this.tableNumber;
 
         const orderResp = await frappe.call({
@@ -1465,7 +1402,6 @@ frappe.ready(async function () {
           this.invoiceName = invoice.name;
         } else {
           // Create order + invoice (cash)
-          const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
           const orderArgs = {
             order_type: "Kiosk",
             service_type: this.orderType,
@@ -1476,10 +1412,6 @@ frappe.ready(async function () {
             selling_price_list:
               this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
           };
-          if (this.canApplyDiscounts) {
-            orderArgs.discount_amount = discountAmount;
-            orderArgs.discount_percent = discountPercent;
-          }
           if (this.tableNumber) orderArgs.table = this.tableNumber;
 
           const orderResp = await frappe.call({
@@ -1792,9 +1724,6 @@ frappe.ready(async function () {
 
     resetApp: function () {
       this.cart = [];
-      this.discountPercent = 0;
-      this.discountAmount = 0;
-      this.syncDiscountInputs();
       this.renderCart();
       this.updateCartTotals();
 
@@ -1818,47 +1747,12 @@ frappe.ready(async function () {
     },
 
     // ====== UTILS ======
-    getNormalizedDiscounts: function () {
-      if (!this.canApplyDiscounts) {
-        this.discountPercent = 0;
-        this.discountAmount = 0;
-        return { discountPercent: 0, discountAmount: 0 };
-      }
-      const discountPercent = Number.isFinite(this.discountPercent)
-        ? Math.max(0, this.discountPercent)
-        : 0;
-      const discountAmount = Number.isFinite(this.discountAmount)
-        ? Math.max(0, this.discountAmount)
-        : 0;
-
-      if (!Number.isFinite(this.discountPercent)) this.discountPercent = 0;
-      if (!Number.isFinite(this.discountAmount)) this.discountAmount = 0;
-
-      return { discountPercent, discountAmount };
-    },
-
     calculateTotals: function () {
       const subtotal = this.cart.reduce((sum, it) => sum + it.amount, 0);
       const tax = subtotal * this.taxRate;
-      const grossTotal = subtotal + tax;
-      const { discountPercent, discountAmount } = this.getNormalizedDiscounts();
-
-      const percentDiscount = grossTotal * (discountPercent / 100);
-      const combinedDiscount = percentDiscount + discountAmount;
-      const discount = Math.min(grossTotal, Math.max(0, combinedDiscount));
-      const total = Math.max(0, grossTotal - discount);
+      const discount = 0;
+      const total = Math.max(0, subtotal + tax - discount);
       return { subtotal, tax, discount, total };
-    },
-
-    syncDiscountInputs: function () {
-      if (this.elements.discountPercentInput) {
-        this.elements.discountPercentInput.value =
-          this.discountPercent > 0 ? `${this.discountPercent}` : "0";
-      }
-      if (this.elements.discountAmountInput) {
-        this.elements.discountAmountInput.value =
-          this.discountAmount > 0 ? `${this.discountAmount}` : "0";
-      }
     },
 
     setupPrintService: function () {

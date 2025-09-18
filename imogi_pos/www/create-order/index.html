@@ -248,11 +248,6 @@ button { font: inherit; }
 /* Totals & actions */
 .cart-totals { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .total-row  { display: flex; justify-content: space-between; color: #334155; }
-.discount-controls { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
-.discount-field { flex: 1 1 140px; display: flex; flex-direction: column; gap: 4px; }
-.discount-field label { font-size: .8rem; color: var(--text-dim); }
-.discount-field input { padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
-.discount-field input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(107,144,128,.15); }
 .grand-total { font-weight: 600; font-size: 1.05rem; }
 .cart-actions { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
 
@@ -529,18 +524,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
       <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="cart-subtotal">Rp 0</span></div>
       <div class="total-row"><span>{{ _("PB1") }}</span><span id="cart-tax">Rp 0</span></div>
       <div class="total-row"><span>{{ _("Discount") }}</span><span id="cart-discount">Rp 0</span></div>
-      {% if allow_discounts %}
-      <div class="discount-controls">
-        <div class="discount-field">
-          <label for="discount-percent-input">{{ _("Discount (%)") }}</label>
-          <input type="text" id="discount-percent-input" inputmode="decimal" placeholder="0">
-        </div>
-        <div class="discount-field">
-          <label for="discount-amount-input">{{ _("Discount Amount") }}</label>
-          <input type="text" id="discount-amount-input" inputmode="decimal" placeholder="0">
-        </div>
-      </div>
-      {% endif %}
       <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="cart-total">Rp 0</span></div>
     </div>
 
@@ -692,7 +675,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   const PRINT_SETTINGS = {{ print_settings | tojson }};
   let NEXT_QUEUE_NUMBER = {{ next_queue_number }};
   const ALLOW_NOTES = {{ allow_notes }};
-  const CAN_APPLY_DISCOUNTS = Boolean({{ allow_discounts }});
 </script>
 
 <script src="/assets/imogi_pos/js/nav.js"></script>
