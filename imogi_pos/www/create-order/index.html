@@ -129,6 +129,28 @@ button { font: inherit; }
 }
 .item-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
 
+.item-stock-pill {
+  position: absolute; top: 12px; right: 12px;
+  min-width: 32px; height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--success);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; font-weight: 600;
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.25);
+  pointer-events: none;
+}
+.item-stock-pill.is-empty {
+  background: var(--danger);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+}
+.item-stock-pill.is-unknown {
+  background: #d1d5db;
+  color: var(--text-dark);
+  box-shadow: 0 4px 10px rgba(209, 213, 219, 0.25);
+}
+
 .item-image { aspect-ratio: 4/3; background-size: cover; background-position: center; }
 .item-info { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
 .item-name { font-weight: 600; line-height: 1.2; }
