@@ -1219,5 +1219,18 @@
     "dt": "Item Group",
     "doctype": "Custom Field",
     "name": "Item Group-default_pos_menu_profile"
+  },
+  {
+    "fieldname": "imogi_price_adjustment",
+    "fieldtype": "Currency",
+    "label": "IMOGI Price Adjustment",
+    "options": "currency",
+    "insert_after": "enabled",
+    "description": "Flat markup or discount applied when no item-specific rate exists",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Price List",
+    "doctype": "Custom Field",
+    "name": "Price List-imogi_price_adjustment"
   }
 ]
