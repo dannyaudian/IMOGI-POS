@@ -281,9 +281,10 @@ def test_create_order_records_customer(frappe_env):
     assert orders[result["name"]].customer == "CUST-1"
     assert result["customer"] == "CUST-1"
 
-def test_create_order_accepts_string_discounts(frappe_env):
+def test_create_staff_order_accepts_string_discounts(frappe_env):
     frappe, orders_module = frappe_env
-    result = orders_module.create_order(
+    frappe.local.flags = {}
+    result = orders_module.create_staff_order(
         "Dine-in",
         "BR-1",
         "P1",
@@ -351,6 +352,25 @@ def test_create_order_blocks_discounts_without_roles(frappe_env):
         items={"item": "SALES-ITEM", "rate": 80},
         discount_percent=20,
         discount_amount=5,
+    )
+
+    assert result["discount_percent"] == 0
+    assert result["discount_amount"] == 0
+
+
+def test_create_order_requires_override_even_for_privileged_user(frappe_env):
+    frappe, orders_module = frappe_env
+    frappe.session.user = "manager"
+    frappe._user_roles["manager"] = ["Cashier"]
+    frappe.local.flags = {}
+
+    result = orders_module.create_order(
+        "Takeaway",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "rate": 60},
+        discount_percent=15,
+        discount_amount=10,
     )
 
     assert result["discount_percent"] == 0

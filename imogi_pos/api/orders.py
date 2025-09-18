@@ -29,6 +29,26 @@ def _get_flag(name):
     return bool(getattr(flags, name, False))
 
 
+def _set_flag(name, value):
+    flags = getattr(frappe.local, "flags", None)
+    if not flags:
+        default_factory = getattr(frappe, "_dict", dict)
+        frappe.local.flags = default_factory()
+        flags = frappe.local.flags
+
+    if isinstance(flags, dict):
+        if value is None:
+            flags.pop(name, None)
+        else:
+            flags[name] = value
+    else:
+        if value is None:
+            if hasattr(flags, name):
+                delattr(flags, name)
+        else:
+            setattr(flags, name, value)
+
+
 def user_can_apply_order_discounts(user=None):
     """Return True when the current session is allowed to apply manual discounts."""
 
@@ -340,15 +360,14 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         discount_percent = 0
 
     trusted_discount_context = _get_flag("imogi_allow_discount_override")
-    if (discount_amount or discount_percent) and not (
-        trusted_discount_context or user_can_apply_order_discounts()
-    ):
-        frappe.log_error(
-            _("Blocked untrusted discount submission for user {0}").format(
-                getattr(getattr(frappe, "session", None), "user", "Guest")
-            ),
-            "IMOGI POS Discount Guard",
-        )
+    if not trusted_discount_context:
+        if discount_amount or discount_percent:
+            frappe.log_error(
+                _("Blocked untrusted discount submission for user {0}").format(
+                    getattr(getattr(frappe, "session", None), "user", "Guest")
+                ),
+                "IMOGI POS Discount Guard",
+            )
         discount_amount = 0
         discount_percent = 0
 
@@ -423,6 +442,48 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             _safe_throw(_("Table already occupied"))
 
     return order_doc.as_dict()
+
+
+@frappe.whitelist()
+def create_staff_order(
+    order_type,
+    branch,
+    pos_profile,
+    table=None,
+    customer=None,
+    items=None,
+    discount_amount=0,
+    discount_percent=0,
+    promo_code=None,
+    service_type=None,
+    selling_price_list=None,
+):
+    """Create an order on behalf of staff while enabling trusted discount overrides."""
+
+    existing_flag = _get_flag("imogi_allow_discount_override")
+    should_clear_flag = False
+
+    if not existing_flag and user_can_apply_order_discounts():
+        _set_flag("imogi_allow_discount_override", True)
+        should_clear_flag = True
+
+    try:
+        return create_order(
+            order_type,
+            branch,
+            pos_profile,
+            table=table,
+            customer=customer,
+            items=items,
+            discount_amount=discount_amount,
+            discount_percent=discount_percent,
+            promo_code=promo_code,
+            service_type=service_type,
+            selling_price_list=selling_price_list,
+        )
+    finally:
+        if should_clear_flag:
+            _set_flag("imogi_allow_discount_override", None)
 
 @frappe.whitelist()
 def open_or_create_for_table(table, floor, pos_profile):

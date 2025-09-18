@@ -1241,7 +1241,7 @@ imogi_pos.cashier_console = {
      */
     createNewOrder: function() {
         frappe.call({
-            method: 'imogi_pos.api.orders.create_order',
+            method: 'imogi_pos.api.orders.create_staff_order',
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
