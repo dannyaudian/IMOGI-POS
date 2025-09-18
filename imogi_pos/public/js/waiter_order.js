@@ -1414,16 +1414,25 @@ imogi_pos.waiter_order = {
 
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
-            if (!['size', 'spice', 'topping'].includes(field)) return;
+            if (!['size', 'spice', 'topping', 'variant'].includes(field)) return;
             const title = this.toTitleCase(field);
             if (field === 'topping') {
-                fieldsHtml += `<div class="option-group"><label>${title}</label>` +
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label>` +
                     choices.map(opt => {
                         const { label, value, price = 0 } = opt;
                         return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
                     }).join('') + '</div>';
+            } else if (field === 'variant') {
+                fieldsHtml += `<div class="option-group" data-option="${field}" data-required="1"><label>${title}</label>` +
+                    choices.map((opt, index) => {
+                        const { label, value, price = 0, default: isDefault } = opt;
+                        const checked = isDefault ? 'checked' : '';
+                        const optionId = `option-${field}-${index}`;
+                        const priceText = price ? ` (+${this.formatCurrency(price)})` : '';
+                        return `<label for="${optionId}"><input type="radio" id="${optionId}" class="option-radio" name="option-${field}" data-option="${field}" value="${value}" data-price="${price}" ${checked}> ${label}${priceText}</label>`;
+                    }).join('') + '</div>';
             } else {
-                fieldsHtml += `<div class="option-group"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label><select class="option-select" data-option="${field}">` +
                     `<option value="" data-price="0">Select ${title}</option>` +
                     choices.map(opt => {
                         const { label, value, price = 0 } = opt;
@@ -1460,25 +1469,54 @@ imogi_pos.waiter_order = {
             confirmBtn.addEventListener('click', () => {
                 const selectedOptions = {};
                 let optionPrice = 0;
+                const missing = [];
 
-                modalContainer.querySelectorAll('.option-select').forEach(sel => {
-                    const key = sel.dataset.option;
-                    const opt = sel.options[sel.selectedIndex];
-                    const value = sel.value;
-                    const price = parseFloat(opt.dataset.price || 0);
-                    if (value) {
-                        selectedOptions[key] = value;
-                        optionPrice += price;
+                modalContainer.querySelectorAll('.option-group[data-option]').forEach(group => {
+                    const key = group.dataset.option;
+                    const required = group.dataset.required === '1';
+
+                    const select = group.querySelector('.option-select');
+                    if (select) {
+                        const opt = select.options[select.selectedIndex];
+                        const value = select.value;
+                        const price = parseFloat((opt && opt.dataset.price) || 0);
+                        if (value) {
+                            selectedOptions[key] = value;
+                            optionPrice += price;
+                        } else if (required) {
+                            missing.push(this.toTitleCase(key));
+                        }
+                        return;
+                    }
+
+                    const radio = group.querySelector('.option-radio:checked');
+                    if (radio) {
+                        selectedOptions[key] = radio.value;
+                        optionPrice += parseFloat(radio.dataset.price || 0);
+                        return;
+                    } else if (group.querySelector('.option-radio') && required) {
+                        missing.push(this.toTitleCase(key));
+                        return;
+                    }
+
+                    const checkboxes = group.querySelectorAll('.option-checkbox:checked');
+                    if (checkboxes.length) {
+                        const values = [];
+                        checkboxes.forEach(cb => {
+                            values.push(cb.value);
+                            optionPrice += parseFloat(cb.dataset.price || 0);
+                        });
+                        if (values.length) {
+                            selectedOptions[key] = values;
+                        }
+                    } else if (group.querySelector('.option-checkbox') && required) {
+                        missing.push(this.toTitleCase(key));
                     }
                 });
 
-                const toppings = [];
-                modalContainer.querySelectorAll('.option-checkbox:checked').forEach(cb => {
-                    toppings.push(cb.value);
-                    optionPrice += parseFloat(cb.dataset.price || 0);
-                });
-                if (toppings.length > 0) {
-                    selectedOptions.topping = toppings;
+                if (missing.length) {
+                    this.showError('Please select: ' + missing.join(', '));
+                    return;
                 }
 
                 selectedOptions.price = optionPrice;
@@ -1500,12 +1538,38 @@ imogi_pos.waiter_order = {
      */
     formatSelectedOptions: function(options) {
         if (!options) return '';
+        const extractValue = (value) => {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => extractValue(item))
+                    .filter(part => part !== '')
+                    .join(', ');
+            }
+
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (typeof value === 'object') {
+                const nested = value.name || value.label || value.value;
+                if (nested !== undefined && nested !== null && nested !== '') {
+                    return String(nested);
+                }
+                return '';
+            }
+
+            return String(value);
+        };
+
         return Object.entries(options)
-            .filter(([k]) => k !== 'price')
+            .filter(([k]) => !['price', 'extra_price'].includes(k))
             .map(([k, v]) => {
-                const val = Array.isArray(v) ? v.join(', ') : v;
+                const val = extractValue(v);
+                if (!val) return null;
                 return `${this.toTitleCase(k)}: ${val}`;
-            }).join(', ');
+            })
+            .filter(Boolean)
+            .join(', ');
     },
     
     /**

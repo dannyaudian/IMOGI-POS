@@ -2503,6 +2503,7 @@ imogi_pos.kitchen_display = {
             listItems.push(`<li>${escapeHtml(label)}: ${escapeHtml(displayValue)}</li>`);
         };
 
+        addOption('Variant', parsedOptions.variant);
         addOption('Size', parsedOptions.size);
         addOption('Spice', parsedOptions.spice);
         addOption('Sugar', parsedOptions.sugar);

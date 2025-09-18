@@ -943,6 +943,11 @@ frappe.ready(async function () {
       const container = this.elements.itemOptions;
       if (!container) return;
 
+      const variants = Array.isArray(options.variants)
+        ? options.variants
+        : Array.isArray(options.variant)
+          ? options.variant
+          : [];
       const sizes = options.sizes || options.size || [];
       const spices = options.spices || options.spice || [];
       const toppings = options.toppings || options.topping || [];
@@ -952,6 +957,21 @@ frappe.ready(async function () {
       const getName = (opt) => opt.name || opt.label || opt.value || "";
       const getPrice = (opt) => Number(opt.price || 0);
       const isDefault = (opt) => !!(opt.default || opt.is_default);
+
+      if (variants.length) {
+        html += `<div class="option-block" data-group="variant" data-required="1">
+          <div class="option-title">Variant</div>
+          <div class="option-group">`;
+        variants.forEach((opt) => {
+          const name = getName(opt);
+          const value = opt.value || name;
+          const price = getPrice(opt);
+          const checked = isDefault(opt) ? "checked" : "";
+          const priceText = price ? ` (+${formatRupiah(price)})` : "";
+          html += `<label><input type="radio" name="variant-option" value="${value}" data-label="${name}" data-price="${price}" ${checked}> ${name}${priceText}</label>`;
+        });
+        html += `</div></div>`;
+      }
 
       if (sizes.length) {
         html += `<div class="option-block" data-group="size" data-required="1">
@@ -1008,6 +1028,16 @@ frappe.ready(async function () {
 
       const selectedOptions = { toppings: [] };
       let extra = 0;
+
+      const variantGroup = container.querySelector('[data-group="variant"]');
+      if (variantGroup) {
+        const input = variantGroup.querySelector('input[name="variant-option"]:checked');
+        if (!input) return this.showError("Please select variant");
+        const name = input.dataset.label || input.value;
+        const price = Number(input.dataset.price || 0);
+        selectedOptions.variant = { name, value: input.value, price };
+        extra += price;
+      }
 
       const sizeGroup = container.querySelector('[data-group="size"]');
       if (sizeGroup) {
@@ -1079,6 +1109,12 @@ frappe.ready(async function () {
 
     formatItemOptions: function (options) {
       const parts = [];
+      if (options.variant) {
+        const variantName = typeof options.variant === "object"
+          ? options.variant.name || options.variant.label || options.variant.value
+          : options.variant;
+        if (variantName) parts.push(`Variant: ${variantName}`);
+      }
       if (options.size) parts.push(`Size: ${options.size.name}`);
       if (options.spice) parts.push(`Spice: ${options.spice.name}`);
       if (options.toppings?.length) parts.push(`Toppings: ${options.toppings.map((t) => t.name).join(", ")}`);
