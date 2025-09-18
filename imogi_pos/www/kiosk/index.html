@@ -36,11 +36,37 @@ img{max-width:100%; display:block}
 }
 .brand-logo{height:36px}
 .brand-name{font-weight:700; letter-spacing:.2px}
+.header-right{display:flex; align-items:center; gap:12px}
 .branch-selector{
   display:flex; align-items:center; gap:.5rem;
   background: rgba(255,255,255,.15);
   padding:.35rem .75rem; border-radius:999px; font-size:.85rem;
 }
+.price-list-selector{
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+  background:rgba(255,255,255,.12);
+  padding:.35rem .75rem;
+  border-radius:999px;
+  font-size:.85rem;
+}
+.price-list-selector label{
+  font-weight:600;
+  color:#fff;
+}
+.price-list-select{
+  appearance:none;
+  border:none;
+  background:transparent;
+  color:#fff;
+  font-weight:600;
+  padding:0;
+  cursor:pointer;
+}
+.price-list-select:focus{outline:none}
+.price-list-select:disabled{opacity:.7; cursor:not-allowed}
+.price-list-select option{color:#111827}
 
 /* ---------- Layout ---------- */
 .kiosk-container{
@@ -398,6 +424,12 @@ button:disabled{opacity:.6; cursor:not-allowed}
       <span class="branch-value">{{ branch }}</span>
     </div>
     {% endif %}
+    <div class="price-list-selector">
+      <label for="price-list-select">{{ _("Price List") }}</label>
+      <select id="price-list-select" class="price-list-select" disabled>
+        <option value="">{{ _("Loading...") }}</option>
+      </select>
+    </div>
   </div>
 </header>
 {% endif %}
