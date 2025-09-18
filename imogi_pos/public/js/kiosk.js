@@ -821,7 +821,7 @@ imogi_pos.kiosk = {
         frappe.call({
             method: 'imogi_pos.api.variants.get_item_variants',
             args: {
-                template: templateName
+                item_template: templateName
             },
             callback: (response) => {
                 if (response.message && Array.isArray(response.message.variants)) {

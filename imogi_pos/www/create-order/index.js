@@ -746,7 +746,7 @@ frappe.ready(async function () {
         const { message } = await frappe.call({
           method: "imogi_pos.api.variants.get_item_variants",
           args: {
-            template_item: templateItem.name,
+            item_template: templateItem.name,
             price_list: this.selectedPriceList || null,
           },
         });
