@@ -10,7 +10,10 @@ from frappe import _
 from frappe.utils import flt
 
 
-def _extract_price_list_from_row(row: frappe.model.base.Document) -> Optional[str]:
+def _extract_price_list_from_row(
+    row: frappe.model.base.Document,
+    table_field: Optional[frappe.model.base.Document] = None,
+) -> Optional[str]:
     """Return the price list value from an arbitrary child table row."""
 
     for fieldname in (
@@ -22,14 +25,30 @@ def _extract_price_list_from_row(row: frappe.model.base.Document) -> Optional[st
         value = getattr(row, fieldname, None)
         if value:
             return value
+
+    link_doctype = getattr(row, "link_doctype", None)
+    table_options = getattr(table_field, "options", None) if table_field else None
+    link_name = getattr(row, "link_name", None)
+
+    if link_name and (
+        link_doctype == "Price List"
+        or (not link_doctype and table_options == "Price List")
+    ):
+        return link_name
     return None
 
 
-def _extract_label_from_row(row: frappe.model.base.Document) -> Optional[str]:
+def _extract_label_from_row(
+    row: frappe.model.base.Document,
+    table_field: Optional[frappe.model.base.Document] = None,
+) -> Optional[str]:
     for fieldname in ("label", "display_name", "price_list_label"):
         value = getattr(row, fieldname, None)
         if value:
             return value
+    link_title = getattr(row, "link_title", None)
+    if link_title:
+        return link_title
     return None
 
 
@@ -76,11 +95,11 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
     for table_field in profile.meta.get_table_fields():
         child_rows: Iterable[frappe.model.base.Document] = getattr(profile, table_field.fieldname, []) or []
         for row in child_rows:
-            name = _extract_price_list_from_row(row)
+            name = _extract_price_list_from_row(row, table_field)
             if not name:
                 continue
 
-            label = _extract_label_from_row(row)
+            label = _extract_label_from_row(row, table_field)
             is_default = bool(
                 getattr(row, "is_default", None)
                 or getattr(row, "default", None)
