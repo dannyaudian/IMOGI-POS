@@ -66,6 +66,16 @@ frappe.ready(async function () {
     return `${sym} ${r}`;
   }
 
+  function escapeHtml(value) {
+    if (value === null || value === undefined) return "";
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   // ====== STATE ======
   const KioskApp = {
     items: [],
@@ -87,6 +97,10 @@ frappe.ready(async function () {
 
     posOrder: null,
     queueNumber: null,
+    invoiceName: null,
+    itemRows: [],
+    latestOrderDetails: null,
+    latestInvoiceDetails: null,
 
     paymentRequest: null,
     paymentMethod: "cash",
@@ -137,6 +151,7 @@ frappe.ready(async function () {
       // Success modal
       successModal: document.getElementById("success-modal"),
       successQueueNumber: document.getElementById("success-queue-number"),
+      successReceipt: document.getElementById("success-receipt"),
       successDoneBtn: document.getElementById("btn-success-done"),
 
       // Loading overlay
@@ -787,6 +802,25 @@ frappe.ready(async function () {
       return parts.join(" | ");
     },
 
+    formatReceiptItemOptions: function (options) {
+      if (!options) return "";
+
+      let data = options;
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch (error) {
+          return data.trim ? data.trim() : data;
+        }
+      }
+
+      if (typeof data === "object" && data !== null) {
+        return this.formatItemOptions(data).trim();
+      }
+
+      return String(data).trim();
+    },
+
     updateCartItemQuantity: function (index, newQty) {
       if (newQty < 1) return this.removeCartItem(index);
       this.cart[index].qty = newQty;
@@ -907,6 +941,7 @@ frappe.ready(async function () {
         this.posOrder = orderResp.message.name;
         this.queueNumber = orderResp.message.queue_number;
         this.itemRows = (orderResp.message.items || []).map((it) => it.name);
+        this.latestOrderDetails = orderResp.message;
 
         // 2) Create draft invoice
         const totals = this.calculateTotals();
@@ -925,6 +960,8 @@ frappe.ready(async function () {
         if (!invoiceResp.message) throw new Error("Failed to create invoice");
 
         const invoice = invoiceResp.message;
+        this.invoiceName = invoice.name;
+        this.latestInvoiceDetails = invoice;
 
         // 3) Request payment
         const payResp = await frappe.call({
@@ -961,6 +998,9 @@ frappe.ready(async function () {
         const paymentOptions = document.querySelectorAll("button.payment-option");
         paymentOptions.forEach((o) => o.classList.remove("selected"));
         document.querySelector('button.payment-option[data-method="cash"]')?.classList.add("selected");
+        this.latestOrderDetails = null;
+        this.latestInvoiceDetails = null;
+        this.invoiceName = null;
       } finally {
         this.hideLoading();
       }
@@ -1070,6 +1110,7 @@ frappe.ready(async function () {
 
         if (this.paymentRequest?.invoice) {
           invoice = { name: this.paymentRequest.invoice };
+          this.invoiceName = invoice.name;
         } else {
           // Create order + invoice (cash)
           const orderArgs = {
@@ -1091,6 +1132,7 @@ frappe.ready(async function () {
           this.posOrder = orderResp.message.name;
           this.queueNumber = orderResp.message.queue_number;
           this.itemRows = (orderResp.message.items || []).map((it) => it.name);
+          this.latestOrderDetails = orderResp.message;
 
           const totals = this.calculateTotals();
           const invoiceArgs = {
@@ -1107,6 +1149,8 @@ frappe.ready(async function () {
           });
           if (!invResp.message) throw new Error("Failed to create invoice");
           invoice = invResp.message;
+          this.invoiceName = invoice.name;
+          this.latestInvoiceDetails = invoice;
         }
 
         // KOT (restaurant only)
@@ -1124,7 +1168,7 @@ frappe.ready(async function () {
         if (PRINT_SETTINGS?.print_receipt) await this.printReceipt(invoice.name);
         if (PRINT_SETTINGS?.print_queue_ticket) await this.printQueueTicket();
 
-        this.showSuccessModal();
+        await this.showSuccessModal();
       } catch (error) {
         if (error?.message?.includes("already occupied")) {
           frappe.msgprint({
@@ -1168,14 +1212,170 @@ frappe.ready(async function () {
       }
     },
 
-    showSuccessModal: function () {
+    renderSuccessReceipt: async function () {
+      const receiptEl = this.elements.successReceipt;
+      if (!receiptEl) return;
+
+      receiptEl.classList.remove("hidden");
+      receiptEl.innerHTML = `<div class="success-receipt-loading">${__("Loading receipt...")}</div>`;
+
+      const toNumber = (value) => {
+        const num = parseFloat(value);
+        return Number.isFinite(num) ? num : 0;
+      };
+
+      let orderDetails = this.latestOrderDetails;
+      const orderName = this.posOrder;
+      if (!orderDetails && orderName) {
+        try {
+          const { message } = await frappe.call({
+            method: "frappe.client.get",
+            args: { doctype: "POS Order", name: orderName },
+          });
+          if (message) {
+            orderDetails = message;
+            this.latestOrderDetails = message;
+          }
+        } catch (error) {
+          console.error("Failed to fetch POS Order details:", error);
+        }
+      }
+
+      let invoiceDetails = this.latestInvoiceDetails;
+      const invoiceName = this.invoiceName || this.paymentRequest?.invoice;
+      if (!invoiceDetails && invoiceName) {
+        try {
+          const { message } = await frappe.call({
+            method: "frappe.client.get",
+            args: { doctype: "Sales Invoice", name: invoiceName },
+          });
+          if (message) {
+            invoiceDetails = message;
+            this.latestInvoiceDetails = message;
+          }
+        } catch (error) {
+          console.error("Failed to fetch Sales Invoice details:", error);
+        }
+      }
+
+      if (!orderDetails && !invoiceDetails) {
+        receiptEl.innerHTML = `<div class="success-receipt-empty">${__("Unable to load receipt details.")}</div>`;
+        return;
+      }
+
+      const orderNumber =
+        orderDetails?.queue_number ||
+        orderDetails?.name ||
+        invoiceDetails?.name ||
+        this.queueNumber ||
+        "-";
+
+      const itemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
+        ? orderDetails.items
+        : Array.isArray(invoiceDetails?.items) && invoiceDetails.items.length
+          ? invoiceDetails.items
+          : [];
+
+      const itemRows = itemsSource.length
+        ? itemsSource
+            .map((item) => {
+              const qtyValue = toNumber(item.qty ?? item.quantity ?? 0);
+              const qtyDisplay = Number.isInteger(qtyValue) ? qtyValue : qtyValue.toFixed(2);
+              const amountValue =
+                item.amount != null
+                  ? toNumber(item.amount)
+                  : toNumber(item.rate) * qtyValue;
+              const optionsText = this.formatReceiptItemOptions(item.item_options);
+              const optionsHtml = optionsText
+                ? `<div class="success-receipt-item-options">${escapeHtml(optionsText)}</div>`
+                : "";
+
+              return `
+                <tr>
+                  <td>
+                    <div class="success-receipt-item-name">${escapeHtml(item.item_name || item.item_code || item.item || "")}</div>
+                    ${optionsHtml}
+                  </td>
+                  <td>${qtyDisplay}</td>
+                  <td>${formatRupiah(amountValue)}</td>
+                </tr>
+              `;
+            })
+            .join("")
+        : `<tr><td colspan="3">${__("No items found")}</td></tr>`;
+
+      const subtotalValue = toNumber(
+        orderDetails?.subtotal ??
+          invoiceDetails?.total ??
+          invoiceDetails?.base_total ??
+          0
+      );
+
+      let pb1Value = orderDetails?.pb1_amount;
+      if (pb1Value == null) {
+        pb1Value = (invoiceDetails?.taxes || []).reduce(
+          (sum, tax) => sum + toNumber(tax?.tax_amount ?? tax?.base_tax_amount ?? 0),
+          0
+        );
+      }
+      pb1Value = toNumber(pb1Value);
+
+      const totalValue = toNumber(
+        orderDetails?.totals ??
+          invoiceDetails?.rounded_total ??
+          invoiceDetails?.grand_total ??
+          invoiceDetails?.total ??
+          invoiceDetails?.base_grand_total ??
+          0
+      );
+
+      receiptEl.innerHTML = `
+        <div class="success-receipt-header">
+          <div class="success-receipt-title">${__("Receipt")}</div>
+          <div class="success-receipt-meta">
+            <div class="success-receipt-label">${__("Order No.")}</div>
+            <div class="success-receipt-value">${escapeHtml(orderNumber || "-")}</div>
+          </div>
+        </div>
+        <table class="success-receipt-table">
+          <thead>
+            <tr>
+              <th>${__("Item")}</th>
+              <th>${__("Qty")}</th>
+              <th>${__("Amount")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+        <div class="success-receipt-summary">
+          <div class="success-receipt-summary-row">
+            <span>${__("Subtotal")}</span>
+            <span>${formatRupiah(subtotalValue)}</span>
+          </div>
+          <div class="success-receipt-summary-row">
+            <span>${__("PB1")}</span>
+            <span>${formatRupiah(pb1Value)}</span>
+          </div>
+          <div class="success-receipt-summary-row total">
+            <span>${__("Total")}</span>
+            <span>${formatRupiah(totalValue)}</span>
+          </div>
+        </div>
+      `;
+    },
+
+    showSuccessModal: async function () {
       if (this.elements.successQueueNumber) this.elements.successQueueNumber.textContent = this.queueNumber;
       if (this.elements.successModal) this.elements.successModal.style.display = "flex";
+      await this.renderSuccessReceipt();
       // (Tidak redirect ke /service-select)
     },
 
     closeSuccessModal: function () {
       if (this.elements.successModal) this.elements.successModal.style.display = "none";
+      if (this.elements.successReceipt) this.elements.successReceipt.classList.add("hidden");
     },
 
     resetApp: function () {
@@ -1186,10 +1386,20 @@ frappe.ready(async function () {
       this.paymentRequest = null;
       this.cashAmount = 0;
       this.queueNumber = null;
+      this.posOrder = null;
+      this.invoiceName = null;
+      this.itemRows = [];
+      this.latestOrderDetails = null;
+      this.latestInvoiceDetails = null;
 
       if (this.elements.searchInput) this.elements.searchInput.value = "";
       this.searchQuery = "";
       this.selectCategory("all");
+
+      if (this.elements.successReceipt) {
+        this.elements.successReceipt.innerHTML = "";
+        this.elements.successReceipt.classList.add("hidden");
+      }
     },
 
     // ====== UTILS ======
