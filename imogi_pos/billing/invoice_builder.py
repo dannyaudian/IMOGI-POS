@@ -109,9 +109,10 @@ def build_sales_invoice_from_pos_order(
         if getattr(pos_order, "discount_percent", None):
             si.additional_discount_percentage = pos_order.discount_percent
 
-    # Apply selling price list from POS Profile
-    if pos_profile.selling_price_list:
-        si.selling_price_list = pos_profile.selling_price_list
+    # Apply selling price list preference: order override > profile default
+    price_list = getattr(pos_order, "selling_price_list", None) or pos_profile.selling_price_list
+    if price_list:
+        si.selling_price_list = price_list
     
     # Add items
     for order_item in pos_order.items:

@@ -229,7 +229,7 @@ def get_next_available_table(branch):
     return str(min(numbers))
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None):
+def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None, selling_price_list=None):
     """
     Creates a new POS Order.
     
@@ -241,6 +241,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
         service_type (str, optional): Service type for kiosk orders (Takeaway/Dine-in).
+        selling_price_list (str, optional): Explicit price list to apply to the order.
     
     Returns:
         dict: Created POS Order details
@@ -248,6 +249,9 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     """
     validate_branch_access(branch)
     ensure_update_stock_enabled(pos_profile)
+
+    if not selling_price_list:
+        selling_price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
 
     # For restaurant-specific features like table assignment
     table_doc = None
@@ -309,6 +313,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             "discount_amount": discount_amount,
             "discount_percent": discount_percent,
             "promo_code": promo_code,
+            "selling_price_list": selling_price_list,
         }
     )
     if table_doc:

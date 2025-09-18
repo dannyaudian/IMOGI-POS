@@ -45,7 +45,7 @@ def get_order_branch(pos_order):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None):
+def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price_list=None):
     """Return POS items with stock and allowed payment methods.
 
     Args:
@@ -112,6 +112,19 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None):
         )
         stock_map = {b.item_code: b.actual_qty for b in bin_rows}
 
+    # Apply price list rates when requested
+    if price_list and item_names:
+        price_rows = frappe.get_all(
+            "Item Price",
+            filters={"price_list": price_list, "item_code": ["in", item_names]},
+            fields=["item_code", "price_list_rate", "currency"],
+        )
+        rate_map = {row.item_code: row.price_list_rate for row in price_rows}
+        currency_map = {row.item_code: row.currency for row in price_rows}
+    else:
+        rate_map = {}
+        currency_map = {}
+
     # Fetch allowed payment methods if doctype exists
     payment_map = {}
     payment_doctype = None
@@ -132,6 +145,11 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None):
     for item in items:
         item["actual_qty"] = stock_map.get(item.name, 0)
         item["payment_methods"] = payment_map.get(item.name, [])
+        if rate_map:
+            if item.name in rate_map:
+                item["standard_rate"] = rate_map[item.name]
+                if currency_map.get(item.name):
+                    item["currency"] = currency_map[item.name]
 
     return items
 
@@ -203,8 +221,8 @@ def get_variant_picker_config(item_template):
         "has_variants": len(attributes) > 0
     }
 
-@frappe.whitelist()
-def get_item_variants(item_template):
+@frappe.whitelist(allow_guest=True)
+def get_item_variants(item_template, price_list=None):
     """
     Gets all variants for a template item.
     
@@ -232,6 +250,19 @@ def get_item_variants(item_template):
                             fields=["name", "item_name", "image", "item_code", "description", 
                                    "standard_rate", "stock_uom"])
     
+    variant_names = [variant.name for variant in variants]
+
+    rate_map = {}
+    currency_map = {}
+    if price_list and variant_names:
+        price_rows = frappe.get_all(
+            "Item Price",
+            filters={"price_list": price_list, "item_code": ["in", variant_names]},
+            fields=["item_code", "price_list_rate", "currency"],
+        )
+        rate_map = {row.item_code: row.price_list_rate for row in price_rows}
+        currency_map = {row.item_code: row.currency for row in price_rows}
+
     # Enrich variants with their attribute values
     for variant in variants:
         item_code = variant["name"]
@@ -249,12 +280,17 @@ def get_item_variants(item_template):
         variant["attributes"] = variant_attrs
         
         # Check if this variant has menu category, kitchen, etc.
-        routing = frappe.db.get_value("Item", item_code, 
-                                   ["menu_category", "default_kitchen", "default_kitchen_station"], 
+        routing = frappe.db.get_value("Item", item_code,
+                                   ["menu_category", "default_kitchen", "default_kitchen_station"],
                                    as_dict=True)
         if routing:
             variant.update(routing)
-    
+
+        if item_code in rate_map:
+            variant["standard_rate"] = rate_map[item_code]
+            if currency_map.get(item_code):
+                variant["currency"] = currency_map[item_code]
+
     return {
         "template": item_template,
         "attributes": attributes,

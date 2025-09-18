@@ -298,6 +298,12 @@ def generate_invoice(
 
         invoice_doc = frappe.get_doc(invoice_data)
 
+        selling_price_list = getattr(order_doc, "selling_price_list", None) or getattr(
+            profile_doc, "selling_price_list", None
+        )
+        if selling_price_list:
+            invoice_doc.selling_price_list = selling_price_list
+
         # Include table info if present
         if getattr(order_doc, "table", None):
             invoice_doc.table = order_doc.table

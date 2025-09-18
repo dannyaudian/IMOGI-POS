@@ -91,6 +91,8 @@ frappe.ready(async function () {
     taxRate: 0,
     discountPercent: 0,
     discountAmount: 0,
+    priceLists: [],
+    selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
 
     orderType: getDefaultOrderType(),
     tableNumber: null,
@@ -119,6 +121,7 @@ frappe.ready(async function () {
       clearBtn: document.getElementById("btn-clear"),
       searchInput: document.getElementById("search-input"),
       categoriesContainer: document.getElementById("categories-container"),
+      priceListSelect: document.getElementById("price-list-select"),
 
       // Variant modal
       variantModal: document.getElementById("variant-modal"),
@@ -162,6 +165,7 @@ frappe.ready(async function () {
     // ====== INIT ======
     init: async function () {
       this.setupEventListeners();
+      await this.loadPriceLists();
       await this.loadItems();
       this.renderCategories();
       await this.loadTaxTemplate();
@@ -174,6 +178,13 @@ frappe.ready(async function () {
 
     // ====== EVENTS ======
     setupEventListeners: function () {
+      if (this.elements.priceListSelect) {
+        this.elements.priceListSelect.addEventListener("change", (event) => {
+          const value = event.target.value;
+          this.handlePriceListChange(value);
+        });
+      }
+
       // Search
       if (this.elements.searchInput) {
         this.elements.searchInput.addEventListener(
@@ -260,6 +271,177 @@ frappe.ready(async function () {
     },
 
     // ====== LOAD DATA ======
+    loadPriceLists: async function () {
+      try {
+        const { message } = await frappe.call({
+          method: "imogi_pos.api.pricing.get_allowed_price_lists",
+          args: { pos_profile: POS_PROFILE_DATA.name },
+        });
+
+        const response = message || {};
+        const lists = Array.isArray(response.price_lists) ? response.price_lists : [];
+
+        this.priceLists = lists.map((row) => ({
+          name: row.name,
+          label: row.label || row.name,
+          currency: row.currency || null,
+        }));
+
+        const defaultName =
+          response.default_price_list ||
+          this.selectedPriceList ||
+          POS_PROFILE_DATA.selling_price_list ||
+          (this.priceLists[0] ? this.priceLists[0].name : null);
+
+        if (defaultName) {
+          this.selectedPriceList = defaultName;
+        }
+      } catch (err) {
+        console.error("Error loading price lists:", err);
+        this.priceLists = [];
+        if (!this.selectedPriceList) {
+          this.selectedPriceList = POS_PROFILE_DATA.selling_price_list || null;
+        }
+      } finally {
+        this.renderPriceListSelector();
+      }
+    },
+
+    renderPriceListSelector: function () {
+      const select = this.elements.priceListSelect;
+      if (!select) return;
+
+      const lists = this.priceLists;
+
+      if (!lists.length) {
+        const fallback = this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || "";
+        const label = fallback || __("Not Set");
+        select.innerHTML = `<option value="${escapeHtml(fallback)}">${escapeHtml(label)}</option>`;
+        select.value = fallback;
+        select.disabled = true;
+        return;
+      }
+
+      const optionsHtml = lists
+        .map((pl) => {
+          const text = pl.currency
+            ? `${escapeHtml(pl.label)} (${escapeHtml(pl.currency)})`
+            : escapeHtml(pl.label);
+          return `<option value="${escapeHtml(pl.name)}">${text}</option>`;
+        })
+        .join("");
+
+      select.innerHTML = optionsHtml;
+
+      const hasSelected = lists.some((pl) => pl.name === this.selectedPriceList);
+      const value = hasSelected ? this.selectedPriceList : lists[0].name;
+
+      this.selectedPriceList = value;
+      select.value = value;
+      select.disabled = lists.length <= 1;
+    },
+
+    handlePriceListChange: async function (priceList) {
+      if (!priceList || priceList === this.selectedPriceList) {
+        this.renderPriceListSelector();
+        return;
+      }
+
+      this.selectedPriceList = priceList;
+
+      const select = this.elements.priceListSelect;
+      if (select) select.disabled = true;
+
+      this.showLoading("Updating prices...");
+      try {
+        await this.refreshPricesForSelectedList();
+      } catch (err) {
+        console.error("Failed to refresh prices:", err);
+        this.showError("Failed to update prices. Please try again.");
+      } finally {
+        this.renderPriceListSelector();
+        this.hideLoading();
+      }
+    },
+
+    refreshPricesForSelectedList: async function () {
+      await this.loadItemRates(true);
+      this.renderItems();
+      await this.recalculateCartPricing();
+      this.renderCart();
+      this.updateCartTotals();
+    },
+
+    recalculateCartPricing: async function () {
+      if (!this.cart.length || !this.selectedPriceList) return;
+
+      const itemCodes = Array.from(
+        new Set(
+          this.cart
+            .map((item) => item.item_code)
+            .filter((code) => typeof code === "string" && code)
+        )
+      );
+
+      if (!itemCodes.length) return;
+
+      let priceMap = {};
+      try {
+        const { message } = await frappe.call({
+          method: "frappe.client.get_list",
+          args: {
+            doctype: "Item Price",
+            filters: {
+              item_code: ["in", itemCodes],
+              price_list: this.selectedPriceList,
+            },
+            fields: ["item_code", "price_list_rate"],
+            limit_page_length: itemCodes.length,
+          },
+        });
+        priceMap = (message || []).reduce((acc, row) => {
+          acc[row.item_code] = Number(row.price_list_rate || 0);
+          return acc;
+        }, {});
+      } catch (err) {
+        console.error("Failed to recalculate cart pricing:", err);
+        priceMap = {};
+      }
+
+      this.cart.forEach((item) => {
+        const extra = this.getCartItemExtra(item);
+        const baseRate = Object.prototype.hasOwnProperty.call(priceMap, item.item_code)
+          ? priceMap[item.item_code]
+          : typeof item._base_rate === "number"
+            ? item._base_rate
+            : (Number(item.rate) || 0) - extra;
+
+        item._base_rate = Number.isFinite(baseRate) ? baseRate : 0;
+        item.rate = item._base_rate + extra;
+        item.amount = item.rate * item.qty;
+      });
+    },
+
+    getCartItemExtra: function (item) {
+      if (item && typeof item._extra_rate === "number") {
+        return item._extra_rate;
+      }
+
+      let options = item?.item_options;
+      if (typeof options === "string" && options) {
+        try {
+          options = JSON.parse(options);
+        } catch (err) {
+          options = {};
+        }
+      }
+
+      if (!options || typeof options !== "object") return 0;
+
+      const extra = Number(options.extra_price || 0);
+      return Number.isFinite(extra) ? extra : 0;
+    },
+
     loadItems: async function () {
       this.showLoading("Loading catalog...");
       try {
@@ -269,6 +451,7 @@ frappe.ready(async function () {
             warehouse: POS_PROFILE_DATA.warehouse,
             limit: 500,
             pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
+            price_list: this.selectedPriceList || null,
           },
         });
 
@@ -278,7 +461,7 @@ frappe.ready(async function () {
           this.filteredItems = [...this.items];
 
           // Lengkapi harga yang kosong
-          await this.loadItemRates();
+          await this.loadItemRates(!this.selectedPriceList);
 
           // Build kategori unik
           const set = new Set();
@@ -296,19 +479,22 @@ frappe.ready(async function () {
       }
     },
 
-    loadItemRates: async function () {
-      const needRates = this.items.filter((it) => !it.standard_rate);
-      if (!needRates.length) return;
+    loadItemRates: async function (force = false) {
+      const priceList = this.selectedPriceList;
+      if (!priceList) return;
+      const targetItems = force ? this.items : this.items.filter((it) => !it.standard_rate);
+      if (!targetItems.length) return;
       try {
         const { message } = await frappe.call({
           method: "frappe.client.get_list",
           args: {
             doctype: "Item Price",
             filters: {
-              item_code: ["in", needRates.map((it) => it.name)],
-              price_list: POS_PROFILE_DATA.selling_price_list,
+              item_code: ["in", targetItems.map((it) => it.name)],
+              price_list: priceList,
             },
             fields: ["item_code", "price_list_rate"],
+            limit_page_length: targetItems.length,
           },
         });
         (message || []).forEach((row) => {
@@ -331,7 +517,10 @@ frappe.ready(async function () {
       try {
         const { message } = await frappe.call({
           method: "imogi_pos.api.variants.get_item_variants",
-          args: { template_item: templateItem.name },
+          args: {
+            template_item: templateItem.name,
+            price_list: this.selectedPriceList || null,
+          },
         });
         return message || [];
       } catch (err) {
@@ -772,14 +961,16 @@ frappe.ready(async function () {
         });
       }
 
-      selectedOptions.extra_price = extra;
+      selectedOptions.extra_price = Number(extra) || 0;
       this.addItemToCart(this.selectedOptionItem, selectedOptions, this.pendingNotes);
       this.closeItemDetailModal();
     },
 
     addItemToCart: function (item, item_options = {}, notes = "") {
       if (!item) return;
-      const rate = (item.standard_rate || 0) + (item_options.extra_price || 0);
+      const baseRate = Number(item.standard_rate || 0);
+      const extraRate = Number(item_options.extra_price || 0);
+      const rate = baseRate + extraRate;
       const existingIndex = this.cart.findIndex(
         (i) =>
           i.item_code === item.name &&
@@ -789,6 +980,9 @@ frappe.ready(async function () {
 
       if (existingIndex >= 0) {
         this.cart[existingIndex].qty += 1;
+        this.cart[existingIndex]._base_rate = baseRate;
+        this.cart[existingIndex]._extra_rate = extraRate;
+        this.cart[existingIndex].rate = baseRate + extraRate;
         this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
       } else {
         this.cart.push({
@@ -801,6 +995,8 @@ frappe.ready(async function () {
           item_options: item_options,
           kitchen: item.default_kitchen,
           kitchen_station: item.default_kitchen_station,
+          _base_rate: baseRate,
+          _extra_rate: extraRate,
         });
       }
 
@@ -943,6 +1139,7 @@ frappe.ready(async function () {
           pos_profile: POS_PROFILE.name,
           customer: "Walk-in Customer",
           items: this.cart,
+          selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
         };
         if (this.tableNumber) orderArgs.table = this.tableNumber;
 
@@ -1134,6 +1331,7 @@ frappe.ready(async function () {
             pos_profile: POS_PROFILE.name,
             customer: "Walk-in Customer",
             items: this.cart,
+            selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
           };
           if (this.tableNumber) orderArgs.table = this.tableNumber;
 
