@@ -1262,7 +1262,9 @@ frappe.ready(async function() {
                     pos_profile: POS_PROFILE.name,
                     customer: 'Walk-in Customer',
                     items: this.cart,
-                    selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
+                    selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
+                    discount_amount: discountAmount,
+                    discount_percent: discountPercent
                 };
                 if (this.tableNumber) {
                     orderArgs.table = this.tableNumber;
@@ -1566,7 +1568,9 @@ frappe.ready(async function() {
                         pos_profile: POS_PROFILE.name,
                         customer: 'Walk-in Customer',
                         items: this.cart,
-                        selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
+                        selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
+                        discount_amount: discountAmount,
+                        discount_percent: discountPercent
                     };
                     if (this.tableNumber) {
                         orderArgs.table = this.tableNumber;
