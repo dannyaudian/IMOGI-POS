@@ -150,6 +150,51 @@ def test_get_allowed_price_lists_ignores_adjustment_when_column_missing(pricing_
     assert captured_fields["fields"] == ["name", "price_list_name", "currency", "enabled"]
 
 
+def test_get_allowed_price_lists_includes_table_multiselect_links(pricing_module, frappe_env):
+    table_field = types.SimpleNamespace(fieldname="linked_price_lists", options="Price List")
+    row = Row(link_doctype="Price List", link_name="GoFood", link_title="Go Food")
+
+    profile = types.SimpleNamespace(
+        selling_price_list="Retail",
+        linked_price_lists=[row],
+        meta=types.SimpleNamespace(get_table_fields=lambda: [table_field]),
+    )
+
+    frappe_env.get_doc = lambda *_, **__: profile
+
+    def get_all(doctype, *_, **kwargs):
+        if doctype == "Price List":
+            return [
+                Row(
+                    name="Retail",
+                    price_list_name="Retail",
+                    currency="USD",
+                    enabled=1,
+                    imogi_price_adjustment=0,
+                ),
+                Row(
+                    name="GoFood",
+                    price_list_name="Go Food",
+                    currency="IDR",
+                    enabled=1,
+                    imogi_price_adjustment=3.25,
+                ),
+            ]
+        return []
+
+    frappe_env.get_all = get_all
+    frappe_env.db.has_column = lambda *_: True
+
+    result = pricing_module.get_allowed_price_lists("POS-TEST")
+
+    assert result["default_price_list"] == "Retail"
+    assert {entry["name"] for entry in result["price_lists"]} == {"Retail", "GoFood"}
+
+    gofood_entry = next(entry for entry in result["price_lists"] if entry["name"] == "GoFood")
+    assert gofood_entry["label"] == "Go Food"
+    assert gofood_entry["adjustment"] == pytest.approx(3.25)
+
+
 def _base_item():
     return Row(
         name="ITEM-1",
