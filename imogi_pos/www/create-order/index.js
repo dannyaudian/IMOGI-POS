@@ -27,18 +27,47 @@ frappe.ready(async function() {
         return;
     }
 
-    // Determine service type from URL or localStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    let serviceType = urlParams.get('service');
-    if (!serviceType) {
-        serviceType = localStorage.getItem('imogi_service_type');
+    function normalizeOrderType(value) {
+        if (typeof value !== 'string') {
+            return null;
+        }
+
+        const normalized = value.toLowerCase();
+
+        if (normalized.includes('dine')) {
+            return 'Dine-in';
+        }
+
+        if (normalized.includes('take')) {
+            return 'Takeaway';
+        }
+
+        if (normalized.includes('kiosk')) {
+            return 'Kiosk';
+        }
+
+        return null;
     }
-    if (!serviceType) {
-        window.location.href = '/service-select';
-        return;
+
+    function getDefaultOrderType() {
+        const candidates = [
+            POS_PROFILE_DATA.default_service_type,
+            POS_PROFILE_DATA.default_order_type,
+            POS_PROFILE_DATA.service_type,
+            POS_PROFILE_DATA.order_type
+        ];
+
+        for (const candidate of candidates) {
+            const orderType = normalizeOrderType(candidate);
+            if (orderType) {
+                return orderType;
+            }
+        }
+
+        return 'Takeaway';
     }
-    // Persist the service type for subsequent visits
-    localStorage.setItem('imogi_service_type', serviceType);
+
+    const DEFAULT_ORDER_TYPE = getDefaultOrderType();
 
     // =====================
     // State Management
@@ -58,10 +87,9 @@ frappe.ready(async function() {
         taxRate: 0,
         discountPercent: 0,
         discountAmount: 0,
-        serviceType: serviceType,
 
         // Order type and table
-        orderType: 'Takeaway',
+        orderType: DEFAULT_ORDER_TYPE,
         tableNumber: null,
 
         // Tracking the created POS Order
@@ -218,8 +246,6 @@ frappe.ready(async function() {
             this.elements.successDoneBtn.addEventListener('click', () => {
                 this.closeSuccessModal();
                 this.resetApp();
-                localStorage.removeItem('imogi_service_type');
-                window.location.href = '/service-select';
             });
         },
         
@@ -1400,10 +1426,6 @@ frappe.ready(async function() {
             
             // Reset category filter
             this.selectCategory('all');
-
-            // Clear stored service type and redirect to selection page
-            localStorage.removeItem('imogi_service_type');
-            window.location.href = '/service-select';
         },
         
         // Utils
@@ -1499,21 +1521,21 @@ frappe.ready(async function() {
 
     // Determine service type and table number
     const params = new URLSearchParams(window.location.search);
-    const serviceParam = params.get('service') || localStorage.getItem('imogi_service_type');
-    let orderType = 'Takeaway';
-    if (serviceParam && serviceParam.toLowerCase().includes('dine')) {
-        orderType = 'Dine-in';
+    const serviceParam = params.get('service');
+    const paramOrderType = normalizeOrderType(serviceParam);
+    if (paramOrderType) {
+        KioskApp.orderType = paramOrderType;
     }
-    localStorage.setItem('imogi_service_type', orderType);
-    KioskApp.orderType = orderType;
 
     const tableParam = params.get('table') || localStorage.getItem('imogi_table_number');
-    if (orderType !== 'Dine-in') {
+    if (KioskApp.orderType !== 'Dine-in') {
         KioskApp.tableNumber = null;
         localStorage.removeItem('imogi_table_number');
     } else if (tableParam) {
         KioskApp.tableNumber = tableParam;
         localStorage.setItem('imogi_table_number', tableParam);
+    } else {
+        KioskApp.tableNumber = null;
     }
 
     // Initialize the app
