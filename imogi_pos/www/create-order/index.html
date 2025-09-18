@@ -811,6 +811,119 @@
     font-size: var(--font-size-lg);
   }
 
+  .success-receipt {
+    margin-top: 1.5rem;
+    background-color: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 420px;
+    text-align: left;
+    box-shadow: 0 10px 25px rgba(17, 24, 39, 0.08);
+  }
+
+  .success-receipt.hidden {
+    display: none;
+  }
+
+  .success-receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .success-receipt-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .success-receipt-meta {
+    text-align: right;
+  }
+
+  .success-receipt-label {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .success-receipt-value {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--brand-primary);
+  }
+
+  .success-receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+  }
+
+  .success-receipt-table th,
+  .success-receipt-table td {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+  }
+
+  .success-receipt-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-light);
+  }
+
+  .success-receipt-table th:nth-child(2),
+  .success-receipt-table td:nth-child(2) {
+    text-align: center;
+    width: 60px;
+  }
+
+  .success-receipt-table th:last-child,
+  .success-receipt-table td:last-child {
+    text-align: right;
+    width: 120px;
+  }
+
+  .success-receipt-item-name {
+    font-weight: 600;
+  }
+
+  .success-receipt-item-options {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+  }
+
+  .success-receipt-summary {
+    border-top: 1px dashed var(--border-color);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .success-receipt-summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+  }
+
+  .success-receipt-summary-row.total {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-dark);
+  }
+
+  .success-receipt-loading,
+  .success-receipt-empty {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-light);
+  }
+
   .cash-presets {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1101,7 +1214,11 @@
     <div class="success-details">
       {{ _("Your order has been sent to the kitchen") }}
     </div>
-    
+
+    <div class="success-receipt hidden" id="success-receipt">
+      <div class="success-receipt-loading">{{ _("Loading receipt...") }}</div>
+    </div>
+
     <div class="success-queue-section">
       <div>{{ _("Your queue number is") }}</div>
       <div class="success-queue" id="success-queue-number"></div>
