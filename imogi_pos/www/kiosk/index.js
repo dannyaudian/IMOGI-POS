@@ -121,6 +121,7 @@ frappe.ready(async function() {
             // Success modal
             successModal: document.getElementById('success-modal'),
             successQueueNumber: document.getElementById('success-queue-number'),
+            successReceipt: document.getElementById('success-receipt'),
             successDoneBtn: document.getElementById('btn-success-done'),
             
             // Loading overlay
@@ -1299,10 +1300,43 @@ frappe.ready(async function() {
                     await this.printQueueTicket();
                 }
                 
+                let orderDetails = null;
+                let invoiceDetails = null;
+
+                if (this.posOrder || invoice?.name) {
+                    try {
+                        const [orderResponseDetails, invoiceResponseDetails] = await Promise.all([
+                            this.posOrder
+                                ? frappe.call({
+                                      method: 'frappe.client.get',
+                                      args: {
+                                          doctype: 'POS Order',
+                                          name: this.posOrder
+                                      }
+                                  })
+                                : Promise.resolve({}),
+                            invoice?.name
+                                ? frappe.call({
+                                      method: 'frappe.client.get',
+                                      args: {
+                                          doctype: 'Sales Invoice',
+                                          name: invoice.name
+                                      }
+                                  })
+                                : Promise.resolve({})
+                        ]);
+
+                        orderDetails = orderResponseDetails?.message || null;
+                        invoiceDetails = invoiceResponseDetails?.message || null;
+                    } catch (detailsError) {
+                        console.error('Failed to fetch receipt details:', detailsError);
+                    }
+                }
+
                 this.hideLoading();
-                
+
                 // Show success modal
-                this.showSuccessModal();
+                this.showSuccessModal(orderDetails, invoiceDetails);
                 
             } catch (error) {
                 if (error?.message && error.message.includes("already occupied")) {
@@ -1367,19 +1401,162 @@ frappe.ready(async function() {
             }
         },
         
-        showSuccessModal: function() {
+        showSuccessModal: function(orderDetails = null, invoiceDetails = null) {
+            const queueNumber = orderDetails?.queue_number || this.queueNumber || orderDetails?.name || '';
+
+            if (queueNumber) {
+                this.queueNumber = queueNumber;
+            }
+
             // Set queue number
-            this.elements.successQueueNumber.textContent = this.queueNumber;
+            this.elements.successQueueNumber.textContent = this.queueNumber || '';
+
+            // Render receipt details
+            this.renderSuccessReceipt(orderDetails, invoiceDetails);
 
             // Show modal
             this.elements.successModal.style.display = 'flex';
 
             // Update the next queue number for subsequent orders
-            NEXT_QUEUE_NUMBER = this.queueNumber + 1;
+            const numericQueue = parseInt(this.queueNumber, 10);
+            if (!Number.isNaN(numericQueue)) {
+                NEXT_QUEUE_NUMBER = numericQueue + 1;
+            }
         },
-        
+
         closeSuccessModal: function() {
             this.elements.successModal.style.display = 'none';
+            if (this.elements.successReceipt) {
+                this.elements.successReceipt.classList.add('hidden');
+                this.elements.successReceipt.innerHTML = '';
+            }
+        },
+
+        renderSuccessReceipt: function(orderDetails, invoiceDetails) {
+            if (!this.elements.successReceipt) {
+                return;
+            }
+
+            if (!orderDetails && !invoiceDetails) {
+                this.elements.successReceipt.classList.add('hidden');
+                this.elements.successReceipt.innerHTML = '';
+                return;
+            }
+
+            const receiptContainer = this.elements.successReceipt;
+            receiptContainer.classList.remove('hidden');
+
+            const orderNumber = orderDetails?.queue_number || orderDetails?.name || invoiceDetails?.name || '-';
+            const itemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
+                ? orderDetails.items
+                : Array.isArray(invoiceDetails?.items)
+                    ? invoiceDetails.items
+                    : [];
+
+            const itemRows = itemsSource.length
+                ? itemsSource
+                      .map((item) => {
+                          const lineQty = item.qty || 0;
+                          const lineTotal =
+                              item.amount != null
+                                  ? item.amount
+                                  : (item.rate || 0) * lineQty;
+                          const optionsText = this.formatReceiptItemOptions(item.item_options);
+                          const optionsHtml = optionsText
+                              ? `<div class="success-receipt-item-options">${escapeHtml(optionsText)}</div>`
+                              : '';
+
+                          return `
+                              <tr>
+                                <td>
+                                  <div class="success-receipt-item-name">${escapeHtml(item.item_name || item.item_code || item.item || '')}</div>
+                                  ${optionsHtml}
+                                </td>
+                                <td>${lineQty}</td>
+                                <td>${formatRupiah(lineTotal)}</td>
+                              </tr>
+                          `;
+                      })
+                      .join('')
+                : `<tr><td colspan="3">${__('No items found')}</td></tr>`;
+
+            const subtotalValue = orderDetails?.subtotal ?? 0;
+            let pb1Value = orderDetails?.pb1_amount;
+            if (pb1Value == null) {
+                pb1Value = (invoiceDetails?.taxes || []).reduce((sum, tax) => {
+                    const amount = parseFloat(tax?.tax_amount || 0) || 0;
+                    return sum + amount;
+                }, 0);
+            }
+            pb1Value = pb1Value ?? 0;
+
+            let totalValue = orderDetails?.totals;
+            if (totalValue == null) {
+                totalValue =
+                    invoiceDetails?.rounded_total ??
+                    invoiceDetails?.grand_total ??
+                    invoiceDetails?.total ??
+                    invoiceDetails?.base_grand_total ??
+                    0;
+            }
+
+            receiptContainer.innerHTML = `
+                <div class="success-receipt-header">
+                  <div class="success-receipt-title">${__('Receipt')}</div>
+                  <div class="success-receipt-meta">
+                    <div class="success-receipt-label">${__('Order No.')}</div>
+                    <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                  </div>
+                </div>
+                <table class="success-receipt-table">
+                  <thead>
+                    <tr>
+                      <th>${__('Item')}</th>
+                      <th>${__('Qty')}</th>
+                      <th>${__('Amount')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemRows}
+                  </tbody>
+                </table>
+                <div class="success-receipt-summary">
+                  <div class="success-receipt-summary-row">
+                    <span>${__('Subtotal')}</span>
+                    <span>${formatRupiah(subtotalValue)}</span>
+                  </div>
+                  <div class="success-receipt-summary-row">
+                    <span>${__('PB1')}</span>
+                    <span>${formatRupiah(pb1Value)}</span>
+                  </div>
+                  <div class="success-receipt-summary-row total">
+                    <span>${__('Total')}</span>
+                    <span>${formatRupiah(totalValue)}</span>
+                  </div>
+                </div>
+            `;
+        },
+
+        formatReceiptItemOptions: function(options) {
+            if (!options) {
+                return '';
+            }
+
+            let parsedOptions = options;
+            if (typeof options === 'string') {
+                try {
+                    parsedOptions = JSON.parse(options);
+                } catch (error) {
+                    return String(options);
+                }
+            }
+
+            if (parsedOptions && typeof parsedOptions === 'object') {
+                const formatted = this.formatItemOptions(parsedOptions);
+                return formatted || '';
+            }
+
+            return String(parsedOptions);
         },
         
         resetApp: function() {
@@ -1473,9 +1650,22 @@ frappe.ready(async function() {
         }
     };
 
+    function escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function formatRupiah(angka) {
         if (angka === 0 || angka === '0') return 'Rp 0,-';
-        
+
         var number_string = angka.toString().replace(/[^,\d]/g, ''),
         split   = number_string.split(','),
         sisa    = split[0].length % 3,
