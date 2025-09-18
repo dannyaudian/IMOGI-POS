@@ -1,5 +1,11 @@
 frappe.ready(async function() {
     const POS_PROFILE_DATA = {};
+    const rawDiscountFlag =
+        typeof CAN_APPLY_DISCOUNTS === 'undefined' ? 0 : CAN_APPLY_DISCOUNTS;
+    const DISCOUNT_ALLOWED =
+        typeof rawDiscountFlag === 'boolean'
+            ? rawDiscountFlag
+            : Boolean(Number(rawDiscountFlag || 0));
 
     try {
         if (typeof POS_PROFILE === 'string') {
@@ -59,6 +65,7 @@ frappe.ready(async function() {
         discountAmount: 0,
         priceLists: [],
         selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
+        canApplyDiscounts: DISCOUNT_ALLOWED,
         serviceType: serviceType,
 
         // Order type and table
@@ -176,12 +183,12 @@ frappe.ready(async function() {
                 }
             });
 
-            if (this.elements.discountPercentInput) {
+            if (this.canApplyDiscounts && this.elements.discountPercentInput) {
                 this.elements.discountPercentInput.addEventListener('input', (event) => {
                     this.handleDiscountInput(event, 'percent');
                 });
             }
-            if (this.elements.discountAmountInput) {
+            if (this.canApplyDiscounts && this.elements.discountAmountInput) {
                 this.elements.discountAmountInput.addEventListener('input', (event) => {
                     this.handleDiscountInput(event, 'amount');
                 });
@@ -839,6 +846,9 @@ frappe.ready(async function() {
         },
 
         handleDiscountInput: function(event, type) {
+            if (!this.canApplyDiscounts) {
+                return;
+            }
             if (!event || !event.target) {
                 return;
             }
@@ -1313,10 +1323,12 @@ frappe.ready(async function() {
                     pos_profile: POS_PROFILE.name,
                     customer: 'Walk-in Customer',
                     items: this.cart,
-                    selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
-                    discount_amount: discountAmount,
-                    discount_percent: discountPercent
+                    selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
                 };
+                if (this.canApplyDiscounts) {
+                    orderArgs.discount_amount = discountAmount;
+                    orderArgs.discount_percent = discountPercent;
+                }
                 if (this.tableNumber) {
                     orderArgs.table = this.tableNumber;
                 }
@@ -1618,10 +1630,12 @@ frappe.ready(async function() {
                         pos_profile: POS_PROFILE.name,
                         customer: 'Walk-in Customer',
                         items: this.cart,
-                        selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
-                        discount_amount: discountAmount,
-                        discount_percent: discountPercent
+                        selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null
                     };
+                    if (this.canApplyDiscounts) {
+                        orderArgs.discount_amount = discountAmount;
+                        orderArgs.discount_percent = discountPercent;
+                    }
                     if (this.tableNumber) {
                         orderArgs.table = this.tableNumber;
                     }
@@ -2037,6 +2051,11 @@ frappe.ready(async function() {
 
         // Utils
         getNormalizedDiscounts: function() {
+            if (!this.canApplyDiscounts) {
+                this.discountPercent = 0;
+                this.discountAmount = 0;
+                return { discountPercent: 0, discountAmount: 0 };
+            }
             const discountPercent = Number.isFinite(this.discountPercent)
                 ? Math.max(0, this.discountPercent)
                 : 0;

@@ -175,6 +175,18 @@ def frappe_env(monkeypatch):
     frappe.utils.flt = float
     frappe.call_hook = lambda method, **kwargs: None
     frappe.get_hooks = lambda *a, **kw: []
+    frappe.log_error = lambda *a, **kw: None
+
+    user_roles = {"test-user": ["System Manager"], "Guest": []}
+
+    frappe.local = types.SimpleNamespace(flags={})
+    frappe.session = types.SimpleNamespace(user="test-user")
+
+    def get_roles(user=None):
+        return user_roles.get(user or frappe.session.user, [])
+
+    frappe.get_roles = get_roles
+    frappe._user_roles = user_roles
 
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
@@ -186,7 +198,12 @@ def frappe_env(monkeypatch):
         "T2": StubTable("T2", "BR-1")
     }
     pos_profiles = {
-        "P1": types.SimpleNamespace(imogi_pos_domain="Restaurant", imogi_branch="BR-1", update_stock=1)
+        "P1": types.SimpleNamespace(
+            imogi_pos_domain="Restaurant",
+            imogi_branch="BR-1",
+            update_stock=1,
+            selling_price_list="Standard",
+        )
     }
     items = {
         "SALES-ITEM": types.SimpleNamespace(is_sales_item=1),
@@ -299,6 +316,64 @@ def test_create_order_accepts_string_discounts(frappe_env):
 
     assert order.totals == pytest.approx(194.8)
     assert order.discount_amount == pytest.approx(27.2)
+
+
+def test_create_order_blocks_discounts_for_guest(frappe_env):
+    frappe, orders_module = frappe_env
+    frappe.session.user = "Guest"
+    frappe.local.flags = {}
+
+    result = orders_module.create_order(
+        "Kiosk",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "rate": 50},
+        discount_percent=15,
+        discount_amount=10,
+    )
+
+    assert result["discount_percent"] == 0
+    assert result["discount_amount"] == 0
+    assert orders[result["name"]].discount_percent == 0
+    assert orders[result["name"]].discount_amount == 0
+
+
+def test_create_order_blocks_discounts_without_roles(frappe_env):
+    frappe, orders_module = frappe_env
+    frappe.session.user = "basic-user"
+    frappe._user_roles["basic-user"] = []
+    frappe.local.flags = {}
+
+    result = orders_module.create_order(
+        "Takeaway",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "rate": 80},
+        discount_percent=20,
+        discount_amount=5,
+    )
+
+    assert result["discount_percent"] == 0
+    assert result["discount_amount"] == 0
+
+
+def test_create_order_allows_trusted_override(frappe_env):
+    frappe, orders_module = frappe_env
+    frappe.session.user = "basic-user"
+    frappe._user_roles["basic-user"] = []
+    frappe.local.flags = {"imogi_allow_discount_override": True}
+
+    result = orders_module.create_order(
+        "Takeaway",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "rate": 40, "qty": 2},
+        discount_percent=10,
+        discount_amount=5,
+    )
+
+    assert result["discount_percent"] == 10
+    assert result["discount_amount"] == 5
 
 
 def test_update_order_status_clears_table(frappe_env):

@@ -11,6 +11,45 @@ from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
 from frappe.exceptions import TimestampMismatchError
 
+
+DEFAULT_DISCOUNT_ROLES = {
+    "System Manager",
+    "Restaurant Manager",
+    "Cashier",
+    "POS Manager",
+}
+
+
+def _get_flag(name):
+    flags = getattr(frappe.local, "flags", None)
+    if not flags:
+        return False
+    if isinstance(flags, dict):
+        return bool(flags.get(name))
+    return bool(getattr(flags, name, False))
+
+
+def user_can_apply_order_discounts(user=None):
+    """Return True when the current session is allowed to apply manual discounts."""
+
+    user = user or getattr(getattr(frappe, "session", None), "user", None)
+    if not user or user == "Guest":
+        return False
+
+    try:
+        roles = set(frappe.get_roles(user))
+    except Exception:
+        roles = set()
+
+    allowed_roles = set(DEFAULT_DISCOUNT_ROLES)
+    try:
+        hooks = frappe.get_hooks("imogi_discount_roles") or []
+    except Exception:
+        hooks = []
+    allowed_roles.update(hooks)
+
+    return bool(roles.intersection(allowed_roles))
+
 WORKFLOW_CLOSED_STATES = ("Closed", "Cancelled", "Returned")
 
 
@@ -298,6 +337,19 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     try:
         discount_percent = float(discount_percent or 0)
     except Exception:
+        discount_percent = 0
+
+    trusted_discount_context = _get_flag("imogi_allow_discount_override")
+    if (discount_amount or discount_percent) and not (
+        trusted_discount_context or user_can_apply_order_discounts()
+    ):
+        frappe.log_error(
+            _("Blocked untrusted discount submission for user {0}").format(
+                getattr(getattr(frappe, "session", None), "user", "Guest")
+            ),
+            "IMOGI POS Discount Guard",
+        )
+        discount_amount = 0
         discount_percent = 0
 
     # Create POS Order document
