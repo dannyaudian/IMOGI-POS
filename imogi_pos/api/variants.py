@@ -45,7 +45,13 @@ def get_order_branch(pos_order):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price_list=None):
+def get_items_with_stock(
+    warehouse=None,
+    limit=500,
+    pos_menu_profile=None,
+    price_list=None,
+    base_price_list=None,
+):
     """Return POS items with stock and allowed payment methods.
 
     Args:
@@ -55,6 +61,13 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
             POS Menu Profile will be returned. Each item uses its own
             ``pos_menu_profile`` if set, falling back to its Item Group's
             ``default_pos_menu_profile``.
+        price_list (str, optional): Selling Price List used for explicit
+            channel pricing and adjustments.
+        base_price_list (str, optional): Baseline Price List that represents
+            the original product catalogue (e.g. POS Profile
+            ``selling_price_list``). When an item has no ``standard_rate`` it
+            will fall back to the rate defined in this list before applying
+            any channel adjustment.
 
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
@@ -138,6 +151,23 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
         rate_map = {}
         currency_map = {}
 
+    # Resolve baseline price list rates used when standard_rate is missing
+    base_rate_map = {}
+    base_currency_map = {}
+    base_price_list_name = base_price_list or price_list
+    if base_price_list_name and item_names:
+        if base_price_list_name == price_list and rate_map:
+            base_rate_map = dict(rate_map)
+            base_currency_map = dict(currency_map)
+        else:
+            base_price_rows = frappe.get_all(
+                "Item Price",
+                filters={"price_list": base_price_list_name, "item_code": ["in", item_names]},
+                fields=["item_code", "price_list_rate", "currency"],
+            )
+            base_rate_map = {row.item_code: row.price_list_rate for row in base_price_rows}
+            base_currency_map = {row.item_code: row.currency for row in base_price_rows}
+
     # Fetch allowed payment methods if doctype exists
     payment_map = {}
     payment_doctype = None
@@ -157,6 +187,12 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
 
     for item in items:
         base_standard_rate = flt(item.standard_rate)
+        fallback_currency = None
+        if not base_standard_rate and base_rate_map:
+            if item.name in base_rate_map:
+                base_standard_rate = flt(base_rate_map[item.name])
+                fallback_currency = base_currency_map.get(item.name)
+
         item["imogi_base_standard_rate"] = base_standard_rate
         item["imogi_price_adjustment_amount"] = 0
         item["imogi_price_adjustment_applied"] = 0
@@ -164,6 +200,9 @@ def get_items_with_stock(warehouse=None, limit=500, pos_menu_profile=None, price
 
         item["actual_qty"] = stock_map.get(item.name, 0)
         item["payment_methods"] = payment_map.get(item.name, [])
+
+        if fallback_currency and not item.get("currency"):
+            item["currency"] = fallback_currency
 
         if rate_map and item.name in rate_map:
             explicit_rate = flt(rate_map[item.name])
@@ -295,11 +334,20 @@ def get_item_variants(item_template=None, price_list=None, **kwargs):
     attributes = attr_config.get("attributes", [])
     
     # Get all variants
-    variants = frappe.get_all("Item", 
-                            filters={"variant_of": item_template, "disabled": 0},
-                            fields=["name", "item_name", "image", "item_code", "description", 
-                                   "standard_rate", "stock_uom"])
-    
+    variants = frappe.get_all(
+        "Item",
+        filters={"variant_of": item_template, "disabled": 0},
+        fields=[
+            "name",
+            "item_name",
+            "image",
+            "item_code",
+            "description",
+            "standard_rate",
+            "stock_uom",
+        ],
+    )
+
     variant_names = [variant.name for variant in variants]
 
     rate_map = {}
@@ -313,10 +361,26 @@ def get_item_variants(item_template=None, price_list=None, **kwargs):
         rate_map = {row.item_code: row.price_list_rate for row in price_rows}
         currency_map = {row.item_code: row.currency for row in price_rows}
 
+    base_rate_map = {}
+    base_currency_map = {}
+    base_price_list_name = base_price_list or price_list
+    if base_price_list_name and variant_names:
+        if base_price_list_name == price_list and rate_map:
+            base_rate_map = dict(rate_map)
+            base_currency_map = dict(currency_map)
+        else:
+            base_rows = frappe.get_all(
+                "Item Price",
+                filters={"price_list": base_price_list_name, "item_code": ["in", variant_names]},
+                fields=["item_code", "price_list_rate", "currency"],
+            )
+            base_rate_map = {row.item_code: row.price_list_rate for row in base_rows}
+            base_currency_map = {row.item_code: row.currency for row in base_rows}
+
     # Enrich variants with their attribute values
     for variant in variants:
         item_code = variant["name"]
-        
+
         # Get attribute values for this variant
         attr_values = frappe.get_all("Item Variant Attribute", 
                                    filters={"parent": item_code},
@@ -336,8 +400,26 @@ def get_item_variants(item_template=None, price_list=None, **kwargs):
         if routing:
             variant.update(routing)
 
+        base_standard_rate = flt(variant.get("standard_rate"))
+        fallback_currency = None
+        if not base_standard_rate and base_rate_map:
+            if item_code in base_rate_map:
+                base_standard_rate = flt(base_rate_map[item_code])
+                fallback_currency = base_currency_map.get(item_code)
+
+        if not flt(variant.get("standard_rate")) and base_standard_rate:
+            variant["standard_rate"] = base_standard_rate
+
+        variant["imogi_base_standard_rate"] = base_standard_rate
+        variant["has_explicit_price_list_rate"] = 0
+        if fallback_currency and not variant.get("currency"):
+            variant["currency"] = fallback_currency
+
         if item_code in rate_map:
-            variant["standard_rate"] = rate_map[item_code]
+            explicit_rate = flt(rate_map[item_code])
+            variant["standard_rate"] = explicit_rate
+            variant["imogi_base_standard_rate"] = explicit_rate
+            variant["has_explicit_price_list_rate"] = 1
             if currency_map.get(item_code):
                 variant["currency"] = currency_map[item_code]
 

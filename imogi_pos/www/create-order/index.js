@@ -91,6 +91,7 @@ frappe.ready(async function () {
     taxRate: 0,
     priceLists: [],
     selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
+    basePriceList: POS_PROFILE_DATA.selling_price_list || null,
     itemIndex: new Map(),
 
     orderType: getDefaultOrderType(),
@@ -634,6 +635,7 @@ frappe.ready(async function () {
             limit: 500,
             pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
             price_list: this.selectedPriceList || null,
+            base_price_list: this.basePriceList || null,
           },
         });
 
@@ -748,6 +750,7 @@ frappe.ready(async function () {
           args: {
             item_template: templateItem.name,
             price_list: this.selectedPriceList || null,
+            base_price_list: this.basePriceList || null,
           },
         });
         const variants = (message && message.variants) || [];
@@ -990,6 +993,8 @@ frappe.ready(async function () {
             warehouse: POS_PROFILE_DATA.warehouse,
             limit: 500,
             pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
+            price_list: this.selectedPriceList || null,
+            base_price_list: this.basePriceList || null,
           },
         });
         (message || []).forEach((u) => this.updateItemStock(u.name, u.actual_qty));
