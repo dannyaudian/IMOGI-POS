@@ -45,30 +45,39 @@ class Kitchen(Document):
             fields=["name", "station_name"],
         )
 
-        # Prepare plain dictionaries for persistence
-        records = []
+        # Prepare explicit field/value sets for persistence
+        fields = [
+            "name",
+            "parent",
+            "parenttype",
+            "parentfield",
+            "idx",
+            "kitchen_station",
+            "station_name",
+        ]
+        values = []
         for idx, station in enumerate(stations, start=1):
-            row = {
-                "name": frappe.generate_hash(10),
-                "parent": self.name,
-                "parenttype": "Kitchen",
-                "parentfield": "stations",
-                "idx": idx,
-                "kitchen_station": station.name,
-                "station_name": station.station_name,
-            }
+            row_values = (
+                frappe.generate_hash(10),
+                self.name,
+                "Kitchen",
+                "stations",
+                idx,
+                station.name,
+                station.station_name,
+            )
 
             # Keep in-memory representation for this document
             self.append("stations", {
                 "kitchen_station": station.name,
                 "station_name": station.station_name,
             })
-            records.append(row)
+            values.append(row_values)
 
         # Persist without modifying parent timestamps
         frappe.db.delete("Kitchen Station Link", {"parent": self.name})
-        if records:
-            frappe.db.bulk_insert("Kitchen Station Link", records)
+        if values:
+            frappe.db.bulk_insert("Kitchen Station Link", fields, values)
     
     def get_print_settings(self):
         """Get the default print settings for this kitchen"""
