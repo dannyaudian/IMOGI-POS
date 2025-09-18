@@ -57,6 +57,7 @@ frappe.ready(async function() {
         taxRate: 0,
         priceLists: [],
         selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
+        basePriceList: POS_PROFILE_DATA.selling_price_list || null,
         itemIndex: new Map(),
         serviceType: serviceType,
 
@@ -605,7 +606,8 @@ frappe.ready(async function() {
                         warehouse: POS_PROFILE_DATA.warehouse,
                         limit: 500,
                         pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
-                        price_list: this.selectedPriceList || null
+                        price_list: this.selectedPriceList || null,
+                        base_price_list: this.basePriceList || null
                     }
                 });
 
@@ -720,7 +722,8 @@ frappe.ready(async function() {
                     method: 'imogi_pos.api.variants.get_item_variants',
                     args: {
                         template_item: templateItem.name,
-                        price_list: this.selectedPriceList || null
+                        price_list: this.selectedPriceList || null,
+                        base_price_list: this.basePriceList || null
                     }
                 });
 
@@ -968,7 +971,9 @@ frappe.ready(async function() {
                     args: {
                         warehouse: POS_PROFILE_DATA.warehouse,
                         limit: 500,
-                        pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null
+                        pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
+                        price_list: this.selectedPriceList || null,
+                        base_price_list: this.basePriceList || null
                     }
                 });
                 if (response.message) {
