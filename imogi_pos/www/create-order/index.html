@@ -1,51 +1,1146 @@
-{% extends "templates/web.html" %}
+                           {% extends "templates/web.html" %}
 
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/checkout-shared.css">
+
+
+<style>
+ :root {
+    --text-dark: #111827;
+    --text-light: #4b5563;
+    --bg-light: #f9fafb;
+    --bg-white: #ffffff;
+    --border-color: #e5e7eb;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warning: #f59e0b;
+  }
+
+  /* Basic Reset */
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+  }
+
+  /* Header */
+  .app-header {
+    background-color: var(--brand-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    height: 60px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .header-left, .header-center, .header-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .home-link {
+    color: white;
+    margin-right: 1rem;
+    font-size: 1.2rem;
+  }
+
+  .brand-logo {
+    height: 36px;
+  }
+
+  .brand-name {
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+
+  .branch-selector {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0.3rem 0.8rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+  }
+
+  /* Main Container */
+  .kiosk-container {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    height: calc(100vh - 60px);
+  }
+
+  /* Catalog Section */
+  .catalog-section {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .catalog-header {
+    background-color: white;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .catalog-search {
+    margin-bottom: 1rem;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px rgba(255, 136, 0, 0.1);
+  }
+
+  .catalog-categories {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .catalog-categories::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .catalog-categories::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+
+  .category-pill {
+    background-color: #f3f4f6;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .category-pill:hover {
+    background-color: #e5e7eb;
+  }
+
+  .category-pill.active {
+    background-color: var(--brand-primary);
+    color: white;
+  }
+
+  /* Grid layout untuk tampilan kotak-kotak */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+
+  /* Item card kotak dengan aspect ratio 1:1 */
+.item-card {
+  min-height: 220px;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+ 
+ .item-card:hover {
+   transform: translateY(-4px);
+   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+ }
+
+.item-image {
+  height: 150px;
+  background-size: cover;
+  background-position: center;
+}
+
+.item-info {
+  padding: 8px 12px;
+}
+  
+.item-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}  
+
+  .item-code {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-bottom: 0.25rem;
+  }
+
+.item-price {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+  .item-has-variants {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+  }
+
+  /* Sold Out Overlay */
+  .item-card.sold-out .item-image {
+  opacity: 0.4;
+}
+
+/* CSS perbaikan untuk badge Sold Out */
+.sold-out-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Pastikan sold-out badge hanya muncul di kartu yang seharusnya */
+.item-card:not(.sold-out) .sold-out-badge {
+  display: none !important;
+}
+
+.item-card.sold-out {
+  position: relative;
+  overflow: hidden;
+  opacity: 0.8;
+}
+
+.item-card {
+  position: relative;
+}
+
+  /* Cart Section */
+  .cart-section {
+    background-color: white;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cart-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+
+  .cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem;
+  }
+
+  .empty-cart {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light);
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .cart-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+  }
+
+  .cart-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .cart-item-name {
+    font-weight: 600;
+    padding-right: 1.5rem;
+  }
+
+  .cart-item-price {
+    font-weight: 600;
+    color: var(--brand-primary);
+  }
+
+  .cart-item-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .qty-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background-color: #f3f4f6;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+
+  .qty-btn:hover {
+    background-color: var(--brand-primary);
+    color: white;
+  }
+
+  .cart-item-qty {
+    width: 40px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem;
+  }
+
+  .cart-item-notes {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  .cart-item-remove {
+    position: absolute;
+    top: 0.5rem;
+    right: 0;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 1.2rem;
+  }
+
+  .cart-totals {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .grand-total {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .cart-actions {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Buttons */
+  .btn-checkout, .btn-clear {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .btn-checkout {
+    background-color: var(--brand-primary);
+    color: white;
+    border: none;
+  }
+
+  .btn-checkout:hover {
+    background-color: #e67a00;
+  }
+
+  .btn-clear {
+    background-color: #f3f4f6;
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+  }
+
+  .btn-clear:hover {
+    background-color: #e5e7eb;
+  }
+
+  .btn-checkout:disabled, .btn-clear:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Modal dengan sidebar untuk tambahan item */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+
+  .modal-container {
+    background-color: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .item-modal .modal-container {
+    display: flex;
+    overflow: hidden;
+    max-width: 800px;
+  }
+
+  .modal-left {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-right {
+    flex: 2;
+    background-color: #f9fafb;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .modal-close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-light);
+    line-height: 1;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-item-image {
+    width: 100%;
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .modal-item-details {
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-item-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-item-code {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-item-price {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--brand-primary);
+  }
+
+  .modal-item-description {
+    margin-top: 1rem;
+    color: var(--text-light);
+    line-height: 1.5;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  /* Addon Section Styles */
+  .addons-section {
+    padding: 1rem;
+  }
+
+  .addons-title {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .addon-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .addon-group-title {
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+
+  .addon-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .addon-item:hover {
+    background-color: #f3f4f6;
+  }
+
+  .addon-item.selected {
+    border-color: var(--brand-primary);
+    background-color: rgba(255, 136, 0, 0.05);
+  }
+
+  .addon-name {
+    font-weight: 500;
+  }
+
+  .addon-price {
+    color: var(--brand-primary);
+  }
+
+  /* Order Summary Section */
+  .summary-section {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+  }
+
+  .summary-title {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .summary-list {
+    margin-bottom: 1rem;
+  }
+
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .summary-name {
+    font-weight: 500;
+  }
+
+  .summary-price {
+    color: var(--text-light);
+  }
+
+  .summary-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .add-to-cart-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 1rem;
+  }
+
+  .notes-field {
+    margin-top: 1rem;
+  }
+
+  .notes-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+
+  .notes-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  /* Quantity Control in Modal */
+  .item-quantity {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+  }
+
+  .item-quantity-label {
+    margin-right: 1rem;
+    font-weight: 500;
+  }
+
+  .item-quantity-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .qty-btn-modal {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background-color: #f3f4f6;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+
+  .qty-btn-modal:hover {
+    background-color: var(--brand-primary);
+    color: white;
+  }
+
+  .item-quantity-input {
+    width: 50px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem;
+    font-size: 1rem;
+  }
+
+  /* Payment Modal */
+  .payment-modal .modal-container {
+    max-width: 600px;
+  }
+
+  .payment-options {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .payment-option {
+    flex: 1;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: none;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .payment-option.selected {
+    border-color: var(--brand-accent);
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+
+  .payment-option-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .payment-amount {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 1rem 0;
+    color: var(--brand-primary);
+  }
+
+  /* Loading Overlay */
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--brand-primary);
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    margin-bottom: 1rem;
+  }
+
+  .loading-text {
+    font-size: 1.1rem;
+  }
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .kiosk-main {
+    flex-direction: row;
+  }
+
+  .kiosk-sidebar {
+    width: 300px;
+    height: auto;
+    border-right: 1px solid var(--color-gray-200);
+    border-bottom: none;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .kiosk-header {
+    flex-direction: column;
+    gap: var(--spacing-2);
+    align-items: center;
+    text-align: center;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .checkout-content {
+    padding: var(--spacing-3);
+  }
+
+  .checkout-navigation {
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .payment-qr-code {
+    width: 200px;
+    height: 200px;
+  }
+
+  .payment-instructions {
+    font-size: var(--font-size-sm);
+  }
+
+  .success-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .success-message {
+    font-size: var(--font-size-lg);
+  }
+
+  .cash-presets {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1440px) {
+  .kiosk-sidebar {
+    width: 420px;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Responsiveness */
+  @media (max-width: 768px) {
+    .kiosk-container {
+      grid-template-columns: 1fr;
+      grid-template-rows: 60vh 40vh;
+    }
+    
+    .cart-section {
+      border-left: none;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .item-modal .modal-container {
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .modal-left, .modal-right {
+      max-height: none;
+    }
+
+    .modal-right {
+      border-left: none;
+      border-top: 1px solid var(--border-color);
+    }
+  }
+
+ @media (max-width: 768px) {
+  .catalog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  
+  .item-card {
+    min-height: 200px;
+  }
+  
+  .item-image {
+    height: 130px;
+  }
+}
+</style>
+
 {% endblock %}
 
 {% block page_content %}
-<div class="checkout-shell">
-  <header class="app-header">
-    <div class="header-left">
-      <a class="home-link" href="/create-order" title="{{ _('Back') }}">&larr;</a>
-      <span class="brand-name">{{ _('Create POS Order') }}</span>
+{% if show_header %}
+<header class="app-header">
+  <div class="header-center">
+    {% if branding.logo %}
+      {% if branding.logo_dark %}
+      <picture>
+        <source srcset="{{ branding.logo_dark }}" media="(prefers-color-scheme: dark)">
+        <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+      </picture>
+      {% else %}
+      <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+      {% endif %}
+    {% else %}
+    <span class="brand-name">{{ branding.name }}</span>
+    {% endif %}
+  </div>
+  <div class="header-right">
+    {% if branch %}
+    <div class="branch-selector">
+      <span class="branch-label">{{ _("Branch") }}:</span>
+      <span class="branch-value">{{ branch }}</span>
     </div>
-    <div class="header-right">
-      <label class="branch-selector">
-        <span>{{ _('Branch') }}</span>
-        <select id="branch-selector"></select>
-      </label>
-      <label class="branch-selector">
-        <span>{{ _('POS Profile') }}</span>
-        <select id="profile-selector"></select>
-      </label>
-      <label class="branch-selector">
-        <span>{{ _('Service Type') }}</span>
-        <select id="service-type-selector">
-          <option value="Takeaway">{{ _('Takeaway') }}</option>
-          <option value="Dine-in">{{ _('Dine-in') }}</option>
-        </select>
-      </label>
+    {% endif %}
+  </div>
+</header>
+{% endif %}
+
+
+<div class="kiosk-container" id="kiosk-container">
+  <section class="catalog-section">
+    <div class="catalog-header">
+      <div class="catalog-search">
+        <input type="text" class="search-input" placeholder="{{ _('Search items...') }}" id="search-input">
+      </div>
+      
+      <div class="catalog-categories" id="categories-container">
+        <div class="category-pill active" data-category="all">{{ _("All Items") }}</div>
+        
+        {% for category in item_categories.menu_categories %}
+        <div class="category-pill" data-category="{{ category.name }}">{{ category.name }}</div>
+        {% endfor %}
+        
+        {% for group in item_categories.item_groups %}
+        <div class="category-pill" data-category="{{ group.name }}">{{ group.name }}</div>
+        {% endfor %}
+      </div>
     </div>
-  </header>
-  <main class="checkout-main">
-    <div id="checkout-root"></div>
-  </main>
+    
+    <div class="catalog-grid" id="catalog-grid">
+      <!-- Items will be populated here -->
+      <div class="empty-catalog">
+        <p>{{ _("Loading items...") }}</p>
+      </div>
+    </div>
+  </section>
+  
+  <section class="cart-section">
+    <div class="cart-header">
+      {{ _("Your Order") }}
+    </div>
+    
+    <div class="cart-items" id="cart-items">
+      <div class="empty-cart">
+        <p>{{ _("Your cart is empty") }}</p>
+        <p>{{ _("Select items from the menu") }}</p>
+      </div>
+    </div>
+    
+    <div class="cart-totals">
+      <div class="total-row">
+        <span>{{ _("Subtotal") }}</span>
+        <span id="cart-subtotal">Rp 0</span>
+      </div>
+      <div class="total-row">
+        <span>{{ _("PB1") }}</span>
+        <span id="cart-tax">Rp 0</span>
+      </div>
+      <div class="total-row">
+        <span>{{ _("Discount") }}</span>
+        <span id="cart-discount">Rp 0</span>
+      </div>
+      <div class="grand-total total-row">
+        <span>{{ _("Total") }}</span>
+        <span id="cart-total">Rp 0</span>
+      </div>
+    </div>
+    
+    <div class="cart-actions">
+      <button id="btn-checkout" class="btn btn-primary checkout-btn" disabled>
+        {{ _("Checkout") }}
+      </button>
+      <button id="btn-clear" class="btn btn-secondary" disabled>
+        {{ _("Clear Order") }}
+      </button>
+    </div>
+  </section>
 </div>
+
+<!-- Variant Picker Modal -->
+<div class="modal-overlay" id="variant-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Choose Variant") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="variant-grid" id="variant-grid">
+        <!-- Variants will be populated here -->
+      </div>
+      
+      {% if allow_notes %}
+      <div class="notes-field">
+        <label for="item-notes" class="notes-label">{{ _("Special Instructions") }}</label>
+        <textarea id="item-notes" class="notes-input" placeholder="{{ _('Add special instructions here...') }}"></textarea>
+      </div>
+      {% endif %}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-variant-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-variant-add" disabled>{{ _("Add to Order") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item Detail Modal -->
+<div class="modal-overlay item-detail-modal" id="item-detail-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Customize Item") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-item-image" id="item-detail-image"></div>
+      <div id="item-options" class="options-section"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-item-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-item-add">{{ _("Add to Order") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay payment-modal" id="payment-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Complete Payment") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <div class="payment-options">
+        <button type="button" class="payment-option selected" data-method="qr_code">
+          <div class="payment-option-icon">
+            <i class="fa fa-qrcode"></i>
+          </div>
+          <div class="payment-option-name">{{ _("QR Payment") }}</div>
+        </button>
+        <button type="button" class="payment-option" data-method="cash">
+          <div class="payment-option-icon">
+            <i class="fa fa-money"></i>
+          </div>
+          <div class="payment-option-name">{{ _("Cash") }}</div>
+        </button>
+      </div>
+      
+      <div class="payment-amount" id="payment-amount">
+        Rp 0
+      </div>
+      
+      <div id="payment-qr-section">
+        <div class="payment-qr-container">
+          <div class="payment-qr" id="payment-qr"></div>
+          <div class="payment-instructions">{{ _("Scan the QR code with your payment app") }}</div>
+        </div>
+        
+        <div class="payment-timer" id="payment-timer">
+          {{ _("Expires in:") }} <span id="payment-countdown">5:00</span>
+        </div>
+        
+        <div class="payment-status pending" id="payment-status">
+          {{ _("Waiting for payment...") }}
+        </div>
+      </div>
+      
+      <div id="payment-cash-section">
+        <div class="keypad-input-container">
+          <input type="text" id="cash-amount" class="keypad-input" readonly value="Rp 0">
+        </div>
+        
+        <div class="keypad">
+          <div class="keypad-button" data-value="1">1</div>
+          <div class="keypad-button" data-value="2">2</div>
+          <div class="keypad-button" data-value="3">3</div>
+          <div class="keypad-button" data-value="4">4</div>
+          <div class="keypad-button" data-value="5">5</div>
+          <div class="keypad-button" data-value="6">6</div>
+          <div class="keypad-button" data-value="7">7</div>
+          <div class="keypad-button" data-value="8">8</div>
+          <div class="keypad-button" data-value="9">9</div>
+          <div class="keypad-button keypad-clear" data-value="clear">{{ _("Clear") }}</div>
+          <div class="keypad-button" data-value="0">0</div>
+        </div>
+        
+        <div class="payment-change" id="payment-change">
+          {{ _("Change") }}: <span id="change-amount">Rp 0</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-payment-cancel">{{ _("Cancel") }}</button>
+      <button class="btn-add" id="btn-payment-confirm" disabled>{{ _("Confirm Payment") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay success-modal" id="success-modal">
+  <div class="modal-container">
+    <div class="success-icon">
+      <i class="fa fa-check-circle"></i>
+    </div>
+    <div class="success-message">{{ _("Order Completed!") }}</div>
+    <div class="success-details">
+      {{ _("Your order has been sent to the kitchen") }}
+    </div>
+    
+    <div class="success-queue-section">
+      <div>{{ _("Your queue number is") }}</div>
+      <div class="success-queue" id="success-queue-number"></div>
+      <div>{{ _("Please wait for your number to be called") }}</div>
+    </div>
+    
+    <div class="mt-8">
+      <button class="btn-done" id="btn-success-done">{{ _("Done") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">{{ _("Processing...") }}</div>
+</div>
+
 {% endblock %}
 
 {% block script %}
-<script>document.body.classList.add('checkout-shell');</script>
+<script>
+
+  // Pass important context variables to the frontend
+  const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+  const POS_PROFILE = {{ {"name": pos_profile.name, "warehouse": pos_profile.warehouse, "selling_price_list": pos_profile.selling_price_list} | tojson }};
+  const POS_WAREHOUSE = {{ pos_profile.warehouse | tojson }};
+  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
+  const CURRENCY_SYMBOL = 'Rp';
+  const DEFAULT_CURRENCY = 'IDR';
+  const DOMAIN = '{{ domain }}';
+  const PAYMENT_SETTINGS = {{ payment_settings | tojson }};
+  const PRINT_SETTINGS = {{ print_settings | tojson }};
+  let NEXT_QUEUE_NUMBER = {{ next_queue_number }};
+  const ALLOW_NOTES = {{ allow_notes }};
+</script>
+
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/auth.js"></script>
 <script src="/assets/imogi_pos/js/print/service.js"></script>
-<script src="/assets/imogi_pos/js/shared/checkout/index.js"></script>
-<script>
-  window.CURRENCY_SYMBOL = {{ currency_symbol | tojson }};
-  const DEFAULT_CURRENCY = {{ default_currency | tojson }};
-</script>
-<script src="../create-order/index.js"></script>
+<script src="../kiosk/index.js"></script>
 {% endblock %}
