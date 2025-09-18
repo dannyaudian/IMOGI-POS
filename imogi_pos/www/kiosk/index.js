@@ -71,6 +71,10 @@ frappe.ready(async function() {
         // Queue number for the last created order
         queueNumber: null,
 
+        itemRows: [],
+        latestOrderDetails: null,
+        latestInvoiceDetails: null,
+
         // Payment state
         paymentRequest: null,
         // Default will be set when opening payment modal
@@ -87,6 +91,8 @@ frappe.ready(async function() {
             cartTax: document.getElementById('cart-tax'),
             cartDiscount: document.getElementById('cart-discount'),
             cartTotal: document.getElementById('cart-total'),
+            discountPercentInput: document.getElementById('discount-percent-input'),
+            discountAmountInput: document.getElementById('discount-amount-input'),
             checkoutBtn: document.getElementById('btn-checkout'),
             clearBtn: document.getElementById('btn-clear'),
             searchInput: document.getElementById('search-input'),
@@ -141,8 +147,9 @@ frappe.ready(async function() {
             await this.loadTaxTemplate();
             this.renderItems();
             this.updateCartTotals();
+            this.syncDiscountInputs();
             this.setupPrintService();
-            
+
             // Setup realtime if available
             if (frappe.realtime) {
                 this.setupRealtimeUpdates();
@@ -168,7 +175,18 @@ frappe.ready(async function() {
                     this.selectCategory(pill.dataset.category);
                 }
             });
-            
+
+            if (this.elements.discountPercentInput) {
+                this.elements.discountPercentInput.addEventListener('input', (event) => {
+                    this.handleDiscountInput(event, 'percent');
+                });
+            }
+            if (this.elements.discountAmountInput) {
+                this.elements.discountAmountInput.addEventListener('input', (event) => {
+                    this.handleDiscountInput(event, 'amount');
+                });
+            }
+
             // Cart buttons
             this.elements.checkoutBtn.addEventListener('click', this.handleCheckout.bind(this));
             this.elements.clearBtn.addEventListener('click', this.clearCart.bind(this));
@@ -716,6 +734,16 @@ frappe.ready(async function() {
                 this.elements.cartDiscount.textContent = formatRupiah(totals.discount);
             }
             this.elements.cartTotal.textContent = formatRupiah(totals.total);
+            if (this.elements.paymentAmount) {
+                this.elements.paymentAmount.textContent = formatRupiah(totals.total);
+            }
+            if (this.elements.changeAmount) {
+                const change = Math.max(0, this.cashAmount - totals.total);
+                this.elements.changeAmount.textContent = formatRupiah(change);
+            }
+            if (this.elements.paymentConfirmBtn && this.paymentMethod === 'cash') {
+                this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
+            }
         },
 
         updateItemStock: function(itemCode, actualQty) {
@@ -780,7 +808,7 @@ frappe.ready(async function() {
         filterItems: function() {
             this.filteredItems = this.items.filter(item => {
                 // Filter by search
-                const matchesSearch = !this.searchQuery || 
+                const matchesSearch = !this.searchQuery ||
                     item.item_name.toLowerCase().includes(this.searchQuery) ||
                     item.item_code.toLowerCase().includes(this.searchQuery) ||
                     (item.description && item.description.toLowerCase().includes(this.searchQuery));
@@ -792,8 +820,50 @@ frappe.ready(async function() {
                 
                 return matchesSearch && matchesCategory;
             });
-            
+
             this.renderItems();
+        },
+
+        handleDiscountInput: function(event, type) {
+            if (!event || !event.target) {
+                return;
+            }
+            const rawValue = event.target.value.replace(/,/g, '.').trim();
+            if (rawValue === '') {
+                if (type === 'percent') {
+                    this.discountPercent = 0;
+                } else {
+                    this.discountAmount = 0;
+                }
+                this.updateCartTotals();
+                return;
+            }
+
+            if (!/^\d*\.?\d*$/.test(rawValue)) {
+                const fallback = type === 'percent' ? this.discountPercent : this.discountAmount;
+                event.target.value = fallback ? `${fallback}` : '0';
+                return;
+            }
+
+            const numericValue = Number(rawValue);
+            if (Number.isNaN(numericValue)) {
+                const fallback = type === 'percent' ? this.discountPercent : this.discountAmount;
+                event.target.value = fallback ? `${fallback}` : '0';
+                return;
+            }
+
+            const sanitized = Math.max(0, numericValue);
+            if (type === 'percent') {
+                this.discountPercent = sanitized;
+            } else {
+                this.discountAmount = sanitized;
+            }
+
+            if (numericValue < 0) {
+                event.target.value = sanitized ? `${sanitized}` : '0';
+            }
+
+            this.updateCartTotals();
         },
         
         handleItemClick: function(item) {
@@ -1101,12 +1171,12 @@ frappe.ready(async function() {
             const totals = this.calculateTotals();
 
             // Set payment amount
-            this.elements.paymentAmount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
+            this.elements.paymentAmount.textContent = formatRupiah(totals.total);
 
             // Reset cash fields
             this.cashAmount = 0;
-            this.elements.cashAmount.value = `${CURRENCY_SYMBOL} 0.00`;
-            this.elements.changeAmount.textContent = `${CURRENCY_SYMBOL} 0.00`;
+            this.elements.cashAmount.value = formatRupiah(0);
+            this.elements.changeAmount.textContent = formatRupiah(0);
 
             // Determine default payment method based on settings
             const mode = PAYMENT_SETTINGS.payment_mode || 'Mixed';
@@ -1183,6 +1253,8 @@ frappe.ready(async function() {
 
             try {
                 // Create POS Order first
+                const discountPercent = Number.isFinite(this.discountPercent) ? this.discountPercent : 0;
+                const discountAmount = Number.isFinite(this.discountAmount) ? this.discountAmount : 0;
                 const orderArgs = {
                     order_type: 'Kiosk',
                     service_type: this.orderType,
@@ -1205,8 +1277,28 @@ frappe.ready(async function() {
                 }
 
                 this.posOrder = orderResponse.message.name;
-                this.queueNumber = orderResponse.message.queue_number;
-                this.itemRows = (orderResponse.message.items || []).map(item => item.name);
+                let orderDetails = orderResponse.message;
+                try {
+                    const { message: refreshed } = await frappe.call({
+                        method: 'frappe.client.get',
+                        args: {
+                            doctype: 'POS Order',
+                            name: this.posOrder
+                        }
+                    });
+                    if (refreshed) {
+                        orderDetails = refreshed;
+                    }
+                } catch (orderError) {
+                    console.error('Failed to refresh POS Order before invoicing:', orderError);
+                }
+
+                this.queueNumber = orderDetails.queue_number || orderResponse.message.queue_number;
+                const orderItems = Array.isArray(orderDetails.items) && orderDetails.items.length
+                    ? orderDetails.items
+                    : orderResponse.message.items || [];
+                this.itemRows = orderItems.map(item => item.name);
+                this.latestOrderDetails = orderDetails;
 
                 // Create draft invoice for payment
                 const totals = this.calculateTotals();
@@ -1227,9 +1319,10 @@ frappe.ready(async function() {
                 if (!invoiceResponse.message) {
                     throw new Error('Failed to create invoice');
                 }
-                
+
                 const invoice = invoiceResponse.message;
-                
+                this.latestInvoiceDetails = invoice;
+
                 // Now request payment
                 const paymentResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.request_payment',
@@ -1389,21 +1482,21 @@ frappe.ready(async function() {
         
         handleKeypadInput: function(value) {
             const totals = this.calculateTotals();
-            
+
             if (value === 'clear') {
                 this.cashAmount = 0;
             } else {
                 // Add digit
                 this.cashAmount = this.cashAmount * 10 + parseInt(value);
             }
-            
+
             // Update display
-            this.elements.cashAmount.value = `${CURRENCY_SYMBOL} ${formatNumber(this.cashAmount)}`;
-            
+            this.elements.cashAmount.value = formatRupiah(this.cashAmount);
+
             // Calculate change
             const change = Math.max(0, this.cashAmount - totals.total);
-            this.elements.changeAmount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(change)}`;
-            
+            this.elements.changeAmount.textContent = formatRupiah(change);
+
             // Enable confirm button when cash amount >= total
             this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
         },
@@ -1464,6 +1557,8 @@ frappe.ready(async function() {
                     invoice = { name: this.paymentRequest.invoice };
                 } else {
                     // Create POS Order and invoice
+                    const discountPercent = Number.isFinite(this.discountPercent) ? this.discountPercent : 0;
+                    const discountAmount = Number.isFinite(this.discountAmount) ? this.discountAmount : 0;
                     const orderArgs = {
                         order_type: 'Kiosk',
                         service_type: this.orderType,
@@ -1486,8 +1581,28 @@ frappe.ready(async function() {
                     }
 
                     this.posOrder = orderResponse.message.name;
-                    this.queueNumber = orderResponse.message.queue_number;
-                    this.itemRows = (orderResponse.message.items || []).map(item => item.name);
+                    let orderDetails = orderResponse.message;
+                    try {
+                        const { message: refreshed } = await frappe.call({
+                            method: 'frappe.client.get',
+                            args: {
+                                doctype: 'POS Order',
+                                name: this.posOrder
+                            }
+                        });
+                        if (refreshed) {
+                            orderDetails = refreshed;
+                        }
+                    } catch (orderError) {
+                        console.error('Failed to refresh POS Order before invoicing:', orderError);
+                    }
+
+                    this.queueNumber = orderDetails.queue_number || orderResponse.message.queue_number;
+                    const orderItems = Array.isArray(orderDetails.items) && orderDetails.items.length
+                        ? orderDetails.items
+                        : orderResponse.message.items || [];
+                    this.itemRows = orderItems.map(item => item.name);
+                    this.latestOrderDetails = orderDetails;
 
                     const totals = this.calculateTotals();
                     const invoiceArgs = {
@@ -1509,8 +1624,9 @@ frappe.ready(async function() {
                     }
 
                     invoice = response.message;
+                    this.latestInvoiceDetails = invoice;
                 }
-                
+
                 // Send items to kitchen (KOT)
                 if (DOMAIN === 'Restaurant') {
                     await frappe.call({
@@ -1678,6 +1794,11 @@ frappe.ready(async function() {
             const receiptContainer = this.elements.successReceipt;
             receiptContainer.classList.remove('hidden');
 
+            const toNumber = (value) => {
+                const num = parseFloat(value);
+                return Number.isFinite(num) ? num : 0;
+            };
+
             const orderNumber = orderDetails?.queue_number || orderDetails?.name || invoiceDetails?.name || '-';
             const itemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
                 ? orderDetails.items
@@ -1712,25 +1833,60 @@ frappe.ready(async function() {
                       .join('')
                 : `<tr><td colspan="3">${__('No items found')}</td></tr>`;
 
-            const subtotalValue = orderDetails?.subtotal ?? 0;
+            const subtotalValue = toNumber(
+                orderDetails?.subtotal ??
+                invoiceDetails?.total ??
+                invoiceDetails?.base_total ??
+                0
+            );
             let pb1Value = orderDetails?.pb1_amount;
             if (pb1Value == null) {
                 pb1Value = (invoiceDetails?.taxes || []).reduce((sum, tax) => {
-                    const amount = parseFloat(tax?.tax_amount || 0) || 0;
+                    const amount = toNumber(tax?.tax_amount ?? tax?.base_tax_amount ?? 0);
                     return sum + amount;
                 }, 0);
             }
-            pb1Value = pb1Value ?? 0;
+            pb1Value = toNumber(pb1Value);
 
-            let totalValue = orderDetails?.totals;
-            if (totalValue == null) {
-                totalValue =
-                    invoiceDetails?.rounded_total ??
-                    invoiceDetails?.grand_total ??
-                    invoiceDetails?.total ??
-                    invoiceDetails?.base_grand_total ??
-                    0;
+            const grossTotal = subtotalValue + pb1Value;
+            const discountCandidates = [
+                orderDetails?.discount_amount,
+                orderDetails?.discount_value,
+                invoiceDetails?.discount_amount,
+                invoiceDetails?.base_discount_amount,
+                invoiceDetails?.total_discount_amount
+            ];
+            let discountValue = discountCandidates.reduce((max, candidate) => {
+                const numeric = toNumber(candidate);
+                return numeric > max ? numeric : max;
+            }, 0);
+            if (discountValue <= 0) {
+                const percentCandidates = [
+                    orderDetails?.discount_percent,
+                    orderDetails?.discount_percentage,
+                    invoiceDetails?.discount_percentage,
+                    invoiceDetails?.additional_discount_percentage
+                ];
+                const appliedPercent = percentCandidates.reduce((max, candidate) => {
+                    const numeric = toNumber(candidate);
+                    return numeric > max ? numeric : max;
+                }, 0);
+                if (appliedPercent > 0) {
+                    discountValue = grossTotal * (appliedPercent / 100);
+                }
             }
+            discountValue = Math.min(grossTotal, Math.max(0, discountValue));
+
+            const docTotal = toNumber(
+                orderDetails?.totals ??
+                invoiceDetails?.rounded_total ??
+                invoiceDetails?.grand_total ??
+                invoiceDetails?.total ??
+                invoiceDetails?.base_grand_total ??
+                0
+            );
+            const computedTotal = Math.max(0, grossTotal - discountValue);
+            const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
 
             receiptContainer.innerHTML = `
                 <div class="success-receipt-header">
@@ -1761,6 +1917,14 @@ frappe.ready(async function() {
                     <span>${__('PB1')}</span>
                     <span>${formatRupiah(pb1Value)}</span>
                   </div>
+                  ${
+                    discountValue > 0
+                        ? `<div class="success-receipt-summary-row discount">
+                            <span>${__('Discount')}</span>
+                            <span>- ${formatRupiah(discountValue)}</span>
+                          </div>`
+                        : ''
+                  }
                   <div class="success-receipt-summary-row total">
                     <span>${__('Total')}</span>
                     <span>${formatRupiah(totalValue)}</span>
@@ -1794,9 +1958,12 @@ frappe.ready(async function() {
         resetApp: function() {
             // Clear cart
             this.cart = [];
+            this.discountPercent = 0;
+            this.discountAmount = 0;
+            this.syncDiscountInputs();
             this.renderCart();
             this.updateCartTotals();
-            
+
             // Reset payment state
             this.paymentRequest = null;
             this.cashAmount = 0;
@@ -1813,13 +1980,30 @@ frappe.ready(async function() {
             localStorage.removeItem('imogi_service_type');
             window.location.href = '/service-select';
         },
-        
+
         // Utils
         calculateTotals: function() {
             const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
             const tax = subtotal * this.taxRate;
-            const discount = (subtotal + tax) * (this.discountPercent / 100) + this.discountAmount;
-            const total = subtotal + tax - discount;
+            const grossTotal = subtotal + tax;
+            const percentValue = Number.isFinite(this.discountPercent)
+                ? Math.max(0, this.discountPercent)
+                : 0;
+            const amountValue = Number.isFinite(this.discountAmount)
+                ? Math.max(0, this.discountAmount)
+                : 0;
+
+            if (!Number.isFinite(this.discountPercent)) {
+                this.discountPercent = 0;
+            }
+            if (!Number.isFinite(this.discountAmount)) {
+                this.discountAmount = 0;
+            }
+
+            const percentDiscount = grossTotal * (percentValue / 100);
+            const combinedDiscount = percentDiscount + amountValue;
+            const discount = Math.min(grossTotal, Math.max(0, combinedDiscount));
+            const total = Math.max(0, grossTotal - discount);
 
             return {
                 subtotal,
@@ -1828,7 +2012,16 @@ frappe.ready(async function() {
                 total
             };
         },
-        
+
+        syncDiscountInputs: function() {
+            if (this.elements.discountPercentInput) {
+                this.elements.discountPercentInput.value = this.discountPercent > 0 ? `${this.discountPercent}` : '0';
+            }
+            if (this.elements.discountAmountInput) {
+                this.elements.discountAmountInput.value = this.discountAmount > 0 ? `${this.discountAmount}` : '0';
+            }
+        },
+
         setupPrintService: function() {
             // Initialize the print service from the shared module
             if (window.ImogiPrintService) {
