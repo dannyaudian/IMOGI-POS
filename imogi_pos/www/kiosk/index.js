@@ -323,15 +323,18 @@ frappe.ready(async function() {
         },
 
         handlePriceListChange: async function(priceList) {
-            if (!priceList || priceList === this.selectedPriceList) {
+            const previousPriceList = this.selectedPriceList;
+
+            if (!priceList || priceList === previousPriceList) {
                 this.renderPriceListSelector();
                 return;
             }
 
+            const select = this.elements.priceListSelect;
             this.selectedPriceList = priceList;
 
-            if (this.elements.priceListSelect) {
-                this.elements.priceListSelect.disabled = true;
+            if (select) {
+                select.disabled = true;
             }
 
             this.showLoading('Updating prices...');
@@ -340,6 +343,22 @@ frappe.ready(async function() {
             } catch (error) {
                 console.error('Failed to refresh prices:', error);
                 this.showError('Failed to update prices. Please try again.');
+
+                this.selectedPriceList = previousPriceList || null;
+                if (select) {
+                    select.value = previousPriceList || '';
+                }
+
+                if (frappe && typeof frappe.show_alert === 'function') {
+                    const previousLabel = previousPriceList && (this.priceLists.find(pl => pl.name === previousPriceList)?.label || previousPriceList);
+
+                    frappe.show_alert({
+                        message: previousLabel
+                            ? __('Price list change cancelled. Reverted to {0}.', [previousLabel])
+                            : __('Price list change cancelled. Restored previous selection.'),
+                        indicator: 'orange'
+                    });
+                }
             } finally {
                 this.renderPriceListSelector();
                 this.hideLoading();
