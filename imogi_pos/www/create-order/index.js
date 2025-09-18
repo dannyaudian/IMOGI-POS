@@ -115,6 +115,8 @@ frappe.ready(async function () {
       cartTax: document.getElementById("cart-tax"),
       cartDiscount: document.getElementById("cart-discount"),
       cartTotal: document.getElementById("cart-total"),
+      discountPercentInput: document.getElementById("discount-percent-input"),
+      discountAmountInput: document.getElementById("discount-amount-input"),
       checkoutBtn: document.getElementById("btn-checkout"),
       clearBtn: document.getElementById("btn-clear"),
       searchInput: document.getElementById("search-input"),
@@ -167,6 +169,7 @@ frappe.ready(async function () {
       await this.loadTaxTemplate();
       this.renderItems();
       this.updateCartTotals();
+      this.syncDiscountInputs();
       this.setupPrintService();
 
       if (frappe.realtime) this.setupRealtimeUpdates();
@@ -189,6 +192,13 @@ frappe.ready(async function () {
           if (pill) this.selectCategory(pill.dataset.category);
         });
       }
+
+      this.elements.discountPercentInput?.addEventListener("input", (event) =>
+        this.handleDiscountInput(event, "percent")
+      );
+      this.elements.discountAmountInput?.addEventListener("input", (event) =>
+        this.handleDiscountInput(event, "amount")
+      );
 
       // Cart buttons
       this.elements.checkoutBtn?.addEventListener(
@@ -524,6 +534,15 @@ frappe.ready(async function () {
       if (this.elements.cartTax) this.elements.cartTax.textContent = formatRupiah(totals.tax);
       if (this.elements.cartDiscount) this.elements.cartDiscount.textContent = formatRupiah(totals.discount);
       if (this.elements.cartTotal) this.elements.cartTotal.textContent = formatRupiah(totals.total);
+      if (this.elements.paymentAmount)
+        this.elements.paymentAmount.textContent = `${formatRupiah(totals.total)}`;
+
+      if (this.elements.changeAmount)
+        this.elements.changeAmount.textContent = `${formatRupiah(Math.max(0, this.cashAmount - totals.total))}`;
+
+      if (this.elements.paymentConfirmBtn && this.paymentMethod === "cash") {
+        this.elements.paymentConfirmBtn.disabled = this.cashAmount < totals.total;
+      }
     },
 
     updateItemStock: function (itemCode, actualQty) {
@@ -602,6 +621,40 @@ frappe.ready(async function () {
         return matchesSearch && matchesCategory;
       });
       this.renderItems();
+    },
+
+    handleDiscountInput: function (event, type) {
+      if (!event?.target) return;
+      const rawValue = event.target.value.replace(/,/g, ".").trim();
+      if (rawValue === "") {
+        if (type === "percent") this.discountPercent = 0;
+        else this.discountAmount = 0;
+        this.updateCartTotals();
+        return;
+      }
+
+      if (!/^\d*\.?\d*$/.test(rawValue)) {
+        const fallback = type === "percent" ? this.discountPercent : this.discountAmount;
+        event.target.value = fallback ? `${fallback}` : "";
+        return;
+      }
+
+      const numericValue = Number(rawValue);
+      if (Number.isNaN(numericValue)) {
+        const fallback = type === "percent" ? this.discountPercent : this.discountAmount;
+        event.target.value = fallback ? `${fallback}` : "";
+        return;
+      }
+
+      const sanitized = Math.max(0, numericValue);
+      if (type === "percent") this.discountPercent = sanitized;
+      else this.discountAmount = sanitized;
+
+      if (numericValue < 0) {
+        event.target.value = sanitized ? `${sanitized}` : "0";
+      }
+
+      this.updateCartTotals();
     },
 
     handleItemClick: function (item) {
@@ -936,6 +989,12 @@ frappe.ready(async function () {
       this.showLoading("Generating payment QR code...");
       try {
         // 1) Create POS Order
+        const discountPercent = Number.isFinite(this.discountPercent)
+          ? this.discountPercent
+          : 0;
+        const discountAmount = Number.isFinite(this.discountAmount)
+          ? this.discountAmount
+          : 0;
         const orderArgs = {
           order_type: "Kiosk",
           service_type: this.orderType,
@@ -943,6 +1002,8 @@ frappe.ready(async function () {
           pos_profile: POS_PROFILE.name,
           customer: "Walk-in Customer",
           items: this.cart,
+          discount_percent: discountPercent,
+          discount_amount: discountAmount,
         };
         if (this.tableNumber) orderArgs.table = this.tableNumber;
 
@@ -953,9 +1014,23 @@ frappe.ready(async function () {
         if (!orderResp.message) throw new Error("Failed to create order");
 
         this.posOrder = orderResp.message.name;
-        this.queueNumber = orderResp.message.queue_number;
-        this.itemRows = (orderResp.message.items || []).map((it) => it.name);
-        this.latestOrderDetails = orderResp.message;
+        let orderDetails = orderResp.message;
+        try {
+          const { message: refreshed } = await frappe.call({
+            method: "frappe.client.get",
+            args: { doctype: "POS Order", name: this.posOrder },
+          });
+          if (refreshed) orderDetails = refreshed;
+        } catch (orderError) {
+          console.error("Failed to refresh POS Order before invoicing:", orderError);
+        }
+
+        this.queueNumber = orderDetails.queue_number || orderResp.message.queue_number;
+        const orderItems = Array.isArray(orderDetails.items) && orderDetails.items.length
+          ? orderDetails.items
+          : orderResp.message.items || [];
+        this.itemRows = orderItems.map((it) => it.name);
+        this.latestOrderDetails = orderDetails;
 
         // 2) Create draft invoice
         const totals = this.calculateTotals();
@@ -1127,6 +1202,12 @@ frappe.ready(async function () {
           this.invoiceName = invoice.name;
         } else {
           // Create order + invoice (cash)
+          const discountPercent = Number.isFinite(this.discountPercent)
+            ? this.discountPercent
+            : 0;
+          const discountAmount = Number.isFinite(this.discountAmount)
+            ? this.discountAmount
+            : 0;
           const orderArgs = {
             order_type: "Kiosk",
             service_type: this.orderType,
@@ -1134,6 +1215,8 @@ frappe.ready(async function () {
             pos_profile: POS_PROFILE.name,
             customer: "Walk-in Customer",
             items: this.cart,
+            discount_percent: discountPercent,
+            discount_amount: discountAmount,
           };
           if (this.tableNumber) orderArgs.table = this.tableNumber;
 
@@ -1144,9 +1227,23 @@ frappe.ready(async function () {
           if (!orderResp.message) throw new Error("Failed to create order");
 
           this.posOrder = orderResp.message.name;
-          this.queueNumber = orderResp.message.queue_number;
-          this.itemRows = (orderResp.message.items || []).map((it) => it.name);
-          this.latestOrderDetails = orderResp.message;
+          let orderDetails = orderResp.message;
+          try {
+            const { message: refreshed } = await frappe.call({
+              method: "frappe.client.get",
+              args: { doctype: "POS Order", name: this.posOrder },
+            });
+            if (refreshed) orderDetails = refreshed;
+          } catch (orderError) {
+            console.error("Failed to refresh POS Order before invoicing:", orderError);
+          }
+
+          this.queueNumber = orderDetails.queue_number || orderResp.message.queue_number;
+          const orderItems = Array.isArray(orderDetails.items) && orderDetails.items.length
+            ? orderDetails.items
+            : orderResp.message.items || [];
+          this.itemRows = orderItems.map((it) => it.name);
+          this.latestOrderDetails = orderDetails;
 
           const totals = this.calculateTotals();
           const invoiceArgs = {
@@ -1334,7 +1431,36 @@ frappe.ready(async function () {
       }
       pb1Value = toNumber(pb1Value);
 
-      const totalValue = toNumber(
+      const grossTotal = subtotalValue + pb1Value;
+      const discountCandidates = [
+        orderDetails?.discount_amount,
+        orderDetails?.discount_value,
+        invoiceDetails?.discount_amount,
+        invoiceDetails?.base_discount_amount,
+        invoiceDetails?.total_discount_amount,
+      ];
+      let discountValue = discountCandidates.reduce((max, candidate) => {
+        const numeric = toNumber(candidate);
+        return numeric > max ? numeric : max;
+      }, 0);
+      if (discountValue <= 0) {
+        const percentCandidates = [
+          orderDetails?.discount_percent,
+          orderDetails?.discount_percentage,
+          invoiceDetails?.discount_percentage,
+          invoiceDetails?.additional_discount_percentage,
+        ];
+        const appliedPercent = percentCandidates.reduce((max, candidate) => {
+          const numeric = toNumber(candidate);
+          return numeric > max ? numeric : max;
+        }, 0);
+        if (appliedPercent > 0) {
+          discountValue = grossTotal * (appliedPercent / 100);
+        }
+      }
+      discountValue = Math.min(grossTotal, Math.max(0, discountValue));
+
+      const docTotal = toNumber(
         orderDetails?.totals ??
           invoiceDetails?.rounded_total ??
           invoiceDetails?.grand_total ??
@@ -1342,6 +1468,8 @@ frappe.ready(async function () {
           invoiceDetails?.base_grand_total ??
           0
       );
+      const computedTotal = Math.max(0, grossTotal - discountValue);
+      const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
 
       receiptEl.innerHTML = `
         <div class="success-receipt-header">
@@ -1372,6 +1500,14 @@ frappe.ready(async function () {
             <span>${__("PB1")}</span>
             <span>${formatRupiah(pb1Value)}</span>
           </div>
+          ${
+            discountValue > 0
+              ? `<div class="success-receipt-summary-row discount">
+                  <span>${__("Discount")}</span>
+                  <span>- ${formatRupiah(discountValue)}</span>
+                </div>`
+              : ""
+          }
           <div class="success-receipt-summary-row total">
             <span>${__("Total")}</span>
             <span>${formatRupiah(totalValue)}</span>
@@ -1394,6 +1530,9 @@ frappe.ready(async function () {
 
     resetApp: function () {
       this.cart = [];
+      this.discountPercent = 0;
+      this.discountAmount = 0;
+      this.syncDiscountInputs();
       this.renderCart();
       this.updateCartTotals();
 
@@ -1420,9 +1559,33 @@ frappe.ready(async function () {
     calculateTotals: function () {
       const subtotal = this.cart.reduce((sum, it) => sum + it.amount, 0);
       const tax = subtotal * this.taxRate;
-      const discount = (subtotal + tax) * (this.discountPercent / 100) + this.discountAmount;
-      const total = subtotal + tax - discount;
+      const grossTotal = subtotal + tax;
+      const percentValue = Number.isFinite(this.discountPercent)
+        ? Math.max(0, this.discountPercent)
+        : 0;
+      const amountValue = Number.isFinite(this.discountAmount)
+        ? Math.max(0, this.discountAmount)
+        : 0;
+
+      if (!Number.isFinite(this.discountPercent)) this.discountPercent = 0;
+      if (!Number.isFinite(this.discountAmount)) this.discountAmount = 0;
+
+      const percentDiscount = grossTotal * (percentValue / 100);
+      const combinedDiscount = percentDiscount + amountValue;
+      const discount = Math.min(grossTotal, Math.max(0, combinedDiscount));
+      const total = Math.max(0, grossTotal - discount);
       return { subtotal, tax, discount, total };
+    },
+
+    syncDiscountInputs: function () {
+      if (this.elements.discountPercentInput) {
+        this.elements.discountPercentInput.value =
+          this.discountPercent > 0 ? `${this.discountPercent}` : "0";
+      }
+      if (this.elements.discountAmountInput) {
+        this.elements.discountAmountInput.value =
+          this.discountAmount > 0 ? `${this.discountAmount}` : "0";
+      }
     },
 
     setupPrintService: function () {
