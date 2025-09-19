@@ -1,4 +1,11 @@
 frappe.ready(function() {
+    function hasValidMenuCategory(value) {
+        if (typeof value !== 'string') {
+            return false;
+        }
+        return value.trim().length > 0;
+    }
+
     // Initialize Self-Order App
     const SelfOrderApp = {
         // State
@@ -167,7 +174,8 @@ frappe.ready(function() {
                         doctype: 'Item',
                         filters: {
                             disabled: 0,
-                            is_sales_item: 1
+                            is_sales_item: 1,
+                            menu_category: ['not in', ['', null]]
                         },
                         fields: ['name', 'item_name', 'item_code', 'description', 'image', 
                                 'standard_rate', 'has_variants', 'variant_of', 'item_group',
@@ -178,7 +186,7 @@ frappe.ready(function() {
                 
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
-                    this.items = response.message.filter(item => !item.variant_of);
+                    this.items = response.message.filter(item => !item.variant_of && hasValidMenuCategory(item.menu_category));
                     this.filteredItems = [...this.items];
                     
                     // Load rates for items that don't have standard_rate
@@ -486,9 +494,9 @@ frappe.ready(function() {
                     (item.description && item.description.toLowerCase().includes(this.searchQuery));
                 
                 // Filter by category
-                const matchesCategory = this.selectedCategory === 'all' || 
-                    item.item_group === this.selectedCategory ||
-                    item.menu_category === this.selectedCategory;
+                const matchesCategory = this.selectedCategory === 'all' ||
+                    (hasValidMenuCategory(item.menu_category) &&
+                        item.menu_category.trim() === this.selectedCategory);
                 
                 return matchesSearch && matchesCategory;
             });

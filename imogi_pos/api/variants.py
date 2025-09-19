@@ -72,9 +72,16 @@ def get_items_with_stock(
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
     """
+    item_filters = [
+        ["Item", "disabled", "=", 0],
+        ["Item", "is_sales_item", "=", 1],
+        ["Item", "menu_category", "is", "set"],
+        ["Item", "menu_category", "!=", ""],
+    ]
+
     items = frappe.get_all(
         "Item",
-        filters={"disabled": 0, "is_sales_item": 1},
+        filters=item_filters,
         fields=[
             "name",
             "item_name",
@@ -93,6 +100,9 @@ def get_items_with_stock(
         ],
         limit_page_length=limit,
     )
+
+    # Ensure only items with a valid menu category proceed
+    items = [d for d in items if (d.menu_category or "").strip()]
 
     # Map of item group -> default POS Menu Profile
     group_defaults = {}

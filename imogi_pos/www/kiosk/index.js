@@ -1,6 +1,13 @@
 frappe.ready(async function() {
     const POS_PROFILE_DATA = {};
 
+    function hasValidMenuCategory(value) {
+        if (typeof value !== 'string') {
+            return false;
+        }
+        return value.trim().length > 0;
+    }
+
     try {
         if (typeof POS_PROFILE === 'string') {
             const { message } = await frappe.call({
@@ -613,7 +620,7 @@ frappe.ready(async function() {
 
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
-                    this.items = response.message.filter(item => !item.variant_of);
+                    this.items = response.message.filter(item => !item.variant_of && hasValidMenuCategory(item.menu_category));
 
                     if (this.itemIndex && typeof this.itemIndex.clear === 'function') {
                         this.itemIndex.clear();
@@ -643,9 +650,8 @@ frappe.ready(async function() {
                     // Build unique list of categories from loaded items
                     const categorySet = new Set();
                     this.items.forEach(item => {
-                        const category = item.menu_category || item.item_group;
-                        if (category) {
-                            categorySet.add(category);
+                        if (hasValidMenuCategory(item.menu_category)) {
+                            categorySet.add(item.menu_category.trim());
                         }
                     });
                     this.categories = Array.from(categorySet);
