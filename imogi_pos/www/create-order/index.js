@@ -76,6 +76,11 @@ frappe.ready(async function () {
       .replace(/'/g, "&#39;");
   }
 
+  function hasValidMenuCategory(value) {
+    if (typeof value !== "string") return false;
+    return value.trim().length > 0;
+  }
+
   // ====== STATE ======
   const KioskApp = {
     items: [],
@@ -641,7 +646,9 @@ frappe.ready(async function () {
 
         if (message) {
           // Hanya template & standalone (bukan variant child)
-          this.items = message.filter((item) => !item.variant_of);
+          this.items = message.filter(
+            (item) => !item.variant_of && hasValidMenuCategory(item.menu_category)
+          );
 
           if (this.itemIndex && typeof this.itemIndex.clear === "function") {
             this.itemIndex.clear();
@@ -678,8 +685,9 @@ frappe.ready(async function () {
           // Build kategori unik
           const set = new Set();
           this.items.forEach((it) => {
-            const cat = it.menu_category || it.item_group;
-            if (cat) set.add(cat);
+            if (hasValidMenuCategory(it.menu_category)) {
+              set.add(it.menu_category.trim());
+            }
           });
           this.categories = Array.from(set);
         }
