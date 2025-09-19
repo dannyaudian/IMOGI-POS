@@ -9,6 +9,7 @@ from frappe import _
 from frappe.utils import now_datetime, flt
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
+from imogi_pos.api.pricing import evaluate_order_discounts
 from frappe.exceptions import TimestampMismatchError
 
 
@@ -349,27 +350,54 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     elif order_type == "Dine-in":
         # Allow Dine-in orders without specifying a table, but ensure Restaurant domain
         check_restaurant_domain(pos_profile)
-    # Ensure numeric discounts to avoid type issues
-    try:
-        discount_amount = float(discount_amount or 0)
-    except Exception:
-        discount_amount = 0
-    try:
-        discount_percent = float(discount_percent or 0)
-    except Exception:
-        discount_percent = 0
+    evaluation = evaluate_order_discounts(items, promo_code=promo_code)
+    evaluation_errors = evaluation.get("errors") or []
+    if evaluation_errors:
+        frappe.throw(evaluation_errors[0], frappe.ValidationError)
 
-    trusted_discount_context = _get_flag("imogi_allow_discount_override")
-    if not trusted_discount_context:
-        if discount_amount or discount_percent:
-            frappe.log_error(
-                _("Blocked untrusted discount submission for user {0}").format(
-                    getattr(getattr(frappe, "session", None), "user", "Guest")
-                ),
-                "IMOGI POS Discount Guard",
-            )
-        discount_amount = 0
-        discount_percent = 0
+    computed_percent = flt(evaluation.get("discount_percent") or 0)
+    computed_amount = flt(evaluation.get("discount_amount") or 0)
+    computed_code = evaluation.get("applied_promo_code")
+
+    has_computed_discount = bool(computed_amount or computed_percent)
+
+    if has_computed_discount:
+        discount_amount = computed_amount
+        discount_percent = computed_percent
+
+    if computed_code is not None or has_computed_discount:
+        promo_code = computed_code
+
+    temporary_discount_flag = False
+    if has_computed_discount and not _get_flag("imogi_allow_discount_override"):
+        _set_flag("imogi_allow_discount_override", True)
+        temporary_discount_flag = True
+
+    try:
+        # Ensure numeric discounts to avoid type issues
+        try:
+            discount_amount = float(discount_amount or 0)
+        except Exception:
+            discount_amount = 0
+        try:
+            discount_percent = float(discount_percent or 0)
+        except Exception:
+            discount_percent = 0
+
+        trusted_discount_context = _get_flag("imogi_allow_discount_override")
+        if not trusted_discount_context:
+            if discount_amount or discount_percent:
+                frappe.log_error(
+                    _("Blocked untrusted discount submission for user {0}").format(
+                        getattr(getattr(frappe, "session", None), "user", "Guest")
+                    ),
+                    "IMOGI POS Discount Guard",
+                )
+            discount_amount = 0
+            discount_percent = 0
+    finally:
+        if temporary_discount_flag:
+            _set_flag("imogi_allow_discount_override", None)
 
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")

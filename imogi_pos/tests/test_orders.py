@@ -157,6 +157,23 @@ def frappe_env(monkeypatch):
             if pluck:
                 return [r[pluck] for r in results]
             return results
+        if doctype == "POS Promo Code":
+            results = []
+            for record in promo_codes.values():
+                match = True
+                if filters:
+                    for key, val in filters.items():
+                        if record.get(key) != val:
+                            match = False
+                            break
+                if not match:
+                    continue
+                if fields:
+                    payload = {field: record.get(field) for field in fields}
+                    results.append(types.SimpleNamespace(**payload))
+                else:
+                    results.append(record.copy())
+            return results
         return []
     frappe.get_all = get_all
     frappe.has_permission = has_permission
@@ -191,7 +208,7 @@ def frappe_env(monkeypatch):
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
     sys.modules['frappe.exceptions'] = frappe.exceptions
-    global orders, tables, pos_profiles, items, customers
+    global orders, tables, pos_profiles, items, customers, promo_codes
     orders = {}
     tables = {
         "T1": StubTable("T1", "BR-1"),
@@ -210,6 +227,7 @@ def frappe_env(monkeypatch):
         "NON-SALES-ITEM": types.SimpleNamespace(is_sales_item=0),
     }
     customers = {"CUST-1": object()}
+    promo_codes = {}
 
     import imogi_pos.api.orders as orders_module
     importlib.reload(orders_module)
@@ -394,6 +412,81 @@ def test_create_order_allows_trusted_override(frappe_env):
 
     assert result["discount_percent"] == 10
     assert result["discount_amount"] == 5
+
+
+def test_automatic_bulk_discount_applied(frappe_env):
+    frappe, orders_module = frappe_env
+    items_payload = [
+        {"item": "SALES-ITEM", "rate": 20, "qty": 3},
+        {"item": "SALES-ITEM", "rate": 15, "qty": 2},
+    ]
+
+    result = orders_module.create_order(
+        "Takeaway",
+        "BR-1",
+        "P1",
+        items=items_payload,
+    )
+
+    assert result["discount_percent"] == 10
+    assert result["discount_amount"] == 0
+
+
+def test_valid_promo_code_applies_configured_discount(frappe_env):
+    frappe, orders_module = frappe_env
+    global promo_codes
+    promo_codes["SAVE25"] = {
+        "name": "SAVE25",
+        "code": "SAVE25",
+        "discount_type": "Amount",
+        "discount_value": 25,
+        "enabled": 1,
+    }
+
+    result = orders_module.create_order(
+        "Takeaway",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "qty": 2, "rate": 40},
+        promo_code="save25",
+    )
+
+    assert result["discount_amount"] == 25
+    assert result["discount_percent"] == 0
+    assert result.get("promo_code") == "SAVE25"
+
+
+def test_invalid_or_disabled_promo_code_returns_error(frappe_env):
+    frappe, orders_module = frappe_env
+    global promo_codes
+    promo_codes["OFFLINE"] = {
+        "name": "OFFLINE",
+        "code": "OFFLINE",
+        "discount_type": "Percent",
+        "discount_value": 20,
+        "enabled": 0,
+    }
+
+    import imogi_pos.api.pricing as pricing_module
+    importlib.reload(pricing_module)
+
+    evaluation = pricing_module.evaluate_order_discounts(
+        [{"item": "SALES-ITEM", "qty": 1, "rate": 30}],
+        promo_code="OFFLINE",
+    )
+
+    assert evaluation["errors"]
+    assert evaluation["discount_percent"] == 0
+    assert evaluation["discount_amount"] == 0
+
+    with pytest.raises(frappe.ValidationError):
+        orders_module.create_order(
+            "Takeaway",
+            "BR-1",
+            "P1",
+            items={"item": "SALES-ITEM", "qty": 1, "rate": 30},
+            promo_code="INVALID",
+        )
 
 
 def test_update_order_status_clears_table(frappe_env):
