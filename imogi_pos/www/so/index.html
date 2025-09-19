@@ -300,13 +300,22 @@
             padding: 1rem;
             border-top: 1px solid #eee;
         }
-        
+
         .total-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 0.5rem;
         }
-        
+
+        .discount-row span:first-child {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .discount-row span:last-child {
+            color: var(--accent-color);
+        }
+
         .grand-total {
             font-weight: 600;
             font-size: 1.1rem;
@@ -314,12 +323,100 @@
             padding-top: 0.5rem;
             border-top: 1px solid #eee;
         }
-        
+
         .cart-actions {
             padding: 1rem;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
+        }
+
+        .promo-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .promo-trigger {
+            align-self: flex-start;
+            background: rgba(46, 125, 220, 0.1);
+            color: var(--accent-color);
+            border: 1px dashed var(--accent-color);
+            border-radius: 6px;
+            padding: 0.35rem 0.65rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.12s ease;
+        }
+
+        .promo-trigger:hover {
+            background: rgba(46, 125, 220, 0.16);
+        }
+
+        .promo-trigger:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .promo-inline {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .promo-inline.hidden {
+            display: none;
+        }
+
+        .promo-input {
+            flex: 1;
+            border: 1px solid #d4d4d8;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.95rem;
+        }
+
+        .promo-apply {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.4rem 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .promo-cancel {
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .promo-status {
+            min-height: 18px;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .promo-status.error {
+            color: #ef4444;
+        }
+
+        .promo-status.success {
+            color: var(--accent-color);
+        }
+
+        .promo-remove {
+            margin-left: 0.5rem;
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: underline;
         }
         
         .btn-submit {
@@ -857,6 +954,21 @@
                     <span>{{ _("PB1") }}</span>
                     <span id="cart-tax">{{ currency_symbol }} 0.00</span>
                 </div>
+                <div class="total-row discount-row">
+                    <span id="cart-discount-label">{{ _("Discount") }}</span>
+                    <span id="cart-discount">{{ currency_symbol }} 0.00</span>
+                </div>
+                {% if allow_discounts %}
+                <div class="promo-section" id="promo-section">
+                    <button id="btn-promo" class="promo-trigger" disabled>{{ _("Add Promo Code") }}</button>
+                    <div class="promo-inline hidden" id="promo-input-container">
+                        <input type="text" id="promo-code-input" class="promo-input" placeholder="{{ _("Enter promo code") }}" autocomplete="off">
+                        <button type="button" id="promo-apply-btn" class="promo-apply">{{ _("Apply") }}</button>
+                        <button type="button" id="promo-cancel-btn" class="promo-cancel">{{ _("Cancel") }}</button>
+                    </div>
+                    <div class="promo-status" id="promo-status"></div>
+                </div>
+                {% endif %}
                 <div class="grand-total total-row">
                     <span>Total</span>
                     <span id="cart-total">{{ currency_symbol }} 0.00</span>
@@ -952,6 +1064,7 @@
         const DEFAULT_CURRENCY = "{{ default_currency }}";
         const PAYMENT_SETTINGS = {{ payment_settings | tojson }};
         const ALLOW_NOTES = {{ allow_notes }};
+        const ALLOW_DISCOUNTS = {{ allow_discounts }};
         const REQUIRE_PAYMENT = {{ require_payment }};
         const BRANCH = {{ branch | tojson if branch else 'null' }};
         const TABLE = {{ table | tojson if table else 'null' }};

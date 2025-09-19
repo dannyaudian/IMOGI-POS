@@ -77,6 +77,20 @@ def get_context(context):
     context.allow_guest = cint(pos_profile.get("imogi_self_order_allow_guest", 0))
     context.require_payment = cint(pos_profile.get("imogi_self_order_require_payment", 0))
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_self_order", 1))
+
+    discount_fields = [
+        "imogi_allow_discounts_on_self_order",
+        "imogi_allow_discounts",
+        "imogi_enable_discounts",
+        "allow_discount",
+    ]
+    discount_flag = 0
+    for field in discount_fields:
+        value = pos_profile.get(field)
+        if value is not None:
+            discount_flag = value
+            break
+    context.allow_discounts = cint(discount_flag)
     
     # Check if there's already an active session
     self_order_session = get_or_create_self_order_session(token, session_data)
