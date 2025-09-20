@@ -62,7 +62,19 @@ def get_context(context):
     # UI Settings
     context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1))
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_kiosk", 1))
-    context.allow_discounts = 0
+    discount_fields = [
+        "imogi_allow_discounts_on_kiosk",
+        "imogi_allow_discounts",
+        "imogi_enable_discounts",
+        "allow_discount",
+    ]
+    discount_flag = 0
+    for field in discount_fields:
+        value = pos_profile.get(field)
+        if value is not None:
+            discount_flag = value
+            break
+    context.allow_discounts = cint(discount_flag)
     
     # Get Queue Number if applicable
     context.next_queue_number = get_next_queue_number(context.branch) if context.branch else 1
