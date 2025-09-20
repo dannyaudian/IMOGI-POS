@@ -514,32 +514,53 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
         # Find the matching variant based on selected attributes
         template_doc = frappe.get_doc("Item", item_code)
         
-        # Build attribute filters for finding the variant
-        attribute_filters = []
+        # Build candidate variants by intersecting attribute matches
+        candidate_variants = None
         for attr in template_doc.attributes:
             attr_name = attr.attribute
             if attr_name not in selected_attributes:
                 frappe.throw(_("Required attribute {0} not provided").format(attr_name),
                             frappe.ValidationError)
 
-            attribute_filters.append([
+            attr_value = selected_attributes[attr_name]
+            attr_rows = frappe.get_all(
                 "Item Variant Attribute",
-                "attribute", "=", attr_name
-            ])
-            attribute_filters.append([
-                "Item Variant Attribute",
-                "attribute_value", "=", selected_attributes[attr_name]
-            ])
-        
-        # Find variant that matches all attributes
-        variants = frappe.get_all("Item", 
-                                filters=[
-                                    ["variant_of", "=", item_code],
-                                    ["disabled", "=", 0],
-                                    *attribute_filters
-                                ],
-                                fields=["name"])
-        
+                filters={
+                    "attribute": attr_name,
+                    "attribute_value": attr_value,
+                },
+                fields=["parent"],
+            )
+
+            matching_variants = {row.parent for row in attr_rows}
+            if not matching_variants:
+                candidate_variants = set()
+                break
+
+            if candidate_variants is None:
+                candidate_variants = matching_variants
+            else:
+                candidate_variants &= matching_variants
+
+            if not candidate_variants:
+                break
+
+        candidate_variants = candidate_variants or set()
+
+        if not candidate_variants:
+            frappe.throw(_("No variant found with the selected attributes"), frappe.ValidationError)
+
+        # Find variant that matches all attributes and belongs to the template
+        variants = frappe.get_all(
+            "Item",
+            filters={
+                "name": ["in", sorted(candidate_variants)],
+                "variant_of": item_code,
+                "disabled": 0,
+            },
+            fields=["name"],
+        )
+
         if not variants:
             frappe.throw(_("No variant found with the selected attributes"), frappe.ValidationError)
         
