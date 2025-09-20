@@ -519,14 +519,15 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
         for attr in template_doc.attributes:
             attr_name = attr.attribute
             if attr_name not in selected_attributes:
-                frappe.throw(_("Required attribute {0} not provided").format(attr_name), 
+                frappe.throw(_("Required attribute {0} not provided").format(attr_name),
                             frappe.ValidationError)
-            
+
             attribute_filters.append([
-                "Item Variant Attribute", 
-                "attribute", "=", attr_name, 
-                "and", 
-                "Item Variant Attribute", 
+                "Item Variant Attribute",
+                "attribute", "=", attr_name
+            ])
+            attribute_filters.append([
+                "Item Variant Attribute",
                 "attribute_value", "=", selected_attributes[attr_name]
             ])
         
