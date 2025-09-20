@@ -248,8 +248,24 @@ button { font: inherit; }
 /* Totals & actions */
 .cart-totals { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .total-row  { display: flex; justify-content: space-between; color: #334155; }
+.discount-row span:first-child { color: #0f172a; font-weight: 500; }
+.discount-row span:last-child { color: var(--brand-primary); }
 .grand-total { font-weight: 600; font-size: 1.05rem; }
 .cart-actions { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+.promo-section { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.promo-trigger { align-self: flex-start; border: 1px dashed var(--brand-primary); background: rgba(107,144,128,.08); color: var(--brand-primary); padding: .45rem .75rem; border-radius: 10px; font-weight: 500; cursor: pointer; transition: .12s ease; }
+.promo-trigger:hover { background: rgba(107,144,128,.12); }
+.promo-trigger:disabled { opacity: .45; cursor: not-allowed; }
+.promo-inline { display: flex; gap: 8px; align-items: center; }
+.promo-inline.hidden { display: none; }
+.promo-input { flex: 1; border: 1px solid #d0d7de; border-radius: 10px; padding: .5rem .6rem; font-size: .95rem; }
+.promo-apply { background: var(--brand-primary); color: #fff; border: none; border-radius: 10px; padding: .45rem .9rem; cursor: pointer; font-weight: 500; }
+.promo-cancel { background: transparent; border: none; color: #64748b; cursor: pointer; font-size: .9rem; }
+.promo-status { min-height: 18px; font-size: .9rem; color: #475569; }
+.promo-status.error { color: var(--danger); }
+.promo-status.success { color: var(--brand-primary); }
+.promo-remove { margin-left: 8px; background: none; border: none; color: var(--danger); cursor: pointer; font-size: .85rem; text-decoration: underline; }
 
 /* Buttons */
 .btn { border: none; border-radius: 12px; padding: .9rem 1rem; cursor: pointer; transition: .15s; }
@@ -523,7 +539,18 @@ button:disabled { opacity: .6; cursor: not-allowed; }
     <div class="cart-totals">
       <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="cart-subtotal">Rp 0</span></div>
       <div class="total-row"><span>{{ _("PB1") }}</span><span id="cart-tax">Rp 0</span></div>
-      <div class="total-row"><span>{{ _("Discount") }}</span><span id="cart-discount">Rp 0</span></div>
+      <div class="total-row discount-row"><span id="cart-discount-label">{{ _("Discount") }}</span><span id="cart-discount">Rp 0</span></div>
+      {% if allow_discounts %}
+      <div class="promo-section" id="promo-section">
+        <button id="btn-promo" class="promo-trigger" disabled>{{ _("Add Promo Code") }}</button>
+        <div class="promo-inline hidden" id="promo-input-container">
+          <input type="text" id="promo-code-input" class="promo-input" placeholder="{{ _("Enter promo code") }}" autocomplete="off">
+          <button type="button" id="promo-apply-btn" class="promo-apply">{{ _("Apply") }}</button>
+          <button type="button" id="promo-cancel-btn" class="promo-cancel">{{ _("Cancel") }}</button>
+        </div>
+        <div class="promo-status" id="promo-status"></div>
+      </div>
+      {% endif %}
       <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="cart-total">Rp 0</span></div>
     </div>
 
@@ -685,6 +712,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   const PRINT_SETTINGS = {{ print_settings | tojson }};
   let NEXT_QUEUE_NUMBER = {{ next_queue_number }};
   const ALLOW_NOTES = {{ allow_notes }};
+  const ALLOW_DISCOUNTS = {{ allow_discounts }};
 </script>
 
 <script src="/assets/imogi_pos/js/nav.js"></script>
