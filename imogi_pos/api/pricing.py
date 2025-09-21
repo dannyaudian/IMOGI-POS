@@ -190,6 +190,82 @@ def get_allowed_price_lists(pos_profile: str) -> Dict[str, object]:
         "default_price_list": default_name,
     }
 
+
+def get_price_list_rate_maps(
+    item_names: Iterable[str],
+    *,
+    price_list: Optional[str] = None,
+    base_price_list: Optional[str] = None,
+) -> Dict[str, Dict[str, object]]:
+    """Return price list rate lookups with optional baseline fallback.
+
+    Args:
+        item_names: Iterable of item identifiers to resolve.
+        price_list: Preferred price list for explicit channel pricing.
+        base_price_list: Baseline price list used when the preferred list lacks
+            an explicit rate. Falls back to ``price_list`` when omitted.
+
+    Returns:
+        dict: Mapping keys ``price_list_rates``, ``price_list_currencies``,
+        ``base_price_list_rates`` and ``base_price_list_currencies`` each
+        containing ``item_code -> value`` dictionaries.
+    """
+
+    names = [name for name in (item_names or []) if name]
+
+    payload = {
+        "price_list_rates": {},
+        "price_list_currencies": {},
+        "base_price_list_rates": {},
+        "base_price_list_currencies": {},
+    }
+
+    if not names:
+        return payload
+
+    def fetch_rates(list_name: Optional[str]) -> Dict[str, Dict[str, object]]:
+        if not list_name:
+            return {"rates": {}, "currencies": {}}
+
+        try:
+            rows = frappe.get_all(
+                "Item Price",
+                filters={"price_list": list_name, "item_code": ["in", names]},
+                fields=["item_code", "price_list_rate", "currency"],
+            )
+        except Exception:
+            rows = []
+
+        rates: Dict[str, object] = {}
+        currencies: Dict[str, object] = {}
+
+        for row in rows or []:
+            item_code = getattr(row, "item_code", None)
+            if not item_code:
+                continue
+            if item_code not in names:
+                continue
+            rates[item_code] = getattr(row, "price_list_rate", None)
+            currencies[item_code] = getattr(row, "currency", None)
+
+        return {"rates": rates, "currencies": currencies}
+
+    primary = fetch_rates(price_list)
+    payload["price_list_rates"] = primary["rates"]
+    payload["price_list_currencies"] = primary["currencies"]
+
+    base_price_list_name = base_price_list or price_list
+    if base_price_list_name:
+        if base_price_list_name == price_list:
+            payload["base_price_list_rates"] = dict(primary["rates"])
+            payload["base_price_list_currencies"] = dict(primary["currencies"])
+        else:
+            baseline = fetch_rates(base_price_list_name)
+            payload["base_price_list_rates"] = baseline["rates"]
+            payload["base_price_list_currencies"] = baseline["currencies"]
+
+    return payload
+
 def _normalise_items(
     items: Union[str, Iterable[Union[Dict[str, Any], object]], Dict[str, Any], None]
 ) -> List[Dict[str, Any]]:

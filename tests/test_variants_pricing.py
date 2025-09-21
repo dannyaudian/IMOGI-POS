@@ -91,6 +91,8 @@ def load_variants_module(
     utils = types.ModuleType("frappe.utils")
     utils.cint = lambda x: int(x)
     utils.flt = lambda x: float(x or 0)
+    utils.getdate = lambda value: value
+    utils.now_datetime = lambda: None
     sys.modules["frappe.utils"] = utils
 
     variants = importlib.import_module("imogi_pos.api.variants")
@@ -100,6 +102,7 @@ def load_variants_module(
 
 def unload_variants_module():
     sys.modules.pop("imogi_pos.api.variants", None)
+    sys.modules.pop("imogi_pos.api.pricing", None)
     sys.modules.pop("frappe.utils", None)
     sys.modules.pop("frappe", None)
     if sys.path and sys.path[0] == ".":
