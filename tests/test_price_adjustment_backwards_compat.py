@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+import datetime
 
 import pytest
 
@@ -22,6 +23,8 @@ def frappe_env():
 
     utils.flt = lambda value, *_, **__: float(value or 0)
     utils.cint = lambda value, *_, **__: int(value or 0)
+    utils.getdate = lambda value, *_, **__: value
+    utils.now_datetime = lambda *_, **__: datetime.datetime(2023, 1, 1, 12, 0, 0)
 
     frappe.utils = utils
     frappe._ = lambda msg: msg
@@ -206,7 +209,7 @@ def _base_item():
         has_variants=0,
         variant_of=None,
         item_group="Group",
-        menu_category=None,
+        menu_category="Default",
         photo=None,
         default_kitchen=None,
         default_kitchen_station=None,

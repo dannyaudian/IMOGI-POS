@@ -79,6 +79,7 @@ def frappe_env(monkeypatch):
                 "customer": getattr(self, "customer", None),
                 "discount_amount": getattr(self, "discount_amount", 0),
                 "discount_percent": getattr(self, "discount_percent", 0),
+                "promo_code": getattr(self, "promo_code", None),
                 "queue_number": getattr(self, "queue_number", None),
             }
 
@@ -520,6 +521,66 @@ def test_invalid_or_disabled_promo_code_returns_error(frappe_env):
             items={"item": "SALES-ITEM", "qty": 1, "rate": 30},
             promo_code="INVALID",
         )
+
+
+def test_validate_promo_code_returns_discount_payload(frappe_env):
+    frappe, _ = frappe_env
+    global promo_codes
+    promo_codes["SAVE10"] = {
+        "name": "SAVE10",
+        "code": "SAVE10",
+        "discount_type": "Percent",
+        "discount_value": 10,
+        "enabled": 1,
+    }
+
+    import imogi_pos.api.pricing as pricing_module
+
+    importlib.reload(pricing_module)
+
+    response = pricing_module.validate_promo_code(
+        promo_code="save10",
+        pos_profile="P1",
+        branch="BR-1",
+        quantity=2,
+        subtotal=100,
+        tax=10,
+        total=110,
+        order_type="Takeaway",
+    )
+
+    assert response["valid"] is True
+    assert response["code"] == "SAVE10"
+    assert response["discount_type"].lower() == "percent"
+    assert response["discount_percent"] == pytest.approx(10)
+    assert response["discount_amount"] == pytest.approx(0)
+    assert response["label"].startswith("Promo SAVE10")
+    assert "SAVE10" in response["description"]
+    assert "% off" in response["description"]
+
+
+def test_validate_promo_code_handles_invalid_submission(frappe_env):
+    frappe, _ = frappe_env
+    import imogi_pos.api.pricing as pricing_module
+
+    importlib.reload(pricing_module)
+
+    response = pricing_module.validate_promo_code(
+        promo_code="invalid",
+        pos_profile="P1",
+        branch="BR-1",
+        quantity=1,
+        subtotal=20,
+        tax=2,
+        total=22,
+        order_type="Takeaway",
+    )
+
+    assert response["valid"] is False
+    assert response["code"] == "INVALID"
+    assert "error" in response and response["error"]
+    assert response.get("discount_percent", 0) == 0
+    assert response.get("discount_amount", 0) == 0
 
 
 def test_update_order_status_clears_table(frappe_env):
