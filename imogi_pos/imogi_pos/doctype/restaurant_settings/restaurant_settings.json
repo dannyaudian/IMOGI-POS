@@ -41,6 +41,9 @@
     "column_break_os",
     "allow_void_items",
     "require_void_reason",
+    "discounts_section",
+    "imogi_allow_discounts_on_kiosk",
+    "imogi_allow_discounts_on_cashier",
     "self_order_section",
     "enable_self_order",
     "default_self_order_mode",
@@ -256,6 +259,23 @@
       "fieldname": "require_void_reason",
       "fieldtype": "Check",
       "label": "Require Void Reason"
+    },
+    {
+      "fieldname": "discounts_section",
+      "fieldtype": "Section Break",
+      "label": "Discounts"
+    },
+    {
+      "default": "0",
+      "fieldname": "imogi_allow_discounts_on_kiosk",
+      "fieldtype": "Check",
+      "label": "Allow Discounts on Kiosk"
+    },
+    {
+      "default": "0",
+      "fieldname": "imogi_allow_discounts_on_cashier",
+      "fieldtype": "Check",
+      "label": "Allow Discounts on Cashier"
     },
     {
       "fieldname": "self_order_section",
