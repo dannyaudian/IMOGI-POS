@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint, flt
+from imogi_pos.api.pricing import get_price_list_rate_maps
 
 def validate_branch_access(branch):
     """
@@ -155,35 +156,16 @@ def get_items_with_stock(
                 price_list_adjustment = flt(price_list_doc.get("imogi_price_adjustment") or 0)
             price_list_currency = price_list_doc.get("currency")
 
-    # Apply price list rates when requested
-    if price_list and item_names:
-        price_rows = frappe.get_all(
-            "Item Price",
-            filters={"price_list": price_list, "item_code": ["in", item_names]},
-            fields=["item_code", "price_list_rate", "currency"],
-        )
-        rate_map = {row.item_code: row.price_list_rate for row in price_rows}
-        currency_map = {row.item_code: row.currency for row in price_rows}
-    else:
-        rate_map = {}
-        currency_map = {}
+    rate_maps = get_price_list_rate_maps(
+        item_names,
+        price_list=price_list,
+        base_price_list=base_price_list,
+    )
 
-    # Resolve baseline price list rates used when standard_rate is missing
-    base_rate_map = {}
-    base_currency_map = {}
-    base_price_list_name = base_price_list or price_list
-    if base_price_list_name and item_names:
-        if base_price_list_name == price_list and rate_map:
-            base_rate_map = dict(rate_map)
-            base_currency_map = dict(currency_map)
-        else:
-            base_price_rows = frappe.get_all(
-                "Item Price",
-                filters={"price_list": base_price_list_name, "item_code": ["in", item_names]},
-                fields=["item_code", "price_list_rate", "currency"],
-            )
-            base_rate_map = {row.item_code: row.price_list_rate for row in base_price_rows}
-            base_currency_map = {row.item_code: row.currency for row in base_price_rows}
+    rate_map = rate_maps["price_list_rates"]
+    currency_map = rate_maps["price_list_currencies"]
+    base_rate_map = rate_maps["base_price_list_rates"]
+    base_currency_map = rate_maps["base_price_list_currencies"]
 
     # Fetch allowed payment methods if doctype exists
     payment_map = {}
@@ -373,32 +355,16 @@ def get_item_variants(item_template=None, price_list=None, base_price_list=None,
 
     variant_names = [variant.name for variant in variants]
 
-    rate_map = {}
-    currency_map = {}
-    if price_list and variant_names:
-        price_rows = frappe.get_all(
-            "Item Price",
-            filters={"price_list": price_list, "item_code": ["in", variant_names]},
-            fields=["item_code", "price_list_rate", "currency"],
-        )
-        rate_map = {row.item_code: row.price_list_rate for row in price_rows}
-        currency_map = {row.item_code: row.currency for row in price_rows}
+    rate_maps = get_price_list_rate_maps(
+        variant_names,
+        price_list=price_list,
+        base_price_list=base_price_list,
+    )
 
-    base_rate_map = {}
-    base_currency_map = {}
-    base_price_list_name = base_price_list or price_list
-    if base_price_list_name and variant_names:
-        if base_price_list_name == price_list and rate_map:
-            base_rate_map = dict(rate_map)
-            base_currency_map = dict(currency_map)
-        else:
-            base_rows = frappe.get_all(
-                "Item Price",
-                filters={"price_list": base_price_list_name, "item_code": ["in", variant_names]},
-                fields=["item_code", "price_list_rate", "currency"],
-            )
-            base_rate_map = {row.item_code: row.price_list_rate for row in base_rows}
-            base_currency_map = {row.item_code: row.currency for row in base_rows}
+    rate_map = rate_maps["price_list_rates"]
+    currency_map = rate_maps["price_list_currencies"]
+    base_rate_map = rate_maps["base_price_list_rates"]
+    base_currency_map = rate_maps["base_price_list_currencies"]
 
     # Enrich variants with their attribute values
     for variant in variants:

@@ -9,7 +9,7 @@ from frappe import _
 from frappe.utils import now_datetime, flt
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
-from imogi_pos.api.pricing import evaluate_order_discounts
+from imogi_pos.api.pricing import evaluate_order_discounts, get_price_list_rate_maps
 from frappe.exceptions import TimestampMismatchError
 
 
@@ -166,7 +166,25 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
         except Exception:
             frappe.throw(_("Rate must be a number"), frappe.ValidationError)
     else:
-        rate_value = flt(frappe.db.get_value("Item", item_code, "standard_rate") or 0)
+        order_price_list = getattr(order_doc, "selling_price_list", None)
+        base_price_list = (
+            getattr(order_doc, "base_price_list", None)
+            or getattr(order_doc, "imogi_base_price_list", None)
+        )
+
+        rate_maps = get_price_list_rate_maps(
+            [item_code],
+            price_list=order_price_list,
+            base_price_list=base_price_list,
+        )
+
+        fallback_rate = rate_maps["price_list_rates"].get(item_code)
+        if fallback_rate in (None, ""):
+            fallback_rate = rate_maps["base_price_list_rates"].get(item_code)
+        if fallback_rate in (None, ""):
+            fallback_rate = frappe.db.get_value("Item", item_code, "standard_rate")
+
+        rate_value = flt(fallback_rate or 0)
 
     # Merge and normalise item options
     options_value = item_options if item_options is not None else item_payload.get("item_options")

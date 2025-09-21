@@ -63,6 +63,8 @@ def frappe_env(monkeypatch):
         def append(self, field, value):
             if isinstance(value, dict):
                 value = types.SimpleNamespace(**value)
+            if not hasattr(value, "as_dict"):
+                value.as_dict = lambda ns=value: ns.__dict__.copy()
             getattr(self, field).append(value)
             return value
         def as_dict(self):
@@ -174,6 +176,35 @@ def frappe_env(monkeypatch):
                 else:
                     results.append(record.copy())
             return results
+        if doctype == "Item Price":
+            results = []
+            for record in item_prices:
+                match = True
+                if filters:
+                    for key, expected in filters.items():
+                        value = getattr(record, key, None)
+                        if isinstance(expected, (list, tuple)):
+                            operator = expected[0]
+                            values = expected[1] if len(expected) > 1 else []
+                            if operator == "in":
+                                if value not in values:
+                                    match = False
+                                    break
+                            else:
+                                match = False
+                                break
+                        elif value != expected:
+                            match = False
+                            break
+                if not match:
+                    continue
+
+                if fields:
+                    payload = {field: getattr(record, field, None) for field in fields}
+                    results.append(types.SimpleNamespace(**payload))
+                else:
+                    results.append(record)
+            return results
         return []
     frappe.get_all = get_all
     frappe.has_permission = has_permission
@@ -189,6 +220,7 @@ def frappe_env(monkeypatch):
     frappe.whitelist = lambda *a, **kw: (lambda f: f)
     frappe.utils = types.ModuleType("utils")
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
+    frappe.utils.getdate = lambda value: value
     frappe.utils.flt = float
     frappe.call_hook = lambda method, **kwargs: None
     frappe.get_hooks = lambda *a, **kw: []
@@ -208,7 +240,7 @@ def frappe_env(monkeypatch):
     sys.modules['frappe'] = frappe
     sys.modules['frappe.utils'] = frappe.utils
     sys.modules['frappe.exceptions'] = frappe.exceptions
-    global orders, tables, pos_profiles, items, customers, promo_codes
+    global orders, tables, pos_profiles, items, customers, promo_codes, item_prices
     orders = {}
     tables = {
         "T1": StubTable("T1", "BR-1"),
@@ -228,6 +260,7 @@ def frappe_env(monkeypatch):
     }
     customers = {"CUST-1": object()}
     promo_codes = {}
+    item_prices = []
 
     import imogi_pos.api.orders as orders_module
     importlib.reload(orders_module)
