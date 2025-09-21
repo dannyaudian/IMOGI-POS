@@ -969,7 +969,7 @@ frappe.ready(async function() {
 
                 if (response.message) {
                     // Filter out variants but include template items and standalone items
-                    this.items = response.message.filter(item => !item.variant_of && hasValidMenuCategory(item.menu_category));
+                    this.items = response.message.filter(item => !item.variant_of);
 
                     if (this.itemIndex && typeof this.itemIndex.clear === 'function') {
                         this.itemIndex.clear();
