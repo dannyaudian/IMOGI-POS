@@ -550,6 +550,55 @@ frappe.ready(async function() {
                     payload.table = this.tableNumber;
                 }
 
+                const normalizeCategoryValue = value => {
+                    if (value === null || value === undefined) {
+                        return null;
+                    }
+                    const text = String(value).trim();
+                    return text || null;
+                };
+
+                payload.items = this.cart.map(entry => {
+                    const itemCode = entry.item_code || entry.item || null;
+                    const payloadItem = {};
+                    if (itemCode) {
+                        payloadItem.item_code = itemCode;
+                        payloadItem.item = itemCode;
+                    }
+
+                    const numericQty = Number(entry.qty ?? entry.quantity);
+                    if (Number.isFinite(numericQty)) {
+                        payloadItem.qty = numericQty;
+                        payloadItem.quantity = numericQty;
+                    } else if (entry.qty !== undefined) {
+                        payloadItem.qty = entry.qty;
+                    }
+
+                    let category =
+                        normalizeCategoryValue(entry.menu_category)
+                        || normalizeCategoryValue(entry.category)
+                        || normalizeCategoryValue(entry.item_group)
+                        || null;
+
+                    if (!category && itemCode) {
+                        const catalog =
+                            this.getCatalogItem(itemCode)
+                            || (entry.variant_of ? this.getCatalogItem(entry.variant_of) : null);
+                        if (catalog) {
+                            category =
+                                normalizeCategoryValue(catalog.menu_category)
+                                || normalizeCategoryValue(catalog.item_group)
+                                || null;
+                        }
+                    }
+
+                    if (category) {
+                        payloadItem.menu_category = category;
+                    }
+
+                    return payloadItem;
+                });
+
                 const response = await frappe.call({
                     method: 'imogi_pos.api.pricing.validate_promo_code',
                     args: payload,
