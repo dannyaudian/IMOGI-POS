@@ -1305,7 +1305,11 @@ imogi_pos.waiter_order = {
                                 <span class="variant-attr">${attr}: ${val}</span>
                             `).join('')}
                         </div>
-                        <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
+                        <div class="variant-price">${this.formatCurrency(
+                            variant.standard_rate !== undefined && variant.standard_rate !== null
+                                ? variant.standard_rate
+                                : (variant.rate !== undefined && variant.rate !== null ? variant.rate : 0)
+                        )}</div>
                     </div>
                 `).join('')}
             </div>

@@ -446,6 +446,9 @@ def get_item_variants(item_template=None, price_list=None, base_price_list=None,
             if currency_map.get(item_code):
                 variant["currency"] = currency_map[item_code]
 
+        # Provide a ``rate`` alias for compatibility with clients expecting this field
+        variant["rate"] = variant.get("standard_rate")
+
     return {
         "template": item_template,
         "attributes": attributes,
