@@ -44,6 +44,17 @@
           "description": "Configure Restaurant Settings"
         }
       ]
+    },
+    {
+      "label": "Promotions",
+      "items": [
+        {
+          "type": "doctype",
+          "name": "POS Promo Code",
+          "label": "Promo Codes",
+          "description": "Manage POS Promo Codes"
+        }
+      ]
     }
   ],
   "shortcuts": [
@@ -98,6 +109,9 @@
   "roles": [
     {
       "role": "Restaurant Manager"
+    },
+    {
+      "role": "POS Manager"
     },
     {
       "role": "Cashier"
