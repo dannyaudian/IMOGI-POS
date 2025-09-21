@@ -22,7 +22,9 @@ def _normalize_fieldname(fieldname):
     return fieldname
 
 
-def load_variants_module(get_all_handlers=None, get_value_map=None, exists_handler=None):
+def load_variants_module(
+    get_all_handlers=None, get_value_map=None, exists_handler=None, has_column_handler=None
+):
     sys.path.insert(0, ".")
 
     frappe = types.ModuleType("frappe")
@@ -43,9 +45,10 @@ def load_variants_module(get_all_handlers=None, get_value_map=None, exists_handl
     frappe.has_permission = lambda *args, **kwargs: True
 
     class DummyDB:
-        def __init__(self, value_map=None, exists=None):
+        def __init__(self, value_map=None, exists=None, has_column=None):
             self.value_map = value_map or {}
             self.exists_handler = exists
+            self.has_column_handler = has_column
 
         def get_value(self, doctype, name=None, fieldname=None, as_dict=False):
             key = (doctype, name, _normalize_fieldname(fieldname))
@@ -59,7 +62,16 @@ def load_variants_module(get_all_handlers=None, get_value_map=None, exists_handl
                 return self.exists_handler(doctype, name)
             return False
 
-    frappe.db = DummyDB(value_map=get_value_map, exists=exists_handler)
+        def has_column(self, doctype, column):
+            if self.has_column_handler:
+                return self.has_column_handler(doctype, column)
+            return False
+
+    frappe.db = DummyDB(
+        value_map=get_value_map,
+        exists=exists_handler,
+        has_column=has_column_handler,
+    )
 
     def default_get_all(doctype, filters=None, fields=None, limit_page_length=None):
         handler = (get_all_handlers or {}).get(doctype)
@@ -106,7 +118,7 @@ def test_get_items_with_stock_falls_back_to_base_price_list():
             has_variants=0,
             variant_of=None,
             item_group="Beverages",
-            menu_category=None,
+            menu_category="Beverages",
             photo=None,
             default_kitchen=None,
             default_kitchen_station=None,
@@ -136,6 +148,7 @@ def test_get_items_with_stock_falls_back_to_base_price_list():
         get_all_handlers=get_all_handlers,
         get_value_map=get_value_map,
         exists_handler=lambda *_: False,
+        has_column_handler=lambda dt, col: dt == "Price List" and col == "imogi_price_adjustment",
     )
 
     try:
@@ -227,24 +240,49 @@ def test_get_item_variants_flags_base_rate_from_price_list():
     variants.get_variant_picker_config = lambda *_: {"attributes": []}
 
     try:
+        # Pass base price list via ``frappe.form_dict`` to ensure it is honoured
+        variants.frappe.form_dict = {"base_price_list": "Standard"}
         response = variants.get_item_variants(
             "TEMPLATE-ITEM",
             price_list="Channel",
-            base_price_list="Standard",
         )
+
+        variant_list = response["variants"]
+        assert len(variant_list) == 2
+
+        red = next(v for v in variant_list if v["name"] == "ITEM-RED")
+        blue = next(v for v in variant_list if v["name"] == "ITEM-BLUE")
+
+        assert red["imogi_base_standard_rate"] == 12000
+        assert red["has_explicit_price_list_rate"] == 0
+        assert red["standard_rate"] == 12000
+
+        assert blue["imogi_base_standard_rate"] == 9000
+        assert blue["has_explicit_price_list_rate"] == 1
+        assert blue["standard_rate"] == 9000
+
+        # When no base price list is provided, the current price list becomes the baseline
+        variants.frappe.form_dict = {}
+        for variant in variant_rows:
+            variant.standard_rate = 0
+            variant.pop("imogi_base_standard_rate", None)
+            variant.pop("has_explicit_price_list_rate", None)
+            variant.pop("currency", None)
+        fallback_response = variants.get_item_variants(
+            "TEMPLATE-ITEM",
+            price_list="Channel",
+        )
+
+        fallback_variants = fallback_response["variants"]
+        fallback_red = next(v for v in fallback_variants if v["name"] == "ITEM-RED")
+        fallback_blue = next(v for v in fallback_variants if v["name"] == "ITEM-BLUE")
+
+        assert fallback_red["imogi_base_standard_rate"] == 0
+        assert fallback_red["has_explicit_price_list_rate"] == 0
+        assert fallback_red["standard_rate"] == 0
+
+        assert fallback_blue["imogi_base_standard_rate"] == 9000
+        assert fallback_blue["has_explicit_price_list_rate"] == 1
+        assert fallback_blue["standard_rate"] == 9000
     finally:
         unload_variants_module()
-
-    variant_list = response["variants"]
-    assert len(variant_list) == 2
-
-    red = next(v for v in variant_list if v["name"] == "ITEM-RED")
-    blue = next(v for v in variant_list if v["name"] == "ITEM-BLUE")
-
-    assert red["imogi_base_standard_rate"] == 12000
-    assert red["has_explicit_price_list_rate"] == 0
-    assert red["standard_rate"] == 12000
-
-    assert blue["imogi_base_standard_rate"] == 9000
-    assert blue["has_explicit_price_list_rate"] == 1
-    assert blue["standard_rate"] == 9000

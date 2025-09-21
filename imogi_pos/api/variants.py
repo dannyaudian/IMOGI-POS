@@ -314,7 +314,7 @@ def get_variant_picker_config(item_template):
     }
 
 @frappe.whitelist(allow_guest=True)
-def get_item_variants(item_template=None, price_list=None, **kwargs):
+def get_item_variants(item_template=None, price_list=None, base_price_list=None, **kwargs):
     """
     Gets all variants for a template item.
     
@@ -328,6 +328,12 @@ def get_item_variants(item_template=None, price_list=None, **kwargs):
         frappe.ValidationError: If item is not a template
     """
     form_dict = getattr(frappe, "form_dict", {}) or {}
+
+    base_price_list = (
+        base_price_list
+        or kwargs.get("base_price_list")
+        or form_dict.get("base_price_list")
+    )
 
     item_template = (
         item_template
