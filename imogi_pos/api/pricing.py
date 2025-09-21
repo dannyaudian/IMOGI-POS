@@ -414,4 +414,101 @@ def evaluate_order_discounts(
     return result
 
 
-__all__ = ["get_allowed_price_lists"]
+@frappe.whitelist()
+def validate_promo_code(**payload: Any) -> Dict[str, Any]:
+    """Validate a promo code request originating from the POS interfaces.
+
+    The UI submits a summarised payload (order totals, profile, table, etc.).
+    We leverage :func:`evaluate_order_discounts` for validation to keep the
+    business rules centralised and then reshape the outcome so the frontend can
+    consume it via ``normalizePromoResult``.
+    """
+
+    raw_code = (payload.get("promo_code") or payload.get("code") or "").strip()
+    if not raw_code:
+        return {"error": _("Promo code is required."), "valid": False}
+
+    items = payload.get("items")
+    evaluation = evaluate_order_discounts(items, promo_code=raw_code)
+
+    errors = evaluation.get("errors") or []
+    if errors:
+        message = errors[0]
+        return {
+            "code": raw_code.upper(),
+            "error": message,
+            "message": message,
+            "valid": False,
+        }
+
+    applied_code = (evaluation.get("applied_promo_code") or raw_code).strip()
+    if not applied_code:
+        return {
+            "code": raw_code.upper(),
+            "error": _("Promo code is invalid or inactive."),
+            "valid": False,
+        }
+
+    discount_percent = flt(evaluation.get("discount_percent") or 0)
+    discount_amount = flt(evaluation.get("discount_amount") or 0)
+
+    promo = None
+    active_codes = get_active_promo_codes()
+    if active_codes:
+        promo = active_codes.get(applied_code.upper()) or active_codes.get(raw_code.upper())
+
+    discount_type = None
+    if promo:
+        discount_type = promo.get("discount_type")
+        discount_value = flt(promo.get("discount_value") or 0)
+        normalised_type = (discount_type or "").lower()
+        if normalised_type == "percent" and discount_percent <= 0:
+            discount_percent = discount_value
+        elif normalised_type != "percent" and discount_amount <= 0:
+            discount_amount = discount_value
+
+    if not discount_type:
+        if discount_percent > 0 and discount_amount <= 0:
+            discount_type = "Percent"
+        elif discount_amount > 0 and discount_percent <= 0:
+            discount_type = "Amount"
+        elif discount_percent > 0:
+            discount_type = "Percent"
+        elif discount_amount > 0:
+            discount_type = "Amount"
+
+    messages = [str(entry) for entry in evaluation.get("messages") or [] if entry]
+    description = " ".join(messages) if messages else None
+    if not description and discount_type:
+        if (discount_type or "").lower() == "percent" and discount_percent > 0:
+            description = _("Applied promo code {0} for {1}% off.").format(
+                applied_code, discount_percent
+            )
+        elif discount_amount > 0:
+            description = _("Applied promo code {0} for a {1} discount.").format(
+                applied_code, discount_amount
+            )
+
+    label = None
+    if promo:
+        label = promo.get("label")
+    if not label:
+        if (discount_type or "").lower() == "percent" and discount_percent > 0:
+            label = _("Promo {0} ({1}% off)").format(applied_code, discount_percent)
+        else:
+            label = _("Promo {0}").format(applied_code)
+
+    return {
+        "code": applied_code.upper(),
+        "promo_code": applied_code.upper(),
+        "discount_type": discount_type,
+        "discount_percent": discount_percent,
+        "discount_amount": discount_amount,
+        "label": label,
+        "description": description,
+        "message": messages[0] if messages else None,
+        "valid": True,
+    }
+
+
+__all__ = ["get_allowed_price_lists", "evaluate_order_discounts", "validate_promo_code"]
