@@ -2575,7 +2575,9 @@ imogi_pos.cashier_console = {
         
         const variants = data.variants || [];
         const attributes = data.attributes || [];
-        
+        const attributeLabelMap = {};
+        const attributeValueLabelMap = {};
+
         if (variants.length === 0) {
             modalBody.innerHTML = `
                 <div class="empty-state">
@@ -2584,7 +2586,7 @@ imogi_pos.cashier_console = {
             `;
             return;
         }
-        
+
         // Create attribute filters if multiple attributes
         let attributeFiltersHtml = '';
         if (attributes.length > 0) {
@@ -2592,29 +2594,81 @@ imogi_pos.cashier_console = {
                 <div class="variant-filters">
                     ${attributes.map(attr => `
                         <div class="variant-filter">
-                            <label>${attr.attribute}</label>
-                            <select class="variant-attribute-select" data-attribute="${attr.attribute}">
-                                <option value="">All</option>
-                                ${attr.values.map(val => `
-                                    <option value="${val}">${val}</option>
-                                `).join('')}
-                            </select>
+                            ${(() => {
+                                const attributeKey = attr.name || attr.fieldname || attr.attribute;
+                                if (!attributeKey) {
+                                    return '';
+                                }
+                                const attributeLabel = attr.label || attr.name || attr.attribute || attributeKey;
+                                const attributeValues = (attr.values || []).map(val => {
+                                    if (val && typeof val === 'object') {
+                                        return {
+                                            value: val.value ?? val.name ?? '',
+                                            label: val.label ?? val.value ?? val.name ?? ''
+                                        };
+                                    }
+                                    return { value: val, label: val };
+                                }).filter(option => option.value !== undefined && option.value !== null && option.value !== '');
+
+                                attributeLabelMap[attributeKey] = attributeLabel;
+                                if (!attributeValueLabelMap[attributeKey]) {
+                                    attributeValueLabelMap[attributeKey] = {};
+                                }
+
+                                const optionsHtml = attributeValues.map(option => {
+                                    const optionValue = String(option.value);
+                                    const optionLabel = option.label || optionValue;
+                                    attributeValueLabelMap[attributeKey][optionValue] = optionLabel;
+                                    return `<option value="${optionValue}">${optionLabel}</option>`;
+                                }).join('');
+
+                                return `
+                                    <label>${attributeLabel}</label>
+                                    <select class="variant-attribute-select" data-attribute="${attributeKey}">
+                                        <option value="">All</option>
+                                        ${optionsHtml}
+                                    </select>
+                                `;
+                            })()}
                         </div>
                     `).join('')}
                 </div>
             `;
         }
-        
+
         // Create variant list
         let variantsHtml = `
             <div class="variant-list" id="variant-list">
-                ${variants.map(variant => `
-                    <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(variant.attributes || {})}'>
-                        <div class="variant-name">${variant.item_name}</div>
-                        <div class="variant-attrs">
-                            ${Object.entries(variant.attributes || {}).map(([attr, val]) => `
-                                <span class="variant-attr">${attr}: ${val}</span>
-                            `).join('')}
+                ${variants.map(variant => {
+                    const normalizedAttributes = {};
+                    const variantAttributesHtml = Object.entries(variant.attributes || {}).map(([attrKey, attrValue]) => {
+                        const attributeLabel = attributeLabelMap[attrKey] || attrKey;
+                        let normalizedValue = attrValue;
+                        let displayValue = attrValue;
+
+                        if (attrValue && typeof attrValue === 'object') {
+                            normalizedValue = attrValue.value ?? attrValue.name ?? '';
+                            displayValue = attrValue.label ?? attrValue.value ?? attrValue.name ?? '';
+                        }
+
+                        const normalizedString = normalizedValue !== undefined && normalizedValue !== null ? String(normalizedValue) : '';
+
+                        if (normalizedString) {
+                            normalizedAttributes[attrKey] = normalizedString;
+                        }
+
+                        const valueLabelMap = attributeValueLabelMap[attrKey] || {};
+                        const lookupLabel = normalizedString ? valueLabelMap[normalizedString] : undefined;
+                        const finalDisplayValue = lookupLabel || displayValue || normalizedString;
+
+                        return `<span class="variant-attr">${attributeLabel}: ${finalDisplayValue}</span>`;
+                    }).join('');
+
+                    return `
+                        <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(normalizedAttributes)}'>
+                            <div class="variant-name">${variant.item_name}</div>
+                            <div class="variant-attrs">${variantAttributesHtml}</div>
+                            <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
                         </div>
                         <div class="variant-price">${this.formatCurrency(
                             variant.standard_rate !== undefined && variant.standard_rate !== null
@@ -2674,21 +2728,22 @@ imogi_pos.cashier_console = {
         attributeSelects.forEach(select => {
             const attribute = select.dataset.attribute;
             const value = select.value;
-            
-            if (value) {
+
+            if (attribute && value !== '') {
                 selectedAttributes[attribute] = value;
             }
         });
-        
+
         // Filter variant cards
         const variantCards = variantList.querySelectorAll('.variant-card');
         variantCards.forEach(card => {
             const attributes = JSON.parse(card.dataset.attributes || '{}');
             let show = true;
-            
+
             // Check if variant matches all selected attributes
             Object.entries(selectedAttributes).forEach(([attr, value]) => {
-                if (attributes[attr] !== value) {
+                const variantValue = attributes[attr];
+                if (variantValue === undefined || String(variantValue) !== String(value)) {
                     show = false;
                 }
             });
