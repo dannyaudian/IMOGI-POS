@@ -10,6 +10,87 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime
 
 
+def _normalise_text(value: Any) -> Optional[str]:
+    """Return a stripped string representation or ``None`` for empty values."""
+
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        normalised = value.strip()
+    else:
+        normalised = str(value).strip()
+
+    return normalised or None
+
+
+def _get_promo_scope_values(
+    doctype: str, fieldname: str, promo_name: Optional[str]
+) -> List[str]:
+    """Fetch trimmed values from a promo child table."""
+
+    if not promo_name:
+        return []
+
+    try:
+        rows = frappe.get_all(
+            doctype,
+            filters={"parent": promo_name, "parenttype": "POS Promo Code"},
+            pluck=fieldname,
+        )
+    except Exception:
+        return []
+
+    values: List[str] = []
+    for row in rows or []:
+        candidate = row.get(fieldname) if isinstance(row, dict) else row
+        normalised = _normalise_text(candidate)
+        if normalised:
+            values.append(normalised)
+
+    return values
+
+
+def _fetch_item_menu_category(
+    item_code: Optional[str], cache: Dict[str, Optional[str]]
+) -> Optional[str]:
+    """Return the menu category for an item, caching lookups."""
+
+    code = _normalise_text(item_code)
+    cache_key = (code or "").upper()
+    if not cache_key:
+        return None
+
+    if cache_key in cache:
+        return cache[cache_key]
+
+    category = None
+    if code:
+        try:
+            category = frappe.db.get_value("Item", code, "menu_category")
+        except Exception:
+            category = None
+
+    normalised = _normalise_text(category)
+    cache[cache_key] = normalised
+    return normalised
+
+
+def _extract_menu_category(
+    entry: Dict[str, Any],
+    item_code: Optional[str],
+    cache: Dict[str, Optional[str]],
+) -> Optional[str]:
+    """Determine the menu category for a cart entry."""
+
+    for key in ("menu_category", "category", "item_group"):
+        category = _normalise_text(entry.get(key))
+        if category:
+            return category
+
+    return _fetch_item_menu_category(item_code, cache)
+
+
 def get_active_promo_codes() -> Dict[str, Dict[str, Any]]:
     """Return active promo code configurations keyed by their code."""
 
@@ -33,11 +114,18 @@ def get_active_promo_codes() -> Dict[str, Dict[str, Any]]:
             continue
 
         key = normalised.upper()
+        promo_name = getattr(row, "name", None)
         active[key] = {
-            "name": getattr(row, "name", None),
+            "name": promo_name,
             "code": normalised,
             "discount_type": getattr(row, "discount_type", None),
             "discount_value": flt(getattr(row, "discount_value", 0)),
+            "applicable_categories": _get_promo_scope_values(
+                "POS Promo Category", "menu_category", promo_name
+            ),
+            "applicable_items": _get_promo_scope_values(
+                "POS Promo Item", "item", promo_name
+            ),
         }
 
     return active
@@ -350,11 +438,23 @@ def evaluate_order_discounts(
     }
 
     total_qty = 0.0
+    item_codes_in_cart: Set[str] = set()
+    categories_in_cart: Set[str] = set()
+    category_cache: Dict[str, Optional[str]] = {}
+
     for entry in normalised_items:
         qty = entry.get("qty")
         if qty in (None, ""):
             qty = entry.get("quantity")
         total_qty += _coerce_number(qty)
+
+        item_code = _normalise_text(entry.get("item_code") or entry.get("item"))
+        if item_code:
+            item_codes_in_cart.add(item_code.upper())
+
+        category = _extract_menu_category(entry, item_code, category_cache)
+        if category:
+            categories_in_cart.add(category.casefold())
 
     if total_qty >= 5:
         result["discount_percent"] = 10.0
@@ -381,6 +481,8 @@ def evaluate_order_discounts(
         )
         return result
 
+    applied_code = promo.get("code") or code
+
     discount_value = _coerce_number(promo.get("discount_value"))
     if discount_value <= 0:
         result.update(
@@ -397,7 +499,70 @@ def evaluate_order_discounts(
         return result
 
     discount_type = (promo.get("discount_type") or "").lower()
-    applied_code = promo.get("code") or code
+
+    configured_item_values = promo.get("applicable_items") or promo.get("items") or []
+    configured_items: List[str] = []
+    allowed_item_codes: Set[str] = set()
+    for value in configured_item_values or []:
+        normalised_item = _normalise_text(value)
+        if not normalised_item:
+            continue
+        key = normalised_item.upper()
+        if key in allowed_item_codes:
+            continue
+        allowed_item_codes.add(key)
+        configured_items.append(normalised_item)
+
+    configured_category_values = (
+        promo.get("applicable_categories") or promo.get("categories") or []
+    )
+    configured_categories: List[str] = []
+    allowed_category_tokens: Set[str] = set()
+    for value in configured_category_values or []:
+        normalised_category = _normalise_text(value)
+        if not normalised_category:
+            continue
+        key = normalised_category.casefold()
+        if key in allowed_category_tokens:
+            continue
+        allowed_category_tokens.add(key)
+        configured_categories.append(normalised_category)
+
+    if allowed_item_codes and not item_codes_in_cart.intersection(allowed_item_codes):
+        result.update(
+            {
+                "discount_percent": 0.0,
+                "discount_amount": 0.0,
+                "applied_promo_code": None,
+                "messages": [],
+            }
+        )
+        items_list = ", ".join(configured_items)
+        result["errors"].append(
+            _("Promo code {0} only applies to the following items: {1}.").format(
+                applied_code, items_list
+            )
+        )
+        return result
+
+    if allowed_category_tokens and not categories_in_cart.intersection(
+        allowed_category_tokens
+    ):
+        result.update(
+            {
+                "discount_percent": 0.0,
+                "discount_amount": 0.0,
+                "applied_promo_code": None,
+                "messages": [],
+            }
+        )
+        categories_list = ", ".join(configured_categories)
+        result["errors"].append(
+            _("Promo code {0} only applies to menu categories: {1}.").format(
+                applied_code, categories_list
+            )
+        )
+        return result
 
     if discount_type == "percent":
         result["discount_percent"] = discount_value

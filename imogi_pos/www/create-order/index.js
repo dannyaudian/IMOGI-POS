@@ -552,6 +552,53 @@ frappe.ready(async function () {
         };
         if (this.tableNumber) payload.table = this.tableNumber;
 
+        const normalizeCategoryValue = (value) => {
+          if (value === null || value === undefined) return null;
+          const text = String(value).trim();
+          return text || null;
+        };
+
+        payload.items = this.cart.map((entry) => {
+          const itemCode = entry.item_code || entry.item || null;
+          const payloadItem = {};
+          if (itemCode) {
+            payloadItem.item_code = itemCode;
+            payloadItem.item = itemCode;
+          }
+
+          const numericQty = Number(entry.qty ?? entry.quantity);
+          if (Number.isFinite(numericQty)) {
+            payloadItem.qty = numericQty;
+            payloadItem.quantity = numericQty;
+          } else if (entry.qty !== undefined) {
+            payloadItem.qty = entry.qty;
+          }
+
+          let category =
+            normalizeCategoryValue(entry.menu_category) ||
+            normalizeCategoryValue(entry.category) ||
+            normalizeCategoryValue(entry.item_group) ||
+            null;
+
+          if (!category && itemCode) {
+            const catalog =
+              this.getCatalogItem(itemCode) ||
+              (entry.variant_of ? this.getCatalogItem(entry.variant_of) : null);
+            if (catalog) {
+              category =
+                normalizeCategoryValue(catalog.menu_category) ||
+                normalizeCategoryValue(catalog.item_group) ||
+                null;
+            }
+          }
+
+          if (category) {
+            payloadItem.menu_category = category;
+          }
+
+          return payloadItem;
+        });
+
         const response = await frappe.call({
           method: "imogi_pos.api.pricing.validate_promo_code",
           args: payload,
@@ -1588,6 +1635,17 @@ frappe.ready(async function () {
       const baseRate = Number(item.standard_rate || 0);
       const extraRate = Number(item_options.extra_price || 0);
       const rate = baseRate + extraRate;
+      const catalogItem =
+        this.getCatalogItem(item.name) ||
+        this.getCatalogItem(item.item_code) ||
+        (item.variant_of ? this.getCatalogItem(item.variant_of) : null);
+      const resolvedCategory =
+        (item.menu_category && String(item.menu_category).trim()) ||
+        (item.item_group && String(item.item_group).trim()) ||
+        (catalogItem &&
+          ((catalogItem.menu_category && String(catalogItem.menu_category).trim()) ||
+            (catalogItem.item_group && String(catalogItem.item_group).trim()))) ||
+        null;
       const existingIndex = this.cart.findIndex(
         (i) =>
           i.item_code === item.name &&
@@ -1601,6 +1659,9 @@ frappe.ready(async function () {
         this.cart[existingIndex]._extra_rate = extraRate;
         this.cart[existingIndex].rate = baseRate + extraRate;
         this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
+        if (!this.cart[existingIndex].menu_category && resolvedCategory) {
+          this.cart[existingIndex].menu_category = resolvedCategory;
+        }
       } else {
         this.cart.push({
           item_code: item.name,
@@ -1612,6 +1673,7 @@ frappe.ready(async function () {
           item_options: item_options,
           kitchen: item.default_kitchen,
           kitchen_station: item.default_kitchen_station,
+          menu_category: resolvedCategory,
           _base_rate: baseRate,
           _extra_rate: extraRate,
         });
