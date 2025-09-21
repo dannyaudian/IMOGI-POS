@@ -8,7 +8,10 @@
     "code",
     "discount_type",
     "discount_value",
-    "enabled"
+    "enabled",
+    "applicability_section",
+    "applicable_menu_categories",
+    "applicable_items"
   ],
   "fields": [
     {
@@ -36,6 +39,23 @@
       "fieldname": "enabled",
       "fieldtype": "Check",
       "label": "Enabled"
+    },
+    {
+      "fieldname": "applicability_section",
+      "fieldtype": "Section Break",
+      "label": "Applicability"
+    },
+    {
+      "fieldname": "applicable_menu_categories",
+      "fieldtype": "Table",
+      "label": "Applicable Menu Categories",
+      "options": "POS Promo Category"
+    },
+    {
+      "fieldname": "applicable_items",
+      "fieldtype": "Table",
+      "label": "Applicable Items",
+      "options": "POS Promo Item"
     }
   ],
   "index_web_pages_for_search": 1,
