@@ -1147,16 +1147,18 @@ imogi_pos.kiosk = {
                     <div class="option-group-title">${title}</div>
                     <div class="option-cards">
                         ${choices.map((opt, index) => {
-                            const { label, value, price = 0, default: isDefault } = opt;
+                            const { label, value, price = 0, default: isDefault, linked_item: linkedItem } = opt;
                             const optionId = `option-${field}-${index}`;
                             const rawPrice = parseFloat(price);
                             const priceValue = Number.isFinite(rawPrice) ? rawPrice : 0;
                             const priceDisplay = priceValue ? `<span class="option-card-price">+${this.formatCurrency(priceValue)}</span>` : '';
                             const checkedAttr = isDefault ? ' checked' : '';
                             const nameAttr = isTopping ? `option-${field}[]` : `option-${field}`;
+                            const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                            const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
                             return `
                                 <div class="option-card-wrapper">
-                                    <input type="${optionType}" id="${optionId}" class="option-input" name="${nameAttr}" data-option="${field}" value="${value}" data-price="${priceValue}"${checkedAttr}>
+                                    <input type="${optionType}" id="${optionId}" class="option-input" name="${nameAttr}" data-option="${field}" value="${value}" data-price="${priceValue}"${linkedAttr}${labelAttr}${checkedAttr}>
                                     <label for="${optionId}" class="option-card">
                                         <span class="option-card-label">${label}</span>
                                         ${priceDisplay}
@@ -1277,6 +1279,23 @@ imogi_pos.kiosk = {
             return total;
         };
 
+        const buildOptionPayload = (value, label, linkedItem) => {
+            if (value === undefined || value === null || value === '') {
+                return null;
+            }
+
+            const payload = {
+                value: value,
+                name: label && label !== '' ? label : value,
+            };
+
+            if (linkedItem && linkedItem !== '') {
+                payload.linked_item = linkedItem;
+            }
+
+            return payload;
+        };
+
         const updateSummary = () => {
             const optionPrice = computeOptionSurcharge();
             const qty = getQuantity();
@@ -1394,15 +1413,19 @@ imogi_pos.kiosk = {
                     if (selected[0].type === 'checkbox') {
                         const values = selected.map(input => {
                             optionPrice += parsePrice(input.dataset.price);
-                            return input.value;
-                        });
+                            const linkedItem = input.dataset.linkedItem || '';
+                            const optionLabel = input.dataset.label || '';
+                            return buildOptionPayload(input.value, optionLabel, linkedItem) || input.value;
+                        }).filter(Boolean);
                         if (values.length) {
                             selectedOptions[key] = values;
                         }
                     } else {
                         const input = selected[0];
                         optionPrice += parsePrice(input.dataset.price);
-                        selectedOptions[key] = input.value;
+                        const linkedItem = input.dataset.linkedItem || '';
+                        const optionLabel = input.dataset.label || '';
+                        selectedOptions[key] = buildOptionPayload(input.value, optionLabel, linkedItem) || input.value;
                     }
                 });
 
@@ -1546,7 +1569,8 @@ imogi_pos.kiosk = {
                             rate: rate,
                             amount: rate * qty,
                             notes: itemNotes,
-                            options: options
+                            options: options,
+                            item_options: options
                         });
                     }
 
@@ -1867,13 +1891,18 @@ imogi_pos.kiosk = {
         this.showLoading(true, 'Processing your order...');
         
         // Create POS Order
+        const payloadItems = this.state.cart.map(item => {
+            const itemOptions = item.item_options || item.options || {};
+            return Object.assign({}, item, { item_options: itemOptions });
+        });
+
         frappe.call({
             method: 'imogi_pos.api.orders.create_order',
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
                 order_type: 'Kiosk',
-                items: this.state.cart
+                items: payloadItems
             },
             callback: (response) => {
                 if (response.message && response.message.name) {

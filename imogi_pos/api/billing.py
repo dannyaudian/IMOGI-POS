@@ -104,9 +104,25 @@ def compute_customizations(order_item):
         if group == "extra_price" or selection in (None, "", []):
             continue
         if isinstance(selection, list):
-            names = [s.get("name") if isinstance(s, dict) else s for s in selection if s]
+            entries = selection
         else:
-            names = [selection.get("name") if isinstance(selection, dict) else selection]
+            entries = [selection]
+
+        names = []
+        linked_codes = set()
+        for entry in entries:
+            if not entry:
+                continue
+            if isinstance(entry, dict):
+                display = entry.get("name") or entry.get("label") or entry.get("value")
+                if display is not None and display != "":
+                    names.append(str(display))
+                linked_code = entry.get("linked_item")
+                if linked_code:
+                    linked_codes.add(linked_code)
+            else:
+                names.append(str(entry))
+
         if not names:
             continue
 
@@ -121,8 +137,10 @@ def compute_customizations(order_item):
                 except Exception:
                     item_doc = None
             if item_doc:
-                for name in names:
-                    total_delta += _get_option_price(item_doc, table, name)
+                skip_price_lookup = bool(linked_codes and getattr(order_item, "item", None) in linked_codes)
+                if not skip_price_lookup:
+                    for name in names:
+                        total_delta += _get_option_price(item_doc, table, name)
 
     summary = ", ".join(summary_parts)
     return total_delta, customizations, summary

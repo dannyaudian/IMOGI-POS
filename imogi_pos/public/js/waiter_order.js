@@ -1476,6 +1476,17 @@ imogi_pos.waiter_order = {
         const modalContainer = this.container.querySelector('#modal-container');
         if (!modalContainer) return;
 
+        const escapeAttr = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+
         let fieldsHtml = '';
         Object.entries(optionsData).forEach(([field, choices]) => {
             if (!['size', 'spice', 'topping', 'variant'].includes(field)) return;
@@ -1483,24 +1494,30 @@ imogi_pos.waiter_order = {
             if (field === 'topping') {
                 fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label>` +
                     choices.map(opt => {
-                        const { label, value, price = 0 } = opt;
-                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"> ${label}</label>`;
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr}> ${label}</label>`;
                     }).join('') + '</div>';
             } else if (field === 'variant') {
                 fieldsHtml += `<div class="option-group" data-option="${field}" data-required="1"><label>${title}</label>` +
                     choices.map((opt, index) => {
-                        const { label, value, price = 0, default: isDefault } = opt;
+                        const { label, value, price = 0, default: isDefault, linked_item: linkedItem } = opt;
                         const checked = isDefault ? 'checked' : '';
                         const optionId = `option-${field}-${index}`;
                         const priceText = price ? ` (+${this.formatCurrency(price)})` : '';
-                        return `<label for="${optionId}"><input type="radio" id="${optionId}" class="option-radio" name="option-${field}" data-option="${field}" value="${value}" data-price="${price}" ${checked}> ${label}${priceText}</label>`;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label for="${optionId}"><input type="radio" id="${optionId}" class="option-radio" name="option-${field}" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr} ${checked}> ${label}${priceText}</label>`;
                     }).join('') + '</div>';
             } else {
                 fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label><select class="option-select" data-option="${field}">` +
                     `<option value="" data-price="0">Select ${title}</option>` +
                     choices.map(opt => {
-                        const { label, value, price = 0 } = opt;
-                        return `<option value="${value}" data-price="${price}">${label}</option>`;
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<option value="${value}" data-price="${price}"${linkedAttr}${labelAttr}>${label}</option>`;
                     }).join('') + '</select></div>';
             }
         });
@@ -1535,6 +1552,20 @@ imogi_pos.waiter_order = {
                 let optionPrice = 0;
                 const missing = [];
 
+                const buildOptionPayload = (value, label, linkedItem) => {
+                    if (!value) {
+                        return null;
+                    }
+                    const payload = {
+                        value: value,
+                        name: label && label !== '' ? label : value,
+                    };
+                    if (linkedItem && linkedItem !== '') {
+                        payload.linked_item = linkedItem;
+                    }
+                    return payload;
+                };
+
                 modalContainer.querySelectorAll('.option-group[data-option]').forEach(group => {
                     const key = group.dataset.option;
                     const required = group.dataset.required === '1';
@@ -1545,7 +1576,9 @@ imogi_pos.waiter_order = {
                         const value = select.value;
                         const price = parseFloat((opt && opt.dataset.price) || 0);
                         if (value) {
-                            selectedOptions[key] = value;
+                            const linkedItem = (opt && opt.dataset.linkedItem) || '';
+                            const label = (opt && (opt.dataset.label || opt.textContent)) || value;
+                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem) || value;
                             optionPrice += price;
                         } else if (required) {
                             missing.push(this.toTitleCase(key));
@@ -1555,7 +1588,9 @@ imogi_pos.waiter_order = {
 
                     const radio = group.querySelector('.option-radio:checked');
                     if (radio) {
-                        selectedOptions[key] = radio.value;
+                        const linkedItem = radio.dataset.linkedItem || '';
+                        const label = radio.dataset.label || radio.value;
+                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem) || radio.value;
                         optionPrice += parseFloat(radio.dataset.price || 0);
                         return;
                     } else if (group.querySelector('.option-radio') && required) {
@@ -1567,8 +1602,13 @@ imogi_pos.waiter_order = {
                     if (checkboxes.length) {
                         const values = [];
                         checkboxes.forEach(cb => {
-                            values.push(cb.value);
                             optionPrice += parseFloat(cb.dataset.price || 0);
+                            const linkedItem = cb.dataset.linkedItem || '';
+                            const label = cb.dataset.label || cb.value;
+                            const payload = buildOptionPayload(cb.value, label, linkedItem) || cb.value;
+                            if (payload) {
+                                values.push(payload);
+                            }
                         });
                         if (values.length) {
                             selectedOptions[key] = values;
@@ -1679,7 +1719,8 @@ imogi_pos.waiter_order = {
                             rate: rate,
                             amount: rate,
                             notes: '',
-                            options: options
+                            options: options,
+                            item_options: options
                         });
                     }
 
@@ -1977,7 +2018,8 @@ imogi_pos.waiter_order = {
                     item: item.item,
                     qty: item.qty,
                     rate: item.rate,
-                    notes: item.notes
+                    notes: item.notes,
+                    item_options: item.item_options || item.options || {}
                 })),
                 customer: this.state.customerId
             };

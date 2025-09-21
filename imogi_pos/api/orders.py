@@ -148,6 +148,46 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     if not item_code:
         frappe.throw(_("Item is required"), frappe.ValidationError)
 
+    # Merge and normalise item options
+    options_value = item_options if item_options is not None else item_payload.get("item_options")
+    if isinstance(options_value, str) and options_value:
+        try:
+            options_value = frappe.parse_json(options_value)
+        except Exception:
+            frappe.throw(_("Invalid item options payload"), frappe.ValidationError)
+
+    def _extract_linked_code(selection):
+        if isinstance(selection, dict):
+            linked = selection.get("linked_item")
+            if linked:
+                return linked
+            nested = selection.get("value")
+            if nested:
+                return _extract_linked_code(nested)
+        elif isinstance(selection, (list, tuple)):
+            for entry in selection:
+                linked = _extract_linked_code(entry)
+                if linked:
+                    return linked
+        return None
+
+    replacement_code = None
+    if isinstance(options_value, dict):
+        variant_selection = options_value.get("variant")
+        replacement_code = _extract_linked_code(variant_selection)
+        if not replacement_code:
+            for group, selection in options_value.items():
+                if group in {"price", "extra_price"}:
+                    continue
+                replacement_code = _extract_linked_code(selection)
+                if replacement_code:
+                    break
+
+    if replacement_code:
+        item_code = replacement_code
+        item_payload["item"] = item_code
+        item_payload["item_code"] = item_code
+
     # Quantity is either provided explicitly or inside the payload
     qty_value = item_payload.get("qty") if item_payload.get("qty") not in (None, "") else qty
     try:
@@ -185,14 +225,6 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
             fallback_rate = frappe.db.get_value("Item", item_code, "standard_rate")
 
         rate_value = flt(fallback_rate or 0)
-
-    # Merge and normalise item options
-    options_value = item_options if item_options is not None else item_payload.get("item_options")
-    if isinstance(options_value, str) and options_value:
-        try:
-            options_value = frappe.parse_json(options_value)
-        except Exception:
-            frappe.throw(_("Invalid item options payload"), frappe.ValidationError)
 
     row_data = {
         "item": item_code,
