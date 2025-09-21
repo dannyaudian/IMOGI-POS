@@ -114,16 +114,18 @@ When not set to "Restaurant", the UI will hide restaurant-specific elements and 
 ## Item Options
 
 Items can expose configurable categories such as sizes, spice levels, or toppings. These are retrieved via the
-`get_item_options` API and stored on each POS Order Item using the `item_options` field.
+`get_item_options` API and stored on each POS Order Item using the `item_options` field. Each option entry includes the
+display `label`, persisted `value`, additional `price`, and can optionally expose `linked_item` when the selection should
+use a different Item/BOM code.
 
 ```python
 # Fetch available options for an item
 frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
 # Returns:
 # {
-#   "size":   [{"label": "Large",  "value": "Large",  "price": 0}],
+#   "size":   [{"label": "Large",  "value": "Large",  "price": 0, "linked_item": "ITEM-LARGE"}],
 #   "spice":  [{"label": "Hot",    "value": "Hot",    "price": 0}],
-#   "topping": [{"label": "Cheese", "value": "Cheese", "price": 0}]
+#   "topping": [{"label": "Cheese", "value": "Cheese", "price": 0, "linked_item": "ITEM-CHEESE"}]
 # }
 
 # Example of adding an item with selected options to an order
@@ -136,6 +138,10 @@ frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
     }
 }
 ```
+
+To link an option to another SKU/BOM, open the relevant child table row (e.g., **Item Size Option**) and populate the
+**Linked Item** field with the target Item code. The API will return that code in the `linked_item` key so the frontend can
+swap to the replacement when the option is chosen.
 
 ## Stock Updates
 

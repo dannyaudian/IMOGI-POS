@@ -6,6 +6,7 @@
   "engine": "InnoDB",
   "field_order": [
     "option_name",
+    "linked_item",
     "additional_price"
   ],
   "fields": [
@@ -15,6 +16,13 @@
       "in_list_view": 1,
       "label": "Option Name",
       "reqd": 1
+    },
+    {
+      "fieldname": "linked_item",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Linked Item",
+      "options": "Item"
     },
     {
       "fieldname": "additional_price",
