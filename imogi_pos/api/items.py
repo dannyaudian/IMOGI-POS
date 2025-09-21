@@ -21,7 +21,9 @@ def get_item_options(item):
 
     Returns:
         dict: Only contains keys for active categories with list of dictionaries
-        having ``label``, ``value`` and ``price``.
+        having ``label``, ``value`` and ``price``. Options may include an
+        optional ``linked_item`` when the selection should use another Item or
+        BOM.
     """
 
     result = {}
@@ -39,6 +41,10 @@ def get_item_options(item):
             return None
         price = getattr(row, "additional_price", 0) or 0
         opt = {"label": name, "value": name, "price": price}
+
+        linked_item = getattr(row, "linked_item", None)
+        if linked_item:
+            opt["linked_item"] = linked_item
 
         # Some child tables may provide a flag indicating a default option.
         # The field name can vary (``default``/``is_default``), so we check

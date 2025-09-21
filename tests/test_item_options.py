@@ -37,10 +37,22 @@ def test_get_item_options_structure():
         has_variant_option=1,
         has_sugar_option=1,
         has_ice_option=1,
-        item_size_options=[types.SimpleNamespace(option_name="Large", additional_price=0)],
+        item_size_options=[
+            types.SimpleNamespace(
+                option_name="Large", additional_price=0, linked_item="ITEM-LARGE"
+            )
+        ],
         item_spice_options=[types.SimpleNamespace(option_name="Hot", additional_price=0)],
-        item_topping_options=[types.SimpleNamespace(option_name="Cheese", additional_price=0)],
-        item_variant_options=[types.SimpleNamespace(option_name="Vanilla", additional_price=0)],
+        item_topping_options=[
+            types.SimpleNamespace(
+                option_name="Cheese", additional_price=0, linked_item="ITEM-CHEESE"
+            )
+        ],
+        item_variant_options=[
+            types.SimpleNamespace(
+                option_name="Vanilla", additional_price=0, linked_item="ITEM-VANILLA"
+            )
+        ],
         item_sugar_options=[types.SimpleNamespace(option_name="Less", additional_price=0)],
         item_ice_options=[types.SimpleNamespace(option_name="No Ice", additional_price=0)],
     )
@@ -49,12 +61,36 @@ def test_get_item_options_structure():
     unload_items_module()
 
     assert set(result.keys()) == {"size", "spice", "topping", "variant", "sugar", "ice"}
-    assert result["size"] == [{"label": "Large", "value": "Large", "price": 0}]
+    assert result["size"] == [
+        {
+            "label": "Large",
+            "value": "Large",
+            "price": 0,
+            "linked_item": "ITEM-LARGE",
+        }
+    ]
     assert result["spice"] == [{"label": "Hot", "value": "Hot", "price": 0}]
-    assert result["topping"] == [{"label": "Cheese", "value": "Cheese", "price": 0}]
-    assert result["variant"] == [{"label": "Vanilla", "value": "Vanilla", "price": 0}]
+    assert result["topping"] == [
+        {
+            "label": "Cheese",
+            "value": "Cheese",
+            "price": 0,
+            "linked_item": "ITEM-CHEESE",
+        }
+    ]
+    assert result["variant"] == [
+        {
+            "label": "Vanilla",
+            "value": "Vanilla",
+            "price": 0,
+            "linked_item": "ITEM-VANILLA",
+        }
+    ]
     assert result["sugar"] == [{"label": "Less", "value": "Less", "price": 0}]
     assert result["ice"] == [{"label": "No Ice", "value": "No Ice", "price": 0}]
+    assert "linked_item" not in result["spice"][0]
+    assert "linked_item" not in result["sugar"][0]
+    assert "linked_item" not in result["ice"][0]
 
 
 def test_get_item_options_skip_inactive():
