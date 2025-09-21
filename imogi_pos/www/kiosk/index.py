@@ -76,6 +76,23 @@ def get_context(context):
             break
     context.allow_discounts = cint(discount_flag)
     
+    try:
+        restaurant_settings = frappe.get_cached_doc("Restaurant Settings")
+    except Exception:
+        restaurant_settings = None
+
+    if restaurant_settings:
+        restaurant_discount_fields = [
+            "imogi_allow_discounts_on_kiosk",
+            "imogi_allow_discounts",
+            "imogi_enable_discounts",
+            "allow_discount",
+        ]
+        for field in restaurant_discount_fields:
+            if cint(restaurant_settings.get(field)):
+                context.allow_discounts = 1
+                break
+
     # Get Queue Number if applicable
     context.next_queue_number = get_next_queue_number(context.branch) if context.branch else 1
     
