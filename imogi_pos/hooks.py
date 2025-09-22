@@ -35,6 +35,8 @@ doctype_js = {
     "POS Order": "public/js/doctype/pos_order.js",
     "Restaurant Table": "public/js/restaurant_table_qr.js",
 }
+
+doctype_list_js = {"Item": "public/js/doctype/item_list.js"}
 doc_events = {
     "POS Order": {
         "before_save": "imogi_pos.utils.audit.sync_last_edited_by",
