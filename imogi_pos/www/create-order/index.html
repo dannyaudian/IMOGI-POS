@@ -571,10 +571,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
     <div class="modal-body">
       <div class="variant-grid" id="variant-grid"></div>
       {% if allow_notes %}
-      <div class="notes-field">
-        <label for="item-notes" class="notes-label">{{ _("Special Instructions") }}</label>
-        <textarea id="item-notes" class="notes-input" placeholder="{{ _('Add special instructions here...') }}"></textarea>
-      </div>
+      {# Notes field removed per updated requirements #}
       {% endif %}
     </div>
     <div class="modal-footer">
@@ -595,14 +592,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
       <div class="modal-item-image" id="item-detail-image"></div>
       <div id="item-options" class="options-section"></div>
       {% if allow_notes %}
-      <div class="notes-field">
-        <label for="item-detail-notes" class="notes-label">{{ _("Customize") }}</label>
-        <textarea
-          id="item-detail-notes"
-          class="notes-input"
-          placeholder="{{ _('Add customization notes here...') }}"
-        ></textarea>
-      </div>
+      {# Notes field removed per updated requirements #}
       {% endif %}
     </div>
     <div class="modal-footer">
