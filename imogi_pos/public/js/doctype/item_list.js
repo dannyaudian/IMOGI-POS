@@ -2,11 +2,22 @@ frappe.listview_settings["Item"] = {
     onload(listview) {
         let defaultBomFilter = null;
 
-        const checkBomField = listview.page.add_field({
-            fieldtype: "Check",
-            fieldname: "check_bom",
-            label: __("Check BOM"),
+        const checkBomWrapper = $(
+            "<div class=\"frappe-control form-group\"></div>"
+        ).appendTo(
+            listview.page.page_form
+        );
+
+        const checkBomControl = frappe.ui.form.make_control({
+            parent: checkBomWrapper.get(0),
+            df: {
+                fieldtype: "Check",
+                fieldname: "check_bom",
+                label: __("Check BOM"),
+            },
+            render_input: true,
         });
+        checkBomControl.refresh();
 
         const toggleBomFilter = (checked) => {
             if (checked) {
@@ -29,8 +40,8 @@ frappe.listview_settings["Item"] = {
             listview.refresh();
         };
 
-        checkBomField.$input.on("change", () => {
-            toggleBomFilter(checkBomField.$input.is(":checked"));
+        checkBomControl.$input.on("change", () => {
+            toggleBomFilter(checkBomControl.$input.is(":checked"));
         });
     },
 };
