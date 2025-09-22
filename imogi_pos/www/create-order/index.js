@@ -97,6 +97,7 @@ frappe.ready(async function () {
     priceLists: [],
     selectedPriceList: POS_PROFILE_DATA.selling_price_list || null,
     basePriceList: POS_PROFILE_DATA.selling_price_list || null,
+    promoCodes: [],
     itemIndex: new Map(),
 
     discountState: {
@@ -143,7 +144,7 @@ frappe.ready(async function () {
       promoSection: document.getElementById("promo-section"),
       promoButton: document.getElementById("btn-promo"),
       promoInputContainer: document.getElementById("promo-input-container"),
-      promoInput: document.getElementById("promo-code-input"),
+      promoSelect: document.getElementById("promo-code-select"),
       promoApplyBtn: document.getElementById("promo-apply-btn"),
       promoCancelBtn: document.getElementById("promo-cancel-btn"),
       promoStatus: document.getElementById("promo-status"),
@@ -316,10 +317,14 @@ frappe.ready(async function () {
     init: async function () {
       this.setupEventListeners();
       this.initDiscountControls();
+
+      const promoPromise = this.loadPromoCodes();
+
       await this.loadPriceLists();
       await this.loadItems();
       this.renderCategories();
       await this.loadTaxTemplate();
+      await promoPromise;
       this.renderItems();
       this.updateCartTotals();
       this.setupPrintService();
@@ -442,6 +447,10 @@ frappe.ready(async function () {
           this.setPromoError(__("Add items to use a promo code."));
           return;
         }
+        if (!this.promoCodes.length) {
+          this.setPromoError(__("No promo codes are currently available."));
+          return;
+        }
         this.discountState.error = null;
         this.showPromoInput();
       });
@@ -454,11 +463,9 @@ frappe.ready(async function () {
         this.handleApplyPromo();
       });
 
-      this.elements.promoInput?.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          this.handleApplyPromo();
-        }
+      this.elements.promoSelect?.addEventListener("change", () => {
+        this.discountState.error = null;
+        this.refreshDiscountUI();
       });
 
       this.elements.promoStatus?.addEventListener("click", (event) => {
@@ -479,7 +486,7 @@ frappe.ready(async function () {
       this.discountState.error = null;
       this.discountState.isApplying = false;
       this.discountState.promo = null;
-      if (this.elements.promoInput) this.elements.promoInput.value = "";
+      if (this.elements.promoSelect) this.elements.promoSelect.value = "";
       this.hidePromoInput();
       this.refreshDiscountUI();
     },
@@ -490,13 +497,17 @@ frappe.ready(async function () {
       if (!container) return;
       container.classList.remove("hidden");
       if (this.elements.promoButton) this.elements.promoButton.disabled = true;
-      const input = this.elements.promoInput;
-      if (input) {
-        input.disabled = false;
-        input.value = this.discountState.promo?.code || "";
+      const select = this.elements.promoSelect;
+      if (select) {
+        select.disabled = false;
+        const appliedCode = (this.discountState.promo?.code || "").toUpperCase();
+        if (appliedCode && this.promoCodes.some((promo) => promo.code === appliedCode)) {
+          select.value = appliedCode;
+        } else {
+          select.value = "";
+        }
         requestAnimationFrame(() => {
-          input.focus();
-          input.select();
+          select.focus();
         });
       }
     },
@@ -508,9 +519,14 @@ frappe.ready(async function () {
 
     cancelPromoInput: function () {
       if (!this.allowDiscounts) return;
-      const input = this.elements.promoInput;
-      if (input) {
-        input.value = this.discountState.promo?.code || "";
+      const select = this.elements.promoSelect;
+      if (select) {
+        const appliedCode = (this.discountState.promo?.code || "").toUpperCase();
+        if (appliedCode && this.promoCodes.some((promo) => promo.code === appliedCode)) {
+          select.value = appliedCode;
+        } else {
+          select.value = "";
+        }
       }
       this.hidePromoInput();
       this.discountState.error = null;
@@ -526,10 +542,10 @@ frappe.ready(async function () {
         return;
       }
 
-      const input = this.elements.promoInput;
-      const rawCode = (input?.value || "").trim();
+      const select = this.elements.promoSelect;
+      const rawCode = (select?.value || "").trim();
       if (!rawCode) {
-        this.setPromoError(__("Enter a promo code."));
+        this.setPromoError(__("Select a promo code."));
         return;
       }
 
@@ -613,7 +629,7 @@ frappe.ready(async function () {
         } else {
           this.discountState.promo = normalized;
           this.discountState.error = null;
-          if (this.elements.promoInput) this.elements.promoInput.value = normalized.code;
+          if (select) select.value = normalized.code;
           this.hidePromoInput();
         }
       } catch (error) {
@@ -630,9 +646,10 @@ frappe.ready(async function () {
       if (!this.allowDiscounts) return;
       this.discountState.promo = null;
       this.discountState.error = null;
-      if (this.elements.promoInput) this.elements.promoInput.value = "";
+      if (this.elements.promoSelect) this.elements.promoSelect.value = "";
       this.hidePromoInput();
       this.updateCartTotals();
+      this.refreshDiscountUI();
     },
 
     setPromoError: function (message) {
@@ -652,18 +669,27 @@ frappe.ready(async function () {
       }
 
       const hasItems = this.cart.length > 0;
+      const hasPromos = this.promoCodes.length > 0;
+      const select = this.elements.promoSelect;
+      const selectedValue = (select?.value || "").trim();
 
       if (this.elements.promoButton) {
-        this.elements.promoButton.disabled = !hasItems || this.discountState.isApplying;
+        this.elements.promoButton.disabled =
+          !hasItems || this.discountState.isApplying || !hasPromos;
       }
       if (this.elements.promoApplyBtn) {
-        this.elements.promoApplyBtn.disabled = this.discountState.isApplying;
+        const canApply =
+          hasItems && hasPromos && selectedValue && !this.discountState.isApplying;
+        this.elements.promoApplyBtn.disabled = !canApply;
       }
       if (this.elements.promoCancelBtn) {
         this.elements.promoCancelBtn.disabled = this.discountState.isApplying;
       }
-      if (this.elements.promoInput) {
-        this.elements.promoInput.disabled = this.discountState.isApplying;
+      if (select) {
+        select.disabled = this.discountState.isApplying || !hasPromos;
+        if (!hasPromos) {
+          select.value = "";
+        }
       }
 
       if (!hasItems) {
@@ -671,6 +697,7 @@ frappe.ready(async function () {
           this.discountState.promo = null;
         }
         this.hidePromoInput();
+        if (select) select.value = "";
       }
 
       const labelEl = this.elements.cartDiscountLabel;
@@ -772,6 +799,87 @@ frappe.ready(async function () {
     },
 
     // ====== LOAD DATA ======
+    loadPromoCodes: async function () {
+      if (!this.allowDiscounts) {
+        this.promoCodes = [];
+        this.renderPromoOptions();
+        return;
+      }
+
+      try {
+        const { message } = await frappe.call({
+          method: "imogi_pos.api.pricing.list_active_promo_codes",
+        });
+
+        const response = Array.isArray(message)
+          ? message
+          : Array.isArray(message?.promo_codes)
+            ? message.promo_codes
+            : [];
+
+        const normaliseText = (value) =>
+          typeof value === "string" ? value.trim() : "";
+
+        const parsed = response
+          .map((row) => {
+            const code = normaliseText(row?.code || row?.promo_code || row?.name);
+            if (!code) return null;
+
+            const label =
+              normaliseText(row?.label) ||
+              normaliseText(row?.title) ||
+              normaliseText(row?.description) ||
+              code;
+            const description =
+              normaliseText(row?.description) || normaliseText(row?.label) || "";
+            const discountType = normaliseText(row?.discount_type || row?.type).toLowerCase();
+            const discountValue = Number(
+              row?.discount_value ?? row?.value ?? row?.discount ?? row?.percent ?? 0
+            );
+
+            return {
+              code: code.toUpperCase(),
+              label: label || code.toUpperCase(),
+              description,
+              discountType,
+              discountValue: Number.isFinite(discountValue) ? discountValue : 0,
+            };
+          })
+          .filter(Boolean);
+
+        this.promoCodes = parsed;
+      } catch (error) {
+        console.error("Failed to load promo codes:", error);
+        this.promoCodes = [];
+      } finally {
+        this.renderPromoOptions();
+        this.refreshDiscountUI();
+      }
+    },
+
+    renderPromoOptions: function () {
+      const select = this.elements.promoSelect;
+      if (!select) return;
+
+      const placeholder = `<option value="">${escapeHtml(__("Select promo code"))}</option>`;
+      const options = this.promoCodes
+        .map((promo) => {
+          const label = promo.label || promo.code;
+          const description = promo.description ? ` title="${escapeHtml(promo.description)}"` : "";
+          return `<option value="${escapeHtml(promo.code)}"${description}>${escapeHtml(label)}</option>`;
+        })
+        .join("");
+
+      select.innerHTML = placeholder + options;
+
+      const appliedCode = (this.discountState.promo?.code || "").toUpperCase();
+      if (appliedCode && this.promoCodes.some((promo) => promo.code === appliedCode)) {
+        select.value = appliedCode;
+      } else {
+        select.value = "";
+      }
+    },
+
     loadPriceLists: async function () {
       try {
         const { message } = await frappe.call({
