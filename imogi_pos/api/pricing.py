@@ -676,4 +676,63 @@ def validate_promo_code(**payload: Any) -> Dict[str, Any]:
     }
 
 
-__all__ = ["get_allowed_price_lists", "evaluate_order_discounts", "validate_promo_code"]
+__all__ = [
+    "get_allowed_price_lists",
+    "evaluate_order_discounts",
+    "validate_promo_code",
+    "get_item_price",
+]
+
+
+@frappe.whitelist(allow_guest=True)
+def get_item_price(
+    item_code: Optional[str],
+    price_list: Optional[str] = None,
+    base_price_list: Optional[str] = None,
+    pos_profile: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve the rate for an item considering the active price list context."""
+
+    if not item_code:
+        frappe.throw(_("Item code is required"), frappe.ValidationError)
+
+    resolved_price_list = price_list
+    resolved_base_price_list = base_price_list
+
+    if pos_profile and not resolved_price_list:
+        try:
+            profile = frappe.get_cached_doc("POS Profile", pos_profile)
+        except Exception:
+            profile = None
+        if profile:
+            resolved_price_list = resolved_price_list or getattr(profile, "selling_price_list", None)
+            resolved_base_price_list = (
+                resolved_base_price_list
+                or getattr(profile, "imogi_base_price_list", None)
+                or getattr(profile, "base_price_list", None)
+            )
+
+    rate_maps = get_price_list_rate_maps(
+        [item_code],
+        price_list=resolved_price_list,
+        base_price_list=resolved_base_price_list,
+    )
+
+    base_rate = rate_maps["price_list_rates"].get(item_code)
+    if base_rate in (None, ""):
+        base_rate = rate_maps["base_price_list_rates"].get(item_code)
+    if base_rate in (None, ""):
+        base_rate = frappe.db.get_value("Item", item_code, "standard_rate")
+
+    try:
+        item_name = frappe.db.get_value("Item", item_code, "item_name")
+    except Exception:
+        item_name = None
+
+    return {
+        "item_code": item_code,
+        "item_name": item_name or item_code,
+        "rate": flt(base_rate or 0),
+        "price_list": resolved_price_list,
+        "base_price_list": resolved_base_price_list,
+    }

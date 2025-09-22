@@ -1,6 +1,6 @@
 /**
  * IMOGI POS - Waiter Order
- * 
+ *
  * Main module for the Waiter Order interface
  * Handles:
  * - Table order management
@@ -10,6 +10,8 @@
  * - Customer selection and attachment
  * - Order status updates
  */
+
+import './utils/options';
 
 frappe.provide('imogi_pos.waiter_order');
 
@@ -178,13 +180,25 @@ imogi_pos.waiter_order = {
                     name: this.settings.posOrder
                 },
                 callback: (response) => {
-                    if (response.message) {
-                        this.state.order = response.message;
-                        
-                        // Set settings from order
-                        this.settings.table = this.state.order.table;
-                        this.settings.branch = this.state.order.branch;
-                        
+                if (response.message) {
+                    this.state.order = response.message;
+
+                    this.settings.sellingPriceList = this.state.order.selling_price_list || null;
+                    this.settings.basePriceList = (
+                        this.state.order.imogi_base_price_list ||
+                        this.state.order.base_price_list ||
+                        null
+                    );
+
+                    const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+                    const helperBag = (toolkit && toolkit.__helpers) || {};
+                    const sumAdditionalPrice = helperBag.sumAdditionalPrice || (() => 0);
+                    const hasAnyLinkedItem = helperBag.hasAnyLinkedItem || (() => false);
+
+                    // Set settings from order
+                    this.settings.table = this.state.order.table;
+                    this.settings.branch = this.state.order.branch;
+
                         // Set customer info
                         if (this.state.order.customer) {
                             this.state.customerId = this.state.order.customer;
@@ -192,25 +206,54 @@ imogi_pos.waiter_order = {
                             this.state.customerPhone = this.state.order.contact_mobile;
                         }
                         
-                        // Set KOT status
-                        this.state.kotSubmitted = this.state.order.workflow_state !== 'Draft';
-                        
-                        // Copy order items
-                        if (this.state.order.items && Array.isArray(this.state.order.items)) {
-                            this.state.orderItems = this.state.order.items.map(item => ({
+                    // Set KOT status
+                    this.state.kotSubmitted = this.state.order.workflow_state !== 'Draft';
+
+                    // Copy order items
+                    if (this.state.order.items && Array.isArray(this.state.order.items)) {
+                        this.state.orderItems = this.state.order.items.map(item => {
+                            let parsedOptions = {};
+                            if (item.item_options) {
+                                if (typeof item.item_options === 'string') {
+                                    try {
+                                        parsedOptions = JSON.parse(item.item_options);
+                                    } catch (error) {
+                                        console.warn('Failed to parse stored item options', error);
+                                        parsedOptions = {};
+                                    }
+                                } else if (typeof item.item_options === 'object') {
+                                    parsedOptions = item.item_options;
+                                }
+                            }
+
+                            const templateItem = item.template_item || item.item_template || null;
+                            const skuChanged = Boolean(templateItem && templateItem !== item.item);
+                            const expectedLinked = hasAnyLinkedItem(parsedOptions);
+
+                            return {
                                 name: item.name,
                                 item: item.item,
+                                item_code: item.item,
+                                template_item: templateItem,
                                 item_name: item.item_name,
                                 qty: item.qty,
                                 rate: item.rate,
                                 amount: item.amount,
-                                notes: item.notes || ''
-                            }));
-                        }
-                        
-                        resolve();
-                    } else {
-                        reject(new Error('Failed to load order'));
+                                notes: item.notes || '',
+                                item_options: parsedOptions,
+                                options: parsedOptions,
+                                base_rate: item.base_rate || item.rate,
+                                additional_price_total: sumAdditionalPrice(parsedOptions),
+                                sku_changed: skuChanged,
+                                expected_linked_item: expectedLinked,
+                                requires_variant: expectedLinked,
+                            };
+                        });
+                    }
+
+                    resolve();
+                } else {
+                    reject(new Error('Failed to load order'));
                     }
                 },
                 error: reject
@@ -1552,7 +1595,7 @@ imogi_pos.waiter_order = {
                 let optionPrice = 0;
                 const missing = [];
 
-                const buildOptionPayload = (value, label, linkedItem) => {
+                const buildOptionPayload = (value, label, linkedItem, priceValue) => {
                     if (!value) {
                         return null;
                     }
@@ -1562,6 +1605,12 @@ imogi_pos.waiter_order = {
                     };
                     if (linkedItem && linkedItem !== '') {
                         payload.linked_item = linkedItem;
+                    }
+                    const numericPrice = Number(priceValue || 0) || 0;
+                    if (numericPrice) {
+                        payload.additional_price = numericPrice;
+                    } else {
+                        payload.additional_price = 0;
                     }
                     return payload;
                 };
@@ -1578,7 +1627,7 @@ imogi_pos.waiter_order = {
                         if (value) {
                             const linkedItem = (opt && opt.dataset.linkedItem) || '';
                             const label = (opt && (opt.dataset.label || opt.textContent)) || value;
-                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem) || value;
+                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem, price) || value;
                             optionPrice += price;
                         } else if (required) {
                             missing.push(this.toTitleCase(key));
@@ -1589,9 +1638,10 @@ imogi_pos.waiter_order = {
                     const radio = group.querySelector('.option-radio:checked');
                     if (radio) {
                         const linkedItem = radio.dataset.linkedItem || '';
+                        const price = parseFloat(radio.dataset.price || 0);
                         const label = radio.dataset.label || radio.value;
-                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem) || radio.value;
-                        optionPrice += parseFloat(radio.dataset.price || 0);
+                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem, price) || radio.value;
+                        optionPrice += price;
                         return;
                     } else if (group.querySelector('.option-radio') && required) {
                         missing.push(this.toTitleCase(key));
@@ -1602,10 +1652,11 @@ imogi_pos.waiter_order = {
                     if (checkboxes.length) {
                         const values = [];
                         checkboxes.forEach(cb => {
-                            optionPrice += parseFloat(cb.dataset.price || 0);
+                            const price = parseFloat(cb.dataset.price || 0);
+                            optionPrice += price;
                             const linkedItem = cb.dataset.linkedItem || '';
                             const label = cb.dataset.label || cb.value;
-                            const payload = buildOptionPayload(cb.value, label, linkedItem) || cb.value;
+                            const payload = buildOptionPayload(cb.value, label, linkedItem, price) || cb.value;
                             if (payload) {
                                 values.push(payload);
                             }
@@ -1675,73 +1726,144 @@ imogi_pos.waiter_order = {
             .filter(Boolean)
             .join(', ');
     },
-    
+
+    getCatalogItemDetails: function(itemCode) {
+        if (!itemCode) return null;
+        const collections = [
+            this.state.catalogItems || [],
+            this.state.searchResults || [],
+        ];
+        for (const items of collections) {
+            const match = items.find(item => item && item.name === itemCode);
+            if (match) {
+                return match;
+            }
+        }
+        return null;
+    },
+
+    getOptionsSignature: function(options) {
+        try {
+            return JSON.stringify(options || {});
+        } catch (error) {
+            console.warn('Failed to serialise options payload', error);
+            return '';
+        }
+    },
+
+    buildPricingContext: function({ itemCode, qty = 1, itemDetails = null } = {}) {
+        const order = this.state.order || {};
+        const priceList = order.selling_price_list || this.settings.sellingPriceList || null;
+        const basePriceList = (
+            order.imogi_base_price_list ||
+            order.base_price_list ||
+            this.settings.basePriceList ||
+            null
+        );
+
+        return {
+            qty,
+            priceList,
+            basePriceList,
+            posProfile: this.settings.posProfile || null,
+            itemName: (itemDetails && itemDetails.item_name) || itemCode,
+        };
+    },
+
+    hasUnresolvedSku: function(line) {
+        if (!line) return false;
+        if (!line.expected_linked_item) return false;
+        if (!line.template_item) return false;
+        if (line.sku_changed) return false;
+        if (line.item && line.template_item && line.item !== line.template_item) {
+            return false;
+        }
+        return true;
+    },
+
+    ensureAllSkusResolved: function(lines) {
+        const unresolved = (lines || []).filter(item => this.hasUnresolvedSku(item));
+        if (unresolved.length) {
+            const names = unresolved
+                .map(item => item.item_name || item.item || 'Unknown Item')
+                .join(', ');
+            throw new Error(`Please select a specific variant for: ${names}`);
+        }
+    },
+
     /**
      * Add item to order
      * @param {string} itemName - Item name to add
      */
     addItemToOrder: function(itemName, options = {}) {
-        // Show loading indicator
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
+            ? toolkit.applyOptionsToLine
+            : null;
+
+        if (!resolver) {
+            this.showError('Option resolver unavailable. Please refresh the page.');
+            return;
+        }
+
+        const itemDetails = this.getCatalogItemDetails(itemName) || {};
+        const qty = 1;
+        const line = {
+            item: itemName,
+            item_code: itemName,
+            template_item: itemName,
+            item_name: itemDetails.item_name || itemName,
+            qty: qty,
+            rate: 0,
+            amount: 0,
+            notes: '',
+            item_options: options || {},
+            options: options || {},
+            requires_variant: Number(itemDetails.has_variants) === 1,
+        };
+
+        const context = this.buildPricingContext({
+            itemCode: itemName,
+            qty,
+            itemDetails,
+        });
+
         this.showLoading(true, 'Adding item...');
 
-        // Get item details
-        frappe.call({
-            method: 'frappe.client.get',
-            args: {
-                doctype: 'Item',
-                name: itemName
-            },
-            callback: (response) => {
-                if (response.message) {
-                    const item = response.message;
-
-                    // Calculate rate including option price
-                    const optionPrice = options.price || 0;
-                    const rate = (item.standard_rate || 0) + optionPrice;
-
-                    // Check if item is already in order with same options
-                    const existingItemIndex = this.state.orderItems.findIndex(orderItem =>
-                        orderItem.item === itemName && !orderItem.notes &&
-                        JSON.stringify(orderItem.options || {}) === JSON.stringify(options)
-                    );
-
-                    if (existingItemIndex !== -1) {
-                        // Increment quantity
-                        this.state.orderItems[existingItemIndex].qty += 1;
-                        this.state.orderItems[existingItemIndex].amount =
-                            this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
-                    } else {
-                        // Add new item
-                        this.state.orderItems.push({
-                            item: itemName,
-                            item_name: item.item_name,
-                            qty: 1,
-                            rate: rate,
-                            amount: rate,
-                            notes: '',
-                            options: options,
-                            item_options: options
-                        });
+        resolver(line, options, context)
+            .then(() => {
+                const signature = this.getOptionsSignature(line.item_options);
+                const existingItemIndex = this.state.orderItems.findIndex(orderItem => {
+                    if (!orderItem || (orderItem.notes && orderItem.notes.trim())) {
+                        return false;
                     }
+                    const existingSignature = this.getOptionsSignature(orderItem.item_options || orderItem.options);
+                    return orderItem.item === line.item && existingSignature === signature;
+                });
 
-                    // Update UI
-                    this.updateOrderPanel();
-
-                    // Hide loading indicator
-                    this.showLoading(false);
-
-                    // Show prompt for notes
-                    this.promptForNotes(existingItemIndex !== -1 ? existingItemIndex : this.state.orderItems.length - 1);
+                if (existingItemIndex !== -1) {
+                    this.state.orderItems[existingItemIndex].qty += line.qty;
+                    this.state.orderItems[existingItemIndex].amount =
+                        this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
                 } else {
-                    this.showLoading(false);
-                    this.showError('Failed to add item');
+                    this.state.orderItems.push(line);
                 }
-            },
-            error: () => {
+
+                this.updateOrderPanel();
+
+                const promptIndex = existingItemIndex !== -1
+                    ? existingItemIndex
+                    : this.state.orderItems.length - 1;
+                this.promptForNotes(promptIndex);
+            })
+            .catch((error) => {
+                console.error('Failed to add item to order', error);
+                const message = (error && error.message) ? error.message : 'Failed to add item';
+                this.showError(message);
+            })
+            .finally(() => {
                 this.showLoading(false);
-                this.showError('Failed to add item');
-            }
-        });
+            });
     },
     
     /**
@@ -2004,18 +2126,31 @@ imogi_pos.waiter_order = {
                 reject('No items in order');
                 return;
             }
-            
+
+            try {
+                this.ensureAllSkusResolved(this.state.orderItems);
+            } catch (error) {
+                const message = (error && error.message) ? error.message : error;
+                if (!silent) {
+                    this.showError(message);
+                }
+                reject(message);
+                return;
+            }
+
             // Show loading indicator
             if (!silent) {
                 this.showLoading(true, 'Saving order...');
             }
-            
+
             // Prepare order data
             const orderData = {
                 pos_order: this.settings.posOrder,
                 table: this.settings.table,
                 items: this.state.orderItems.map(item => ({
                     item: item.item,
+                    item_code: item.item,
+                    template_item: item.template_item || null,
                     qty: item.qty,
                     rate: item.rate,
                     notes: item.notes,
