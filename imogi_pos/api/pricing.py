@@ -91,6 +91,36 @@ def _extract_menu_category(
     return _fetch_item_menu_category(item_code, cache)
 
 
+def _format_discount_display(value: float) -> Union[float, int]:
+    """Return a friendlier number for display (no trailing decimals for ints)."""
+
+    if int(value) == value:
+        return int(value)
+    return flt(value)
+
+
+def _generate_promo_label(code: str, discount_type: Optional[str], value: float) -> str:
+    normalised_type = (discount_type or "").lower()
+    display_value = _format_discount_display(value)
+
+    if normalised_type == "percent" and value > 0:
+        return _("Promo {0} ({1}% off)").format(code, display_value)
+    if value > 0:
+        return _("Promo {0} ({1} discount)").format(code, display_value)
+    return _("Promo {0}").format(code)
+
+
+def _generate_promo_description(code: str, discount_type: Optional[str], value: float) -> str:
+    normalised_type = (discount_type or "").lower()
+    display_value = _format_discount_display(value)
+
+    if normalised_type == "percent" and value > 0:
+        return _("Use promo code {0} to get {1}% off.").format(code, display_value)
+    if value > 0:
+        return _("Use promo code {0} to get a {1} discount.").format(code, display_value)
+    return _("Use promo code {0} at checkout.").format(code)
+
+
 def get_active_promo_codes() -> Dict[str, Dict[str, Any]]:
     """Return active promo code configurations keyed by their code."""
 
@@ -115,11 +145,22 @@ def get_active_promo_codes() -> Dict[str, Dict[str, Any]]:
 
         key = normalised.upper()
         promo_name = getattr(row, "name", None)
+        discount_type = getattr(row, "discount_type", None)
+        discount_value = flt(getattr(row, "discount_value", 0))
+        label = getattr(row, "label", None)
+        description = getattr(row, "description", None)
+        if not label:
+            label = _generate_promo_label(normalised, discount_type, discount_value)
+        if not description:
+            description = _generate_promo_description(normalised, discount_type, discount_value)
+
         active[key] = {
             "name": promo_name,
             "code": normalised,
-            "discount_type": getattr(row, "discount_type", None),
-            "discount_value": flt(getattr(row, "discount_value", 0)),
+            "discount_type": discount_type,
+            "discount_value": discount_value,
+            "label": label,
+            "description": description,
             "applicable_categories": _get_promo_scope_values(
                 "POS Promo Category", "menu_category", promo_name
             ),
@@ -129,6 +170,42 @@ def get_active_promo_codes() -> Dict[str, Dict[str, Any]]:
         }
 
     return active
+
+
+@frappe.whitelist(allow_guest=True)
+def list_active_promo_codes() -> List[Dict[str, Any]]:
+    """Expose active promo codes in a UI-friendly ordered list."""
+
+    active = get_active_promo_codes()
+    if not active:
+        return []
+
+    ordered_promos = sorted(
+        (promo for promo in active.values() if promo.get("code")),
+        key=lambda entry: (entry.get("code") or "").casefold(),
+    )
+
+    results: List[Dict[str, Any]] = []
+    for promo in ordered_promos:
+        code = (promo.get("code") or "").strip()
+        if not code:
+            continue
+
+        discount_value = flt(promo.get("discount_value") or 0)
+        discount_type = promo.get("discount_type")
+        results.append(
+            {
+                "code": code,
+                "label": promo.get("label")
+                or _generate_promo_label(code, discount_type, discount_value),
+                "description": promo.get("description")
+                or _generate_promo_description(code, discount_type, discount_value),
+                "discount_type": discount_type,
+                "discount_value": discount_value,
+            }
+        )
+
+    return results
 
 
 def _extract_price_list_from_row(
@@ -678,6 +755,7 @@ def validate_promo_code(**payload: Any) -> Dict[str, Any]:
 
 __all__ = [
     "get_allowed_price_lists",
+    "list_active_promo_codes",
     "evaluate_order_discounts",
     "validate_promo_code",
     "get_item_price",

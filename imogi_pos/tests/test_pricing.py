@@ -124,6 +124,42 @@ def pricing_env():
     yield pricing, promo_codes, items
 
 
+def test_list_active_promo_codes_returns_ordered_display(pricing_env):
+    pricing, promo_codes, _ = pricing_env
+
+    promo_codes["SAVE10"] = {
+        "name": "SAVE10",
+        "code": "SAVE10",
+        "discount_type": "Percent",
+        "discount_value": 10,
+        "enabled": 1,
+    }
+
+    promo_codes["MEAL50"] = {
+        "name": "MEAL50",
+        "code": "MEAL50",
+        "discount_type": "Amount",
+        "discount_value": 5000,
+        "enabled": 1,
+    }
+
+    result = pricing.list_active_promo_codes()
+
+    assert isinstance(result, list)
+    assert [entry["code"] for entry in result] == ["MEAL50", "SAVE10"]
+
+    first, second = result
+    assert first["discount_type"] == "Amount"
+    assert first["discount_value"] == pytest.approx(5000)
+    assert "MEAL50" in first["label"]
+    assert "discount" in first["description"].lower()
+
+    assert second["discount_type"] == "Percent"
+    assert second["discount_value"] == pytest.approx(10)
+    assert "SAVE10" in second["label"]
+    assert "%" in second["description"] or "percent" in second["description"].lower()
+
+
 def test_scoped_promo_accepts_matching_category(pricing_env):
     pricing, promo_codes, items = pricing_env
 

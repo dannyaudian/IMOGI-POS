@@ -259,7 +259,9 @@ button { font: inherit; }
 .promo-trigger:disabled { opacity: .45; cursor: not-allowed; }
 .promo-inline { display: flex; gap: 8px; align-items: center; }
 .promo-inline.hidden { display: none; }
-.promo-input { flex: 1; border: 1px solid #d0d7de; border-radius: 10px; padding: .5rem .6rem; font-size: .95rem; }
+.promo-select { flex: 1; border: 1px solid #d0d7de; border-radius: 10px; padding: .5rem .6rem; font-size: .95rem; background: #fff; }
+.promo-select:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(107,144,128,.15); }
+.promo-select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
 .promo-apply { background: var(--brand-primary); color: #fff; border: none; border-radius: 10px; padding: .45rem .9rem; cursor: pointer; font-weight: 500; }
 .promo-cancel { background: transparent; border: none; color: #64748b; cursor: pointer; font-size: .9rem; }
 .promo-status { min-height: 18px; font-size: .9rem; color: #475569; }
@@ -544,7 +546,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
       <div class="promo-section" id="promo-section">
         <button id="btn-promo" class="promo-trigger" disabled>{{ _("Add Promo Code") }}</button>
         <div class="promo-inline hidden" id="promo-input-container">
-          <input type="text" id="promo-code-input" class="promo-input" placeholder="{{ _("Enter promo code") }}" autocomplete="off">
+          <select id="promo-code-select" class="promo-select">
+            <option value="">{{ _("Select promo code") }}</option>
+          </select>
           <button type="button" id="promo-apply-btn" class="promo-apply">{{ _("Apply") }}</button>
           <button type="button" id="promo-cancel-btn" class="promo-cancel">{{ _("Cancel") }}</button>
         </div>
