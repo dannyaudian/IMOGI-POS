@@ -316,7 +316,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .payment-option:hover   { background: #f8fafc; }
 .payment-option.selected{ border-color: var(--brand-primary); box-shadow: 0 0 0 3px rgba(107,144,128,.12); }
 .payment-option-icon { font-size: 22px; }
-.payment-amount { font-size: 28px; font-weight: 600; color: var(--brand-primary); text-align: center; margin: 8px 0 14px; }
+.payment-amount { font-size: clamp(2.5rem, 3vw, 3rem); font-weight: 600; color: var(--brand-primary); text-align: center; margin: 8px 0 14px; }
 
 #payment-qr { display: flex; align-items: center; justify-content: center; padding: 8px; }
 .payment-instructions { margin-top: 6px; color: var(--text-dim); text-align: center; font-size: .95rem; }
@@ -333,7 +333,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 .keypad-button {
   border: 1px solid #e5e7eb; background: #f3f4f6; border-radius: 12px; padding: 14px 0;
-  text-align: center; font-weight: 600; cursor: pointer;
+  text-align: center; font-weight: 600; cursor: pointer; font-size: clamp(1.75rem, 2.8vw, 2.25rem);
 }
 .keypad-button:hover { background: #e5e7eb; }
 .keypad-clear { grid-column: span 2; }
