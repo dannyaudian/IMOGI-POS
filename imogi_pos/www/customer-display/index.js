@@ -201,9 +201,35 @@ frappe.ready(function() {
         updatePaymentBlock: function(paymentData) {
             const container = document.getElementById('payment-container');
             if (!container) return;
-            
+
             this.currentPaymentRequest = paymentData;
-            
+
+            const branchLabelRaw = paymentData.branch_label || paymentData.branch_name || '';
+            const branchIdRaw = paymentData.branch_id || paymentData.branch || '';
+
+            const escapeHtml = (frappe && frappe.utils && frappe.utils.escape_html)
+                ? frappe.utils.escape_html
+                : (value) => value;
+
+            const branchLabel = branchLabelRaw ? escapeHtml(branchLabelRaw) : '';
+            const branchId = branchIdRaw ? escapeHtml(branchIdRaw) : '';
+
+            let branchInfoHtml = '';
+            if (branchLabel || branchId) {
+                let branchValue = branchLabel || branchId;
+
+                if (branchLabel && branchId && branchLabel !== branchId) {
+                    branchValue += ` <span class="payment-branch-id">(${branchId})</span>`;
+                }
+
+                branchInfoHtml = `
+                    <div class="payment-branch">
+                        <span class="payment-branch-label">Branch:</span>
+                        <span class="payment-branch-value">${branchValue}</span>
+                    </div>
+                `;
+            }
+
             // Format expiry time
             let expiryText = '';
             if (paymentData.expires_at) {
@@ -223,11 +249,13 @@ frappe.ready(function() {
                         Scan the QR code above with your payment app to complete your transaction.
                     </div>
                     
-                    ${paymentData.payment_url ? 
+                    ${paymentData.payment_url ?
                         `<div class="payment-link">
                             <a href="${paymentData.payment_url}" target="_blank">${paymentData.payment_url}</a>
                         </div>` : ''}
-                    
+
+                    ${branchInfoHtml}
+
                     ${expiryText ? `<div class="payment-expires">${expiryText}</div>` : ''}
                 </div>
             `;
