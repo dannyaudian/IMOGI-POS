@@ -6,6 +6,7 @@ frappe.ready(function () {
   const POS_PROFILE        = window.POS_PROFILE ?? null;
   const ACTIVE_POS_SESSION = window.ACTIVE_POS_SESSION ?? null;
   const CURRENT_BRANCH     = window.CURRENT_BRANCH ?? null;
+  const CURRENT_BRANCH_LABEL = window.CURRENT_BRANCH_LABEL ?? null;
   const CURRENCY_SYMBOL    = window.CURRENCY_SYMBOL ?? 'Rp';
   const DOMAIN             = window.DOMAIN ?? 'Restaurant';
 
@@ -466,18 +467,41 @@ frappe.ready(function () {
   }
 
   function sendToCustomerDisplay(paymentRequest) {
+    const fallbackBranch =
+      (typeof window.IMOGIBranch !== 'undefined' &&
+        typeof window.IMOGIBranch.get === 'function'
+          ? window.IMOGIBranch.get()
+          : null);
+
+    const branchId = CURRENT_BRANCH ?? fallbackBranch ?? null;
+    const branchLabel =
+      CURRENT_BRANCH_LABEL ?? (branchId ? branchId : null);
+
+    const payload = {
+      payment_request: paymentRequest.name,
+      qr_image: paymentRequest.qr_image,
+      payment_url: paymentRequest.payment_url,
+      amount: paymentRequest.grand_total,
+      currency: paymentRequest.currency,
+      expires_at: paymentRequest.expires_at
+    };
+
+    if (branchId) {
+      payload.branch_id = branchId;
+      if (!payload.branch) {
+        payload.branch = branchId;
+      }
+    }
+
+    if (branchLabel) {
+      payload.branch_label = branchLabel;
+    }
+
     frappe.call({
       method: 'imogi_pos.api.customer_display.publish_customer_display_update',
       args: {
         event_type: 'payment_request',
-        data: {
-          payment_request: paymentRequest.name,
-          qr_image: paymentRequest.qr_image,
-          payment_url: paymentRequest.payment_url,
-          amount: paymentRequest.grand_total,
-          currency: paymentRequest.currency,
-          expires_at: paymentRequest.expires_at
-        }
+        data: payload
       }
     });
   }

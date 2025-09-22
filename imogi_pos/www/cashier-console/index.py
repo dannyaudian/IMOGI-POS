@@ -39,8 +39,37 @@ def get_context(context):
             context.branding = get_brand_context(pos_profile)
             
             # Set branch information
-            context.branch = get_current_branch(pos_profile)
-            
+            branch_id = get_current_branch(pos_profile)
+            context.branch = branch_id
+            context.branch_name = None
+            context.branch_label = None
+
+            if branch_id:
+                try:
+                    branch_info = frappe.db.get_value(
+                        "Branch",
+                        branch_id,
+                        ["name", "branch_name"],
+                        as_dict=True,
+                    )
+
+                    if branch_info:
+                        # Ensure the canonical branch name is available along with a user-facing label
+                        context.branch = branch_info.get("name") or branch_id
+                        context.branch_name = branch_info.get("branch_name") or branch_info.get("name")
+                    else:
+                        context.branch_name = branch_id
+                except Exception as branch_error:
+                    frappe.log_error(
+                        f"Error fetching branch details for {branch_id}: {branch_error}"
+                    )
+                    context.branch_name = branch_id
+
+            if context.branch_name:
+                context.branch_label = context.branch_name
+            elif context.branch:
+                context.branch_label = context.branch
+
             # UI configuration
             context.title = _("Cashier Console")
             context.domain = pos_profile.get("imogi_pos_domain", "Restaurant")
@@ -53,13 +82,15 @@ def get_context(context):
             context.active_pos_session = None
             context.branding = get_brand_context()
             context.branch = None
+            context.branch_name = None
+            context.branch_label = None
             context.title = _("Cashier Console")
             context.domain = "Restaurant"
             context.show_header = 1
-            
+
             # Add an error message
             context.error_message = _("No POS Profile found. Please contact your administrator.")
-    
+
     except Exception as e:
         frappe.log_error(f"Error in cashier console: {str(e)}")
         context.error_message = _("An error occurred. Please try again or contact support.")
@@ -69,6 +100,8 @@ def get_context(context):
         context.title = _("Cashier Console")
         context.domain = "Restaurant"
         context.branch = None
+        context.branch_name = None
+        context.branch_label = None
 
     # Add currency symbol for use in templates
     context.currency_symbol = get_currency_symbol()

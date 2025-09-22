@@ -220,7 +220,7 @@
     {% if branch %}
     <div class="branch-selector" role="status" aria-live="polite">
       <span class="branch-label">{{ _("Branch") }}:</span>
-      <span class="branch-value badge">{{ branch }}</span>
+      <span class="branch-value badge">{{ branch_label or branch }}</span>
     </div>
     {% endif %}
     <div class="user-menu">
@@ -333,6 +333,7 @@
   window.POS_PROFILE        = {{ (pos_profile.name if pos_profile else none) | tojson }};
   window.ACTIVE_POS_SESSION = {{ (active_pos_session.name if active_pos_session else none) | tojson }};
   window.CURRENT_BRANCH     = {{ (branch if branch else none) | tojson }};
+  window.CURRENT_BRANCH_LABEL = {{ (branch_label if branch_label else (branch if branch else none)) | tojson }};
   window.CURRENCY_SYMBOL    = {{ (currency_symbol if currency_symbol else "Rp") | tojson }};
   window.DOMAIN             = {{ (domain if domain else "Restaurant") | tojson }};
 
