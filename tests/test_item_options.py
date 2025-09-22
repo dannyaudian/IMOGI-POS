@@ -39,7 +39,20 @@ def test_get_item_options_structure():
         has_ice_option=1,
         item_size_options=[
             types.SimpleNamespace(
-                option_name="Large", additional_price=0, linked_item="ITEM-LARGE"
+                option_name="Large",
+                additional_price=0,
+                linked_item="ITEM-LARGE",
+                qty_factor=1.5,
+                components=[
+                    types.SimpleNamespace(
+                        component="Espresso", item_code="ITEM-ESPRESSO", qty=1
+                    )
+                ],
+                components_delta=[
+                    types.SimpleNamespace(
+                        component="Water", item_code="ITEM-WATER", qty_delta=-0.25
+                    )
+                ],
             )
         ],
         item_spice_options=[types.SimpleNamespace(option_name="Hot", additional_price=0)],
@@ -67,6 +80,21 @@ def test_get_item_options_structure():
             "value": "Large",
             "price": 0,
             "linked_item": "ITEM-LARGE",
+            "qty_factor": 1.5,
+            "components": [
+                {
+                    "component": "Espresso",
+                    "item_code": "ITEM-ESPRESSO",
+                    "qty": 1,
+                }
+            ],
+            "components_delta": [
+                {
+                    "component": "Water",
+                    "item_code": "ITEM-WATER",
+                    "qty_delta": -0.25,
+                }
+            ],
         }
     ]
     assert result["spice"] == [{"label": "Hot", "value": "Hot", "price": 0}]
@@ -91,6 +119,8 @@ def test_get_item_options_structure():
     assert "linked_item" not in result["spice"][0]
     assert "linked_item" not in result["sugar"][0]
     assert "linked_item" not in result["ice"][0]
+    assert "qty_factor" not in result["spice"][0]
+    assert "components" not in result["spice"][0]
 
 
 def test_get_item_options_skip_inactive():

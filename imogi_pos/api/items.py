@@ -3,6 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
+import json
 import frappe
 
 
@@ -35,6 +36,41 @@ def get_item_options(item):
     except Exception:
         return result
 
+    def normalise_component_value(value):
+        if not value:
+            return None
+
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            try:
+                return json.loads(value)
+            except ValueError:
+                return value
+
+        if isinstance(value, dict):
+            return value
+
+        normalised = []
+        for component in value or []:
+            if component is None:
+                continue
+            if hasattr(component, "as_dict"):
+                component_dict = component.as_dict()
+            elif isinstance(component, dict):
+                component_dict = component
+            else:
+                component_dict = {
+                    key: val
+                    for key, val in getattr(component, "__dict__", {}).items()
+                    if not key.startswith("_")
+                }
+            if component_dict:
+                normalised.append(component_dict)
+
+        return normalised or None
+
     def to_option(row):
         name = getattr(row, "option_name", None)
         if not name:
@@ -45,6 +81,18 @@ def get_item_options(item):
         linked_item = getattr(row, "linked_item", None)
         if linked_item:
             opt["linked_item"] = linked_item
+
+        qty_factor = getattr(row, "qty_factor", None)
+        if qty_factor not in (None, ""):
+            try:
+                opt["qty_factor"] = float(qty_factor)
+            except (TypeError, ValueError):
+                opt["qty_factor"] = qty_factor
+
+        for field in ("components", "components_delta"):
+            payload = normalise_component_value(getattr(row, field, None))
+            if payload is not None:
+                opt[field] = payload
 
         # Some child tables may provide a flag indicating a default option.
         # The field name can vary (``default``/``is_default``), so we check

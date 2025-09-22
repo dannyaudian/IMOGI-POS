@@ -7,6 +7,9 @@
   "field_order": [
     "label",
     "price_delta",
+    "qty_factor",
+    "components",
+    "components_delta",
     "default",
     "kot_note"
   ],
@@ -23,6 +26,23 @@
       "fieldtype": "Currency",
       "in_list_view": 1,
       "label": "Price Delta"
+    },
+    {
+      "fieldname": "qty_factor",
+      "fieldtype": "Float",
+      "label": "Quantity Factor"
+    },
+    {
+      "fieldname": "components",
+      "fieldtype": "Table",
+      "label": "Components",
+      "options": "Item Option Component"
+    },
+    {
+      "fieldname": "components_delta",
+      "fieldtype": "Table",
+      "label": "Component Delta",
+      "options": "Item Option Component Delta"
     },
     {
       "fieldname": "default",
