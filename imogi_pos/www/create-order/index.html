@@ -343,8 +343,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 /* Cash keypad */
 #payment-cash-section .keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 10px; }
 .keypad-input {
-  width: 100%; padding: .85rem 1rem; text-align: right;
-  border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; font-weight: 600; letter-spacing: .2px;
+/*   width: 100%; padding: .85rem 1rem; text-align: right;
+  border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; font-weight: 600; letter-spacing: .2px; */
+  font-size: clamp(1.6rem, 3.6vw, 2.2rem);
+  padding: 1rem 1.25rem;
+  height: 56px;              /* opsional: biar lebih tinggi */
+  font-variant-numeric: tabular-nums; /* angka lebih rapi */
 }
 .keypad-button {
   border: 1px solid #e5e7eb; background: #f3f4f6; border-radius: 12px; padding: 14px 0;
@@ -352,6 +356,20 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 .keypad-button:hover { background: #e5e7eb; }
 .keypad-clear { grid-column: span 2; }
+
+.payment-change {
+  margin-top: 12px;
+  font-size: clamp(1.1rem, 2.8vw, 1.35rem);
+  font-weight: 600;
+}
+
+#change-amount {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 700;
+  color: var(--brand-primary);
+  letter-spacing: .2px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* =========================================
    SUCCESS MODAL + RECEIPT
