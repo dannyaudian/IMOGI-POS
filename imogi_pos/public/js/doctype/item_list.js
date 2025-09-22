@@ -2,10 +2,12 @@ frappe.listview_settings["Item"] = {
     onload(listview) {
         let defaultBomFilter = null;
 
+        const pageForm = listview.page.wrapper.find(".page-form");
+
         const checkBomWrapper = $(
             "<div class=\"frappe-control form-group\"></div>"
         ).appendTo(
-            listview.page.page_form
+            pageForm.length ? pageForm : listview.page.wrapper
         );
 
         const checkBomControl = frappe.ui.form.make_control({
@@ -40,8 +42,10 @@ frappe.listview_settings["Item"] = {
             listview.refresh();
         };
 
-        checkBomControl.$input.on("change", () => {
-            toggleBomFilter(checkBomControl.$input.is(":checked"));
-        });
+        checkBomWrapper
+            .find('input[type="checkbox"]')
+            .on("change", (event) => {
+                toggleBomFilter(event.currentTarget.checked);
+            });
     },
 };
