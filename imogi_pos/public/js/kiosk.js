@@ -1,6 +1,6 @@
 /**
  * IMOGI POS - Kiosk
- * 
+ *
  * Main module for the Kiosk interface
  * Handles:
  * - Item catalog browsing
@@ -10,6 +10,8 @@
  * - Receipt printing
  * - Customer Display integration
  */
+
+import './utils/options';
 
 frappe.provide('imogi_pos.kiosk');
 
@@ -177,10 +179,17 @@ imogi_pos.kiosk = {
                 callback: (response) => {
                     if (response.message) {
                         const profile = response.message;
-                        
+
                         // Set domain and mode
                         this.settings.posDomain = profile.imogi_pos_domain || 'Restaurant';
-                        
+
+                        this.settings.sellingPriceList = profile.selling_price_list || null;
+                        this.settings.basePriceList = (
+                            profile.imogi_base_price_list ||
+                            profile.base_price_list ||
+                            null
+                        );
+
                         // Set branch if available
                         if (profile.imogi_branch && !this.settings.branch) {
                             this.settings.branch = profile.imogi_branch;
@@ -1279,7 +1288,7 @@ imogi_pos.kiosk = {
             return total;
         };
 
-        const buildOptionPayload = (value, label, linkedItem) => {
+        const buildOptionPayload = (value, label, linkedItem, priceValue) => {
             if (value === undefined || value === null || value === '') {
                 return null;
             }
@@ -1291,6 +1300,13 @@ imogi_pos.kiosk = {
 
             if (linkedItem && linkedItem !== '') {
                 payload.linked_item = linkedItem;
+            }
+
+            const numericPrice = Number(priceValue || 0) || 0;
+            if (numericPrice) {
+                payload.additional_price = numericPrice;
+            } else {
+                payload.additional_price = 0;
             }
 
             return payload;
@@ -1412,20 +1428,22 @@ imogi_pos.kiosk = {
 
                     if (selected[0].type === 'checkbox') {
                         const values = selected.map(input => {
-                            optionPrice += parsePrice(input.dataset.price);
+                            const price = parsePrice(input.dataset.price);
+                            optionPrice += price;
                             const linkedItem = input.dataset.linkedItem || '';
                             const optionLabel = input.dataset.label || '';
-                            return buildOptionPayload(input.value, optionLabel, linkedItem) || input.value;
+                            return buildOptionPayload(input.value, optionLabel, linkedItem, price) || input.value;
                         }).filter(Boolean);
                         if (values.length) {
                             selectedOptions[key] = values;
                         }
                     } else {
                         const input = selected[0];
-                        optionPrice += parsePrice(input.dataset.price);
+                        const price = parsePrice(input.dataset.price);
+                        optionPrice += price;
                         const linkedItem = input.dataset.linkedItem || '';
                         const optionLabel = input.dataset.label || '';
-                        selectedOptions[key] = buildOptionPayload(input.value, optionLabel, linkedItem) || input.value;
+                        selectedOptions[key] = buildOptionPayload(input.value, optionLabel, linkedItem, price) || input.value;
                     }
                 });
 
@@ -1522,7 +1540,62 @@ imogi_pos.kiosk = {
             .filter(Boolean)
             .join(', ');
     },
-    
+
+    getCatalogItemDetails: function(itemCode) {
+        if (!itemCode) return null;
+        const collections = [
+            this.state.catalogItems || [],
+            this.state.searchResults || [],
+        ];
+        for (const items of collections) {
+            const match = items.find(item => item && item.name === itemCode);
+            if (match) {
+                return match;
+            }
+        }
+        return null;
+    },
+
+    getOptionsSignature: function(options) {
+        try {
+            return JSON.stringify(options || {});
+        } catch (error) {
+            console.warn('Failed to serialise options payload', error);
+            return '';
+        }
+    },
+
+    buildPricingContext: function({ itemCode, qty = 1, itemDetails = null } = {}) {
+        return {
+            qty,
+            priceList: this.settings.sellingPriceList || null,
+            basePriceList: this.settings.basePriceList || null,
+            posProfile: this.settings.posProfile || null,
+            itemName: (itemDetails && itemDetails.item_name) || itemCode,
+        };
+    },
+
+    hasUnresolvedSku: function(line) {
+        if (!line) return false;
+        if (!line.expected_linked_item) return false;
+        if (!line.template_item) return false;
+        if (line.sku_changed) return false;
+        if (line.item && line.template_item && line.item !== line.template_item) {
+            return false;
+        }
+        return true;
+    },
+
+    ensureAllSkusResolved: function(lines) {
+        const unresolved = (lines || []).filter(item => this.hasUnresolvedSku(item));
+        if (unresolved.length) {
+            const names = unresolved
+                .map(item => item.item_name || item.item || 'Unknown Item')
+                .join(', ');
+            throw new Error(`Please select a specific variant for: ${names}`);
+        }
+    },
+
     /**
      * Add item to cart
      * @param {string} itemName - Item name to add
@@ -1531,66 +1604,73 @@ imogi_pos.kiosk = {
      * @param {string} [notes=''] - Notes for the item
      */
     addItemToCart: function(itemName, options = {}, quantity = 1, notes = '') {
-        // Get item details
-        frappe.call({
-            method: 'frappe.client.get',
-            args: {
-                doctype: 'Item',
-                name: itemName
-            },
-            callback: (response) => {
-                if (response.message) {
-                    const item = response.message;
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
+            ? toolkit.applyOptionsToLine
+            : null;
 
-                    // Calculate rate with additional option price
-                    const optionPrice = options.price || 0;
-                    const rate = (item.standard_rate || 0) + optionPrice;
-                    const qty = Math.max(1, parseInt(quantity, 10) || 1);
-                    const itemNotes = (notes || '').trim();
+        if (!resolver) {
+            this.showError('Option resolver unavailable. Please refresh the page.');
+            return;
+        }
 
-                    // Check if item is already in cart with same options
-                    const existingItemIndex = this.state.cart.findIndex(cartItem =>
-                        cartItem.item === itemName &&
-                        (cartItem.notes || '') === itemNotes &&
-                        JSON.stringify(cartItem.options || {}) === JSON.stringify(options)
-                    );
+        const itemDetails = this.getCatalogItemDetails(itemName) || {};
+        const qty = Math.max(1, parseInt(quantity, 10) || 1);
+        const itemNotes = (notes || '').trim();
 
-                    if (existingItemIndex !== -1) {
-                        // Increment quantity
-                        this.state.cart[existingItemIndex].qty += qty;
-                        this.state.cart[existingItemIndex].amount =
-                            this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
-                    } else {
-                        // Add new item
-                        this.state.cart.push({
-                            item: itemName,
-                            item_name: item.item_name,
-                            qty: qty,
-                            rate: rate,
-                            amount: rate * qty,
-                            notes: itemNotes,
-                            options: options,
-                            item_options: options
-                        });
-                    }
+        const line = {
+            item: itemName,
+            item_code: itemName,
+            template_item: itemName,
+            item_name: itemDetails.item_name || itemName,
+            qty: qty,
+            rate: 0,
+            amount: 0,
+            notes: itemNotes,
+            item_options: options || {},
+            options: options || {},
+            requires_variant: Number(itemDetails.has_variants) === 1,
+        };
 
-                    // Update UI
-                    this.renderCart();
-                    this.showToast('Item added to cart');
-
-                    // Show notification
-                    this.showToast(`${item.item_name} added to cart`);
-
-                    // Show cart navigation modal
-                    this.showCartPrompt();
-                } else {
-                    this.showError('Failed to add item');
-                }
-            },
-            error: () => {
-                this.showError('Failed to add item');
-            }
+        const context = this.buildPricingContext({
+            itemCode: itemName,
+            qty,
+            itemDetails,
         });
+
+        resolver(line, options, context)
+            .then(() => {
+                const signature = this.getOptionsSignature(line.item_options);
+                const existingItemIndex = this.state.cart.findIndex(cartItem => {
+                    if (!cartItem) {
+                        return false;
+                    }
+                    const existingSignature = this.getOptionsSignature(cartItem.item_options || cartItem.options);
+                    return (
+                        cartItem.item === line.item &&
+                        (cartItem.notes || '') === itemNotes &&
+                        existingSignature === signature
+                    );
+                });
+
+                if (existingItemIndex !== -1) {
+                    this.state.cart[existingItemIndex].qty += line.qty;
+                    this.state.cart[existingItemIndex].amount =
+                        this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
+                } else {
+                    this.state.cart.push(line);
+                }
+
+                this.renderCart();
+                this.showToast('Item added to cart');
+                this.showToast(`${line.item_name} added to cart`);
+                this.showCartPrompt();
+            })
+            .catch((error) => {
+                console.error('Failed to add item to cart', error);
+                const message = (error && error.message) ? error.message : 'Failed to add item';
+                this.showError(message);
+            });
     },
     
     /**
@@ -1886,10 +1966,18 @@ imogi_pos.kiosk = {
             this.showError('Your cart is empty');
             return;
         }
-        
+
+        try {
+            this.ensureAllSkusResolved(this.state.cart);
+        } catch (error) {
+            const message = (error && error.message) ? error.message : error;
+            this.showError(message);
+            return;
+        }
+
         // Show loading indicator
         this.showLoading(true, 'Processing your order...');
-        
+
         // Create POS Order
         const payloadItems = this.state.cart.map(item => {
             const itemOptions = item.item_options || item.options || {};

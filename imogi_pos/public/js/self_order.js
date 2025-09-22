@@ -1,6 +1,6 @@
 /**
  * IMOGI POS - Self Order
- * 
+ *
  * Main module for the Self Order interface
  * Handles:
  * - Template-first catalog with variant picker
@@ -11,6 +11,8 @@
  * - Session management
  * - QR-based authentication
  */
+
+import './utils/options';
 
 frappe.provide('imogi_pos.self_order');
 
@@ -122,6 +124,8 @@ imogi_pos.self_order = {
                         if (expiry > now) {
                             // Session is valid
                             this.state.session = session;
+                            this.settings.sellingPriceList = session.selling_price_list || null;
+                            this.settings.basePriceList = session.base_price_list || null;
                             this.settings.posProfile = session.pos_profile;
                             this.settings.branch = session.branch;
                             this.settings.table = session.table;
@@ -131,7 +135,7 @@ imogi_pos.self_order = {
                             
                             // Load cart from session
                             if (session.cart && Array.isArray(session.cart)) {
-                                this.state.cart = session.cart;
+                                this.state.cart = this.normaliseCartItems(session.cart);
                             }
                             
                             resolve();
@@ -1164,7 +1168,7 @@ imogi_pos.self_order = {
                 let optionPrice = 0;
                 const missing = [];
 
-                const buildOptionPayload = (value, label, linkedItem) => {
+                const buildOptionPayload = (value, label, linkedItem, priceValue) => {
                     if (!value) {
                         return null;
                     }
@@ -1174,6 +1178,12 @@ imogi_pos.self_order = {
                     };
                     if (linkedItem && linkedItem !== '') {
                         payload.linked_item = linkedItem;
+                    }
+                    const numericPrice = Number(priceValue || 0) || 0;
+                    if (numericPrice) {
+                        payload.additional_price = numericPrice;
+                    } else {
+                        payload.additional_price = 0;
                     }
                     return payload;
                 };
@@ -1190,7 +1200,7 @@ imogi_pos.self_order = {
                         if (value) {
                             const linkedItem = (opt && opt.dataset.linkedItem) || '';
                             const label = (opt && (opt.dataset.label || opt.textContent)) || value;
-                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem) || value;
+                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem, price) || value;
                             optionPrice += price;
                         } else if (required) {
                             missing.push(this.toTitleCase(key));
@@ -1201,9 +1211,10 @@ imogi_pos.self_order = {
                     const radio = group.querySelector('.option-radio:checked');
                     if (radio) {
                         const linkedItem = radio.dataset.linkedItem || '';
+                        const price = parseFloat(radio.dataset.price || 0);
                         const label = radio.dataset.label || radio.value;
-                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem) || radio.value;
-                        optionPrice += parseFloat(radio.dataset.price || 0);
+                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem, price) || radio.value;
+                        optionPrice += price;
                         return;
                     } else if (group.querySelector('.option-radio') && required) {
                         missing.push(this.toTitleCase(key));
@@ -1214,10 +1225,11 @@ imogi_pos.self_order = {
                     if (checkboxes.length) {
                         const values = [];
                         checkboxes.forEach(cb => {
-                            optionPrice += parseFloat(cb.dataset.price || 0);
+                            const price = parseFloat(cb.dataset.price || 0);
+                            optionPrice += price;
                             const linkedItem = cb.dataset.linkedItem || '';
                             const label = cb.dataset.label || cb.value;
-                            const payload = buildOptionPayload(cb.value, label, linkedItem) || cb.value;
+                            const payload = buildOptionPayload(cb.value, label, linkedItem, price) || cb.value;
                             if (payload) {
                                 values.push(payload);
                             }
@@ -1287,76 +1299,172 @@ imogi_pos.self_order = {
             .filter(Boolean)
             .join(', ');
     },
-    
+
+    getCatalogItemDetails: function(itemCode) {
+        if (!itemCode) return null;
+        const collections = [
+            this.state.catalogItems || [],
+            this.state.searchResults || [],
+        ];
+        for (const items of collections) {
+            const match = items.find(item => item && item.name === itemCode);
+            if (match) {
+                return match;
+            }
+        }
+        return null;
+    },
+
+    getOptionsSignature: function(options) {
+        try {
+            return JSON.stringify(options || {});
+        } catch (error) {
+            console.warn('Failed to serialise options payload', error);
+            return '';
+        }
+    },
+
+    buildPricingContext: function({ itemCode, qty = 1, itemDetails = null } = {}) {
+        return {
+            qty,
+            priceList: this.settings.sellingPriceList || null,
+            basePriceList: this.settings.basePriceList || null,
+            posProfile: this.settings.posProfile || null,
+            itemName: (itemDetails && itemDetails.item_name) || itemCode,
+        };
+    },
+
+    hasUnresolvedSku: function(line) {
+        if (!line) return false;
+        if (!line.expected_linked_item) return false;
+        if (!line.template_item) return false;
+        if (line.sku_changed) return false;
+        if (line.item && line.template_item && line.item !== line.template_item) {
+            return false;
+        }
+        return true;
+    },
+
+    ensureAllSkusResolved: function(lines) {
+        const unresolved = (lines || []).filter(item => this.hasUnresolvedSku(item));
+        if (unresolved.length) {
+            const names = unresolved
+                .map(item => item.item_name || item.item || 'Unknown Item')
+                .join(', ');
+            throw new Error(`Please select a specific variant for: ${names}`);
+        }
+    },
+
+    normaliseCartItems: function(items) {
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const helperBag = (toolkit && toolkit.__helpers) || {};
+        const sumAdditionalPrice = helperBag.sumAdditionalPrice || (() => 0);
+        const hasAnyLinkedItem = helperBag.hasAnyLinkedItem || (() => false);
+
+        return (items || []).map(entry => {
+            const item = Object.assign({}, entry);
+
+            let parsedOptions = item.item_options || item.options || {};
+            if (typeof parsedOptions === 'string') {
+                try {
+                    parsedOptions = JSON.parse(parsedOptions);
+                } catch (error) {
+                    console.warn('Failed to parse stored cart options', error);
+                    parsedOptions = {};
+                }
+            }
+
+            item.item = item.item || item.item_code;
+            item.item_code = item.item;
+            item.template_item = item.template_item || item.item;
+            item.item_options = parsedOptions;
+            item.options = parsedOptions;
+            item.additional_price_total = sumAdditionalPrice(parsedOptions);
+            item.expected_linked_item = hasAnyLinkedItem(parsedOptions);
+            item.sku_changed = Boolean(item.template_item && item.item && item.template_item !== item.item);
+            item.requires_variant = item.expected_linked_item;
+            item.qty = Number(item.qty || 1);
+            item.rate = Number(item.rate || 0);
+            item.amount = item.qty * item.rate;
+
+            return item;
+        });
+    },
+
     /**
      * Add item to cart
      * @param {string} itemName - Item name to add
      */
     addItemToCart: function(itemName, options = {}) {
-        // Show loading indicator
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
+            ? toolkit.applyOptionsToLine
+            : null;
+
+        if (!resolver) {
+            this.showError('Option resolver unavailable. Please refresh the page.');
+            return;
+        }
+
+        const itemDetails = this.getCatalogItemDetails(itemName) || {};
+        const qty = 1;
+        const line = {
+            item: itemName,
+            item_code: itemName,
+            template_item: itemName,
+            item_name: itemDetails.item_name || itemName,
+            qty: qty,
+            rate: 0,
+            amount: 0,
+            notes: '',
+            item_options: options || {},
+            options: options || {},
+            requires_variant: Number(itemDetails.has_variants) === 1,
+        };
+
+        const context = this.buildPricingContext({
+            itemCode: itemName,
+            qty,
+            itemDetails,
+        });
+
         this.showLoading(true, 'Adding item...');
 
-        // Get item details
-        frappe.call({
-            method: 'frappe.client.get',
-            args: {
-                doctype: 'Item',
-                name: itemName
-            },
-            callback: (response) => {
-                if (response.message) {
-                    const item = response.message;
-
-                    // Calculate rate including option price
-                    const optionPrice = options.price || 0;
-                    const rate = (item.standard_rate || 0) + optionPrice;
-
-                    // Check if item is already in cart
-                    const existingItemIndex = this.state.cart.findIndex(cartItem =>
-                        cartItem.item === itemName && !cartItem.notes &&
-                        JSON.stringify(cartItem.options || {}) === JSON.stringify(options)
-                    );
-
-                    if (existingItemIndex !== -1) {
-                        // Increment quantity
-                        this.state.cart[existingItemIndex].qty += 1;
-                        this.state.cart[existingItemIndex].amount =
-                            this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
-                    } else {
-                        // Add new item
-                        this.state.cart.push({
-                            item: itemName,
-                            item_name: item.item_name,
-                            qty: 1,
-                            rate: rate,
-                            amount: rate,
-                            notes: '',
-                            options: options,
-                            item_options: options
-                        });
+        resolver(line, options, context)
+            .then(() => {
+                const signature = this.getOptionsSignature(line.item_options);
+                const existingItemIndex = this.state.cart.findIndex(cartItem => {
+                    if (!cartItem || (cartItem.notes && cartItem.notes.trim())) {
+                        return false;
                     }
+                    const existingSignature = this.getOptionsSignature(cartItem.item_options || cartItem.options);
+                    return cartItem.item === line.item && existingSignature === signature;
+                });
 
-                    // Save cart to session
-                    this.saveCartToSession();
-
-                    // Update UI
-                    this.updateCartCount();
-
-                    // Hide loading indicator
-                    this.showLoading(false);
-
-                    // Show prompt for notes
-                    this.promptForNotes(existingItemIndex !== -1 ? existingItemIndex : this.state.cart.length - 1);
+                if (existingItemIndex !== -1) {
+                    this.state.cart[existingItemIndex].qty += line.qty;
+                    this.state.cart[existingItemIndex].amount =
+                        this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
                 } else {
-                    this.showLoading(false);
-                    this.showError('Failed to add item');
+                    this.state.cart.push(line);
                 }
-            },
-            error: () => {
+
+                this.saveCartToSession();
+                this.updateCartCount();
+
+                const promptIndex = existingItemIndex !== -1
+                    ? existingItemIndex
+                    : this.state.cart.length - 1;
+                this.promptForNotes(promptIndex);
+            })
+            .catch((error) => {
+                console.error('Failed to add item to cart', error);
+                const message = (error && error.message) ? error.message : 'Failed to add item';
+                this.showError(message);
+            })
+            .finally(() => {
                 this.showLoading(false);
-                this.showError('Failed to add item');
-            }
-        });
+            });
     },
     
     /**
@@ -1809,7 +1917,15 @@ imogi_pos.self_order = {
             this.showError('Your cart is empty');
             return;
         }
-        
+
+        try {
+            this.ensureAllSkusResolved(this.state.cart);
+        } catch (error) {
+            const message = (error && error.message) ? error.message : error;
+            this.showError(message);
+            return;
+        }
+
         // Check if table is set
         if (!this.settings.table) {
             this.showError('No table specified. Please scan the table QR code again.');
@@ -1899,10 +2015,18 @@ imogi_pos.self_order = {
             this.showError('Your cart is empty');
             return;
         }
-        
+
+        try {
+            this.ensureAllSkusResolved(this.state.cart);
+        } catch (error) {
+            const message = (error && error.message) ? error.message : error;
+            this.showError(message);
+            return;
+        }
+
         // Show loading indicator
         this.showLoading(true, 'Processing order...');
-        
+
         frappe.call({
             method: 'imogi_pos.api.self_order.checkout_takeaway',
             args: {
