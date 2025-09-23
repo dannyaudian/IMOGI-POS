@@ -69,7 +69,7 @@ doc_events = {
         "validate": "imogi_pos.api.items.set_item_flags",
     },
     "Sales Invoice": {
-        "on_submit": "imogi_pos.api.invoice_modifiers.apply_invoice_modifiers",
+        "before_submit": "imogi_pos.api.invoice_modifiers.apply_invoice_modifiers",
     },
 }
 
