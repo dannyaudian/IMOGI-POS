@@ -431,6 +431,7 @@ frappe.ready(async function () {
       this.elements.successDoneBtn?.addEventListener("click", () => {
         this.closeSuccessModal();
         this.resetApp();
+        window.location.reload();
       });
     },
 
