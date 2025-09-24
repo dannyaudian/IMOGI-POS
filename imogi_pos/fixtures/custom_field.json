@@ -1131,7 +1131,7 @@
     "fieldtype": "Section Break",
     "label": "Kitchen Routing",
     "insert_after": "item_topping_options",
-    "depends_on": "eval:frappe.boot.imogi_pos_settings && frappe.boot.imogi_pos_settings.domain == 'Restaurant'",
+    "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "Item",
