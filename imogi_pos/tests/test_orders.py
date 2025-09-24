@@ -223,6 +223,8 @@ def frappe_env(monkeypatch):
     frappe.utils.now_datetime = lambda: datetime.datetime(2023,1,1,12,0,0)
     frappe.utils.getdate = lambda value: value
     frappe.utils.flt = float
+    frappe.utils.cstr = lambda value: "" if value is None else str(value)
+    frappe.utils.cint = lambda value: 0 if value in (None, "") else int(value)
     frappe.call_hook = lambda method, **kwargs: None
     frappe.get_hooks = lambda *a, **kw: []
     frappe.log_error = lambda *a, **kw: None
@@ -389,6 +391,21 @@ def test_create_order_blocks_discounts_for_guest(frappe_env):
     assert result["discount_amount"] == 0
     assert orders[result["name"]].discount_percent == 0
     assert orders[result["name"]].discount_amount == 0
+
+
+def test_create_pos_order_assigns_queue_number(frappe_env):
+    frappe, orders_module = frappe_env
+
+    result = orders_module.create_order(
+        "POS",
+        "BR-1",
+        "P1",
+        items={"item": "SALES-ITEM", "rate": 25},
+    )
+
+    assert result["order_type"] == "POS"
+    assert result["queue_number"] == 1
+    assert orders[result["name"]].queue_number == 1
 
 
 def test_create_order_blocks_discounts_without_roles(frappe_env):

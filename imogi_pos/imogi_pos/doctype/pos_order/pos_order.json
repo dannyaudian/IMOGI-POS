@@ -60,7 +60,7 @@
             "fieldtype": "Select",
             "in_list_view": 1,
             "label": "Order Type",
-            "options": "Dine-in\nTakeaway\nKiosk",
+            "options": "Dine-in\nTakeaway\nKiosk\nPOS",
             "reqd": 1
         },
         {

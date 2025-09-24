@@ -344,13 +344,13 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     Creates a new POS Order.
     
     Args:
-        order_type (str): Order type (Dine-in/Takeaway/Kiosk)
+        order_type (str): Order type (Dine-in/Takeaway/Kiosk/POS)
         branch (str): Branch name
         pos_profile (str): POS Profile name
         table (str, optional): Restaurant Table name.
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
-        service_type (str, optional): Service type for kiosk orders (Takeaway/Dine-in).
+        service_type (str, optional): Service type for kiosk or POS orders (Takeaway/Dine-in).
         selling_price_list (str, optional): Explicit price list to apply to the order.
     
     Returns:
@@ -468,7 +468,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     if table_doc:
         order_doc.floor = table_doc.floor
 
-    if order_type == "Kiosk":
+    if order_type in {"Kiosk", "POS"}:
         order_doc.queue_number = get_next_queue_number(branch)
 
     if service_type:
@@ -746,7 +746,7 @@ def set_order_type(pos_order, order_type):
     
     Args:
         pos_order (str): POS Order name
-        order_type (str): New order type (Dine-in/Takeaway/Kiosk)
+        order_type (str): New order type (Dine-in/Takeaway/Kiosk/POS)
     
     Returns:
         dict: Updated POS Order details
