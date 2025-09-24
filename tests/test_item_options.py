@@ -3,7 +3,7 @@ import sys
 import types
 
 
-def load_items_with_doc(item_doc):
+def load_items_with_doc(item_doc, kitchen_routes=None):
     sys.path.insert(0, ".")
     frappe = types.ModuleType("frappe")
 
@@ -18,6 +18,28 @@ def load_items_with_doc(item_doc):
 
     sys.modules["frappe"] = frappe
 
+    kitchen_routes = kitchen_routes or {}
+    route_map = {
+        (str(key).strip().casefold() if isinstance(key, str) else str(key).casefold()): value
+        for key, value in kitchen_routes.items()
+        if key is not None and value is not None
+    }
+
+    kitchen_routing = types.ModuleType("imogi_pos.utils.kitchen_routing")
+
+    def get_menu_category_kitchen_station_by_category(category):
+        if category is None:
+            return (None, None)
+        key = str(category).strip().casefold()
+        return route_map.get(key, (None, None))
+
+    kitchen_routing.get_menu_category_kitchen_station_by_category = (
+        get_menu_category_kitchen_station_by_category
+    )
+    kitchen_routing.get_menu_category_kitchen_station = lambda *_args, **_kwargs: (None, None)
+
+    sys.modules["imogi_pos.utils.kitchen_routing"] = kitchen_routing
+
     items = importlib.import_module("imogi_pos.api.items")
     importlib.reload(items)
     return items
@@ -26,6 +48,7 @@ def load_items_with_doc(item_doc):
 def unload_items_module():
     sys.modules.pop("frappe", None)
     sys.modules.pop("imogi_pos.api.items", None)
+    sys.modules.pop("imogi_pos.utils.kitchen_routing", None)
     sys.path.pop(0)
 
 
@@ -195,5 +218,57 @@ def test_set_item_flags_beverage_category():
     assert doc.get("has_size_option") == 1
     assert doc.get("has_sugar_option") == 1
     assert doc.get("has_ice_option") == 1
+
+
+def test_set_item_flags_populates_kitchen_defaults():
+    kitchen_routes = {"Allura": ("Main Kitchen", "Minuman")}
+    items = load_items_with_doc(None, kitchen_routes=kitchen_routes)
+
+    class DummyDoc:
+        def __init__(self):
+            self._data = {
+                "menu_category": "Allura",
+                "default_kitchen": None,
+                "default_kitchen_station": None,
+            }
+
+        def get(self, key):
+            return self._data.get(key)
+
+        def set(self, key, value):
+            self._data[key] = value
+
+    doc = DummyDoc()
+    items.set_item_flags(doc)
+    unload_items_module()
+
+    assert doc.get("default_kitchen") == "Main Kitchen"
+    assert doc.get("default_kitchen_station") == "Minuman"
+
+
+def test_set_item_flags_respects_manual_overrides():
+    kitchen_routes = {"Allura": ("Main Kitchen", "Minuman")}
+    items = load_items_with_doc(None, kitchen_routes=kitchen_routes)
+
+    class DummyDoc:
+        def __init__(self):
+            self._data = {
+                "menu_category": "Allura",
+                "default_kitchen": "Manual Kitchen",
+                "default_kitchen_station": "Manual Station",
+            }
+
+        def get(self, key):
+            return self._data.get(key)
+
+        def set(self, key, value):
+            self._data[key] = value
+
+    doc = DummyDoc()
+    items.set_item_flags(doc)
+    unload_items_module()
+
+    assert doc.get("default_kitchen") == "Manual Kitchen"
+    assert doc.get("default_kitchen_station") == "Manual Station"
 
 

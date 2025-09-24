@@ -103,6 +103,12 @@ Items support configurable options that can be toggled per menu category:
 - Each child table (`item_size_options`, `item_spice_options`, `item_topping_options`) stores option names with an optional `additional_price`
 - When saving an item, the `menu_category` automatically sets these flags using `MENU_FLAG_MAP`
 
+### Kitchen Routing Defaults
+
+- Configure **Restaurant Settings → Menu Category Routes** to map categories to a Kitchen and Station.
+- When an Item in that category is saved, the defaults are now copied into `default_kitchen` and `default_kitchen_station` automatically if those fields are left blank.
+- Manually entered values on the Item still win—existing defaults are never overwritten by the automatic routing.
+
 ## Domain Switching
 
 The app supports multiple domains through the `imogi_pos_domain` field in POS Profile:
