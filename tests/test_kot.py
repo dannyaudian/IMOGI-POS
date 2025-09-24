@@ -171,6 +171,32 @@ def test_send_items_to_kitchen_includes_item_options(kot_module):
     assert result["items"][0]["item_options"] == {"size": {"name": "Large"}}
 
 
+def test_send_items_to_kitchen_accepts_pos_orders(kot_module):
+    kot, frappe = kot_module
+
+    def get_doc(doctype, name=None):
+        if doctype == "POS Order":
+            return types.SimpleNamespace(
+                name=name,
+                pos_profile="PROFILE-1",
+                branch="BR-1",
+                table=None,
+                floor=None,
+                order_type="POS",
+                customer="CUST-1",
+                workflow_state="Draft",
+            )
+        if doctype == "Kitchen":
+            return types.SimpleNamespace(name=name, default_station="KIT-ST")
+        raise Exception("Unexpected doctype")
+
+    frappe.get_doc = get_doc
+
+    result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
+
+    assert result["order_type"] == "POS"
+
+
 def test_send_items_to_kitchen_uses_station_fallback(kot_module):
     kot, frappe = kot_module
 
