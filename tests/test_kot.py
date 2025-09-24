@@ -13,6 +13,7 @@ def kot_module():
     utils = types.ModuleType("frappe.utils")
     utils.now_datetime = lambda: datetime.datetime(2023, 1, 1, 0, 0, 0)
     utils.cint = int
+    utils.cstr = str
     utils.get_datetime = lambda x=None: datetime.datetime(2023, 1, 1, 0, 0, 0)
 
     frappe = types.ModuleType("frappe")
@@ -61,9 +62,17 @@ def kot_module():
                 return data.get(fieldname)
             if doctype == "Item":
                 self.looked_up_item = name
-                if fieldname == "item_name":
-                    return "Item Name"
-                return False
+                data = {
+                    "item_name": "Item Name",
+                    "default_kitchen": None,
+                    "default_kitchen_station": None,
+                    "menu_category": None,
+                }
+                if isinstance(fieldname, (list, tuple)):
+                    if as_dict:
+                        return {f: data.get(f) for f in fieldname}
+                    return [data.get(f) for f in fieldname]
+                return data.get(fieldname)
             if doctype == "KOT Ticket" and fieldname == "branch":
                 return "BR-1"
             if doctype == "POS Profile":
@@ -72,6 +81,11 @@ def kot_module():
 
         def has_column(self, doctype, column_name):
             return doctype == "POS Order Item" and column_name == "item_code"
+
+        def get_single_value(self, doctype, fieldname):
+            if doctype == "Restaurant Settings" and fieldname == "default_kitchen_station":
+                return "ST-DEFAULT"
+            return None
 
     frappe.db = DB()
 
@@ -103,6 +117,8 @@ def kot_module():
                 table=None,
                 workflow_state="Draft",
             )
+        if doctype == "Kitchen":
+            return types.SimpleNamespace(name=name, default_station="KIT-ST")
         raise Exception("Unexpected doctype")
 
     frappe.get_doc = get_doc
@@ -155,7 +171,7 @@ def test_send_items_to_kitchen_includes_item_options(kot_module):
     assert result["items"][0]["item_options"] == {"size": {"name": "Large"}}
 
 
-def test_send_items_to_kitchen_requires_station(kot_module):
+def test_send_items_to_kitchen_uses_station_fallback(kot_module):
     kot, frappe = kot_module
 
     insert_called = False
@@ -186,7 +202,7 @@ def test_send_items_to_kitchen_requires_station(kot_module):
                 "item": "ITEM-1",
                 "qty": 1,
                 "notes": "Note",
-                "kitchen": "KIT-1",
+                "kitchen": None,
                 "kitchen_station": None,
                 "item_options": {"size": "Large"},
             }
@@ -195,9 +211,17 @@ def test_send_items_to_kitchen_requires_station(kot_module):
             return data.get(fieldname)
         if doctype == "Item":
             self.looked_up_item = name
-            if fieldname == "item_name":
-                return "Item Name"
-            return False
+            data = {
+                "item_name": "Item Name",
+                "default_kitchen": None,
+                "default_kitchen_station": None,
+                "menu_category": None,
+            }
+            if isinstance(fieldname, (list, tuple)):
+                if as_dict:
+                    return {f: data.get(f) for f in fieldname}
+                return [data.get(f) for f in fieldname]
+            return data.get(fieldname)
         if doctype == "KOT Ticket" and fieldname == "branch":
             return "BR-1"
         if doctype == "POS Profile":
@@ -206,11 +230,20 @@ def test_send_items_to_kitchen_requires_station(kot_module):
 
     frappe.db.get_value = types.MethodType(db_get_value, frappe.db)
 
-    with pytest.raises(frappe.ValidationError) as excinfo:
-        kot.send_items_to_kitchen("POS-1", ["ROW-1"])
+    single_value_calls = []
 
-    assert "ITEM-1" in str(excinfo.value)
-    assert not insert_called
+    def get_single_value(self, doctype, fieldname):
+        single_value_calls.append((doctype, fieldname))
+        return None
+
+    frappe.db.get_single_value = types.MethodType(get_single_value, frappe.db)
+
+    result = kot.send_items_to_kitchen("POS-1", ["ROW-1"])
+
+    assert insert_called
+    assert result["kitchen_station"] == "Main"
+    assert result.get("kitchen") is None
+    assert single_value_calls == [("Restaurant Settings", "default_kitchen_station")]
 
 
 def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):
@@ -314,8 +347,11 @@ def kot_service_env():
     import types
 
     frappe = types.ModuleType("frappe")
-    utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2023, 1, 1),
-                                  get_datetime=lambda x=None: datetime.datetime(2023, 1, 1))
+    utils = types.SimpleNamespace(
+        now_datetime=lambda: datetime.datetime(2023, 1, 1),
+        get_datetime=lambda x=None: datetime.datetime(2023, 1, 1),
+        cstr=str,
+    )
     frappe.utils = utils
 
     class FrappeException(Exception):

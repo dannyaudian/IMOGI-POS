@@ -11,6 +11,7 @@ from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.kitchen.kot_service import update_kot_item_state as service_update_kot_item_state
 from imogi_pos.utils.options import format_options_for_display
+from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
 
 def check_restaurant_domain(pos_profile):
     """
@@ -459,12 +460,63 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         item_code = item_details.get("item")
         item_name = frappe.db.get_value("Item", item_code, "item_name")
 
+        kitchen = item_details.get("kitchen")
+        station = item_details.get("kitchen_station")
+
+        if not station or not kitchen:
+            item_defaults = frappe.db.get_value(
+                "Item",
+                item_code,
+                ["default_kitchen_station", "default_kitchen"],
+                as_dict=True,
+            ) or {}
+
+            default_kitchen = item_defaults.get("default_kitchen")
+            default_station = item_defaults.get("default_kitchen_station")
+
+            if not kitchen and default_kitchen:
+                kitchen = default_kitchen
+
+            if not station and default_station:
+                station = default_station
+
+        if (not station or not kitchen) and item_code:
+            mapped_kitchen, mapped_station = get_menu_category_kitchen_station(item_code)
+
+            if not kitchen and mapped_kitchen:
+                kitchen = mapped_kitchen
+
+            if not station and mapped_station:
+                station = mapped_station
+
+        if not station and kitchen:
+            try:
+                kitchen_doc = frappe.get_doc("Kitchen", kitchen)
+            except Exception:
+                kitchen_doc = None
+
+            if kitchen_doc:
+                station = getattr(kitchen_doc, "default_station", None) or station
+
+        if not station:
+            station = frappe.db.get_single_value(
+                "Restaurant Settings", "default_kitchen_station"
+            )
+            if not station:
+                station = "Main"
+
+        if kitchen:
+            item_details["kitchen"] = kitchen
+        if station:
+            item_details["kitchen_station"] = station
+
+        if not getattr(kot_doc, "kitchen", None) and kitchen:
+            kot_doc.kitchen = kitchen
+        if not getattr(kot_doc, "kitchen_station", None) and station:
+            kot_doc.kitchen_station = station
+
         if not item_details.get("kitchen_station") and not missing_station_item:
             missing_station_item = item_code
-        if not getattr(kot_doc, "kitchen_station", None):
-            kot_doc.kitchen_station = item_details.get("kitchen_station")
-        if not getattr(kot_doc, "kitchen", None):
-            kot_doc.kitchen = item_details.get("kitchen")
 
         options = item_details.get("item_options")
         if isinstance(options, dict):
