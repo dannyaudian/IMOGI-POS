@@ -6,6 +6,10 @@ from __future__ import unicode_literals
 import json
 import frappe
 
+from imogi_pos.utils.kitchen_routing import (
+    get_menu_category_kitchen_station_by_category,
+)
+
 
 @frappe.whitelist(allow_guest=True)
 def get_item_options(item):
@@ -171,3 +175,13 @@ def set_item_flags(doc, method=None):
     flags = MENU_FLAG_MAP.get(category, {})
     for base in ("has_size", "has_spice", "has_topping", "has_sugar", "has_ice"):
         doc.set(f"{base}_option", flags.get(base, 0))
+
+    kitchen, kitchen_station = get_menu_category_kitchen_station_by_category(
+        doc.get("menu_category")
+    )
+
+    if kitchen and not (doc.get("default_kitchen")):
+        doc.set("default_kitchen", kitchen)
+
+    if kitchen_station and not (doc.get("default_kitchen_station")):
+        doc.set("default_kitchen_station", kitchen_station)

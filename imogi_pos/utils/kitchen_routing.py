@@ -6,12 +6,10 @@ from frappe.utils import cstr
 from imogi_pos.utils.restaurant_settings import get_restaurant_settings
 
 
-def get_menu_category_kitchen_station(item_code: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """Return the kitchen and station mapped to an item's menu category."""
-    if not item_code:
-        return None, None
-
-    menu_category = frappe.db.get_value("Item", item_code, "menu_category")
+def get_menu_category_kitchen_station_by_category(
+    menu_category: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return the kitchen/station mapped to the provided menu category string."""
     if not menu_category:
         return None, None
 
@@ -33,3 +31,15 @@ def get_menu_category_kitchen_station(item_code: Optional[str]) -> Tuple[Optiona
             return kitchen, kitchen_station
 
     return None, None
+
+
+def get_menu_category_kitchen_station(item_code: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """Return the kitchen and station mapped to an item's menu category."""
+    if not item_code:
+        return None, None
+
+    menu_category = frappe.db.get_value("Item", item_code, "menu_category")
+    if not menu_category:
+        return None, None
+
+    return get_menu_category_kitchen_station_by_category(menu_category)
