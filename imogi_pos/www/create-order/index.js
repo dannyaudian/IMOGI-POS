@@ -1927,7 +1927,7 @@ frappe.ready(async function () {
         // 1) Create POS Order
         const totals = this.calculateTotals();
         const orderArgs = {
-          order_type: "Kiosk",
+          order_type: "POS",
           service_type: this.orderType,
           branch: CURRENT_BRANCH,
           pos_profile: POS_PROFILE.name,
@@ -2140,7 +2140,7 @@ frappe.ready(async function () {
           // Create order + invoice (cash)
           const totals = this.calculateTotals();
           const orderArgs = {
-            order_type: "Kiosk",
+            order_type: "POS",
             service_type: this.orderType,
             branch: CURRENT_BRANCH,
             pos_profile: POS_PROFILE.name,
