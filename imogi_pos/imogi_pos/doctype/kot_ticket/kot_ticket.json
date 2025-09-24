@@ -57,7 +57,7 @@
             "fieldname": "order_type",
             "fieldtype": "Select",
             "label": "Order Type",
-            "options": "Dine-in\nTakeaway\nKiosk"
+            "options": "Dine-in\nTakeaway\nKiosk\nPOS"
         },
         {
             "fieldname": "customer",
