@@ -70,6 +70,74 @@ def validate_pos_session(pos_profile, enforce_session=None):
     return active_session
 
 
+def notify_stock_update(invoice_doc, profile_doc):
+    """Publish stock updates for items in a submitted Sales Invoice."""
+
+    if not invoice_doc or not profile_doc:
+        return
+
+    warehouse = None
+    profile_get = getattr(profile_doc, "get", None)
+    if callable(profile_get):
+        warehouse = profile_get("warehouse")
+    if not warehouse:
+        warehouse = getattr(profile_doc, "warehouse", None)
+
+    if not warehouse:
+        return
+
+    def _extract_item_codes(rows):
+        for row in rows or []:
+            if isinstance(row, dict):
+                item_code = row.get("item_code")
+            else:
+                item_code = getattr(row, "item_code", None)
+            if item_code:
+                yield item_code
+
+    item_codes = set()
+    item_codes.update(_extract_item_codes(getattr(invoice_doc, "items", None)))
+    item_codes.update(_extract_item_codes(getattr(invoice_doc, "packed_items", None)))
+
+    if not item_codes:
+        return
+
+    realtime = getattr(frappe, "publish_realtime", None) or publish_realtime
+
+    for item_code in item_codes:
+        actual_qty = frappe.db.get_value(
+            "Bin",
+            {"item_code": item_code, "warehouse": warehouse},
+            "actual_qty",
+        ) or 0
+        realtime(
+            "stock_update",
+            {
+                "item_code": item_code,
+                "warehouse": warehouse,
+                "actual_qty": actual_qty,
+            },
+        )
+
+
+def on_sales_invoice_submit(invoice_doc, method=None):
+    """Hook handler to publish stock updates when a Sales Invoice is submitted."""
+
+    if not invoice_doc:
+        return
+
+    pos_profile = getattr(invoice_doc, "pos_profile", None)
+    if not pos_profile:
+        return
+
+    try:
+        profile_doc = frappe.get_doc("POS Profile", pos_profile)
+    except Exception:
+        return
+
+    notify_stock_update(invoice_doc, profile_doc)
+
+
 def _get_option_price(item_doc, table_name, option_name):
     for row in getattr(item_doc, table_name, []) or []:
         if getattr(row, "option_name", None) == option_name:
@@ -401,6 +469,8 @@ def generate_invoice(
                 ),
                 frappe.ValidationError,
             )
+
+        notify_stock_update(invoice_doc, profile_doc)
 
         # Link invoice back to POS Order
         frappe.db.set_value("POS Order", pos_order, "sales_invoice", invoice_doc.name)
