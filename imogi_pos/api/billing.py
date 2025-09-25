@@ -214,6 +214,121 @@ def compute_customizations(order_item):
     return total_delta, customizations, summary
 
 
+def _populate_bom_components(invoice_doc, profile_doc):
+    """Populate packed items for BOM components on the given invoice."""
+
+    if not invoice_doc:
+        return
+
+    invoice_items = getattr(invoice_doc, "items", None) or []
+    if not invoice_items:
+        return
+
+    profile_get = getattr(profile_doc, "get", None)
+    default_warehouse = None
+    if callable(profile_get):
+        default_warehouse = profile_get("warehouse")
+    if not default_warehouse:
+        default_warehouse = getattr(profile_doc, "warehouse", None)
+
+    packed_rows = getattr(invoice_doc, "packed_items", None)
+    if packed_rows is None:
+        packed_rows = []
+        setattr(invoice_doc, "packed_items", packed_rows)
+
+    existing = {}
+    for row in packed_rows:
+        if isinstance(row, dict):
+            parent_item = row.get("parent_item")
+            item_code = row.get("item_code")
+            warehouse = row.get("warehouse")
+            qty = flt(row.get("qty") or 0)
+        else:
+            parent_item = getattr(row, "parent_item", None)
+            item_code = getattr(row, "item_code", None)
+            warehouse = getattr(row, "warehouse", None)
+            qty = flt(getattr(row, "qty", 0))
+        key = (parent_item, item_code, warehouse)
+        existing[key] = row
+        if isinstance(row, dict):
+            row["qty"] = qty
+        else:
+            setattr(row, "qty", qty)
+
+    for invoice_item in invoice_items:
+        if isinstance(invoice_item, dict):
+            parent_item_code = invoice_item.get("item_code")
+            item_qty = flt(invoice_item.get("qty") or 0)
+            item_warehouse = invoice_item.get("warehouse")
+        else:
+            parent_item_code = getattr(invoice_item, "item_code", None)
+            item_qty = flt(getattr(invoice_item, "qty", 0))
+            item_warehouse = getattr(invoice_item, "warehouse", None)
+
+        if not parent_item_code or not item_qty:
+            continue
+
+        bom_name = frappe.db.get_value(
+            "BOM",
+            {"item": parent_item_code, "is_default": 1, "is_active": 1},
+            "name",
+        )
+        if not bom_name:
+            continue
+
+        try:
+            bom_doc = frappe.get_doc("BOM", bom_name)
+        except Exception:
+            continue
+
+        bom_quantity = flt(getattr(bom_doc, "quantity", 0)) or 0
+        if not bom_quantity:
+            continue
+
+        for component in getattr(bom_doc, "items", []) or []:
+            if isinstance(component, dict):
+                component_code = component.get("item_code")
+                component_qty = flt(component.get("qty") or 0)
+            else:
+                component_code = getattr(component, "item_code", None)
+                component_qty = flt(getattr(component, "qty", 0))
+
+            if not component_code or not component_qty:
+                continue
+
+            total_qty = component_qty / bom_quantity * item_qty
+            if not total_qty:
+                continue
+
+            warehouse = item_warehouse or default_warehouse
+            key = (parent_item_code, component_code, warehouse)
+            if key in existing:
+                row = existing[key]
+                if isinstance(row, dict):
+                    row["qty"] = flt(row.get("qty") or 0) + total_qty
+                else:
+                    setattr(row, "qty", flt(getattr(row, "qty", 0)) + total_qty)
+                continue
+
+            packed_data = {
+                "parent_item": parent_item_code,
+                "item_code": component_code,
+                "qty": total_qty,
+                "warehouse": warehouse,
+            }
+
+            append = getattr(invoice_doc, "append", None)
+            if callable(append):
+                new_row = append("packed_items", packed_data)
+                if new_row is None:
+                    new_row = getattr(invoice_doc, "packed_items", [])[-1]
+            else:
+                packed_rows.append(packed_data)
+                new_row = packed_data
+
+            existing[key] = new_row
+
+
 def build_invoice_items(order_doc, mode):
     """Builds Sales Invoice Item dictionaries from a POS Order.
 
@@ -384,6 +499,8 @@ def generate_invoice(
             invoice_data["promo_code"] = order_doc.promo_code
 
         invoice_doc = frappe.get_doc(invoice_data)
+
+        _populate_bom_components(invoice_doc, profile_doc)
 
         selling_price_list = getattr(order_doc, "selling_price_list", None) or getattr(
             profile_doc, "selling_price_list", None
