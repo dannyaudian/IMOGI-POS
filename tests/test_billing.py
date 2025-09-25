@@ -35,6 +35,7 @@ def billing_module():
         raise (exc or Exception)(msg)
     frappe.throw = throw
     frappe.realtime = types.SimpleNamespace(publish_realtime=lambda *a, **k: None)
+    frappe.publish_realtime = frappe.realtime.publish_realtime
     frappe.session = types.SimpleNamespace(user="test-user")
     frappe.local = types.SimpleNamespace(request_ip="test-device")
 
@@ -795,6 +796,56 @@ def test_prepare_invoice_draft_includes_notes(billing_module):
 
     assert draft['items'][0]['description'] == 'Item 1\nNo onions'
     assert draft['items'][0]['has_notes'] is True
+
+
+def test_notify_stock_update_publishes_item_and_packed_updates(billing_module):
+    billing, frappe = billing_module
+
+    calls = []
+    frappe.publish_realtime = lambda event, data: calls.append((event, data))
+
+    class ProfileDoc:
+        warehouse = 'MAIN-WH'
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile_doc = ProfileDoc()
+
+    invoice_doc = types.SimpleNamespace(
+        items=[types.SimpleNamespace(item_code='ITEM-1'), {'item_code': 'ITEM-2'}],
+        packed_items=[types.SimpleNamespace(item_code='ITEM-1-A'), {'item_code': 'ITEM-2-B'}],
+    )
+
+    original_get_value = frappe.db.get_value
+
+    def get_value(doctype, filters=None, fieldname=None):
+        if doctype == 'Bin':
+            item_code = filters.get('item_code') if isinstance(filters, dict) else None
+            stock_map = {
+                'ITEM-1': 5,
+                'ITEM-2': 3,
+                'ITEM-1-A': 2,
+                'ITEM-2-B': 7,
+            }
+            return stock_map.get(item_code, 0)
+        return original_get_value(doctype, filters, fieldname)
+
+    frappe.db.get_value = get_value
+
+    try:
+        billing.notify_stock_update(invoice_doc, profile_doc)
+    finally:
+        frappe.db.get_value = original_get_value
+
+    assert len(calls) == 4
+    payloads = {data['item_code']: data for _, data in calls}
+    assert payloads['ITEM-1']['actual_qty'] == 5
+    assert payloads['ITEM-2']['actual_qty'] == 3
+    assert payloads['ITEM-1-A']['actual_qty'] == 2
+    assert payloads['ITEM-2-B']['actual_qty'] == 7
+    for data in payloads.values():
+        assert data['warehouse'] == 'MAIN-WH'
 
 
 def test_validate_pos_session_skips_if_doctype_missing(billing_module):
