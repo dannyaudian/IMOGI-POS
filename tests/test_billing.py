@@ -287,7 +287,7 @@ def test_generate_invoice_populates_bom_components(billing_module):
 
     class StockEntryDoc(StubStockEntryDoc):
         pass
-
+    
     bom_doc = types.SimpleNamespace(
         quantity=2,
         items=[types.SimpleNamespace(item_code='COMP-1', qty=4)]
@@ -354,7 +354,8 @@ def test_generate_invoice_populates_bom_components(billing_module):
     assert finished_row['t_warehouse'] == 'MAIN-WH'
 
     assert result['imogi_manufacture_entries'] == ['STE-1']
-
+    
+    
 def test_generate_invoice_records_outstanding_amount(billing_module):
     billing, frappe = billing_module
 

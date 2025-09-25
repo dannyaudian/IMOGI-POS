@@ -214,7 +214,6 @@ def compute_customizations(order_item):
     return total_delta, customizations, summary
 
 
-
 def _get_invoice_item_values(invoice_item):
     if isinstance(invoice_item, dict):
         parent_item_code = invoice_item.get("item_code") or invoice_item.get("item")
@@ -321,7 +320,6 @@ def _collect_bom_component_data(
         "item_warehouse": item_warehouse or default_warehouse,
     }
 
-
 def _populate_bom_components(invoice_doc, profile_doc):
     """Populate packed items for BOM components on the given invoice."""
 
@@ -331,7 +329,7 @@ def _populate_bom_components(invoice_doc, profile_doc):
     invoice_items = getattr(invoice_doc, "items", None) or []
     if not invoice_items:
         return
-
+      
     default_warehouse = _get_default_warehouse(profile_doc)
 
     packed_rows = getattr(invoice_doc, "packed_items", None)
@@ -514,8 +512,6 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         existing_refs = list(getattr(invoice_doc, "imogi_manufacture_entries", []) or [])
         existing_refs.extend(name for name in created_entries if name)
         setattr(invoice_doc, "imogi_manufacture_entries", existing_refs)
-
-
 
 
 def build_invoice_items(order_doc, mode):
