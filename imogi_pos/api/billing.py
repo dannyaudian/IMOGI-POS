@@ -360,6 +360,9 @@ def generate_invoice(
                         "Overpayment of {0}"
                     ).format(abs(difference))
 
+        invoice_doc.set_missing_values()
+        invoice_doc.calculate_taxes_and_totals()
+
         if invoice_doc.get("update_stock"):
             allow_negative_stock = frappe.db.get_value(
                 "Stock Settings", None, "allow_negative_stock"

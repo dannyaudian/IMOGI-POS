@@ -16,6 +16,7 @@ def billing_module():
     utils.add_to_date = lambda dt, **kw: dt
     utils.get_url = lambda path=None: path or ""
     utils.flt = float
+    utils.cstr = str
 
     frappe = types.ModuleType("frappe")
     class FrappeException(Exception):
@@ -66,6 +67,32 @@ def billing_module():
     sys.modules.pop('imogi_pos', None)
 
 
+class StubInvoiceDoc(types.SimpleNamespace):
+    def append(self, field, value):
+        lst = getattr(self, field, [])
+        lst.append(value)
+        setattr(self, field, lst)
+
+    def insert(self, ignore_permissions=True):
+        self.name = 'SINV-1'
+        return self
+
+    def submit(self):
+        self.submitted = True
+
+    def as_dict(self):
+        return self.__dict__
+
+    def get(self, field, default=None):
+        return getattr(self, field, default)
+
+    def set_missing_values(self):
+        return None
+
+    def calculate_taxes_and_totals(self):
+        return None
+
+
 def test_generate_invoice_copies_notes_and_updates_order(billing_module):
     billing, frappe = billing_module
 
@@ -93,20 +120,8 @@ def test_generate_invoice_copies_notes_and_updates_order(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -171,20 +186,8 @@ def test_generate_invoice_handles_string_amounts(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -244,20 +247,8 @@ def test_generate_invoice_records_outstanding_amount(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -315,21 +306,12 @@ def test_generate_invoice_handles_none_grand_total(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
+    class InvoiceDoc(StubInvoiceDoc):
         grand_total = None
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+        def set_missing_values(self):
+            return None
+        def calculate_taxes_and_totals(self):
+            return None
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -391,20 +373,8 @@ def test_generate_invoice_respects_payment_tolerance(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -433,6 +403,81 @@ def test_generate_invoice_respects_payment_tolerance(billing_module):
     result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=9.97)
     assert result['outstanding_amount'] == 0
 
+
+def test_generate_invoice_runs_missing_value_hooks_for_bundles(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'BUNDLED-ITEM'
+            self.item_name = 'Bundled Item'
+            self.qty = 1
+            self.rate = 10
+            self.amount = 10
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        update_stock = 0
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    class InvoiceDoc(StubInvoiceDoc):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.set_missing_values_called = False
+            self.calculate_taxes_called = False
+
+        def set_missing_values(self):
+            self.set_missing_values_called = True
+            self.packed_items = [{'item_code': 'BUNDLE-COMP', 'qty': 1}]
+
+        def calculate_taxes_and_totals(self):
+            self.calculate_taxes_called = True
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Bundled Item'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        return 0
+
+    frappe.db.get_value = get_value
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
+
+    assert result['set_missing_values_called'] is True
+    assert result['calculate_taxes_called'] is True
+    assert result['packed_items'] == [{'item_code': 'BUNDLE-COMP', 'qty': 1}]
 
 def test_generate_invoice_raises_on_insufficient_stock(billing_module):
     billing, frappe = billing_module
@@ -465,12 +510,7 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
 
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-
+    class InvoiceDoc(StubInvoiceDoc):
         def insert(self, ignore_permissions=True):
             for item in self.items:
                 actual = frappe.db.get_value('Item', item['item_code'], 'actual_qty')
@@ -479,17 +519,7 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
                         f"Insufficient stock for item {item['item_code']}",
                         frappe.ValidationError,
                     )
-            self.name = 'SINV-1'
-            return self
-
-        def submit(self):
-            self.submitted = True
-
-        def as_dict(self):
-            return self.__dict__
-
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+            return super().insert(ignore_permissions=ignore_permissions)
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -687,20 +717,8 @@ def test_generate_invoice_skips_non_sales_items_when_allowed(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -819,20 +837,8 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
             return getattr(self, field, default)
     profile = Profile()
 
-    class InvoiceDoc(types.SimpleNamespace):
-        def append(self, field, value):
-            lst = getattr(self, field, [])
-            lst.append(value)
-            setattr(self, field, lst)
-        def insert(self, ignore_permissions=True):
-            self.name = 'SINV-1'
-            return self
-        def submit(self):
-            self.submitted = True
-        def as_dict(self):
-            return self.__dict__
-        def get(self, field, default=None):
-            return getattr(self, field, default)
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
