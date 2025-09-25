@@ -214,6 +214,112 @@ def compute_customizations(order_item):
     return total_delta, customizations, summary
 
 
+def _get_invoice_item_values(invoice_item):
+    if isinstance(invoice_item, dict):
+        parent_item_code = invoice_item.get("item_code") or invoice_item.get("item")
+        item_qty = flt(invoice_item.get("qty") or 0)
+        item_warehouse = invoice_item.get("warehouse")
+    else:
+        parent_item_code = getattr(invoice_item, "item_code", None) or getattr(
+            invoice_item, "item", None
+        )
+        item_qty = flt(getattr(invoice_item, "qty", 0))
+        item_warehouse = getattr(invoice_item, "warehouse", None)
+
+    return parent_item_code, item_qty, item_warehouse
+
+
+def _get_default_warehouse(profile_doc):
+    profile_get = getattr(profile_doc, "get", None)
+    default_warehouse = None
+    if callable(profile_get):
+        default_warehouse = profile_get("warehouse")
+    if not default_warehouse:
+        default_warehouse = getattr(profile_doc, "warehouse", None)
+    return default_warehouse
+
+
+def _collect_bom_component_data(
+    parent_item_code, item_qty, item_warehouse, default_warehouse, cache
+):
+    if not parent_item_code or not item_qty:
+        return None
+
+    cache_entry = cache.get(parent_item_code)
+    if cache_entry is None:
+        bom_name = frappe.db.get_value(
+            "BOM",
+            {"item": parent_item_code, "is_default": 1, "is_active": 1},
+            "name",
+        )
+        if not bom_name:
+            cache[parent_item_code] = False
+            return None
+
+        try:
+            bom_doc = frappe.get_doc("BOM", bom_name)
+        except Exception:
+            cache[parent_item_code] = False
+            return None
+
+        bom_quantity = flt(getattr(bom_doc, "quantity", 0)) or 0
+        if not bom_quantity:
+            cache[parent_item_code] = False
+            return None
+
+        cache_entry = (bom_name, bom_doc, bom_quantity)
+        cache[parent_item_code] = cache_entry
+
+    if not cache_entry:
+        return None
+
+    bom_name, bom_doc, bom_quantity = cache_entry
+    components = []
+    for component in getattr(bom_doc, "items", []) or []:
+        if isinstance(component, dict):
+            component_code = component.get("item_code")
+            component_qty = flt(component.get("qty") or 0)
+            component_warehouse = (
+                component.get("source_warehouse")
+                or component.get("s_warehouse")
+                or component.get("warehouse")
+            )
+        else:
+            component_code = getattr(component, "item_code", None)
+            component_qty = flt(getattr(component, "qty", 0))
+            component_warehouse = (
+                getattr(component, "source_warehouse", None)
+                or getattr(component, "s_warehouse", None)
+                or getattr(component, "warehouse", None)
+            )
+
+        if not component_code or not component_qty:
+            continue
+
+        total_qty = component_qty / bom_quantity * item_qty
+        if not total_qty:
+            continue
+
+        warehouse = component_warehouse or item_warehouse or default_warehouse
+
+        components.append(
+            {"item_code": component_code, "qty": total_qty, "warehouse": warehouse}
+        )
+
+    finished_warehouse = (
+        getattr(bom_doc, "fg_warehouse", None)
+        or item_warehouse
+        or default_warehouse
+    )
+
+    return {
+        "bom_name": bom_name,
+        "components": components,
+        "finished_warehouse": finished_warehouse,
+        "item_qty": item_qty,
+        "item_warehouse": item_warehouse or default_warehouse,
+    }
+
 def _populate_bom_components(invoice_doc, profile_doc):
     """Populate packed items for BOM components on the given invoice."""
 
@@ -223,13 +329,8 @@ def _populate_bom_components(invoice_doc, profile_doc):
     invoice_items = getattr(invoice_doc, "items", None) or []
     if not invoice_items:
         return
-
-    profile_get = getattr(profile_doc, "get", None)
-    default_warehouse = None
-    if callable(profile_get):
-        default_warehouse = profile_get("warehouse")
-    if not default_warehouse:
-        default_warehouse = getattr(profile_doc, "warehouse", None)
+      
+    default_warehouse = _get_default_warehouse(profile_doc)
 
     packed_rows = getattr(invoice_doc, "packed_items", None)
     if packed_rows is None:
@@ -255,52 +356,26 @@ def _populate_bom_components(invoice_doc, profile_doc):
         else:
             setattr(row, "qty", qty)
 
+    bom_cache = {}
     for invoice_item in invoice_items:
-        if isinstance(invoice_item, dict):
-            parent_item_code = invoice_item.get("item_code")
-            item_qty = flt(invoice_item.get("qty") or 0)
-            item_warehouse = invoice_item.get("warehouse")
-        else:
-            parent_item_code = getattr(invoice_item, "item_code", None)
-            item_qty = flt(getattr(invoice_item, "qty", 0))
-            item_warehouse = getattr(invoice_item, "warehouse", None)
-
-        if not parent_item_code or not item_qty:
-            continue
-
-        bom_name = frappe.db.get_value(
-            "BOM",
-            {"item": parent_item_code, "is_default": 1, "is_active": 1},
-            "name",
+        parent_item_code, item_qty, item_warehouse = _get_invoice_item_values(
+            invoice_item
         )
-        if not bom_name:
+
+        details = _collect_bom_component_data(
+            parent_item_code, item_qty, item_warehouse, default_warehouse, bom_cache
+        )
+        if not details:
             continue
 
-        try:
-            bom_doc = frappe.get_doc("BOM", bom_name)
-        except Exception:
-            continue
+        for component in details["components"]:
+            component_code = component.get("item_code")
+            total_qty = flt(component.get("qty") or 0)
+            warehouse = component.get("warehouse")
 
-        bom_quantity = flt(getattr(bom_doc, "quantity", 0)) or 0
-        if not bom_quantity:
-            continue
-
-        for component in getattr(bom_doc, "items", []) or []:
-            if isinstance(component, dict):
-                component_code = component.get("item_code")
-                component_qty = flt(component.get("qty") or 0)
-            else:
-                component_code = getattr(component, "item_code", None)
-                component_qty = flt(getattr(component, "qty", 0))
-
-            if not component_code or not component_qty:
+            if not component_code or not total_qty:
                 continue
 
-            total_qty = component_qty / bom_quantity * item_qty
-            if not total_qty:
-                continue
-
-            warehouse = item_warehouse or default_warehouse
             key = (parent_item_code, component_code, warehouse)
             if key in existing:
                 row = existing[key]
@@ -327,6 +402,116 @@ def _populate_bom_components(invoice_doc, profile_doc):
                 new_row = packed_data
 
             existing[key] = new_row
+
+
+def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
+    """Create Stock Entry (Manufacture) records for BOM-based items."""
+
+    if not invoice_doc or not profile_doc:
+        return
+
+    if not getattr(invoice_doc, "get", None):
+        return
+
+    if not invoice_doc.get("update_stock"):
+        return
+
+    invoice_items = getattr(invoice_doc, "items", None) or []
+    if not invoice_items:
+        return
+
+    default_warehouse = _get_default_warehouse(profile_doc)
+    company = getattr(invoice_doc, "company", None)
+    posting_date = invoice_doc.get("posting_date")
+    posting_time = invoice_doc.get("posting_time")
+    invoice_name = invoice_doc.get("name")
+
+    bom_cache = {}
+    created_entries = []
+
+    for invoice_item in invoice_items:
+        parent_item_code, item_qty, item_warehouse = _get_invoice_item_values(
+            invoice_item
+        )
+
+        details = _collect_bom_component_data(
+            parent_item_code, item_qty, item_warehouse, default_warehouse, bom_cache
+        )
+        if not details or not details["components"]:
+            continue
+
+        component_rows = []
+        for component in details["components"]:
+            component_code = component.get("item_code")
+            component_qty = flt(component.get("qty") or 0)
+            component_warehouse = component.get("warehouse")
+
+            if not component_code or not component_qty:
+                continue
+
+            source_warehouse = component_warehouse or default_warehouse
+            if not source_warehouse:
+                continue
+
+            component_rows.append(
+                {
+                    "item_code": component_code,
+                    "qty": component_qty,
+                    "s_warehouse": source_warehouse,
+                }
+            )
+
+        if not component_rows:
+            continue
+
+        finished_warehouse = details.get("finished_warehouse") or details.get(
+            "item_warehouse"
+        )
+        if not finished_warehouse:
+            finished_warehouse = default_warehouse
+        if not finished_warehouse:
+            continue
+
+        items_data = list(component_rows)
+        items_data.append(
+            {
+                "item_code": parent_item_code,
+                "qty": details.get("item_qty"),
+                "t_warehouse": finished_warehouse,
+            }
+        )
+
+        stock_entry_data = {
+            "doctype": "Stock Entry",
+            "stock_entry_type": "Manufacture",
+            "from_bom": 1,
+            "bom_no": details.get("bom_name"),
+            "fg_completed_qty": details.get("item_qty"),
+            "items": items_data,
+        }
+
+        if company:
+            stock_entry_data["company"] = company
+        if posting_date:
+            stock_entry_data["posting_date"] = posting_date
+        if posting_time:
+            stock_entry_data["posting_time"] = posting_time
+        if invoice_name:
+            stock_entry_data["sales_invoice"] = invoice_name
+
+        stock_entry_doc = frappe.get_doc(stock_entry_data)
+        stock_entry_doc.insert(ignore_permissions=True)
+
+        submit = getattr(stock_entry_doc, "submit", None)
+        if callable(submit):
+            stock_entry_doc.submit()
+
+        created_entries.append(getattr(stock_entry_doc, "name", None))
+
+    if created_entries:
+        existing_refs = list(getattr(invoice_doc, "imogi_manufacture_entries", []) or [])
+        existing_refs.extend(name for name in created_entries if name)
+        setattr(invoice_doc, "imogi_manufacture_entries", existing_refs)
 
 
 def build_invoice_items(order_doc, mode):
@@ -586,6 +771,8 @@ def generate_invoice(
                 ),
                 frappe.ValidationError,
             )
+
+        _create_manufacturing_stock_entries(invoice_doc, profile_doc)
 
         notify_stock_update(invoice_doc, profile_doc)
 

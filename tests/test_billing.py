@@ -38,6 +38,7 @@ def billing_module():
     frappe.publish_realtime = frappe.realtime.publish_realtime
     frappe.session = types.SimpleNamespace(user="test-user")
     frappe.local = types.SimpleNamespace(request_ip="test-device")
+    frappe.created_stock_entries = []
 
     class DB:
         def __init__(self):
@@ -93,6 +94,33 @@ class StubInvoiceDoc(types.SimpleNamespace):
     def calculate_taxes_and_totals(self):
         return None
 
+
+class StubStockEntryDoc(types.SimpleNamespace):
+    def __init__(self, **kwargs):
+        if kwargs.get("items") is None:
+            kwargs["items"] = []
+        super().__init__(**kwargs)
+        self.insert_called = False
+        self.submitted = False
+
+    def insert(self, ignore_permissions=True):
+        self.insert_called = True
+        frappe = sys.modules.get("frappe")
+        if frappe:
+            entries = getattr(frappe, "created_stock_entries", None)
+            if isinstance(entries, list):
+                if not getattr(self, "name", None):
+                    self.name = f"STE-{len(entries) + 1}"
+                if self not in entries:
+                    entries.append(self)
+        return self
+
+    def submit(self):
+        self.submitted = True
+        return self
+
+    def get(self, field, default=None):
+        return getattr(self, field, default)
 
 def test_generate_invoice_copies_notes_and_updates_order(billing_module):
     billing, frappe = billing_module
@@ -247,7 +275,7 @@ def test_generate_invoice_populates_bom_components(billing_module):
     class Profile:
         warehouse = 'MAIN-WH'
         imogi_mode = 'Counter'
-        update_stock = 0
+        update_stock = 1
 
         def get(self, field, default=None):
             return getattr(self, field, default)
@@ -257,6 +285,9 @@ def test_generate_invoice_populates_bom_components(billing_module):
     class InvoiceDoc(StubInvoiceDoc):
         pass
 
+    class StockEntryDoc(StubStockEntryDoc):
+        pass
+    
     bom_doc = types.SimpleNamespace(
         quantity=2,
         items=[types.SimpleNamespace(item_code='COMP-1', qty=4)]
@@ -270,6 +301,8 @@ def test_generate_invoice_populates_bom_components(billing_module):
         if doctype == 'BOM' and name == 'BOM-ITEM-1':
             return bom_doc
         if isinstance(doctype, dict):
+            if doctype.get('doctype') == 'Stock Entry':
+                return StockEntryDoc(**doctype)
             return InvoiceDoc(**doctype)
         raise Exception('Unexpected doctype')
 
@@ -287,6 +320,9 @@ def test_generate_invoice_populates_bom_components(billing_module):
             if isinstance(name, dict) and name.get('item') == 'ITEM-1':
                 return 'BOM-ITEM-1'
             return None
+        if doctype == 'Bin':
+            if isinstance(name, dict):
+                return 10
         return 0
 
     frappe.db.get_value = get_value
@@ -300,6 +336,26 @@ def test_generate_invoice_populates_bom_components(billing_module):
     assert result['packed_items'][0]['warehouse'] == 'MAIN-WH'
     assert result['packed_items'][0]['qty'] == pytest.approx(6)
 
+    assert len(frappe.created_stock_entries) == 1
+    stock_entry = frappe.created_stock_entries[0]
+    assert stock_entry.stock_entry_type == 'Manufacture'
+    assert stock_entry.fg_completed_qty == pytest.approx(3)
+
+    component_row = next(
+        row for row in stock_entry.items if row['item_code'] == 'COMP-1'
+    )
+    assert component_row['qty'] == pytest.approx(6)
+    assert component_row['s_warehouse'] == 'MAIN-WH'
+
+    finished_row = next(
+        row for row in stock_entry.items if row['item_code'] == 'ITEM-1'
+    )
+    assert finished_row['qty'] == pytest.approx(3)
+    assert finished_row['t_warehouse'] == 'MAIN-WH'
+
+    assert result['imogi_manufacture_entries'] == ['STE-1']
+    
+    
 def test_generate_invoice_records_outstanding_amount(billing_module):
     billing, frappe = billing_module
 
