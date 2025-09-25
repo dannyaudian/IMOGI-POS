@@ -213,7 +213,6 @@ def compute_customizations(order_item):
     summary = ", ".join(summary_parts)
     return total_delta, customizations, summary
 
-
 def _get_invoice_item_values(invoice_item):
     if isinstance(invoice_item, dict):
         parent_item_code = invoice_item.get("item_code") or invoice_item.get("item")
@@ -329,7 +328,7 @@ def _populate_bom_components(invoice_doc, profile_doc):
     invoice_items = getattr(invoice_doc, "items", None) or []
     if not invoice_items:
         return
-      
+
     default_warehouse = _get_default_warehouse(profile_doc)
 
     packed_rows = getattr(invoice_doc, "packed_items", None)
@@ -464,30 +463,12 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         if not component_rows:
             continue
 
-        finished_warehouse = details.get("finished_warehouse") or details.get(
-            "item_warehouse"
-        )
-        if not finished_warehouse:
-            finished_warehouse = default_warehouse
-        if not finished_warehouse:
-            continue
-
-        items_data = list(component_rows)
-        items_data.append(
-            {
-                "item_code": parent_item_code,
-                "qty": details.get("item_qty"),
-                "t_warehouse": finished_warehouse,
-            }
-        )
-
         stock_entry_data = {
             "doctype": "Stock Entry",
-            "stock_entry_type": "Manufacture",
+            "stock_entry_type": "Material Consumption for Manufacture",
             "from_bom": 1,
             "bom_no": details.get("bom_name"),
-            "fg_completed_qty": details.get("item_qty"),
-            "items": items_data,
+            "items": component_rows,
         }
 
         if company:
@@ -512,7 +493,6 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         existing_refs = list(getattr(invoice_doc, "imogi_manufacture_entries", []) or [])
         existing_refs.extend(name for name in created_entries if name)
         setattr(invoice_doc, "imogi_manufacture_entries", existing_refs)
-
 
 def build_invoice_items(order_doc, mode):
     """Builds Sales Invoice Item dictionaries from a POS Order.

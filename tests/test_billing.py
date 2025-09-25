@@ -287,7 +287,7 @@ def test_generate_invoice_populates_bom_components(billing_module):
 
     class StockEntryDoc(StubStockEntryDoc):
         pass
-    
+
     bom_doc = types.SimpleNamespace(
         quantity=2,
         items=[types.SimpleNamespace(item_code='COMP-1', qty=4)]
@@ -338,24 +338,17 @@ def test_generate_invoice_populates_bom_components(billing_module):
 
     assert len(frappe.created_stock_entries) == 1
     stock_entry = frappe.created_stock_entries[0]
-    assert stock_entry.stock_entry_type == 'Manufacture'
-    assert stock_entry.fg_completed_qty == pytest.approx(3)
+    assert stock_entry.stock_entry_type == 'Material Consumption for Manufacture'
 
     component_row = next(
         row for row in stock_entry.items if row['item_code'] == 'COMP-1'
     )
     assert component_row['qty'] == pytest.approx(6)
     assert component_row['s_warehouse'] == 'MAIN-WH'
-
-    finished_row = next(
-        row for row in stock_entry.items if row['item_code'] == 'ITEM-1'
-    )
-    assert finished_row['qty'] == pytest.approx(3)
-    assert finished_row['t_warehouse'] == 'MAIN-WH'
+    assert all('t_warehouse' not in row for row in stock_entry.items)
 
     assert result['imogi_manufacture_entries'] == ['STE-1']
-    
-    
+
 def test_generate_invoice_records_outstanding_amount(billing_module):
     billing, frappe = billing_module
 
