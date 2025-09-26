@@ -1170,7 +1170,6 @@ frappe.ready(async function() {
                 html += `
                     <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
-                        <div class="sold-out-badge">Sold Out</div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
                             <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
@@ -1186,9 +1185,6 @@ frappe.ready(async function() {
             const itemCards = this.elements.catalogGrid.querySelectorAll('.item-card');
             itemCards.forEach(card => {
                 card.addEventListener('click', () => {
-                    if (card.classList.contains('sold-out')) {
-                        return;
-                    }
                     const itemName = card.dataset.item;
                     const item = this.items.find(i => i.name === itemName);
                     if (item) {
@@ -1197,7 +1193,7 @@ frappe.ready(async function() {
                 });
             });
 
-            // Apply sold-out state to rendered items
+            // Update cached stock quantities for rendered items
             itemCards.forEach(card => {
                 const itemName = card.dataset.item;
                 const item = this.items.find(i => i.name === itemName);
@@ -1365,16 +1361,8 @@ frappe.ready(async function() {
             if (item) {
                 item.actual_qty = actualQty;
             }
-            const card = this.elements.catalogGrid.querySelector(`.item-card[data-item="${itemCode}"]`);
-            if (card) {
-                if (actualQty <= 0) {
-                    card.classList.add('sold-out');
-                    card.style.pointerEvents = 'none';
-                } else {
-                    card.classList.remove('sold-out');
-                    card.style.pointerEvents = '';
-                }
-            }
+            // Item cards remain interactive regardless of stock level while
+            // still keeping the latest quantity for reporting/refresh logic.
         },
 
         refreshStockLevels: async function() {
