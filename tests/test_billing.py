@@ -609,7 +609,7 @@ def test_generate_invoice_runs_missing_value_hooks_for_bundles(billing_module):
     assert result['calculate_taxes_called'] is True
     assert result['packed_items'] == [{'item_code': 'BUNDLE-COMP', 'qty': 1}]
 
-def test_generate_invoice_raises_on_insufficient_stock(billing_module):
+def test_generate_invoice_raises_on_insufficient_stock_without_override(billing_module):
     billing, frappe = billing_module
 
     class OrderItem:
@@ -634,6 +634,7 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
     class Profile:
         imogi_mode = 'Counter'
         update_stock = 1
+        warehouse = 'MAIN-WH'
 
         def get(self, field, default=None):
             return getattr(self, field, default)
@@ -641,15 +642,7 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
     profile = Profile()
 
     class InvoiceDoc(StubInvoiceDoc):
-        def insert(self, ignore_permissions=True):
-            for item in self.items:
-                actual = frappe.db.get_value('Item', item['item_code'], 'actual_qty')
-                if actual < item['qty']:
-                    frappe.throw(
-                        f"Insufficient stock for item {item['item_code']}",
-                        frappe.ValidationError,
-                    )
-            return super().insert(ignore_permissions=ignore_permissions)
+        pass
 
     def get_doc(doctype, name=None):
         if doctype == 'POS Order':
@@ -670,8 +663,11 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
                 return 0
             if fieldname == 'is_sales_item':
                 return 1
-            if fieldname == 'actual_qty':
+        if doctype == 'Bin':
+            if isinstance(name, dict) and name.get('item_code') == 'ITEM-1':
                 return 2
+        if doctype == 'Stock Settings' and fieldname == 'allow_negative_stock':
+            return 0
         return 0
 
     original_get_value = frappe.db.get_value
@@ -681,7 +677,92 @@ def test_generate_invoice_raises_on_insufficient_stock(billing_module):
     try:
         with pytest.raises(frappe.ValidationError) as exc:
             billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=50)
-        assert 'Insufficient stock' in str(exc.value)
+        assert 'short by' in str(exc.value)
+    finally:
+        frappe.db.get_value = original_get_value
+
+
+def test_generate_invoice_allows_out_of_stock_with_override(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 5
+            self.rate = 10
+            self.amount = 50
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()],
+    )
+
+    class Profile:
+        imogi_mode = 'Counter'
+        update_stock = 1
+        imogi_allow_out_of_stock_orders = 1
+        warehouse = 'MAIN-WH'
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    class InvoiceDoc(StubInvoiceDoc):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.submit_calls = 0
+
+        def submit(self):
+            self.submit_calls += 1
+            flags = getattr(self, 'flags', None)
+            if self.submit_calls == 1 and not (flags and getattr(flags, 'ignore_negative_stock', False)):
+                raise billing.NegativeStockError('negative stock')
+            self.submitted = True
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def mock_get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        if doctype == 'Bin':
+            if isinstance(name, dict) and name.get('item_code') == 'ITEM-1':
+                return 0
+        if doctype == 'Stock Settings' and fieldname == 'allow_negative_stock':
+            return 0
+        return 0
+
+    original_get_value = frappe.db.get_value
+    frappe.db.get_value = mock_get_value
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    try:
+        result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=50)
+        assert result['update_stock'] == 0
+        assert result['submitted'] is True
+        flags = result.get('flags')
+        assert getattr(flags, 'ignore_negative_stock', False) is True
     finally:
         frappe.db.get_value = original_get_value
 

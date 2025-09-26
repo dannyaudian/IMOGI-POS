@@ -607,6 +607,9 @@ def generate_invoice(
     profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
     mode = profile_doc.get("imogi_mode", "Counter")
     allow_non_sales = cint(profile_doc.get("imogi_allow_non_sales_items", 0))
+    allow_out_of_stock_orders = cint(
+        profile_doc.get("imogi_allow_out_of_stock_orders", 0)
+    )
 
     # Ensure all items are marked as sales items unless explicitly allowed
     valid_items = []
@@ -640,6 +643,10 @@ def generate_invoice(
             item.pop("has_notes", None)
 
         # Create Sales Invoice document
+        update_stock = profile_doc.get("update_stock")
+        if allow_out_of_stock_orders:
+            update_stock = 0
+
         invoice_data = {
             "doctype": "Sales Invoice",
             "is_pos": 1,
@@ -649,7 +656,7 @@ def generate_invoice(
             "items": invoice_items,
             "imogi_pos_order": pos_order,
             "order_type": order_doc.order_type,
-            "update_stock": profile_doc.get("update_stock"),
+            "update_stock": update_stock,
         }
         if pos_session:
             invoice_data["pos_session"] = pos_session
@@ -713,7 +720,7 @@ def generate_invoice(
         invoice_doc.set_missing_values()
         invoice_doc.calculate_taxes_and_totals()
 
-        if invoice_doc.get("update_stock"):
+        if invoice_doc.get("update_stock") and not allow_out_of_stock_orders:
             allow_negative_stock = frappe.db.get_value(
                 "Stock Settings", None, "allow_negative_stock"
             )
@@ -744,13 +751,19 @@ def generate_invoice(
         try:
             invoice_doc.submit()
         except NegativeStockError:
-            frappe.throw(
-                _(
-                    "Insufficient stock to complete invoice. Restock the item or "
-                    "enable negative stock in Stock Settings."
-                ),
-                frappe.ValidationError,
-            )
+            if allow_out_of_stock_orders:
+                if not getattr(invoice_doc, "flags", None):
+                    invoice_doc.flags = type("Flags", (), {})()
+                invoice_doc.flags.ignore_negative_stock = True
+                invoice_doc.submit()
+            else:
+                frappe.throw(
+                    _(
+                        "Insufficient stock to complete invoice. Restock the item or "
+                        "enable negative stock in Stock Settings."
+                    ),
+                    frappe.ValidationError,
+                )
 
         _create_manufacturing_stock_entries(invoice_doc, profile_doc)
 
