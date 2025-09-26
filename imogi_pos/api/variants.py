@@ -217,8 +217,7 @@ def get_items_with_stock(
             if bom_capacity < 0:
                 bom_capacity = 0
             shortage = bool(summary.get("has_component_shortage"))
-            calculated_qty = min(finished_goods_stock, bom_capacity)
-            item["actual_qty"] = 0 if shortage else calculated_qty
+            item["actual_qty"] = 0 if shortage else bom_capacity
         else:
             item["actual_qty"] = finished_goods_stock
         item["is_component_shortage"] = 1 if shortage else 0
