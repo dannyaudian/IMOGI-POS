@@ -338,16 +338,130 @@ def test_generate_invoice_populates_bom_components(billing_module):
 
     assert len(frappe.created_stock_entries) == 1
     stock_entry = frappe.created_stock_entries[0]
-    assert stock_entry.stock_entry_type == 'Material Consumption for Manufacture'
+    assert stock_entry.stock_entry_type == 'Manufacture'
 
     component_row = next(
         row for row in stock_entry.items if row['item_code'] == 'COMP-1'
     )
     assert component_row['qty'] == pytest.approx(6)
     assert component_row['s_warehouse'] == 'MAIN-WH'
-    assert all('t_warehouse' not in row for row in stock_entry.items)
+
+    finished_row = next(
+        row for row in stock_entry.items if row.get('is_finished_item')
+    )
+    assert finished_row['item_code'] == 'ITEM-1'
+    assert finished_row['qty'] == pytest.approx(3)
+    assert finished_row['t_warehouse'] == 'MAIN-WH'
 
     assert result['imogi_manufacture_entries'] == ['STE-1']
+
+
+def test_generate_invoice_handles_zero_finished_stock_before_submit(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 2
+            self.rate = 20
+            self.amount = 40
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()],
+    )
+
+    class Profile:
+        warehouse = None
+        update_stock = 1
+        imogi_mode = 'Counter'
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    bom_doc = types.SimpleNamespace(
+        quantity=2,
+        fg_warehouse='FG-WH',
+        items=[types.SimpleNamespace(item_code='COMP-1', qty=4, source_warehouse='RM-WH')],
+    )
+
+    class InvoiceDoc(StubInvoiceDoc):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.submitted = False
+
+        def submit(self):
+            entries = getattr(self, 'imogi_manufacture_entries', None)
+            if not entries:
+                raise RuntimeError('Manufacturing entries missing before submit')
+            self.submitted = True
+            return self
+
+    class StockEntryDoc(StubStockEntryDoc):
+        pass
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if doctype == 'BOM' and name == 'BOM-ITEM-1':
+            return bom_doc
+        if isinstance(doctype, dict):
+            if doctype.get('doctype') == 'Stock Entry':
+                return StockEntryDoc(**doctype)
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        if doctype == 'BOM':
+            if isinstance(name, dict) and name.get('item') == 'ITEM-1':
+                return 'BOM-ITEM-1'
+            return None
+        if doctype == 'Bin' and isinstance(name, dict):
+            item_code = name.get('item_code')
+            warehouse = name.get('warehouse')
+            if item_code == 'ITEM-1' and warehouse == 'FG-WH':
+                return 0
+            if item_code == 'COMP-1':
+                return 100
+        if doctype == 'Stock Settings' and fieldname == 'allow_negative_stock':
+            return 0
+        return 0
+
+    frappe.db.get_value = get_value
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    frappe.created_stock_entries = []
+
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=40)
+
+    assert result['name'] == 'SINV-1'
+    assert result['imogi_manufacture_entries'] == ['STE-1']
+
+    assert len(frappe.created_stock_entries) == 1
+    stock_entry = frappe.created_stock_entries[0]
+    assert stock_entry.sales_invoice == 'SINV-1'
+    assert stock_entry.submitted is True
 
 
 def test_generate_invoice_blocks_quantities_beyond_bom_capacity(billing_module):
