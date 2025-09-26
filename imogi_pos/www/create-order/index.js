@@ -1279,8 +1279,6 @@ frappe.ready(async function () {
         html += `
           <div class="item-card" data-item="${item.name}">
             <div class="item-image" style="background-image: url('${imageUrl}')"></div>
-            <div class="sold-out-badge">Sold Out</div>
-            <div class="item-stock-pill"></div>
             <div class="item-info">
               <div class="item-name">${item.item_name}</div>
               <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
@@ -1296,7 +1294,6 @@ frappe.ready(async function () {
       const cards = this.elements.catalogGrid.querySelectorAll(".item-card");
       cards.forEach((card) => {
         card.addEventListener("click", () => {
-          if (card.classList.contains("sold-out")) return;
           const itemName = card.dataset.item;
           const item = this.items.find((i) => i.name === itemName);
           if (item) this.handleItemClick(item);
@@ -1449,30 +1446,6 @@ frappe.ready(async function () {
     updateItemStock: function (itemCode, actualQty) {
       const item = this.items.find((i) => i.name === itemCode);
       if (item) item.actual_qty = actualQty;
-      const card =
-        this.elements.catalogGrid?.querySelector(`.item-card[data-item="${itemCode}"]`);
-      if (!card) return;
-      const stockPill = card.querySelector(".item-stock-pill");
-      const numericQty = Number(actualQty);
-      const hasNumericQty =
-        actualQty !== null && actualQty !== undefined && !Number.isNaN(numericQty);
-      let displayValue = "—";
-      if (hasNumericQty) {
-        if (Number.isInteger(numericQty)) {
-          displayValue = `${numericQty}`;
-        } else {
-          displayValue = `${numericQty.toFixed(2).replace(/\.0+$/, "").replace(/\.([1-9])0$/, ".$1")}`;
-        }
-      }
-      if (stockPill) {
-        stockPill.textContent = displayValue;
-        stockPill.classList.toggle("is-empty", hasNumericQty && numericQty <= 0);
-        stockPill.classList.toggle("is-unknown", !hasNumericQty);
-        stockPill.classList.toggle("is-available", hasNumericQty && numericQty > 0);
-      }
-      const isSoldOut = hasNumericQty && numericQty <= 0;
-      card.classList.toggle("sold-out", isSoldOut);
-      card.style.pointerEvents = isSoldOut ? "none" : "";
     },
 
     refreshStockLevels: async function () {
