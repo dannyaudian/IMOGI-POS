@@ -463,9 +463,21 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         if not component_rows:
             continue
 
+        finished_qty = flt(details.get("item_qty") or 0)
+        finished_warehouse = details.get("finished_warehouse")
+        if parent_item_code and finished_qty:
+            finished_row = {
+                "item_code": parent_item_code,
+                "qty": finished_qty,
+                "transfer_qty": finished_qty,
+                "is_finished_item": 1,
+                "t_warehouse": finished_warehouse,
+            }
+            component_rows.append(finished_row)
+
         stock_entry_data = {
             "doctype": "Stock Entry",
-            "stock_entry_type": "Material Consumption for Manufacture",
+            "stock_entry_type": "Manufacture",
             "from_bom": 1,
             "bom_no": details.get("bom_name"),
             "items": component_rows,
