@@ -1174,6 +1174,7 @@ frappe.ready(async function() {
 
                 html += `
                     <div class="${cardClasses.join(' ')}" data-item="${item.name}" aria-disabled="${isSoldOut ? 'true' : 'false'}">
+                        <span class="sold-out-badge" aria-hidden="${isSoldOut ? 'false' : 'true'}">Sold Out</span>
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
@@ -1400,6 +1401,10 @@ frappe.ready(async function() {
 
             card.classList.toggle('sold-out', soldOut);
             card.setAttribute('aria-disabled', soldOut ? 'true' : 'false');
+            const badge = card.querySelector('.sold-out-badge');
+            if (badge) {
+                badge.setAttribute('aria-hidden', soldOut ? 'false' : 'true');
+            }
         },
 
         refreshStockLevels: async function() {
