@@ -171,10 +171,34 @@ button { font: inherit; }
 /* Hide legacy sold-out and stock UI */
 .item-stock-pill,
 .item-stock-pill.is-empty,
-.item-stock-pill.is-unknown,
-.sold-out-badge,
-.item-card.sold-out .sold-out-badge {
+.item-stock-pill.is-unknown {
   display: none !important;
+}
+
+.item-card .sold-out-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.92);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.item-card.sold-out .sold-out-badge {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* =========================================
