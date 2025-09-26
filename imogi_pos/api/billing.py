@@ -15,6 +15,9 @@ except Exception:  # pragma: no cover - fallback when erpnext isn't installed
     class NegativeStockError(Exception):
         pass
 
+
+LOW_STOCK_THRESHOLD = 10
+
 def validate_branch_access(branch):
     """
     Validates that the current user has access to the specified branch.
@@ -275,8 +278,10 @@ def _collect_bom_component_data(
 
     bom_name, bom_doc, bom_quantity = cache_entry
     components = []
+    low_stock_components = []
     max_producible_qty = None
     has_component_shortage = False
+    item_details_cache = cache.setdefault("_item_details", {})
     for component in getattr(bom_doc, "items", []) or []:
         if isinstance(component, dict):
             component_code = component.get("item_code")
@@ -308,15 +313,7 @@ def _collect_bom_component_data(
 
         warehouse = component_warehouse or item_warehouse or default_warehouse
 
-        components.append(
-            {
-                "item_code": component_code,
-                "qty": total_qty,
-                "warehouse": warehouse,
-                "per_unit_qty": per_unit_qty,
-            }
-        )
-
+        available_qty = None
         if per_unit_qty:
             bin_filters = {"item_code": component_code}
             if warehouse:
@@ -346,6 +343,48 @@ def _collect_bom_component_data(
                 has_component_shortage = True
             elif component_capacity <= 0:
                 has_component_shortage = True
+        else:
+            available_qty = None
+
+        item_details = item_details_cache.get(component_code)
+        if item_details is None:
+            try:
+                item_details = frappe.db.get_value(
+                    "Item",
+                    component_code,
+                    ["item_name", "stock_uom"],
+                    as_dict=True,
+                )
+            except Exception:
+                item_details = None
+            if not isinstance(item_details, dict):
+                item_details = {}
+            item_details_cache[component_code] = item_details
+
+        item_name = item_details.get("item_name") or component_code
+        stock_uom = item_details.get("stock_uom")
+
+        component_data = {
+            "item_code": component_code,
+            "qty": total_qty,
+            "warehouse": warehouse,
+            "per_unit_qty": per_unit_qty,
+            "available_qty": available_qty,
+            "item_name": item_name,
+            "stock_uom": stock_uom,
+        }
+        components.append(component_data)
+
+        if available_qty is not None and available_qty < LOW_STOCK_THRESHOLD:
+            low_stock_components.append(
+                {
+                    "item_code": component_code,
+                    "item_name": item_name,
+                    "stock_uom": stock_uom,
+                    "actual_qty": available_qty,
+                    "warehouse": warehouse,
+                }
+            )
 
     finished_warehouse = (
         getattr(bom_doc, "fg_warehouse", None)
@@ -379,6 +418,7 @@ def _collect_bom_component_data(
         "finished_stock": finished_stock,
         "bom_capacity": bom_capacity,
         "has_component_shortage": has_component_shortage,
+        "low_stock_components": low_stock_components,
     }
 
 
@@ -409,6 +449,7 @@ def get_bom_capacity_summary(
         "bom_capacity": details.get("bom_capacity") or 0,
         "item_warehouse": details.get("item_warehouse"),
         "has_component_shortage": bool(details.get("has_component_shortage")),
+        "low_stock_components": list(details.get("low_stock_components") or []),
     }
 
 def _populate_bom_components(invoice_doc, profile_doc):

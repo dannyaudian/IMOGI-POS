@@ -189,6 +189,8 @@ frappe.ready(async function () {
       loadingText: document.getElementById("loading-text"),
     },
 
+    lowStockComponentState: new Map(),
+
     // ====== PRICING HELPERS ======
     normalizeNumber: function (value) {
       const num = Number(value);
@@ -1312,7 +1314,13 @@ frappe.ready(async function () {
       cards.forEach((card) => {
         const itemName = card.dataset.item;
         const item = this.items.find((i) => i.name === itemName);
-        if (item) this.updateItemStock(item.name, item.actual_qty, item.is_component_shortage);
+        if (item)
+          this.updateItemStock(
+            item.name,
+            item.actual_qty,
+            item.is_component_shortage,
+            item.component_low_stock
+          );
       });
     },
 
@@ -1464,7 +1472,12 @@ frappe.ready(async function () {
       return Boolean(shortageFlag) || (qty !== null && qty <= 0);
     },
 
-    updateItemStock: function (itemCode, actualQty, isComponentShortage) {
+    updateItemStock: function (
+      itemCode,
+      actualQty,
+      isComponentShortage,
+      componentLowStock
+    ) {
       const item = this.items.find((i) => i.name === itemCode);
       if (item) {
         if (actualQty != null && actualQty !== undefined) {
@@ -1473,6 +1486,9 @@ frappe.ready(async function () {
         }
         if (typeof isComponentShortage !== "undefined") {
           item.is_component_shortage = Boolean(isComponentShortage);
+        }
+        if (Array.isArray(componentLowStock)) {
+          item.component_low_stock = componentLowStock;
         }
       }
 
@@ -1505,9 +1521,79 @@ frappe.ready(async function () {
             base_price_list: this.basePriceList || null,
           },
         });
-        (message || []).forEach((u) =>
-          this.updateItemStock(u.name, u.actual_qty, u.is_component_shortage)
-        );
+        const responseItems = Array.isArray(message) ? message : [];
+        const currentLow = new Map();
+
+        responseItems.forEach((u) => {
+          this.updateItemStock(
+            u.name,
+            u.actual_qty,
+            u.is_component_shortage,
+            u.component_low_stock
+          );
+
+          const components = Array.isArray(u.component_low_stock)
+            ? u.component_low_stock
+            : [];
+          components.forEach((component) => {
+            if (!component) return;
+            const code = component.item_code || component.component_code || component.name;
+            if (!code) return;
+            const warehouse = component.warehouse || "";
+            const key = `${code}::${warehouse}`;
+            if (currentLow.has(key)) return;
+
+            const qtyValue = Number(component.actual_qty);
+            const normalizedQty = Number.isFinite(qtyValue)
+              ? qtyValue
+              : component.actual_qty;
+
+            currentLow.set(key, {
+              item_code: code,
+              warehouse,
+              item_name: component.item_name || code,
+              stock_uom: component.stock_uom || "",
+              actual_qty: normalizedQty,
+            });
+          });
+        });
+
+        const previous = this.lowStockComponentState || new Map();
+        const newlyLow = [];
+        currentLow.forEach((details, key) => {
+          if (!previous.has(key)) {
+            newlyLow.push(details);
+          }
+        });
+
+        this.lowStockComponentState = currentLow;
+
+        if (newlyLow.length) {
+          const parts = newlyLow.map((component) => {
+            const name = component.item_name || component.item_code;
+            const qty = Number(component.actual_qty);
+            let qtyText;
+            if (Number.isFinite(qty)) {
+              const rounded = Math.round(qty * 100) / 100;
+              qtyText = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+            } else {
+              qtyText = component.actual_qty;
+            }
+            const uom = component.stock_uom ? ` ${component.stock_uom}` : "";
+            return `${name} (${qtyText}${uom})`;
+          });
+
+          const alertMessage =
+            newlyLow.length === 1
+              ? __("Component low on stock: {0}", [parts[0]])
+              : __("Components low on stock: {0}", [parts.join(", ")]);
+
+          if (typeof frappe !== "undefined" && frappe && typeof frappe.show_alert === "function") {
+            frappe.show_alert({ message: alertMessage, indicator: "orange" });
+          } else if (typeof window !== "undefined" && typeof window.alert === "function") {
+            window.alert(alertMessage);
+          }
+        }
       } catch (err) {
         console.error("Error refreshing stock levels:", err);
       }
@@ -2644,7 +2730,12 @@ frappe.ready(async function () {
       // Stock
       frappe.realtime.on("stock_update", (data) => {
         if (!data || data.warehouse !== POS_PROFILE_DATA.warehouse) return;
-        this.updateItemStock(data.item_code, data.actual_qty, data.is_component_shortage);
+        this.updateItemStock(
+          data.item_code,
+          data.actual_qty,
+          data.is_component_shortage,
+          data.component_low_stock
+        );
       });
 
       // Fallback periodic refresh
