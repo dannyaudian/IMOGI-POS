@@ -158,6 +158,19 @@
     "name": "POS Profile-imogi_branding_column"
   },
   {
+    "fieldname": "imogi_allow_out_of_stock_orders",
+    "fieldtype": "Check",
+    "label": "Allow Out of Stock Orders",
+    "default": 0,
+    "insert_after": "update_stock",
+    "description": "Allow cashiers to temporarily bypass stock shortage validation",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "POS Profile",
+    "doctype": "Custom Field",
+    "name": "POS Profile-imogi_allow_out_of_stock_orders"
+  },
+  {
     "fieldname": "imogi_show_header_on_pages",
     "fieldtype": "Check",
     "label": "Show Header on Web Pages",
