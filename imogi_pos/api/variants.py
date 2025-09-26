@@ -212,14 +212,17 @@ def get_items_with_stock(
         )
 
         shortage = False
+        component_low_stock = []
         if summary:
             bom_capacity = flt(summary.get("bom_capacity") or 0)
             if bom_capacity < 0:
                 bom_capacity = 0
             shortage = bool(summary.get("has_component_shortage"))
             item["actual_qty"] = 0 if shortage else bom_capacity
+            component_low_stock = list(summary.get("low_stock_components") or [])
         else:
             item["actual_qty"] = finished_goods_stock
+        item["component_low_stock"] = component_low_stock
         item["is_component_shortage"] = 1 if shortage else 0
         item["payment_methods"] = payment_map.get(item.name, [])
 

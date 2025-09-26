@@ -57,6 +57,7 @@ def variants_module():
     )
 
     frappe._mock_data = {}
+    frappe._mock_item_details = {}
     frappe.MockRow = MockRow
 
     def get_all(doctype, filters=None, fields=None, limit_page_length=None, pluck=None):
@@ -170,6 +171,9 @@ def test_get_items_with_stock_limits_by_bom_capacity(variants_module):
         MockRow({'item_code': 'ITEM-1', 'warehouse': 'POS-WH', 'actual_qty': sale_stock})
     ]
 
+    frappe._mock_item_details['COMP-1'] = {'item_name': 'Component 1', 'stock_uom': 'PCS'}
+    frappe._mock_item_details['ITEM-1'] = {'item_name': 'Item 1', 'stock_uom': 'PCS'}
+
     bom_doc = types.SimpleNamespace(
         quantity=1,
         fg_warehouse='FG-WH',
@@ -183,7 +187,7 @@ def test_get_items_with_stock_limits_by_bom_capacity(variants_module):
 
     frappe.get_doc = get_doc
 
-    def get_value(doctype, name=None, fieldname=None):
+    def get_value(doctype, name=None, fieldname=None, **kwargs):
         if doctype == 'BOM':
             if isinstance(name, dict) and name.get('item') == 'ITEM-1':
                 return 'BOM-ITEM-1'
@@ -194,6 +198,20 @@ def test_get_items_with_stock_limits_by_bom_capacity(variants_module):
                     return component_stock
                 if name.get('item_code') == 'ITEM-1' and name.get('warehouse') == 'FG-WH':
                     return finished_stock
+        if doctype == 'Item':
+            target = None
+            if isinstance(name, dict):
+                target = name.get('name')
+            elif isinstance(name, str):
+                target = name
+            details = frappe._mock_item_details.get(target, {})
+            if kwargs.get('as_dict') or isinstance(fieldname, (list, tuple)):
+                if isinstance(fieldname, (list, tuple)):
+                    return {f: details.get(f) for f in fieldname}
+                return dict(details)
+            if isinstance(fieldname, str):
+                return details.get(fieldname)
+            return details
         return 0
 
     frappe.db.get_value = get_value
@@ -202,6 +220,14 @@ def test_get_items_with_stock_limits_by_bom_capacity(variants_module):
 
     assert result[0]['actual_qty'] == pytest.approx(1)
     assert result[0]['is_component_shortage'] == 0
+    low_components = result[0]['component_low_stock']
+    assert isinstance(low_components, list)
+    assert low_components
+    component_entry = low_components[0]
+    assert component_entry['item_code'] == 'COMP-1'
+    assert component_entry['item_name'] == 'Component 1'
+    assert component_entry['stock_uom'] == 'PCS'
+    assert component_entry['actual_qty'] == pytest.approx(component_stock)
 
 
 def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(variants_module):
@@ -238,6 +264,9 @@ def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(vari
         MockRow({'item_code': 'ITEM-1', 'warehouse': 'POS-WH', 'actual_qty': sale_stock})
     ]
 
+    frappe._mock_item_details['COMP-1'] = {'item_name': 'Component 1', 'stock_uom': 'PCS'}
+    frappe._mock_item_details['ITEM-1'] = {'item_name': 'Item 1', 'stock_uom': 'PCS'}
+
     bom_doc = types.SimpleNamespace(
         quantity=1,
         fg_warehouse='FG-WH',
@@ -251,7 +280,7 @@ def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(vari
 
     frappe.get_doc = get_doc
 
-    def get_value(doctype, name=None, fieldname=None):
+    def get_value(doctype, name=None, fieldname=None, **kwargs):
         if doctype == 'BOM':
             if isinstance(name, dict) and name.get('item') == 'ITEM-1':
                 return 'BOM-ITEM-1'
@@ -262,6 +291,20 @@ def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(vari
                     return component_stock
                 if name.get('item_code') == 'ITEM-1' and name.get('warehouse') == 'FG-WH':
                     return finished_stock
+        if doctype == 'Item':
+            target = None
+            if isinstance(name, dict):
+                target = name.get('name')
+            elif isinstance(name, str):
+                target = name
+            details = frappe._mock_item_details.get(target, {})
+            if kwargs.get('as_dict') or isinstance(fieldname, (list, tuple)):
+                if isinstance(fieldname, (list, tuple)):
+                    return {f: details.get(f) for f in fieldname}
+                return dict(details)
+            if isinstance(fieldname, str):
+                return details.get(fieldname)
+            return details
         return 0
 
     frappe.db.get_value = get_value
@@ -270,6 +313,7 @@ def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(vari
 
     assert result[0]['actual_qty'] == pytest.approx(1)
     assert result[0]['is_component_shortage'] == 0
+    assert result[0]['component_low_stock']
 
 
 def test_get_items_with_stock_component_shortage_overrides_finished_goods(variants_module):
@@ -306,6 +350,9 @@ def test_get_items_with_stock_component_shortage_overrides_finished_goods(varian
         MockRow({'item_code': 'ITEM-1', 'warehouse': 'POS-WH', 'actual_qty': sale_stock})
     ]
 
+    frappe._mock_item_details['COMP-1'] = {'item_name': 'Component 1', 'stock_uom': 'PCS'}
+    frappe._mock_item_details['ITEM-1'] = {'item_name': 'Item 1', 'stock_uom': 'PCS'}
+
     bom_doc = types.SimpleNamespace(
         quantity=1,
         fg_warehouse='FG-WH',
@@ -319,7 +366,7 @@ def test_get_items_with_stock_component_shortage_overrides_finished_goods(varian
 
     frappe.get_doc = get_doc
 
-    def get_value(doctype, name=None, fieldname=None):
+    def get_value(doctype, name=None, fieldname=None, **kwargs):
         if doctype == 'BOM':
             if isinstance(name, dict) and name.get('item') == 'ITEM-1':
                 return 'BOM-ITEM-1'
@@ -330,6 +377,20 @@ def test_get_items_with_stock_component_shortage_overrides_finished_goods(varian
                     return component_stock
                 if name.get('item_code') == 'ITEM-1' and name.get('warehouse') == 'FG-WH':
                     return finished_stock
+        if doctype == 'Item':
+            target = None
+            if isinstance(name, dict):
+                target = name.get('name')
+            elif isinstance(name, str):
+                target = name
+            details = frappe._mock_item_details.get(target, {})
+            if kwargs.get('as_dict') or isinstance(fieldname, (list, tuple)):
+                if isinstance(fieldname, (list, tuple)):
+                    return {f: details.get(f) for f in fieldname}
+                return dict(details)
+            if isinstance(fieldname, str):
+                return details.get(fieldname)
+            return details
         return 0
 
     frappe.db.get_value = get_value
@@ -338,4 +399,94 @@ def test_get_items_with_stock_component_shortage_overrides_finished_goods(varian
 
     assert result[0]['actual_qty'] == 0
     assert result[0]['is_component_shortage'] == 1
+    assert result[0]['component_low_stock']
+
+
+def test_component_low_stock_recovers_when_quantity_restored(variants_module):
+    variants, frappe, billing = variants_module
+
+    component_stock = {'value': 4}
+    finished_stock = 0
+    sale_stock = 0
+
+    frappe._mock_data['Item'] = [
+        MockRow({
+            'name': 'ITEM-1',
+            'item_name': 'Item 1',
+            'item_code': 'ITEM-1',
+            'description': '',
+            'image': None,
+            'standard_rate': 10,
+            'has_variants': 0,
+            'variant_of': None,
+            'item_group': 'Beverages',
+            'menu_category': 'Drinks',
+            'photo': None,
+            'default_kitchen': None,
+            'default_kitchen_station': None,
+            'pos_menu_profile': None,
+        })
+    ]
+
+    frappe._mock_item_details['COMP-1'] = {'item_name': 'Component 1', 'stock_uom': 'PCS'}
+    frappe._mock_item_details['ITEM-1'] = {'item_name': 'Item 1', 'stock_uom': 'PCS'}
+
+    frappe._mock_data['Item Group'] = [
+        MockRow({'name': 'Beverages', 'default_pos_menu_profile': None})
+    ]
+
+    frappe._mock_data['Bin'] = [
+        MockRow({'item_code': 'ITEM-1', 'warehouse': 'POS-WH', 'actual_qty': sale_stock})
+    ]
+
+    bom_doc = types.SimpleNamespace(
+        quantity=1,
+        fg_warehouse='FG-WH',
+        items=[MockRow({'item_code': 'COMP-1', 'qty': 2, 'source_warehouse': 'RM-WH'})],
+    )
+
+    def get_doc(doctype, name=None):
+        if doctype == 'BOM' and name == 'BOM-ITEM-1':
+            return bom_doc
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None, **kwargs):
+        if doctype == 'BOM':
+            if isinstance(name, dict) and name.get('item') == 'ITEM-1':
+                return 'BOM-ITEM-1'
+            return None
+        if doctype == 'Bin':
+            if isinstance(name, dict):
+                if name.get('item_code') == 'COMP-1':
+                    return component_stock['value']
+                if name.get('item_code') == 'ITEM-1' and name.get('warehouse') == 'FG-WH':
+                    return finished_stock
+        if doctype == 'Item':
+            target = None
+            if isinstance(name, dict):
+                target = name.get('name')
+            elif isinstance(name, str):
+                target = name
+            details = frappe._mock_item_details.get(target, {})
+            if kwargs.get('as_dict') or isinstance(fieldname, (list, tuple)):
+                if isinstance(fieldname, (list, tuple)):
+                    return {f: details.get(f) for f in fieldname}
+                return dict(details)
+            if isinstance(fieldname, str):
+                return details.get(fieldname)
+            return details
+        return 0
+
+    frappe.db.get_value = get_value
+
+    result_low = variants.get_items_with_stock(warehouse='POS-WH', limit=10)
+    low_components = result_low[0]['component_low_stock']
+    assert low_components
+
+    component_stock['value'] = 12
+
+    result_recovered = variants.get_items_with_stock(warehouse='POS-WH', limit=10)
+    assert result_recovered[0]['component_low_stock'] == []
 
