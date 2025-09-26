@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint, flt
+from imogi_pos.api.billing import get_bom_capacity_summary
 from imogi_pos.api.pricing import get_price_list_rate_maps
 
 def validate_branch_access(branch):
@@ -184,6 +185,8 @@ def get_items_with_stock(
         for row in payment_rows:
             payment_map.setdefault(row.parent, []).append(row.mode_of_payment)
 
+    bom_cache = {}
+
     for item in items:
         base_standard_rate = flt(item.standard_rate)
         fallback_currency = None
@@ -197,7 +200,24 @@ def get_items_with_stock(
         item["imogi_price_adjustment_applied"] = 0
         item["has_explicit_price_list_rate"] = 0
 
-        item["actual_qty"] = stock_map.get(item.name, 0)
+        finished_goods_stock = flt(stock_map.get(item.name, 0))
+        if finished_goods_stock < 0:
+            finished_goods_stock = 0
+
+        summary = get_bom_capacity_summary(
+            item.name,
+            warehouse,
+            warehouse,
+            bom_cache,
+        )
+
+        if summary:
+            bom_capacity = flt(summary.get("bom_capacity") or 0)
+            if bom_capacity < 0:
+                bom_capacity = 0
+            item["actual_qty"] = min(finished_goods_stock, bom_capacity)
+        else:
+            item["actual_qty"] = finished_goods_stock
         item["payment_methods"] = payment_map.get(item.name, [])
 
         if fallback_currency and not item.get("currency"):
