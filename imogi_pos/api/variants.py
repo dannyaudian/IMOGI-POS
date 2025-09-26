@@ -211,13 +211,17 @@ def get_items_with_stock(
             bom_cache,
         )
 
+        shortage = False
         if summary:
             bom_capacity = flt(summary.get("bom_capacity") or 0)
             if bom_capacity < 0:
                 bom_capacity = 0
-            item["actual_qty"] = min(finished_goods_stock, bom_capacity)
+            shortage = bool(summary.get("has_component_shortage"))
+            calculated_qty = min(finished_goods_stock, bom_capacity)
+            item["actual_qty"] = 0 if shortage else calculated_qty
         else:
             item["actual_qty"] = finished_goods_stock
+        item["is_component_shortage"] = 1 if shortage else 0
         item["payment_methods"] = payment_map.get(item.name, [])
 
         if fallback_currency and not item.get("currency"):
