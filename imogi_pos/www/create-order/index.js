@@ -1275,9 +1275,14 @@ frappe.ready(async function () {
           item.photo ||
           item.image ||
           "/assets/erpnext/images/default-product-image.png";
+        const isSoldOut = this.isItemSoldOut(item);
+        const cardClasses = ["item-card"];
+        if (isSoldOut) cardClasses.push("sold-out");
 
         html += `
-          <div class="item-card" data-item="${item.name}">
+          <div class="${cardClasses.join(" ")}" data-item="${item.name}" aria-disabled="${
+          isSoldOut ? "true" : "false"
+        }">
             <div class="item-image" style="background-image: url('${imageUrl}')"></div>
             <div class="item-info">
               <div class="item-name">${item.item_name}</div>
@@ -1296,7 +1301,9 @@ frappe.ready(async function () {
         card.addEventListener("click", () => {
           const itemName = card.dataset.item;
           const item = this.items.find((i) => i.name === itemName);
-          if (item) this.handleItemClick(item);
+          if (!item) return;
+          if (this.isItemSoldOut(item)) return;
+          this.handleItemClick(item);
         });
       });
 
@@ -1304,7 +1311,7 @@ frappe.ready(async function () {
       cards.forEach((card) => {
         const itemName = card.dataset.item;
         const item = this.items.find((i) => i.name === itemName);
-        if (item) this.updateItemStock(item.name, item.actual_qty);
+        if (item) this.updateItemStock(item.name, item.actual_qty, item.is_component_shortage);
       });
     },
 
@@ -1443,9 +1450,42 @@ frappe.ready(async function () {
       }
     },
 
-    updateItemStock: function (itemCode, actualQty) {
+    isItemSoldOut: function (item, actualQty, isComponentShortage) {
+      if (!item && actualQty == null && typeof isComponentShortage === "undefined") return false;
+
+      const qtySource = actualQty != null ? Number(actualQty) : Number(item?.actual_qty);
+      const qty = Number.isFinite(qtySource) ? qtySource : null;
+      const shortageFlag =
+        typeof isComponentShortage !== "undefined"
+          ? Boolean(isComponentShortage)
+          : Boolean(item?.is_component_shortage);
+
+      return Boolean(shortageFlag) || (qty !== null && qty <= 0);
+    },
+
+    updateItemStock: function (itemCode, actualQty, isComponentShortage) {
       const item = this.items.find((i) => i.name === itemCode);
-      if (item) item.actual_qty = actualQty;
+      if (item) {
+        if (actualQty != null && actualQty !== undefined) {
+          const parsedQty = Number(actualQty);
+          item.actual_qty = Number.isFinite(parsedQty) ? parsedQty : item.actual_qty;
+        }
+        if (typeof isComponentShortage !== "undefined") {
+          item.is_component_shortage = Boolean(isComponentShortage);
+        }
+      }
+
+      const soldOut = this.isItemSoldOut(item, actualQty, isComponentShortage);
+      const catalog = this.elements.catalogGrid;
+      if (!catalog) return;
+
+      const card = Array.from(catalog.querySelectorAll(".item-card")).find(
+        (el) => el.dataset.item === itemCode
+      );
+      if (!card) return;
+
+      card.classList.toggle("sold-out", soldOut);
+      card.setAttribute("aria-disabled", soldOut ? "true" : "false");
     },
 
     refreshStockLevels: async function () {
@@ -1460,7 +1500,9 @@ frappe.ready(async function () {
             base_price_list: this.basePriceList || null,
           },
         });
-        (message || []).forEach((u) => this.updateItemStock(u.name, u.actual_qty));
+        (message || []).forEach((u) =>
+          this.updateItemStock(u.name, u.actual_qty, u.is_component_shortage)
+        );
       } catch (err) {
         console.error("Error refreshing stock levels:", err);
       }
@@ -2597,7 +2639,7 @@ frappe.ready(async function () {
       // Stock
       frappe.realtime.on("stock_update", (data) => {
         if (!data || data.warehouse !== POS_PROFILE_DATA.warehouse) return;
-        this.updateItemStock(data.item_code, data.actual_qty);
+        this.updateItemStock(data.item_code, data.actual_qty, data.is_component_shortage);
       });
 
       // Fallback periodic refresh
