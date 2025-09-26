@@ -276,6 +276,7 @@ def _collect_bom_component_data(
     bom_name, bom_doc, bom_quantity = cache_entry
     components = []
     max_producible_qty = None
+    has_component_shortage = False
     for component in getattr(bom_doc, "items", []) or []:
         if isinstance(component, dict):
             component_code = component.get("item_code")
@@ -332,10 +333,19 @@ def _collect_bom_component_data(
             component_capacity = math.floor(available_qty / per_unit_qty)
             if component_capacity < 0:
                 component_capacity = 0
+            previous_capacity = max_producible_qty
             if max_producible_qty is None:
                 max_producible_qty = component_capacity
             else:
                 max_producible_qty = min(max_producible_qty, component_capacity)
+            if (
+                max_producible_qty is not None
+                and max_producible_qty <= 0
+                and (previous_capacity is None or previous_capacity > 0)
+            ):
+                has_component_shortage = True
+            elif component_capacity <= 0:
+                has_component_shortage = True
 
     finished_warehouse = (
         getattr(bom_doc, "fg_warehouse", None)
@@ -368,6 +378,7 @@ def _collect_bom_component_data(
         "max_producible_qty": flt(max_producible_qty or 0),
         "finished_stock": finished_stock,
         "bom_capacity": bom_capacity,
+        "has_component_shortage": has_component_shortage,
     }
 
 
@@ -397,6 +408,7 @@ def get_bom_capacity_summary(
         "finished_stock": details.get("finished_stock") or 0,
         "bom_capacity": details.get("bom_capacity") or 0,
         "item_warehouse": details.get("item_warehouse"),
+        "has_component_shortage": bool(details.get("has_component_shortage")),
     }
 
 def _populate_bom_components(invoice_doc, profile_doc):
