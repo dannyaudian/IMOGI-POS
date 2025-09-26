@@ -3,6 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
+import math
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date, get_url, flt
@@ -274,6 +275,7 @@ def _collect_bom_component_data(
 
     bom_name, bom_doc, bom_quantity = cache_entry
     components = []
+    max_producible_qty = None
     for component in getattr(bom_doc, "items", []) or []:
         if isinstance(component, dict):
             component_code = component.get("item_code")
@@ -295,15 +297,45 @@ def _collect_bom_component_data(
         if not component_code or not component_qty:
             continue
 
-        total_qty = component_qty / bom_quantity * item_qty
+        per_unit_qty = component_qty / bom_quantity
+        if not per_unit_qty:
+            total_qty = 0
+        else:
+            total_qty = per_unit_qty * item_qty
         if not total_qty:
             continue
 
         warehouse = component_warehouse or item_warehouse or default_warehouse
 
         components.append(
-            {"item_code": component_code, "qty": total_qty, "warehouse": warehouse}
+            {
+                "item_code": component_code,
+                "qty": total_qty,
+                "warehouse": warehouse,
+                "per_unit_qty": per_unit_qty,
+            }
         )
+
+        if per_unit_qty:
+            bin_filters = {"item_code": component_code}
+            if warehouse:
+                bin_filters["warehouse"] = warehouse
+            try:
+                available_qty = frappe.db.get_value(
+                    "Bin", bin_filters, "actual_qty"
+                )
+            except Exception:
+                available_qty = None
+            available_qty = flt(available_qty or 0)
+            if available_qty < 0:
+                available_qty = 0
+            component_capacity = math.floor(available_qty / per_unit_qty)
+            if component_capacity < 0:
+                component_capacity = 0
+            if max_producible_qty is None:
+                max_producible_qty = component_capacity
+            else:
+                max_producible_qty = min(max_producible_qty, component_capacity)
 
     finished_warehouse = (
         getattr(bom_doc, "fg_warehouse", None)
@@ -311,12 +343,60 @@ def _collect_bom_component_data(
         or default_warehouse
     )
 
+    finished_stock = 0
+    if finished_warehouse:
+        try:
+            finished_stock = frappe.db.get_value(
+                "Bin",
+                {"item_code": parent_item_code, "warehouse": finished_warehouse},
+                "actual_qty",
+            )
+        except Exception:
+            finished_stock = 0
+        finished_stock = flt(finished_stock or 0)
+        if finished_stock < 0:
+            finished_stock = 0
+
+    bom_capacity = flt(max_producible_qty or 0) + finished_stock
+
     return {
         "bom_name": bom_name,
         "components": components,
         "finished_warehouse": finished_warehouse,
         "item_qty": item_qty,
         "item_warehouse": item_warehouse or default_warehouse,
+        "max_producible_qty": flt(max_producible_qty or 0),
+        "finished_stock": finished_stock,
+        "bom_capacity": bom_capacity,
+    }
+
+
+def get_bom_capacity_summary(
+    parent_item_code, item_warehouse=None, default_warehouse=None, cache=None
+):
+    """Return production capacity data for the given item BOM."""
+
+    if cache is None:
+        cache = {}
+
+    details = _collect_bom_component_data(
+        parent_item_code,
+        1,
+        item_warehouse,
+        default_warehouse,
+        cache,
+    )
+
+    if not details:
+        return None
+
+    return {
+        "bom_name": details.get("bom_name"),
+        "finished_warehouse": details.get("finished_warehouse"),
+        "max_producible_qty": details.get("max_producible_qty") or 0,
+        "finished_stock": details.get("finished_stock") or 0,
+        "bom_capacity": details.get("bom_capacity") or 0,
+        "item_warehouse": details.get("item_warehouse"),
     }
 
 def _populate_bom_components(invoice_doc, profile_doc):
@@ -401,6 +481,87 @@ def _populate_bom_components(invoice_doc, profile_doc):
                 new_row = packed_data
 
             existing[key] = new_row
+
+
+def _validate_bom_capacity(invoice_doc, profile_doc):
+    """Ensure requested quantities do not exceed BOM production capacity."""
+
+    if not invoice_doc or not profile_doc:
+        return
+
+    invoice_items = getattr(invoice_doc, "items", None) or []
+    if not invoice_items:
+        return
+
+    default_warehouse = _get_default_warehouse(profile_doc)
+    bom_cache = {}
+    capacity_map = {}
+
+    for invoice_item in invoice_items:
+        parent_item_code, item_qty, item_warehouse = _get_invoice_item_values(
+            invoice_item
+        )
+
+        if not parent_item_code or not item_qty:
+            continue
+
+        summary = get_bom_capacity_summary(
+            parent_item_code,
+            item_warehouse,
+            default_warehouse,
+            bom_cache,
+        )
+
+        if not summary:
+            continue
+
+        finished_warehouse = (
+            summary.get("finished_warehouse")
+            or item_warehouse
+            or default_warehouse
+        )
+
+        key = (
+            summary.get("bom_name"),
+            parent_item_code,
+            finished_warehouse,
+        )
+
+        entry = capacity_map.setdefault(
+            key,
+            {
+                "item_code": parent_item_code,
+                "requested_qty": 0,
+                "max_producible_qty": flt(summary.get("max_producible_qty") or 0),
+                "finished_stock": summary.get("finished_stock") or 0,
+            },
+        )
+
+        entry["requested_qty"] += flt(item_qty)
+        entry["max_producible_qty"] = min(
+            entry["max_producible_qty"],
+            flt(summary.get("max_producible_qty") or 0),
+        )
+        entry["finished_stock"] = max(
+            flt(entry.get("finished_stock") or 0),
+            flt(summary.get("finished_stock") or 0),
+        )
+
+    for entry in capacity_map.values():
+        requested_qty = flt(entry.get("requested_qty") or 0)
+        max_producible_qty = flt(entry.get("max_producible_qty") or 0)
+        finished_stock = flt(entry.get("finished_stock") or 0)
+        total_capacity = max_producible_qty + finished_stock
+
+        if requested_qty > total_capacity:
+            shortage = requested_qty - total_capacity
+            frappe.throw(
+                _(
+                    "Item {0} exceeds available BOM capacity by {1}. "
+                    "Reduce the quantity or replenish component stock."
+                ).format(entry.get("item_code"), shortage),
+                frappe.ValidationError,
+            )
 
 
 def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
@@ -666,6 +827,7 @@ def generate_invoice(
         invoice_doc = frappe.get_doc(invoice_data)
 
         _populate_bom_components(invoice_doc, profile_doc)
+        _validate_bom_capacity(invoice_doc, profile_doc)
 
         selling_price_list = getattr(order_doc, "selling_price_list", None) or getattr(
             profile_doc, "selling_price_list", None

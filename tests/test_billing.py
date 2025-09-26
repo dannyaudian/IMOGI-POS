@@ -349,6 +349,179 @@ def test_generate_invoice_populates_bom_components(billing_module):
 
     assert result['imogi_manufacture_entries'] == ['STE-1']
 
+
+def test_generate_invoice_blocks_quantities_beyond_bom_capacity(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 4
+            self.rate = 10
+            self.amount = 40
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        warehouse = 'FG-WH'
+        imogi_mode = 'Counter'
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
+
+    bom_doc = types.SimpleNamespace(
+        quantity=1,
+        fg_warehouse='FG-WH',
+        items=[types.SimpleNamespace(item_code='COMP-1', qty=2, source_warehouse='RM-WH')],
+    )
+
+    component_stock = 5
+    finished_stock = 1
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if doctype == 'BOM' and name == 'BOM-ITEM-1':
+            return bom_doc
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        if doctype == 'BOM':
+            if isinstance(name, dict) and name.get('item') == 'ITEM-1':
+                return 'BOM-ITEM-1'
+            return None
+        if doctype == 'Bin':
+            if isinstance(name, dict):
+                if name.get('item_code') == 'COMP-1':
+                    return component_stock
+                if name.get('item_code') == 'ITEM-1':
+                    return finished_stock
+        if doctype == 'Stock Settings':
+            return 1
+        return 0
+
+    frappe.db.get_value = get_value
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    with pytest.raises(frappe.ValidationError):
+        billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=40)
+
+
+def test_generate_invoice_allows_using_existing_finished_stock(billing_module):
+    billing, frappe = billing_module
+
+    class OrderItem:
+        def __init__(self):
+            self.item = 'ITEM-1'
+            self.item_name = 'Item 1'
+            self.qty = 2
+            self.rate = 10
+            self.amount = 20
+            self.notes = ''
+
+    order = types.SimpleNamespace(
+        name='POS-1',
+        branch='BR-1',
+        pos_profile='P1',
+        customer='CUST-1',
+        order_type='Dine-in',
+        table=None,
+        items=[OrderItem()]
+    )
+
+    class Profile:
+        warehouse = 'FG-WH'
+        imogi_mode = 'Counter'
+
+        def get(self, field, default=None):
+            return getattr(self, field, default)
+
+    profile = Profile()
+
+    class InvoiceDoc(StubInvoiceDoc):
+        pass
+
+    bom_doc = types.SimpleNamespace(
+        quantity=1,
+        fg_warehouse='FG-WH',
+        items=[types.SimpleNamespace(item_code='COMP-1', qty=2, source_warehouse='RM-WH')],
+    )
+
+    component_stock = 0
+    finished_stock = 2
+
+    def get_doc(doctype, name=None):
+        if doctype == 'POS Order':
+            return order
+        if doctype == 'POS Profile':
+            return profile
+        if doctype == 'BOM' and name == 'BOM-ITEM-1':
+            return bom_doc
+        if isinstance(doctype, dict):
+            return InvoiceDoc(**doctype)
+        raise Exception('Unexpected doctype')
+
+    frappe.get_doc = get_doc
+
+    def get_value(doctype, name=None, fieldname=None):
+        if doctype == 'Item':
+            if fieldname == 'item_name':
+                return 'Item 1'
+            if fieldname == 'has_variants':
+                return 0
+            if fieldname == 'is_sales_item':
+                return 1
+        if doctype == 'BOM':
+            if isinstance(name, dict) and name.get('item') == 'ITEM-1':
+                return 'BOM-ITEM-1'
+            return None
+        if doctype == 'Bin':
+            if isinstance(name, dict):
+                if name.get('item_code') == 'COMP-1':
+                    return component_stock
+                if name.get('item_code') == 'ITEM-1':
+                    return finished_stock
+        if doctype == 'Stock Settings':
+            return 1
+        return 0
+
+    frappe.db.get_value = get_value
+
+    billing.validate_pos_session = lambda profile: 'SESSION-1'
+
+    result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=20)
+
+    assert result['items'][0]['qty'] == 2
+
 def test_generate_invoice_records_outstanding_amount(billing_module):
     billing, frappe = billing_module
 
