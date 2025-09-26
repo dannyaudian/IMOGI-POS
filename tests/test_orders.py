@@ -225,6 +225,18 @@ def test_add_item_to_order_uses_linked_variant_sku(frappe_env, monkeypatch):
         def get(self, field, default=None):
             return getattr(self, field, default)
 
+        def set_missing_values(self):
+            if not hasattr(self, "items"):
+                self.items = []
+            if not hasattr(self, "payments"):
+                self.payments = []
+
+        def calculate_taxes_and_totals(self):
+            self.grand_total = sum(
+                (item.get("amount", 0) if isinstance(item, dict) else getattr(item, "amount", 0))
+                for item in getattr(self, "items", [])
+            )
+
     original_get_doc = frappe.get_doc
 
     def custom_get_doc(doctype, name=None):
