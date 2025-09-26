@@ -934,6 +934,8 @@ def generate_invoice(
                     )
 
         invoice_doc.insert(ignore_permissions=True)
+        _create_manufacturing_stock_entries(invoice_doc, profile_doc)
+
         try:
             invoice_doc.submit()
         except NegativeStockError:
@@ -950,8 +952,6 @@ def generate_invoice(
                     ),
                     frappe.ValidationError,
                 )
-
-        _create_manufacturing_stock_entries(invoice_doc, profile_doc)
 
         notify_stock_update(invoice_doc, profile_doc)
 
