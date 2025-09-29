@@ -272,3 +272,28 @@ def test_set_item_flags_respects_manual_overrides():
     assert doc.get("default_kitchen_station") == "Manual Station"
 
 
+def test_set_item_flags_keeps_template_variants():
+    items = load_items_with_doc(None)
+
+    class DummyDoc:
+        def __init__(self):
+            self._data = {
+                "menu_category": "Special",
+                "has_variants": 1,
+                "variant_based_on": "Item Attribute",
+                "variant_of": "",
+            }
+
+        def get(self, key):
+            return self._data.get(key)
+
+        def set(self, key, value):
+            self._data[key] = value
+
+    doc = DummyDoc()
+    items.set_item_flags(doc)
+    unload_items_module()
+
+    assert doc.get("has_variants") == 1
+
+
