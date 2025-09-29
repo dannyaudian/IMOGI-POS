@@ -186,14 +186,14 @@ def set_item_flags(doc, method=None):
     if kitchen_station and not (doc.get("default_kitchen_station")):
         doc.set("default_kitchen_station", kitchen_station)
 
-    variant_markers = (
-        "variant_of",
-        "variant_based_on",
-        "variant_based_on_docfield",
-        "variant_based_on_doc",
-    )
-    for marker in variant_markers:
-        marker_value = doc.get(marker)
-        if marker_value:
-            doc.set("has_variants", 0)
-            break
+    # variant_markers = (
+    #     "variant_of",
+    #     "variant_based_on",
+    #     "variant_based_on_docfield",
+    #     "variant_based_on_doc",
+    # )
+    # for marker in variant_markers:
+    #     marker_value = doc.get(marker)
+    #     if marker_value:
+    #         doc.set("has_variants", 0)
+    #         break
