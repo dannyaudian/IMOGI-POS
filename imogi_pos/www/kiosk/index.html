@@ -324,6 +324,54 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 /* =========================================
    PAYMENT MODAL
 ========================================= */
+.customer-info-modal .modal-container {
+  width: min(520px, 92vw);
+}
+
+.customer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.customer-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.customer-form label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+}
+
+.customer-form input,
+.customer-form select {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  font-size: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.customer-form input:focus,
+.customer-form select:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(107, 144, 128, 0.15);
+}
+
+.customer-info-error {
+  font-size: 0.85rem;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
 .payment-modal .modal-container { width: min(680px, 92vw); }
 .payment-options { display: flex; gap: 10px; margin-bottom: 10px; }
 .payment-option {
@@ -632,6 +680,46 @@ button:disabled { opacity: .6; cursor: not-allowed; }
     <div class="modal-footer">
       <button class="btn-cancel" id="btn-item-cancel">{{ _("Cancel") }}</button>
       <button class="btn-add" id="btn-item-add">{{ _("Add to Order") }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Info Modal -->
+<div class="modal-overlay customer-info-modal" id="customer-info-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <div class="modal-title">{{ _("Customer Information") }}</div>
+      <div class="modal-close">&times;</div>
+    </div>
+    <div class="modal-body">
+      <form class="customer-form" id="customer-info-form">
+        <div class="customer-info-error hidden" id="customer-info-error"></div>
+        <div class="form-field">
+          <label for="customer-name">{{ _("Name") }}</label>
+          <input type="text" id="customer-name" name="customer-name" placeholder="{{ _("Enter customer name") }}">
+        </div>
+        <div class="form-field">
+          <label for="customer-gender">{{ _("Gender") }}</label>
+          <select id="customer-gender" name="customer-gender">
+            <option value="">{{ _("Select gender") }}</option>
+            <option value="male">{{ _("Male") }}</option>
+            <option value="female">{{ _("Female") }}</option>
+            <option value="other">{{ _("Other") }}</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="customer-phone">{{ _("Phone Number") }}</label>
+          <input type="tel" id="customer-phone" name="customer-phone" placeholder="{{ _("08XXXXXXXXXX") }}">
+        </div>
+        <div class="form-field">
+          <label for="customer-age">{{ _("Age") }}</label>
+          <input type="number" id="customer-age" name="customer-age" min="0" placeholder="{{ _("Age in years") }}">
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="btn-customer-skip">{{ _("Lanjutkan tanpa isi") }}</button>
+      <button type="button" class="btn-add" id="btn-customer-save">{{ _("Save and Continue") }}</button>
     </div>
   </div>
 </div>

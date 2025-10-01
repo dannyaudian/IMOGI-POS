@@ -128,6 +128,14 @@ frappe.ready(async function () {
     paymentTimer: null,
     paymentCountdown: 300,
 
+    customerInfo: {
+      name: "",
+      gender: "",
+      phone: "",
+      age: "",
+    },
+    needsCustomerInfo: true,
+
     elements: {
       catalogGrid: document.getElementById("catalog-grid"),
       cartItems: document.getElementById("cart-items"),
@@ -177,6 +185,17 @@ frappe.ready(async function () {
       changeAmount: document.getElementById("change-amount"),
       paymentConfirmBtn: document.getElementById("btn-payment-confirm"),
       paymentCancelBtn: document.getElementById("btn-payment-cancel"),
+
+      // Customer info modal
+      customerModal: document.getElementById("customer-info-modal"),
+      customerForm: document.getElementById("customer-info-form"),
+      customerNameInput: document.getElementById("customer-name"),
+      customerGenderSelect: document.getElementById("customer-gender"),
+      customerPhoneInput: document.getElementById("customer-phone"),
+      customerAgeInput: document.getElementById("customer-age"),
+      customerSaveBtn: document.getElementById("btn-customer-save"),
+      customerSkipBtn: document.getElementById("btn-customer-skip"),
+      customerError: document.getElementById("customer-info-error"),
 
       // Success modal
       successModal: document.getElementById("success-modal"),
@@ -397,6 +416,32 @@ frappe.ready(async function () {
       );
       this.elements.itemAddBtn?.addEventListener("click", () =>
         this.confirmItemOptions()
+      );
+
+      // Customer info modal
+      this.elements.customerModal
+        ?.querySelector(".modal-close")
+        ?.addEventListener("click", () => this.closeCustomerModal());
+      this.elements.customerForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        this.submitCustomerInfo();
+      });
+      this.elements.customerSaveBtn?.addEventListener("click", () =>
+        this.submitCustomerInfo()
+      );
+      this.elements.customerSkipBtn?.addEventListener("click", () =>
+        this.skipCustomerInfo()
+      );
+      const customerInputs = [
+        this.elements.customerNameInput,
+        this.elements.customerPhoneInput,
+        this.elements.customerAgeInput,
+      ];
+      customerInputs.forEach((input) =>
+        input?.addEventListener("input", () => this.clearCustomerInfoError())
+      );
+      this.elements.customerGenderSelect?.addEventListener("change", () =>
+        this.clearCustomerInfoError()
       );
 
       // Payment modal
@@ -1951,12 +1996,149 @@ frappe.ready(async function () {
         this.cart = [];
         this.renderCart();
         this.updateCartTotals();
+        this.customerInfo = {
+          name: "",
+          gender: "",
+          phone: "",
+          age: "",
+        };
+        this.needsCustomerInfo = true;
+        this.resetCustomerForm();
       }
+    },
+
+    showCustomerInfoError: function (message) {
+      const el = this.elements.customerError;
+      if (el) {
+        el.textContent = message || "";
+        el.classList.remove("hidden");
+      } else if (message) {
+        frappe.msgprint({
+          title: __("Validation"),
+          message,
+          indicator: "orange",
+        });
+      }
+    },
+
+    clearCustomerInfoError: function () {
+      const el = this.elements.customerError;
+      if (el) {
+        el.textContent = "";
+        el.classList.add("hidden");
+      }
+    },
+
+    populateCustomerForm: function () {
+      const info = this.customerInfo || {};
+      if (this.elements.customerNameInput)
+        this.elements.customerNameInput.value = info.name || "";
+      if (this.elements.customerGenderSelect)
+        this.elements.customerGenderSelect.value = info.gender || "";
+      if (this.elements.customerPhoneInput)
+        this.elements.customerPhoneInput.value = info.phone || "";
+      if (this.elements.customerAgeInput) {
+        const ageValue =
+          info && Object.prototype.hasOwnProperty.call(info, "age")
+            ? info.age
+            : "";
+        const normalized =
+          ageValue === 0
+            ? "0"
+            : ageValue !== undefined && ageValue !== null && ageValue !== ""
+            ? String(ageValue)
+            : "";
+        this.elements.customerAgeInput.value = normalized;
+      }
+    },
+
+    resetCustomerForm: function () {
+      if (this.elements.customerForm) {
+        this.elements.customerForm.reset();
+      }
+      if (this.elements.customerNameInput)
+        this.elements.customerNameInput.value = "";
+      if (this.elements.customerPhoneInput)
+        this.elements.customerPhoneInput.value = "";
+      if (this.elements.customerAgeInput)
+        this.elements.customerAgeInput.value = "";
+      if (this.elements.customerGenderSelect)
+        this.elements.customerGenderSelect.value = "";
+      this.clearCustomerInfoError();
+    },
+
+    openCustomerModal: function () {
+      this.populateCustomerForm();
+      this.clearCustomerInfoError();
+      if (this.elements.customerModal)
+        this.elements.customerModal.style.display = "flex";
+      requestAnimationFrame(() => {
+        this.elements.customerNameInput?.focus();
+      });
+    },
+
+    closeCustomerModal: function () {
+      this.clearCustomerInfoError();
+      if (this.elements.customerModal)
+        this.elements.customerModal.style.display = "none";
+    },
+
+    submitCustomerInfo: function () {
+      const name = (this.elements.customerNameInput?.value || "").trim();
+      const gender = this.elements.customerGenderSelect?.value || "";
+      const phone = (this.elements.customerPhoneInput?.value || "").trim();
+      const ageRaw = this.elements.customerAgeInput?.value || "";
+      const age = ageRaw !== "" ? Number(ageRaw) : "";
+
+      this.clearCustomerInfoError();
+
+      if (!name) {
+        this.showCustomerInfoError(
+          __("Please enter the customer name or continue without filling the form.")
+        );
+        this.elements.customerNameInput?.focus();
+        return;
+      }
+
+      if (age !== "" && (Number.isNaN(age) || age < 0)) {
+        this.showCustomerInfoError(
+          __("Please enter a valid age or leave it blank.")
+        );
+        this.elements.customerAgeInput?.focus();
+        return;
+      }
+
+      this.customerInfo = {
+        name,
+        gender,
+        phone,
+        age: age === "" || Number.isNaN(age) ? "" : age,
+      };
+      this.needsCustomerInfo = false;
+      this.closeCustomerModal();
+      this.openPaymentModal();
+    },
+
+    skipCustomerInfo: function () {
+      this.customerInfo = {
+        name: "",
+        gender: "",
+        phone: "",
+        age: "",
+      };
+      this.needsCustomerInfo = false;
+      this.resetCustomerForm();
+      this.closeCustomerModal();
+      this.openPaymentModal();
     },
 
     handleCheckout: async function () {
       if (!this.cart.length) return;
       if (!(await this.ensureTableNumber())) return;
+      if (this.needsCustomerInfo) {
+        this.openCustomerModal();
+        return;
+      }
       this.openPaymentModal();
     },
 
@@ -2593,6 +2775,15 @@ frappe.ready(async function () {
         this.elements.successReceipt.innerHTML = "";
         this.elements.successReceipt.classList.add("hidden");
       }
+
+      this.customerInfo = {
+        name: "",
+        gender: "",
+        phone: "",
+        age: "",
+      };
+      this.needsCustomerInfo = true;
+      this.resetCustomerForm();
     },
 
     // ====== UTILS ======
