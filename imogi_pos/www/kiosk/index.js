@@ -1,6 +1,107 @@
 frappe.ready(async function() {
     const POS_PROFILE_DATA = {};
 
+    function normaliseCustomerInfo(source) {
+        if (!source || typeof source !== 'object') {
+            return null;
+        }
+
+        const payload = {};
+        const toText = (value) => {
+            if (value === undefined || value === null) {
+                return null;
+            }
+            const text = String(value).trim();
+            return text.length ? text : null;
+        };
+
+        const maybeAssign = (field, value) => {
+            const cleaned = toText(value);
+            if (cleaned) {
+                payload[field] = cleaned;
+            }
+        };
+
+        maybeAssign(
+            'customer_full_name',
+            source.customer_full_name || source.full_name || source.name || source.customer_name,
+        );
+        maybeAssign('customer_gender', source.customer_gender || source.gender);
+        maybeAssign(
+            'customer_phone',
+            source.customer_phone || source.phone || source.mobile_no || source.mobile,
+        );
+
+        const ageValue = source.customer_age ?? source.age;
+        if (ageValue !== undefined && ageValue !== null && ageValue !== '') {
+            const numeric = Number(ageValue);
+            if (Number.isFinite(numeric) && numeric >= 0) {
+                payload.customer_age = Math.round(numeric);
+            }
+        }
+
+        return Object.keys(payload).length ? payload : null;
+    }
+
+    function collectCustomerInfo() {
+        const aggregated = {};
+        const merge = (source) => {
+            const info = normaliseCustomerInfo(source);
+            if (info) {
+                Object.assign(aggregated, info);
+            }
+        };
+
+        if (typeof window !== 'undefined') {
+            if (window.CUSTOMER_INFO && typeof window.CUSTOMER_INFO === 'object') {
+                merge(window.CUSTOMER_INFO);
+            }
+            if (window.customerInfo && typeof window.customerInfo === 'object') {
+                merge(window.customerInfo);
+            }
+        }
+
+        const infoElement = document.querySelector('[data-customer-info]');
+        if (infoElement) {
+            merge({
+                customer_full_name:
+                    infoElement.getAttribute('data-customer-full-name') ||
+                    infoElement.dataset.customerFullName ||
+                    infoElement.dataset.fullName ||
+                    infoElement.dataset.name,
+                customer_gender:
+                    infoElement.getAttribute('data-customer-gender') ||
+                    infoElement.dataset.customerGender ||
+                    infoElement.dataset.gender,
+                customer_phone:
+                    infoElement.getAttribute('data-customer-phone') ||
+                    infoElement.dataset.customerPhone ||
+                    infoElement.dataset.phone,
+                customer_age:
+                    infoElement.getAttribute('data-customer-age') ||
+                    infoElement.dataset.customerAge ||
+                    infoElement.dataset.age,
+            });
+        }
+
+        const fields = [
+            'customer_full_name',
+            'customer_gender',
+            'customer_phone',
+            'customer_age',
+        ];
+        const fieldSource = {};
+        fields.forEach((field) => {
+            const input = document.querySelector(`[name="${field}"]`);
+            if (input && input.value) {
+                fieldSource[field] = input.value;
+            }
+        });
+        merge(fieldSource);
+
+        return Object.keys(aggregated).length ? aggregated : null;
+    }
+
     function hasValidMenuCategory(value) {
         if (typeof value !== 'string') {
             return false;
@@ -93,6 +194,7 @@ frappe.ready(async function() {
         itemRows: [],
         latestOrderDetails: null,
         latestInvoiceDetails: null,
+        customerInfo: collectCustomerInfo(),
 
         // Payment state
         paymentRequest: null,
@@ -2125,6 +2227,12 @@ frappe.ready(async function() {
                 if (this.tableNumber) {
                     orderArgs.table = this.tableNumber;
                 }
+                const collectedInfo = collectCustomerInfo();
+                this.customerInfo = collectedInfo || this.customerInfo;
+                const infoPayload = this.customerInfo;
+                if (infoPayload) {
+                    orderArgs.customer_info = { ...infoPayload };
+                }
                 const orderResponse = await frappe.call({
                     method: 'imogi_pos.api.orders.create_order',
                     args: orderArgs
@@ -2170,6 +2278,9 @@ frappe.ready(async function() {
                 };
                 if (this.tableNumber) {
                     invoiceArgs.table = this.tableNumber;
+                }
+                if (infoPayload) {
+                    invoiceArgs.customer_info = { ...infoPayload };
                 }
                 const invoiceResponse = await frappe.call({
                     method: 'imogi_pos.api.billing.generate_invoice',
@@ -2433,6 +2544,12 @@ frappe.ready(async function() {
                     if (this.tableNumber) {
                         orderArgs.table = this.tableNumber;
                     }
+                    const collectedInfo = collectCustomerInfo();
+                    this.customerInfo = collectedInfo || this.customerInfo;
+                    const infoPayload = this.customerInfo;
+                    if (infoPayload) {
+                        orderArgs.customer_info = { ...infoPayload };
+                    }
                     const orderResponse = await frappe.call({
                         method: 'imogi_pos.api.orders.create_order',
                         args: orderArgs
@@ -2477,6 +2594,9 @@ frappe.ready(async function() {
                     };
                     if (this.tableNumber) {
                         invoiceArgs.table = this.tableNumber;
+                    }
+                    if (infoPayload) {
+                        invoiceArgs.customer_info = { ...infoPayload };
                     }
                     const response = await frappe.call({
                         method: 'imogi_pos.api.billing.generate_invoice',

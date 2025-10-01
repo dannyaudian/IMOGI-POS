@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import copy
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, flt
+from frappe.utils import now_datetime, flt, cstr, cint
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
 from imogi_pos.api.pricing import evaluate_order_discounts, get_price_list_rate_maps
@@ -339,7 +339,7 @@ def get_next_available_table(branch):
     return str(min(numbers))
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None, selling_price_list=None):
+def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.
     
@@ -352,6 +352,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         items (list | dict, optional): Items to be added to the order.
         service_type (str, optional): Service type for kiosk or POS orders (Takeaway/Dine-in).
         selling_price_list (str, optional): Explicit price list to apply to the order.
+        customer_info (dict | str, optional): Additional customer metadata to store with the order.
     
     Returns:
         dict: Created POS Order details
@@ -449,6 +450,73 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         if temporary_discount_flag:
             _set_flag("imogi_allow_discount_override", None)
 
+    # Normalise optional customer metadata
+    customer_details = {}
+    if customer_info not in (None, "", {}):
+        payload = customer_info
+        if isinstance(payload, str):
+            try:
+                payload = frappe.parse_json(payload)
+            except Exception:
+                payload = {}
+        elif not isinstance(payload, dict):
+            try:
+                payload = frappe.parse_json(payload)
+            except Exception:
+                payload = {}
+
+        if isinstance(payload, dict):
+            def _clean_text(value):
+                if value in (None, ""):
+                    return None
+                text = cstr(value).strip()
+                return text or None
+
+            def _coalesce(payload_dict, keys):
+                for key in keys:
+                    if key in payload_dict:
+                        return payload_dict.get(key)
+                return None
+
+            name_value = _clean_text(
+                _coalesce(
+                    payload,
+                    ("customer_full_name", "full_name", "name", "customer_name"),
+                )
+            )
+            if name_value:
+                customer_details["customer_full_name"] = name_value
+
+            gender_value = _clean_text(
+                _coalesce(payload, ("customer_gender", "gender"))
+            )
+            if gender_value:
+                customer_details["customer_gender"] = gender_value
+
+            phone_value = _clean_text(
+                _coalesce(
+                    payload,
+                    (
+                        "customer_phone",
+                        "phone",
+                        "mobile",
+                        "mobile_no",
+                        "contact_number",
+                    ),
+                )
+            )
+            if phone_value:
+                customer_details["customer_phone"] = phone_value
+
+            age_value = _coalesce(payload, ("customer_age", "age"))
+            if age_value not in (None, ""):
+                try:
+                    age_int = cint(age_value)
+                except Exception:
+                    age_int = None
+                if age_int is not None and age_int >= 0:
+                    customer_details["customer_age"] = age_int
+
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")
     order_doc.update(
@@ -465,6 +533,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             "selling_price_list": selling_price_list,
         }
     )
+    if customer_details:
+        order_doc.update(customer_details)
     if table_doc:
         order_doc.floor = table_doc.floor
 
@@ -535,6 +605,7 @@ def create_staff_order(
     promo_code=None,
     service_type=None,
     selling_price_list=None,
+    customer_info=None,
 ):
     """Create an order on behalf of staff while enabling trusted discount overrides."""
 
@@ -558,6 +629,7 @@ def create_staff_order(
             promo_code=promo_code,
             service_type=service_type,
             selling_price_list=selling_price_list,
+            customer_info=customer_info,
         )
     finally:
         if should_clear_flag:

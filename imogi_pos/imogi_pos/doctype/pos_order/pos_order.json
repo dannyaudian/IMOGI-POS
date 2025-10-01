@@ -13,6 +13,10 @@
         "order_type",
         "pos_profile",
         "customer",
+        "customer_full_name",
+        "customer_gender",
+        "customer_phone",
+        "customer_age",
         "column_break_7",
         "workflow_state",
         "posting_date",
@@ -76,6 +80,27 @@
             "fieldtype": "Link",
             "label": "Customer",
             "options": "Customer"
+        },
+        {
+            "fieldname": "customer_full_name",
+            "fieldtype": "Data",
+            "label": "Customer Full Name"
+        },
+        {
+            "fieldname": "customer_gender",
+            "fieldtype": "Select",
+            "label": "Customer Gender",
+            "options": "Male\nFemale\nOther"
+        },
+        {
+            "fieldname": "customer_phone",
+            "fieldtype": "Data",
+            "label": "Customer Phone"
+        },
+        {
+            "fieldname": "customer_age",
+            "fieldtype": "Int",
+            "label": "Customer Age"
         },
         {
             "fieldname": "column_break_7",
