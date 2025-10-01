@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import math
 import frappe
 from frappe import _
-from frappe.utils import now_datetime, cint, add_to_date, get_url, flt
+from frappe.utils import now_datetime, cint, add_to_date, get_url, flt, cstr
 from frappe.realtime import publish_realtime
 
 try:
@@ -793,7 +793,7 @@ def build_invoice_items(order_doc, mode):
 
 @frappe.whitelist()
 def generate_invoice(
-    pos_order: str | None = None, mode_of_payment=None, amount=None
+    pos_order: str | None = None, mode_of_payment=None, amount=None, customer_info=None
 ):
     """Creates a Sales Invoice (``is_pos=1``) from a POS Order.
 
@@ -801,6 +801,7 @@ def generate_invoice(
         pos_order (str | None, optional): POS Order name. Required.
         mode_of_payment (str, optional): Mode of payment to record against the invoice
         amount (float, optional): Payment amount
+        customer_info (dict | str, optional): Optional customer metadata overrides
 
     Returns:
         dict: Created Sales Invoice details
@@ -817,6 +818,80 @@ def generate_invoice(
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)
     
+    # Optionally merge transient customer metadata
+    customer_details = {}
+    if customer_info not in (None, "", {}):
+        payload = customer_info
+        if isinstance(payload, str):
+            try:
+                payload = frappe.parse_json(payload)
+            except Exception:
+                payload = {}
+        elif not isinstance(payload, dict):
+            try:
+                payload = frappe.parse_json(payload)
+            except Exception:
+                payload = {}
+
+        if isinstance(payload, dict):
+            def _clean_text(value):
+                if value in (None, ""):
+                    return None
+                text = cstr(value).strip()
+                return text or None
+
+            def _coalesce(source, keys):
+                for key in keys:
+                    if key in source:
+                        return source.get(key)
+                return None
+
+            name_value = _clean_text(
+                _coalesce(
+                    payload,
+                    ("customer_full_name", "full_name", "name", "customer_name"),
+                )
+            )
+            if name_value:
+                customer_details["customer_full_name"] = name_value
+
+            gender_value = _clean_text(
+                _coalesce(payload, ("customer_gender", "gender"))
+            )
+            if gender_value:
+                customer_details["customer_gender"] = gender_value
+
+            phone_value = _clean_text(
+                _coalesce(
+                    payload,
+                    (
+                        "customer_phone",
+                        "phone",
+                        "mobile",
+                        "mobile_no",
+                        "contact_number",
+                    ),
+                )
+            )
+            if phone_value:
+                customer_details["customer_phone"] = phone_value
+
+            age_value = _coalesce(payload, ("customer_age", "age"))
+            if age_value not in (None, ""):
+                try:
+                    age_int = cint(age_value)
+                except Exception:
+                    age_int = None
+                if age_int is not None and age_int >= 0:
+                    customer_details["customer_age"] = age_int
+
+    if customer_details:
+        if hasattr(order_doc, "update") and callable(order_doc.update):
+            order_doc.update(customer_details)
+        else:
+            for fieldname, value in customer_details.items():
+                setattr(order_doc, fieldname, value)
+
     # Validate POS Session
     pos_session = validate_pos_session(order_doc.pos_profile)
     
@@ -897,6 +972,16 @@ def generate_invoice(
             invoice_data["promo_code"] = order_doc.promo_code
 
         invoice_doc = frappe.get_doc(invoice_data)
+
+        for fieldname in (
+            "customer_full_name",
+            "customer_gender",
+            "customer_phone",
+            "customer_age",
+        ):
+            value = getattr(order_doc, fieldname, None)
+            if value not in (None, ""):
+                setattr(invoice_doc, fieldname, value)
 
         _populate_bom_components(invoice_doc, profile_doc)
         _validate_bom_capacity(invoice_doc, profile_doc)

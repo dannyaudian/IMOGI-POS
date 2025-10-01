@@ -1245,5 +1245,50 @@
     "dt": "Price List",
     "doctype": "Custom Field",
     "name": "Price List-imogi_price_adjustment"
+  },
+  {
+    "fieldname": "customer_full_name",
+    "fieldtype": "Data",
+    "label": "Customer Full Name",
+    "insert_after": "customer_name",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Sales Invoice",
+    "doctype": "Custom Field",
+    "name": "Sales Invoice-customer_full_name"
+  },
+  {
+    "fieldname": "customer_gender",
+    "fieldtype": "Select",
+    "label": "Customer Gender",
+    "options": "Male\nFemale\nOther",
+    "insert_after": "customer_full_name",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Sales Invoice",
+    "doctype": "Custom Field",
+    "name": "Sales Invoice-customer_gender"
+  },
+  {
+    "fieldname": "customer_phone",
+    "fieldtype": "Data",
+    "label": "Customer Phone",
+    "insert_after": "customer_gender",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Sales Invoice",
+    "doctype": "Custom Field",
+    "name": "Sales Invoice-customer_phone"
+  },
+  {
+    "fieldname": "customer_age",
+    "fieldtype": "Int",
+    "label": "Customer Age",
+    "insert_after": "customer_phone",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Sales Invoice",
+    "doctype": "Custom Field",
+    "name": "Sales Invoice-customer_age"
   }
 ]

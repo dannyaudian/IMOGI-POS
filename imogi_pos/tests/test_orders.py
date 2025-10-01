@@ -77,6 +77,10 @@ def frappe_env(monkeypatch):
                 "workflow_state": self.workflow_state,
                 "floor": getattr(self, "floor", None),
                 "customer": getattr(self, "customer", None),
+                "customer_full_name": getattr(self, "customer_full_name", None),
+                "customer_gender": getattr(self, "customer_gender", None),
+                "customer_phone": getattr(self, "customer_phone", None),
+                "customer_age": getattr(self, "customer_age", None),
                 "discount_amount": getattr(self, "discount_amount", 0),
                 "discount_percent": getattr(self, "discount_percent", 0),
                 "promo_code": getattr(self, "promo_code", None),
@@ -334,6 +338,29 @@ def test_create_order_records_customer(frappe_env):
     )
     assert orders[result["name"]].customer == "CUST-1"
     assert result["customer"] == "CUST-1"
+
+def test_create_order_records_customer_info(frappe_env):
+    frappe, orders_module = frappe_env
+    info = {
+        "customer_full_name": "  Jane Doe  ",
+        "customer_gender": "Female",
+        "customer_phone": "08123",
+        "customer_age": "29",
+    }
+
+    result = orders_module.create_order(
+        "POS",
+        "BR-1",
+        "P1",
+        customer_info=info,
+    )
+
+    order = orders[result["name"]]
+    assert order.customer_full_name == "Jane Doe"
+    assert order.customer_gender == "Female"
+    assert order.customer_phone == "08123"
+    assert order.customer_age == 29
+    assert result["customer_full_name"] == "Jane Doe"
 
 def test_create_staff_order_accepts_string_discounts(frappe_env):
     frappe, orders_module = frappe_env
