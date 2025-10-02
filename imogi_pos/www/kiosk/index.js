@@ -465,11 +465,89 @@ frappe.ready(async function() {
             return Array.from(seen.values());
         },
 
+        computeVariantDisplayRate: function(variants) {
+            if (!Array.isArray(variants) || !variants.length) {
+                return null;
+            }
+
+            const numericRates = variants
+                .map((variant) => Number(variant?.standard_rate))
+                .filter((rate) => Number.isFinite(rate));
+
+            if (!numericRates.length) {
+                return null;
+            }
+
+            const positiveRates = numericRates.filter((rate) => rate > 0);
+            if (positiveRates.length) {
+                return Math.min(...positiveRates);
+            }
+
+            return Math.min(...numericRates);
+        },
+
+        refreshVariantDisplayRateForTemplate: function(templateItem) {
+            if (!templateItem) {
+                return null;
+            }
+
+            if (!templateItem.has_variants) {
+                templateItem._variant_display_rate = null;
+                return null;
+            }
+
+            const variants = this.getCachedVariantsForTemplate(templateItem);
+            const displayRate = this.computeVariantDisplayRate(variants);
+            templateItem._variant_display_rate = displayRate;
+
+            return displayRate;
+        },
+
+        refreshAllVariantDisplayRates: function() {
+            if (!Array.isArray(this.items)) {
+                return;
+            }
+
+            this.items
+                .filter((item) => item && item.has_variants)
+                .forEach((templateItem) => this.refreshVariantDisplayRateForTemplate(templateItem));
+        },
+
+        getTemplateVariantDisplayRate: function(templateItem) {
+            if (!templateItem || !templateItem.has_variants) {
+                return null;
+            }
+
+            const stored = Number(templateItem._variant_display_rate);
+            if (Number.isFinite(stored) && stored >= 0) {
+                return stored;
+            }
+
+            return this.refreshVariantDisplayRateForTemplate(templateItem);
+        },
+
+        getDisplayRateForItem: function(item) {
+            if (!item) {
+                return 0;
+            }
+
+            const standardRate = Number(item.standard_rate);
+            if (item.has_variants) {
+                const templateRate = this.getTemplateVariantDisplayRate(item);
+                if ((!Number.isFinite(standardRate) || standardRate <= 0) && Number.isFinite(templateRate)) {
+                    return templateRate;
+                }
+            }
+
+            return Number.isFinite(standardRate) ? standardRate : 0;
+        },
+
         applyPriceAdjustmentToCachedVariants: function() {
             const variants = this.getAllCachedVariants();
             if (variants.length) {
                 this.applyPriceAdjustmentToItems(variants);
             }
+            this.refreshAllVariantDisplayRates();
         },
 
         applyPriceAdjustmentToItem: function(item) {
@@ -1439,6 +1517,7 @@ frappe.ready(async function() {
 
                     this.items = combinedItems;
                     this.filteredItems = [...this.items];
+                    this.refreshAllVariantDisplayRates();
 
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates(!this.selectedPriceList);
@@ -1472,11 +1551,26 @@ frappe.ready(async function() {
                     item.has_explicit_price_list_rate = 0;
                     item._explicit_standard_rate = null;
                 });
+                this.getAllCachedVariants().forEach((variant) => {
+                    variant.has_explicit_price_list_rate = 0;
+                    variant._explicit_standard_rate = null;
+                });
             }
 
             const targetItems = force ? this.items : this.items.filter(item => !item.standard_rate);
-            if (!targetItems.length) {
+            const cachedVariants = this.getAllCachedVariants();
+            const targetVariants = force
+                ? cachedVariants
+                : cachedVariants.filter(variant => !variant.standard_rate);
+            const lookupNames = Array.from(new Set(
+                [...targetItems, ...targetVariants]
+                    .map(item => item && item.name)
+                    .filter(Boolean)
+            ));
+
+            if (!lookupNames.length) {
                 this.applyPriceAdjustmentToItems(this.items);
+                this.applyPriceAdjustmentToCachedVariants();
                 return;
             }
 
@@ -1486,11 +1580,11 @@ frappe.ready(async function() {
                     args: {
                         doctype: 'Item Price',
                         filters: {
-                            item_code: ['in', targetItems.map(item => item.name)],
+                            item_code: ['in', lookupNames],
                             price_list: priceList
                         },
                         fields: ['item_code', 'price_list_rate'],
-                        limit_page_length: targetItems.length
+                        limit_page_length: lookupNames.length
                     }
                 });
 
@@ -1534,6 +1628,7 @@ frappe.ready(async function() {
                 const adjusted = this.applyPriceAdjustmentToVariants(variants);
                 if (adjusted.length) {
                     this.cacheVariantsForTemplate(templateItem, adjusted);
+                    this.refreshVariantDisplayRateForTemplate(templateItem);
                 }
                 return adjusted;
             } catch (error) {
@@ -1576,13 +1671,15 @@ frappe.ready(async function() {
                     cardClasses.push('sold-out');
                 }
 
+                const displayRate = this.getDisplayRateForItem(item);
+                const formattedPrice = formatRupiah(Number.isFinite(displayRate) ? displayRate : 0);
                 html += `
                     <div class="${cardClasses.join(' ')}" data-item="${item.name}" aria-disabled="${isSoldOut ? 'true' : 'false'}">
                         <span class="sold-out-badge" aria-hidden="${isSoldOut ? 'false' : 'true'}">Sold Out</span>
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
-                            <div class="item-price">${formatRupiah(item.standard_rate || 0)}</div>
+                            <div class="item-price">${formattedPrice}</div>
                             ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
                         </div>
                     </div>
