@@ -1955,17 +1955,36 @@ frappe.ready(async function () {
       if (item && item.has_variants) {
         const cachedVariants = this.getCachedVariantsForTemplate(item) || [];
         if (cachedVariants.length) {
-          const hasAvailableVariant = cachedVariants.some((variant) => {
+          let anyAvailableVariant = false;
+          let allUnavailableOrShort = true;
+
+          cachedVariants.forEach((variant) => {
             const qty = parseQty(variant?.actual_qty);
-            if (qty === null || qty <= 0) return false;
             const shortageSource = Object.prototype.hasOwnProperty.call(variant || {}, "is_component_shortage")
               ? variant.is_component_shortage
               : variant?.component_shortage;
-            const variantShortage = parseShortage(shortageSource);
-            return !variantShortage;
+            const variantShortage = Boolean(parseShortage(shortageSource));
+
+            if (!variantShortage && qty !== null && qty > 0) {
+              anyAvailableVariant = true;
+            }
+
+            if (!variantShortage) {
+              if (qty === null || qty > 0) {
+                allUnavailableOrShort = false;
+              }
+            }
           });
 
-          if (hasAvailableVariant) return false;
+          if (anyAvailableVariant) {
+            return false;
+          }
+
+          if (allUnavailableOrShort) {
+            return true;
+          }
+
+          return false;
         }
       }
 
