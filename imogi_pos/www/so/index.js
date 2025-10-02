@@ -221,6 +221,83 @@ frappe.ready(function() {
 
             return Array.from(seen.values());
         },
+
+        computeVariantDisplayRate: function(variants) {
+            if (!Array.isArray(variants) || !variants.length) {
+                return null;
+            }
+
+            const numericRates = variants
+                .map((variant) => Number(variant?.standard_rate))
+                .filter((rate) => Number.isFinite(rate));
+
+            if (!numericRates.length) {
+                return null;
+            }
+
+            const positiveRates = numericRates.filter((rate) => rate > 0);
+            if (positiveRates.length) {
+                return Math.min(...positiveRates);
+            }
+
+            return Math.min(...numericRates);
+        },
+
+        refreshVariantDisplayRateForTemplate: function(templateItem) {
+            if (!templateItem) {
+                return null;
+            }
+
+            if (!templateItem.has_variants) {
+                templateItem._variant_display_rate = null;
+                return null;
+            }
+
+            const variants = this.getCachedVariantsForTemplate(templateItem);
+            const displayRate = this.computeVariantDisplayRate(variants);
+            templateItem._variant_display_rate = displayRate;
+
+            return displayRate;
+        },
+
+        refreshAllVariantDisplayRates: function() {
+            if (!Array.isArray(this.items)) {
+                return;
+            }
+
+            this.items
+                .filter((item) => item && item.has_variants)
+                .forEach((templateItem) => this.refreshVariantDisplayRateForTemplate(templateItem));
+        },
+
+        getTemplateVariantDisplayRate: function(templateItem) {
+            if (!templateItem || !templateItem.has_variants) {
+                return null;
+            }
+
+            const stored = Number(templateItem._variant_display_rate);
+            if (Number.isFinite(stored) && stored >= 0) {
+                return stored;
+            }
+
+            return this.refreshVariantDisplayRateForTemplate(templateItem);
+        },
+
+        getDisplayRateForItem: function(item) {
+            if (!item) {
+                return 0;
+            }
+
+            const standardRate = Number(item.standard_rate);
+            if (item.has_variants) {
+                const templateRate = this.getTemplateVariantDisplayRate(item);
+                if ((!Number.isFinite(standardRate) || standardRate <= 0) && Number.isFinite(templateRate)) {
+                    return templateRate;
+                }
+            }
+
+            return Number.isFinite(standardRate) ? standardRate : 0;
+        },
         
         // Initialize the app
         init: async function() {
@@ -750,10 +827,12 @@ frappe.ready(function() {
                         this.cacheVariantsForTemplate(template, [variant]);
                     });
 
+                    this.refreshAllVariantDisplayRates();
+
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates();
                 }
-                
+
                 this.hideLoading();
             } catch (error) {
                 console.error("Error loading items:", error);
@@ -762,35 +841,70 @@ frappe.ready(function() {
             }
         },
         
-        loadItemRates: async function() {
-            const itemsWithoutRate = this.items.filter(item => !item.standard_rate);
-            if (!itemsWithoutRate.length) return;
-            
+        loadItemRates: async function(force = false) {
+            if (!Array.isArray(this.items) || !this.items.length) {
+                return;
+            }
+
+            const priceList = 'Standard Selling';
+            const itemTargets = force ? this.items : this.items.filter(item => !item.standard_rate);
+            const cachedVariants = this.getAllCachedVariants();
+            const variantTargets = force
+                ? cachedVariants
+                : cachedVariants.filter(variant => !variant.standard_rate);
+
+            const lookupNames = Array.from(new Set(
+                [...itemTargets, ...variantTargets]
+                    .map(entry => entry && entry.name)
+                    .filter(Boolean)
+            ));
+
+            if (!lookupNames.length) {
+                this.refreshAllVariantDisplayRates();
+                return;
+            }
+
             try {
                 const response = await frappe.call({
                     method: 'frappe.client.get_list',
                     args: {
                         doctype: 'Item Price',
                         filters: {
-                            item_code: ['in', itemsWithoutRate.map(item => item.name)],
-                            price_list: 'Standard Selling'
+                            item_code: ['in', lookupNames],
+                            price_list: priceList
                         },
-                        fields: ['item_code', 'price_list_rate']
+                        fields: ['item_code', 'price_list_rate'],
+                        limit_page_length: lookupNames.length
                     }
                 });
-                
+
                 if (response.message) {
-                    // Update item rates
+                    const variantMap = new Map();
+                    cachedVariants.forEach((variant) => {
+                        if (variant && variant.name) {
+                            variantMap.set(variant.name, variant);
+                        }
+                    });
+
                     response.message.forEach(price => {
+                        const rate = this.normalizeNumber(price.price_list_rate);
                         const item = this.items.find(i => i.name === price.item_code);
                         if (item) {
-                            item.standard_rate = price.price_list_rate;
+                            item.standard_rate = rate;
+                            return;
+                        }
+
+                        const variant = variantMap.get(price.item_code);
+                        if (variant) {
+                            variant.standard_rate = rate;
                         }
                     });
                 }
             } catch (error) {
                 console.error("Error loading item rates:", error);
             }
+
+            this.refreshAllVariantDisplayRates();
         },
 
         loadTaxTemplate: async function() {
@@ -814,6 +928,7 @@ frappe.ready(function() {
                     : ((payload && payload.variants) || []);
                 if (variants.length) {
                     this.cacheVariantsForTemplate(templateItem, variants);
+                    this.refreshVariantDisplayRateForTemplate(templateItem);
                     return variants;
                 }
 
@@ -844,13 +959,15 @@ frappe.ready(function() {
             
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
-                
+                const displayRate = this.getDisplayRateForItem(item);
+                const formattedPrice = `${CURRENCY_SYMBOL} ${formatNumber(Number.isFinite(displayRate) ? displayRate : 0)}`;
+
                 html += `
                     <div class="item-card" data-item="${item.name}">
                         <div class="item-image" style="background-image: url('${imageUrl}')"></div>
                         <div class="item-info">
                             <div class="item-name">${item.item_name}</div>
-                            <div class="item-price">${CURRENCY_SYMBOL} ${formatNumber(item.standard_rate || 0)}</div>
+                            <div class="item-price">${formattedPrice}</div>
                             ${item.has_variants ? '<div class="item-has-variants">Multiple options</div>' : ''}
                         </div>
                     </div>
