@@ -2217,15 +2217,59 @@ frappe.ready(async function () {
       this.pendingNotes = "";
     },
 
-    addSelectedVariantToCart: function () {
+    addSelectedVariantToCart: async function () {
       if (!this.selectedVariant) return;
+
       const selectedVariant = this.selectedVariant;
       const notes = this.elements.itemNotes ? this.elements.itemNotes.value : "";
+
+      let optionsPayload = null;
+      let loadError = false;
+      try {
+        const { message } = await frappe.call({
+          method: "imogi_pos.api.items.get_item_options",
+          args: { item: selectedVariant.name },
+        });
+        optionsPayload = message || {};
+      } catch (error) {
+        loadError = true;
+        console.error("Error preloading item options:", error);
+      }
+
+      if (loadError) {
+        this.closeVariantModal();
+        this.openItemDetailModal(selectedVariant, notes);
+        return;
+      }
+
+      const requiresOptions = this.itemRequiresAdditionalOptions(optionsPayload);
       this.closeVariantModal();
-      this.openItemDetailModal(selectedVariant, notes);
+
+      if (!requiresOptions) {
+        this.addItemToCart(selectedVariant, {}, notes);
+        return;
+      }
+
+      this.openItemDetailModal(selectedVariant, notes, optionsPayload);
     },
 
-    openItemDetailModal: async function (item, notes = "") {
+    itemRequiresAdditionalOptions: function (optionsPayload) {
+      if (!optionsPayload || typeof optionsPayload !== "object") return false;
+      const resolveArray = (primary, fallback) => {
+        if (Array.isArray(primary)) return primary;
+        if (Array.isArray(fallback)) return fallback;
+        return [];
+      };
+      const groups = [
+        resolveArray(optionsPayload.variants, optionsPayload.variant),
+        resolveArray(optionsPayload.sizes, optionsPayload.size),
+        resolveArray(optionsPayload.spices, optionsPayload.spice),
+        resolveArray(optionsPayload.toppings, optionsPayload.topping),
+      ];
+      return groups.some((group) => Array.isArray(group) && group.length > 0);
+    },
+
+    openItemDetailModal: async function (item, notes = "", preloadedOptions = null) {
       this.selectedOptionItem = item;
       this.pendingNotes = notes || "";
       if (this.elements.itemDetailNotes)
@@ -2248,6 +2292,12 @@ frappe.ready(async function () {
 
       // Show modal
       if (this.elements.itemDetailModal) this.elements.itemDetailModal.style.display = "flex";
+
+      if (preloadedOptions) {
+        this.hideLoading();
+        this.renderItemDetailOptions(preloadedOptions);
+        return;
+      }
 
       this.showLoading("Loading options...");
       try {
