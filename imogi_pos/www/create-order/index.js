@@ -1810,20 +1810,32 @@ frappe.ready(async function () {
       this.elements.cartItems.innerHTML = html;
 
       // Quantity & remove handlers
-      this.elements.cartItems.addEventListener("click", (e) => {
-        const index = Number(e.target.dataset.index);
-        if (Number.isNaN(index)) return;
+      if (!this.cartClickHandler) {
+        this.cartClickHandler = (event) => {
+          const { target } = event;
+          if (!(target instanceof Element)) return;
 
-        if (e.target.classList.contains("qty-plus")) {
-          e.preventDefault();
-          this.updateCartItemQuantity(index, this.cart[index].qty + 1);
-        } else if (e.target.classList.contains("qty-minus")) {
-          e.preventDefault();
-          this.updateCartItemQuantity(index, this.cart[index].qty - 1);
-        } else if (e.target.classList.contains("cart-item-remove")) {
-          this.removeCartItem(index);
-        }
-      });
+          const control = target.closest(".qty-btn, .cart-item-remove");
+          if (!control || !this.elements.cartItems.contains(control)) return;
+
+          const index = Number(control.getAttribute("data-index"));
+          if (!Number.isInteger(index) || index < 0 || index >= this.cart.length) return;
+
+          const cartItem = this.cart[index];
+          if (!cartItem) return;
+
+          if (control.classList.contains("qty-plus")) {
+            event.preventDefault();
+            this.updateCartItemQuantity(index, cartItem.qty + 1);
+          } else if (control.classList.contains("qty-minus")) {
+            event.preventDefault();
+            this.updateCartItemQuantity(index, cartItem.qty - 1);
+          } else if (control.classList.contains("cart-item-remove")) {
+            this.removeCartItem(index);
+          }
+        };
+        this.elements.cartItems.addEventListener("click", this.cartClickHandler);
+      }
 
       const qtyInputs = this.elements.cartItems.querySelectorAll(".cart-item-qty");
       qtyInputs.forEach((input) => {
