@@ -1856,10 +1856,12 @@ frappe.ready(async function () {
 
           if (control.classList.contains("qty-plus")) {
             event.preventDefault();
-            this.updateCartItemQuantity(index, cartItem.qty + 1);
+            const currentQty = Number(cartItem.qty) || 0;
+            this.updateCartItemQuantity(index, currentQty + 1);
           } else if (control.classList.contains("qty-minus")) {
             event.preventDefault();
-            this.updateCartItemQuantity(index, cartItem.qty - 1);
+            const currentQty = Number(cartItem.qty) || 0;
+            this.updateCartItemQuantity(index, currentQty - 1);
           } else if (control.classList.contains("cart-item-remove")) {
             this.removeCartItem(index);
           }
@@ -2605,9 +2607,13 @@ frappe.ready(async function () {
     },
 
     updateCartItemQuantity: function (index, newQty) {
-      if (newQty < 1) return this.removeCartItem(index);
-      this.cart[index].qty = newQty;
-      this.cart[index].amount = this.cart[index].rate * newQty;
+      const normalizedQty = Number(newQty);
+      if (!Number.isFinite(normalizedQty) || normalizedQty < 1) {
+        return this.removeCartItem(index);
+      }
+
+      this.cart[index].qty = normalizedQty;
+      this.cart[index].amount = this.cart[index].rate * normalizedQty;
       this.renderCart();
       this.updateCartTotals();
     },
