@@ -2172,10 +2172,11 @@ frappe.ready(async function() {
         addSelectedVariantToCart: function() {
             if (!this.selectedVariant) return;
 
+            const selectedVariant = this.selectedVariant;
             const notes = this.elements.itemNotes ? this.elements.itemNotes.value : '';
 
             this.closeVariantModal();
-            this.openItemDetailModal(this.selectedVariant, notes);
+            this.openItemDetailModal(selectedVariant, notes);
         },
 
         openItemDetailModal: async function(item, notes = '') {
