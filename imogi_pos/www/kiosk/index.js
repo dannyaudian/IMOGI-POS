@@ -1754,6 +1754,18 @@ frappe.ready(async function() {
             
             this.elements.cartItems.innerHTML = html;
 
+            const resolveCartIndex = (node) => {
+                if (!(node instanceof Element)) {
+                    return -1;
+                }
+                const carrier = node.closest('[data-index]') || node.closest('.cart-item');
+                if (!carrier) {
+                    return -1;
+                }
+                const value = Number(carrier.getAttribute('data-index'));
+                return Number.isInteger(value) ? value : -1;
+            };
+
             // Add event listeners
             const qtyInputs = this.elements.cartItems.querySelectorAll('.cart-item-qty');
 
@@ -1769,8 +1781,8 @@ frappe.ready(async function() {
                         return;
                     }
 
-                    const index = Number(control.getAttribute('data-index'));
-                    if (!Number.isInteger(index) || index < 0 || index >= this.cart.length) {
+                    const index = resolveCartIndex(control);
+                    if (index < 0 || index >= this.cart.length) {
                         return;
                     }
 
@@ -1794,7 +1806,10 @@ frappe.ready(async function() {
 
             qtyInputs.forEach(input => {
                 input.addEventListener('change', () => {
-                    const index = parseInt(input.dataset.index);
+                    const index = resolveCartIndex(input);
+                    if (index < 0) {
+                        return;
+                    }
                     this.updateCartItemQuantity(index, parseInt(input.value) || 1);
                 });
             });
