@@ -16,6 +16,7 @@ frappe.ready(function() {
         searchQuery: '',
         selectedTemplateItem: null,
         selectedVariant: null,
+        variantPool: new Map(),
         taxRate: 0,
 
         discountState: {
@@ -85,6 +86,140 @@ frappe.ready(function() {
             // Loading overlay
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text')
+        },
+
+        ensureVariantPool: function() {
+            if (!(this.variantPool instanceof Map)) {
+                this.variantPool = new Map();
+            }
+            return this.variantPool;
+        },
+
+        resetVariantPool: function() {
+            this.variantPool = new Map();
+        },
+
+        collectTemplateLookupKeys: function(source) {
+            if (!source || typeof source !== 'object') {
+                return [];
+            }
+
+            const keys = [];
+            const maybeAdd = (value) => {
+                if (typeof value !== 'string') {
+                    return;
+                }
+                const trimmed = value.trim();
+                if (trimmed) {
+                    keys.push(trimmed);
+                }
+            };
+
+            maybeAdd(source.name);
+            maybeAdd(source.item_code);
+            maybeAdd(source.item_name);
+            maybeAdd(source.template_item);
+            maybeAdd(source.template_item_code);
+
+            return Array.from(new Set(keys));
+        },
+
+        collectVariantTemplateKeys: function(variant) {
+            if (!variant || typeof variant !== 'object') {
+                return [];
+            }
+
+            const keys = [];
+            const maybeAdd = (value) => {
+                if (typeof value !== 'string') {
+                    return;
+                }
+                const trimmed = value.trim();
+                if (trimmed) {
+                    keys.push(trimmed);
+                }
+            };
+
+            maybeAdd(variant.variant_of);
+            maybeAdd(variant.template_item);
+            maybeAdd(variant.template_item_code);
+
+            return Array.from(new Set(keys));
+        },
+
+        cacheVariantsForTemplate: function(templateItem, variants) {
+            if (!Array.isArray(variants) || variants.length === 0) {
+                return;
+            }
+
+            const pool = this.ensureVariantPool();
+            const templateKeys = this.collectTemplateLookupKeys(templateItem);
+
+            const allKeys = new Set(templateKeys);
+            variants.forEach((variant) => {
+                this.collectVariantTemplateKeys(variant).forEach((key) => allKeys.add(key));
+            });
+
+            if (!allKeys.size) {
+                return;
+            }
+
+            allKeys.forEach((key) => {
+                if (!pool.has(key) || !(pool.get(key) instanceof Map)) {
+                    pool.set(key, new Map());
+                }
+            });
+
+            variants.forEach((variant) => {
+                allKeys.forEach((key) => {
+                    const bucket = pool.get(key);
+                    bucket.set(variant.name, variant);
+                });
+            });
+        },
+
+        getCachedVariantsForTemplate: function(templateItem) {
+            if (!(this.variantPool instanceof Map)) {
+                return [];
+            }
+
+            const keys = this.collectTemplateLookupKeys(templateItem);
+            if (!keys.length) {
+                return [];
+            }
+
+            const seen = new Map();
+            keys.forEach((key) => {
+                const bucket = this.variantPool.get(key);
+                if (bucket && bucket instanceof Map) {
+                    bucket.forEach((variant, variantName) => {
+                        if (!seen.has(variantName)) {
+                            seen.set(variantName, variant);
+                        }
+                    });
+                }
+            });
+
+            return Array.from(seen.values());
+        },
+
+        getAllCachedVariants: function() {
+            if (!(this.variantPool instanceof Map)) {
+                return [];
+            }
+
+            const seen = new Map();
+            this.variantPool.forEach((bucket) => {
+                if (bucket && bucket instanceof Map) {
+                    bucket.forEach((variant, variantName) => {
+                        if (!seen.has(variantName)) {
+                            seen.set(variantName, variant);
+                        }
+                    });
+                }
+            });
+
+            return Array.from(seen.values());
         },
         
         // Initialize the app
@@ -568,14 +703,6 @@ frappe.ready(function() {
                         }
                     });
 
-                    const variantLookup = new Set();
-                    const registerVariantForTemplate = (templateKey) => {
-                        if (!templateKey) {
-                            return;
-                        }
-                        variantLookup.add(templateKey);
-                    };
-
                     const inheritFields = [
                         'menu_category',
                         'item_group',
@@ -596,33 +723,32 @@ frappe.ready(function() {
                             templateIndex.get(variant.template_item_code);
 
                         if (template) {
-                            const keys = [template.name, template.item_code].filter(Boolean);
-                            keys.forEach((key) => registerVariantForTemplate(key));
-
                             inheritFields.forEach((field) => {
                                 if ((variant[field] === undefined || variant[field] === null || variant[field] === '')
                                     && (template[field] !== undefined && template[field] !== null && template[field] !== '')) {
                                     variant[field] = template[field];
                                 }
                             });
-                        } else if (variant.variant_of) {
-                            registerVariantForTemplate(variant.variant_of);
                         }
-                    });
-
-                    const templatesWithoutVariants = templates.filter((template) => {
-                        const keys = [template.name, template.item_code].filter(Boolean);
-                        return !keys.some((key) => variantLookup.has(key));
                     });
 
                     const combinedItems = [
                         ...standalone,
-                        ...templatesWithoutVariants,
-                        ...variants,
+                        ...templates,
                     ];
 
                     this.items = combinedItems.filter(item => hasValidMenuCategory(item.menu_category));
                     this.filteredItems = [...this.items];
+
+                    this.resetVariantPool();
+                    variants.forEach((variant) => {
+                        const template =
+                            templateIndex.get(variant.variant_of) ||
+                            templateIndex.get(variant.template_item) ||
+                            templateIndex.get(variant.template_item_code) ||
+                            { name: variant.variant_of || variant.template_item || variant.template_item_code || variant.name };
+                        this.cacheVariantsForTemplate(template, [variant]);
+                    });
 
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates();
@@ -674,7 +800,7 @@ frappe.ready(function() {
 
         loadVariantsForTemplate: async function(templateItem) {
             this.showLoading('Loading options...');
-            
+
             try {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.variants.get_item_variants',
@@ -682,19 +808,24 @@ frappe.ready(function() {
                         template_item: templateItem.name
                     }
                 });
-                
-                this.hideLoading();
-                
-                if (response.message) {
-                    return response.message;
+                const payload = response.message;
+                const variants = Array.isArray(payload)
+                    ? payload
+                    : ((payload && payload.variants) || []);
+                if (variants.length) {
+                    this.cacheVariantsForTemplate(templateItem, variants);
+                    return variants;
                 }
-                
-                return [];
+
+                const cached = this.getCachedVariantsForTemplate(templateItem);
+                return cached.length ? cached : [];
             } catch (error) {
                 console.error("Error loading variants:", error);
                 this.showError("Failed to load options. Please try again.");
+                const cached = this.getCachedVariantsForTemplate(templateItem);
+                return cached.length ? cached : [];
+            } finally {
                 this.hideLoading();
-                return [];
             }
         },
         
