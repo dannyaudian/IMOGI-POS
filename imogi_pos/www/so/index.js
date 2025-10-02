@@ -535,10 +535,95 @@ frappe.ready(function() {
                 });
                 
                 if (response.message) {
-                    // Filter out variants but include template items and standalone items
-                    this.items = response.message.filter(item => !item.variant_of && hasValidMenuCategory(item.menu_category));
+                    const payload = Array.isArray(response.message) ? response.message : [];
+                    const templates = [];
+                    const variants = [];
+                    const standalone = [];
+                    const templateIndex = new Map();
+                    const registerTemplateKeys = (template) => {
+                        if (!template) {
+                            return;
+                        }
+                        const keys = [template.name, template.item_code].filter(Boolean);
+                        keys.forEach((key) => {
+                            if (!templateIndex.has(key)) {
+                                templateIndex.set(key, template);
+                            }
+                        });
+                    };
+
+                    payload.forEach((item) => {
+                        const hasVariants = Boolean(item.has_variants);
+                        const isVariant = Boolean(item.variant_of);
+
+                        if (hasVariants) {
+                            templates.push(item);
+                            registerTemplateKeys(item);
+                        }
+
+                        if (isVariant) {
+                            variants.push(item);
+                        } else if (!hasVariants) {
+                            standalone.push(item);
+                        }
+                    });
+
+                    const variantLookup = new Set();
+                    const registerVariantForTemplate = (templateKey) => {
+                        if (!templateKey) {
+                            return;
+                        }
+                        variantLookup.add(templateKey);
+                    };
+
+                    const inheritFields = [
+                        'menu_category',
+                        'item_group',
+                        'image',
+                        'item_image',
+                        'web_image',
+                        'thumbnail',
+                        'description',
+                        'photo',
+                        'default_kitchen',
+                        'default_kitchen_station',
+                    ];
+
+                    variants.forEach((variant) => {
+                        const template =
+                            templateIndex.get(variant.variant_of) ||
+                            templateIndex.get(variant.template_item) ||
+                            templateIndex.get(variant.template_item_code);
+
+                        if (template) {
+                            const keys = [template.name, template.item_code].filter(Boolean);
+                            keys.forEach((key) => registerVariantForTemplate(key));
+
+                            inheritFields.forEach((field) => {
+                                if ((variant[field] === undefined || variant[field] === null || variant[field] === '')
+                                    && (template[field] !== undefined && template[field] !== null && template[field] !== '')) {
+                                    variant[field] = template[field];
+                                }
+                            });
+                        } else if (variant.variant_of) {
+                            registerVariantForTemplate(variant.variant_of);
+                        }
+                    });
+
+                    const templatesWithoutVariants = templates.filter((template) => {
+                        const keys = [template.name, template.item_code].filter(Boolean);
+                        return !keys.some((key) => variantLookup.has(key));
+                    });
+
+                    const combinedItems = [
+                        ...standalone,
+                        ...templatesWithoutVariants,
+                        ...variants,
+                    ];
+
+                    this.items = combinedItems.filter(item => hasValidMenuCategory(item.menu_category));
                     this.filteredItems = [...this.items];
-                    
+
                     // Load rates for items that don't have standard_rate
                     await this.loadItemRates();
                 }

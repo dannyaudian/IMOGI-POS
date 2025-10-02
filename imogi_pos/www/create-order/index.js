@@ -1258,9 +1258,96 @@ frappe.ready(async function () {
         });
 
         if (message) {
-          // Hanya template & standalone (bukan variant child)
-          this.items = message.filter(
-            (item) => !item.variant_of && hasValidMenuCategory(item.menu_category)
+          const payload = Array.isArray(message) ? message : [];
+          const templates = [];
+          const variants = [];
+          const standalone = [];
+          const templateIndex = new Map();
+          const registerTemplateKeys = (template) => {
+            if (!template) return;
+            const keys = [template.name, template.item_code].filter(Boolean);
+            keys.forEach((key) => {
+              if (!templateIndex.has(key)) {
+                templateIndex.set(key, template);
+              }
+            });
+          };
+
+          payload.forEach((item) => {
+            const hasVariants = Boolean(item.has_variants);
+            const isVariant = Boolean(item.variant_of);
+
+            if (hasVariants) {
+              templates.push(item);
+              registerTemplateKeys(item);
+            }
+
+            if (isVariant) {
+              variants.push(item);
+            } else if (!hasVariants) {
+              standalone.push(item);
+            }
+          });
+
+          const variantLookup = new Set();
+          const registerVariantForTemplate = (templateKey) => {
+            if (!templateKey) return;
+            variantLookup.add(templateKey);
+          };
+
+          const inheritFields = [
+            "menu_category",
+            "item_group",
+            "image",
+            "item_image",
+            "web_image",
+            "thumbnail",
+            "description",
+            "photo",
+            "default_kitchen",
+            "default_kitchen_station",
+          ];
+
+          variants.forEach((variant) => {
+            const template =
+              templateIndex.get(variant.variant_of) ||
+              templateIndex.get(variant.template_item) ||
+              templateIndex.get(variant.template_item_code);
+
+            if (template) {
+              const keys = [template.name, template.item_code].filter(Boolean);
+              keys.forEach((key) => registerVariantForTemplate(key));
+
+              inheritFields.forEach((field) => {
+                const variantValue = variant[field];
+                const templateValue = template[field];
+                if (
+                  (variantValue === undefined || variantValue === null || variantValue === "") &&
+                  templateValue !== undefined &&
+                  templateValue !== null &&
+                  templateValue !== ""
+                ) {
+                  variant[field] = templateValue;
+                }
+              });
+            } else if (variant.variant_of) {
+              registerVariantForTemplate(variant.variant_of);
+            }
+          });
+
+          const templatesWithoutVariants = templates.filter((template) => {
+            const keys = [template.name, template.item_code].filter(Boolean);
+            return !keys.some((key) => variantLookup.has(key));
+          });
+
+          const combinedItems = [
+            ...standalone,
+            ...templatesWithoutVariants,
+            ...variants,
+          ];
+
+          const availableItems = combinedItems.filter((item) =>
+            hasValidMenuCategory(item.menu_category)
           );
 
           if (this.itemIndex && typeof this.itemIndex.clear === "function") {
@@ -1269,7 +1356,19 @@ frappe.ready(async function () {
             this.itemIndex = new Map();
           }
 
-          this.items.forEach((item) => {
+          const pricingTargets = [];
+          const seenPricingTargets = new Set();
+          const registerPricingTarget = (item) => {
+            if (!item || !item.name) return;
+            if (seenPricingTargets.has(item.name)) return;
+            seenPricingTargets.add(item.name);
+            pricingTargets.push(item);
+          };
+
+          availableItems.forEach(registerPricingTarget);
+          templates.forEach(registerPricingTarget);
+
+          pricingTargets.forEach((item) => {
             item.has_explicit_price_list_rate = Number(
               item.has_explicit_price_list_rate
             )
@@ -1277,7 +1376,7 @@ frappe.ready(async function () {
               : 0;
             if (item.has_explicit_price_list_rate) {
               item._explicit_standard_rate = this.normalizeNumber(item.standard_rate);
-            } else {
+            } else if (!Object.prototype.hasOwnProperty.call(item, "_explicit_standard_rate")) {
               item._explicit_standard_rate = null;
             }
             const baseSource = Object.prototype.hasOwnProperty.call(
@@ -1290,6 +1389,7 @@ frappe.ready(async function () {
             this.applyPriceAdjustmentToItem(item);
           });
 
+          this.items = availableItems;
           this.filteredItems = [...this.items];
 
           // Lengkapi harga yang kosong
