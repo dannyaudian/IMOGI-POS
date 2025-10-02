@@ -1822,14 +1822,51 @@ frappe.ready(async function () {
     isItemSoldOut: function (item, actualQty, isComponentShortage) {
       if (!item && actualQty == null && typeof isComponentShortage === "undefined") return false;
 
-      const qtySource = actualQty != null ? Number(actualQty) : Number(item?.actual_qty);
-      const qty = Number.isFinite(qtySource) ? qtySource : null;
+      const parseQty = (value) => {
+        if (value === null || value === undefined || value === "") return null;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+      };
+
+      const parseShortage = (value) => {
+        if (value === undefined) return false;
+        if (value === null || value === "") return false;
+        if (typeof value === "string") {
+          const lowered = value.trim().toLowerCase();
+          if (!lowered) return false;
+          if (lowered === "true") return true;
+          if (lowered === "false") return false;
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) return numeric !== 0;
+        }
+        if (typeof value === "number") return value !== 0;
+        return Boolean(value);
+      };
+
+      if (item && item.has_variants) {
+        const cachedVariants = this.getCachedVariantsForTemplate(item) || [];
+        if (cachedVariants.length) {
+          const hasAvailableVariant = cachedVariants.some((variant) => {
+            const qty = parseQty(variant?.actual_qty);
+            if (qty === null || qty <= 0) return false;
+            const shortageSource = Object.prototype.hasOwnProperty.call(variant || {}, "is_component_shortage")
+              ? variant.is_component_shortage
+              : variant?.component_shortage;
+            const variantShortage = parseShortage(shortageSource);
+            return !variantShortage;
+          });
+
+          if (hasAvailableVariant) return false;
+        }
+      }
+
+      const qtySource = actualQty != null ? parseQty(actualQty) : parseQty(item?.actual_qty);
       const shortageFlag =
         typeof isComponentShortage !== "undefined"
-          ? Boolean(isComponentShortage)
-          : Boolean(item?.is_component_shortage);
+          ? parseShortage(isComponentShortage)
+          : parseShortage(item?.is_component_shortage);
 
-      return Boolean(shortageFlag) || (qty !== null && qty <= 0);
+      return Boolean(shortageFlag) || (qtySource !== null && qtySource <= 0);
     },
 
     updateItemStock: function (
@@ -1838,35 +1875,111 @@ frappe.ready(async function () {
       isComponentShortage,
       componentLowStock
     ) {
+      if (!itemCode) return;
+
+      const parseQty = (value) => {
+        if (value === null || value === undefined || value === "") return null;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+      };
+
+      const parseShortage = (value) => {
+        if (value === undefined) return undefined;
+        if (value === null || value === "") return false;
+        if (typeof value === "string") {
+          const lowered = value.trim().toLowerCase();
+          if (!lowered) return false;
+          if (lowered === "true") return true;
+          if (lowered === "false") return false;
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) return numeric !== 0;
+        }
+        if (typeof value === "number") return value !== 0;
+        return Boolean(value);
+      };
+
+      const qtyValue = parseQty(actualQty);
+      const shortageProvided = typeof isComponentShortage !== "undefined";
+      const shortageValue = shortageProvided ? parseShortage(isComponentShortage) : undefined;
+
+      const itemsToRefresh = new Set();
+      const registerForRefresh = (entry) => {
+        if (entry) itemsToRefresh.add(entry);
+      };
+
       const item = this.items.find((i) => i.name === itemCode);
       if (item) {
-        if (actualQty != null && actualQty !== undefined) {
-          const parsedQty = Number(actualQty);
-          item.actual_qty = Number.isFinite(parsedQty) ? parsedQty : item.actual_qty;
+        if (qtyValue !== null) {
+          item.actual_qty = qtyValue;
         }
-        if (typeof isComponentShortage !== "undefined") {
-          item.is_component_shortage = Boolean(isComponentShortage);
+        if (shortageProvided) {
+          item.is_component_shortage = shortageValue;
         }
         if (Array.isArray(componentLowStock)) {
           item.component_low_stock = componentLowStock;
         }
+        registerForRefresh(item);
       }
 
-      const soldOut = this.isItemSoldOut(item, actualQty, isComponentShortage);
+      let updatedVariant = null;
+      if (this.variantPool instanceof Map) {
+        this.variantPool.forEach((bucket) => {
+          if (!bucket || !(bucket instanceof Map)) return;
+          const variant = bucket.get(itemCode);
+          if (!variant) return;
+
+          if (qtyValue !== null) {
+            variant.actual_qty = qtyValue;
+          }
+          if (shortageProvided) {
+            variant.is_component_shortage = shortageValue;
+          }
+          if (Array.isArray(componentLowStock)) {
+            variant.component_low_stock = componentLowStock;
+          }
+
+          updatedVariant = variant;
+        });
+      }
+
+      if (updatedVariant) {
+        const templateName =
+          updatedVariant.variant_of ||
+          updatedVariant.template_item ||
+          updatedVariant.template_item_code ||
+          null;
+        if (templateName) {
+          const templateItem = this.items.find(
+            (entry) => entry.name === templateName || entry.item_code === templateName
+          );
+          if (templateItem) {
+            this.cacheVariantsForTemplate(templateItem, [updatedVariant]);
+            registerForRefresh(templateItem);
+          }
+        }
+      }
+
       const catalog = this.elements.catalogGrid;
-      if (!catalog) return;
+      if (!catalog || !itemsToRefresh.size) return;
 
-      const card = Array.from(catalog.querySelectorAll(".item-card")).find(
-        (el) => el.dataset.item === itemCode
-      );
-      if (!card) return;
+      const applySoldOutState = (entry) => {
+        if (!entry || !entry.name) return;
+        const soldOut = this.isItemSoldOut(entry);
+        const cards = catalog.querySelectorAll(".item-card");
+        for (const card of cards) {
+          if (card.dataset.item === entry.name) {
+            card.classList.toggle("sold-out", soldOut);
+            card.setAttribute("aria-disabled", soldOut ? "true" : "false");
+            const badge = card.querySelector(".sold-out-badge");
+            if (badge) {
+              badge.setAttribute("aria-hidden", soldOut ? "false" : "true");
+            }
+            break;
+          }
+        }
+      };
 
-      card.classList.toggle("sold-out", soldOut);
-      card.setAttribute("aria-disabled", soldOut ? "true" : "false");
-      const badge = card.querySelector(".sold-out-badge");
-      if (badge) {
-        badge.setAttribute("aria-hidden", soldOut ? "false" : "true");
-      }
+      itemsToRefresh.forEach(applySoldOutState);
     },
 
     refreshStockLevels: async function () {

@@ -1036,7 +1036,78 @@ frappe.ready(function() {
                 this.refreshDiscountUI(totals);
             }
         },
-        
+
+        isItemSoldOut: function(item, actualQty, isComponentShortage) {
+            if (!item && actualQty == null && typeof isComponentShortage === 'undefined') {
+                return false;
+            }
+
+            const parseQty = (value) => {
+                if (value === null || value === undefined || value === '') {
+                    return null;
+                }
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? numeric : null;
+            };
+
+            const parseShortage = (value) => {
+                if (value === undefined) {
+                    return false;
+                }
+                if (value === null || value === '') {
+                    return false;
+                }
+                if (typeof value === 'string') {
+                    const lowered = value.trim().toLowerCase();
+                    if (!lowered) {
+                        return false;
+                    }
+                    if (lowered === 'true') {
+                        return true;
+                    }
+                    if (lowered === 'false') {
+                        return false;
+                    }
+                    const numeric = Number(value);
+                    if (Number.isFinite(numeric)) {
+                        return numeric !== 0;
+                    }
+                }
+                if (typeof value === 'number') {
+                    return value !== 0;
+                }
+                return Boolean(value);
+            };
+
+            if (item && item.has_variants) {
+                const cachedVariants = this.getCachedVariantsForTemplate(item) || [];
+                if (cachedVariants.length) {
+                    const hasAvailableVariant = cachedVariants.some((variant) => {
+                        const qty = parseQty(variant?.actual_qty);
+                        if (qty === null || qty <= 0) {
+                            return false;
+                        }
+                        const shortageSource = Object.prototype.hasOwnProperty.call(variant || {}, 'is_component_shortage')
+                            ? variant.is_component_shortage
+                            : variant?.component_shortage;
+                        const variantShortage = parseShortage(shortageSource);
+                        return !variantShortage;
+                    });
+
+                    if (hasAvailableVariant) {
+                        return false;
+                    }
+                }
+            }
+
+            const qtyValue = actualQty != null ? parseQty(actualQty) : parseQty(item?.actual_qty);
+            const shortageFlag = typeof isComponentShortage !== 'undefined'
+                ? parseShortage(isComponentShortage)
+                : parseShortage(item?.is_component_shortage);
+
+            return Boolean(shortageFlag) || (qtyValue !== null && qtyValue <= 0);
+        },
+
         // Update the entire cart UI
         updateCartUI: function() {
             this.renderCart();
