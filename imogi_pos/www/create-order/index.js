@@ -1809,10 +1809,25 @@ frappe.ready(async function () {
 
       this.elements.cartItems.innerHTML = html;
 
+      const cartRoot =
+        this.elements.cartItems instanceof Element ? this.elements.cartItems : null;
+
+      const findCartElement = (start, matcher) => {
+        if (!(start instanceof Element)) return null;
+        let current = start;
+        while (current) {
+          if (matcher(current)) return current;
+          if (current === cartRoot) break;
+          current = current.parentElement;
+        }
+        return null;
+      };
+
       const resolveCartIndex = (node) => {
-        if (!(node instanceof Element)) return -1;
-        const carrier =
-          node.closest("[data-index]") || node.closest(".cart-item");
+        const carrier = findCartElement(
+          node,
+          (element) => element.hasAttribute && element.hasAttribute("data-index")
+        );
         if (!carrier) return -1;
         const value = Number(carrier.getAttribute("data-index"));
         return Number.isInteger(value) ? value : -1;
@@ -1824,7 +1839,13 @@ frappe.ready(async function () {
           const { target } = event;
           if (!(target instanceof Element)) return;
 
-          const control = target.closest(".qty-btn, .cart-item-remove");
+          const control = findCartElement(
+            target,
+            (element) =>
+              element.classList &&
+              (element.classList.contains("qty-btn") ||
+                element.classList.contains("cart-item-remove"))
+          );
           if (!control || !this.elements.cartItems.contains(control)) return;
 
           const index = resolveCartIndex(control);
