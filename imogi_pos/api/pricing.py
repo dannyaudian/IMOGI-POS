@@ -10,6 +10,76 @@ from frappe import _
 from frappe.utils import flt, getdate, now_datetime
 
 
+def _extract_doc_value(doc: Any, fieldname: str) -> Any:
+    """Safely fetch an attribute from a document or mapping."""
+
+    if doc is None or not fieldname:
+        return None
+
+    if isinstance(doc, dict):
+        return doc.get(fieldname)
+
+    return getattr(doc, fieldname, None)
+
+
+def publish_item_price_update(doc: Any) -> None:
+    """Broadcast item price updates to realtime subscribers.
+
+    Args:
+        doc: The Item Price document (``Document`` or mapping) provided by Frappe
+            doc events.
+    """
+
+    item_code = _normalise_text(_extract_doc_value(doc, "item_code"))
+    price_list = _normalise_text(_extract_doc_value(doc, "price_list"))
+
+    if not item_code or not price_list:
+        return
+
+    try:
+        is_enabled = frappe.db.get_value("Price List", price_list, "enabled")
+    except Exception:
+        is_enabled = None
+
+    if not is_enabled:
+        return
+
+    price_list_rate = _extract_doc_value(doc, "price_list_rate")
+    if price_list_rate is None:
+        price_list_rate = _extract_doc_value(doc, "rate")
+
+    payload: Dict[str, Any] = {
+        "item_price": _extract_doc_value(doc, "name"),
+        "item_code": item_code,
+        "price_list": price_list,
+        "currency": _extract_doc_value(doc, "currency"),
+        "price_list_rate": flt(price_list_rate) if price_list_rate is not None else None,
+        "uom": _extract_doc_value(doc, "uom"),
+        "valid_from": _extract_doc_value(doc, "valid_from"),
+        "valid_upto": _extract_doc_value(doc, "valid_upto"),
+        "selling": _extract_doc_value(doc, "selling"),
+        "buying": _extract_doc_value(doc, "buying"),
+    }
+
+    flags = getattr(doc, "flags", None)
+    is_deleted = bool(getattr(flags, "in_trash", False) or getattr(flags, "in_delete", False))
+    if getattr(doc, "docstatus", None) == 2:
+        is_deleted = True
+
+    if is_deleted:
+        payload["is_deleted"] = True
+
+    try:
+        frappe.publish_realtime("item_price_update", payload)
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            _("Failed to publish item price update for {0} on {1}").format(
+                item_code,
+                price_list,
+            ),
+        )
+
 def _normalise_text(value: Any) -> Optional[str]:
     """Return a stripped string representation or ``None`` for empty values."""
 

@@ -193,6 +193,9 @@ frappe.ready(async function () {
     promoCodes: [],
     itemIndex: new Map(),
     variantPool: new Map(),
+    priceRefreshTimer: null,
+    priceRefreshInFlight: false,
+    priceRefreshQueued: false,
 
     discountState: {
       cartQuantity: 0,
@@ -3581,6 +3584,46 @@ frappe.ready(async function () {
           data.is_component_shortage,
           data.component_low_stock
         );
+      });
+
+      const scheduleRealtimePriceRefresh = () => {
+        if (!this.selectedPriceList) return;
+
+        if (this.priceRefreshTimer) {
+          clearTimeout(this.priceRefreshTimer);
+        }
+
+        this.priceRefreshTimer = setTimeout(() => {
+          this.priceRefreshTimer = null;
+          if (this.priceRefreshInFlight) {
+            this.priceRefreshQueued = true;
+            return;
+          }
+
+          const executeRefresh = async () => {
+            this.priceRefreshInFlight = true;
+            try {
+              await this.refreshPricesForSelectedList();
+            } catch (error) {
+              console.error("Failed to refresh prices after realtime update:", error);
+            } finally {
+              this.priceRefreshInFlight = false;
+              if (this.priceRefreshQueued) {
+                this.priceRefreshQueued = false;
+                scheduleRealtimePriceRefresh();
+              }
+            }
+          };
+
+          executeRefresh();
+        }, 400);
+      };
+
+      frappe.realtime.on("item_price_update", (data = {}) => {
+        if (!data || !data.price_list) return;
+        if (data.price_list !== this.selectedPriceList) return;
+
+        scheduleRealtimePriceRefresh();
       });
 
       // Fallback periodic refresh
