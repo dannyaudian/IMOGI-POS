@@ -72,6 +72,10 @@ doc_events = {
         "before_submit": "imogi_pos.api.invoice_modifiers.apply_invoice_modifiers",
         "on_submit": "imogi_pos.api.billing.on_sales_invoice_submit",
     },
+    "Item Price": {
+        "on_update": "imogi_pos.api.pricing.publish_item_price_update",
+        "on_trash": "imogi_pos.api.pricing.publish_item_price_update",
+    },
 }
 
 fixtures = [
