@@ -695,7 +695,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
       <form class="customer-form" id="customer-info-form">
         <div class="customer-info-error hidden" id="customer-info-error"></div>
         <div class="form-field">
-          <label for="customer-name">{{ _("Name") }}</label>
+          <label for="customer-name">{{ _("Name") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
           <input
             type="text"
             id="customer-name"
@@ -707,7 +707,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
           >
         </div>
         <div class="form-field">
-          <label for="customer-gender">{{ _("Gender") }}</label>
+          <label for="customer-gender">{{ _("Gender") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
           <select
             id="customer-gender"
             name="customer-gender"
@@ -726,7 +726,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
           <input type="tel" id="customer-phone" name="customer-phone" placeholder="{{ _("08XXXXXXXXXX") }}">
         </div>
         <div class="form-field">
-          <label for="customer-age">{{ _("Age") }}</label>
+          <label for="customer-age">{{ _("Age") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
           <input
             type="number"
             id="customer-age"

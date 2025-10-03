@@ -822,6 +822,13 @@ textarea:focus {
   border-width: 0;
 }
 
+.required-indicator {
+  color: var(--color-danger, #ef4444);
+  margin-left: 0.25rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .not-sr-only {
   position: static;
   width: auto;
