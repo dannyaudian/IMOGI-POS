@@ -2678,30 +2678,45 @@ frappe.ready(async function() {
 
         submitCustomerInfo: function() {
             const name = (this.elements.customerNameInput?.value || '').trim();
-            const gender = this.elements.customerGenderSelect?.value || '';
+            const gender = (this.elements.customerGenderSelect?.value || '').trim();
             const phone = (this.elements.customerPhoneInput?.value || '').trim();
-            const ageRaw = this.elements.customerAgeInput?.value || '';
-            const age = ageRaw !== '' ? Number(ageRaw) : '';
+            const ageRaw = (this.elements.customerAgeInput?.value || '').trim();
+            const ageNumber = Number(ageRaw);
 
             this.clearCustomerInfoError();
 
             if (!name) {
-                this.showCustomerInfoError(__('Please enter the customer name or continue without filling the form.'));
+                this.showCustomerInfoError(__('Please enter the customer\'s name before continuing.'));
                 this.elements.customerNameInput?.focus();
                 return;
             }
 
-            if (age !== '' && (Number.isNaN(age) || age < 0)) {
-                this.showCustomerInfoError(__('Please enter a valid age or leave it blank.'));
+            if (!gender) {
+                this.showCustomerInfoError(__('Please select the customer\'s gender before continuing.'));
+                this.elements.customerGenderSelect?.focus();
+                return;
+            }
+
+            if (ageRaw === '') {
+                this.showCustomerInfoError(__('Please enter the customer\'s age before continuing.'));
                 this.elements.customerAgeInput?.focus();
                 return;
             }
+
+            if (!Number.isFinite(ageNumber) || ageNumber < 0) {
+                this.showCustomerInfoError(__('Please enter a valid age (0 or higher).'));
+                this.elements.customerAgeInput?.focus();
+                this.elements.customerAgeInput?.select?.();
+                return;
+            }
+
+            const normalizedAge = Math.floor(ageNumber);
 
             this.customerInfo = {
                 name,
                 gender,
                 phone,
-                age: age === '' || Number.isNaN(age) ? '' : age,
+                age: normalizedAge,
             };
             this.needsCustomerInfo = false;
             this.closeCustomerModal();
@@ -2709,16 +2724,8 @@ frappe.ready(async function() {
         },
 
         skipCustomerInfo: function() {
-            this.customerInfo = {
-                name: '',
-                gender: '',
-                phone: '',
-                age: '',
-            };
-            this.needsCustomerInfo = false;
-            this.resetCustomerForm();
+            this.clearCustomerInfoError();
             this.closeCustomerModal();
-            this.openPaymentModal();
         },
 
         handleCheckout: async function() {

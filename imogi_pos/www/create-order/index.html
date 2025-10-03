@@ -687,11 +687,25 @@ button:disabled { opacity: .6; cursor: not-allowed; }
         <div class="customer-info-error hidden" id="customer-info-error"></div>
         <div class="form-field">
           <label for="customer-name">{{ _("Name") }}</label>
-          <input type="text" id="customer-name" name="customer-name" placeholder="{{ _("Enter customer name") }}">
+          <input
+            type="text"
+            id="customer-name"
+            name="customer-name"
+            placeholder="{{ _("Enter customer name") }}"
+            autocomplete="name"
+            required
+            aria-required="true"
+          >
         </div>
         <div class="form-field">
           <label for="customer-gender">{{ _("Gender") }}</label>
-          <select id="customer-gender" name="customer-gender">
+          <select
+            id="customer-gender"
+            name="customer-gender"
+            required
+            aria-required="true"
+            title="{{ _("Please choose the customer's gender") }}"
+          >
             <option value="">{{ _("Select gender") }}</option>
             <option value="Male">{{ _("Male") }}</option>
             <option value="Female">{{ _("Female") }}</option>
@@ -704,12 +718,23 @@ button:disabled { opacity: .6; cursor: not-allowed; }
         </div>
         <div class="form-field">
           <label for="customer-age">{{ _("Age") }}</label>
-          <input type="number" id="customer-age" name="customer-age" min="0" placeholder="{{ _("Age in years") }}">
+          <input
+            type="number"
+            id="customer-age"
+            name="customer-age"
+            min="0"
+            step="1"
+            inputmode="numeric"
+            placeholder="{{ _("Age in years") }}"
+            required
+            aria-required="true"
+            title="{{ _("Enter the customer's age in years (0 or higher)") }}"
+          >
         </div>
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn-secondary" id="btn-customer-skip">{{ _("Lanjutkan tanpa isi") }}</button>
+      <button type="button" class="btn-secondary" id="btn-customer-skip">{{ _("Cancel") }}</button>
       <button type="button" class="btn-add" id="btn-customer-save">{{ _("Save and Continue") }}</button>
     </div>
   </div>
