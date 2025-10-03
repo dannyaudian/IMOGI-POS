@@ -22,12 +22,13 @@ def _extract_doc_value(doc: Any, fieldname: str) -> Any:
     return getattr(doc, fieldname, None)
 
 
-def publish_item_price_update(doc: Any) -> None:
+def publish_item_price_update(doc: Any, event: str | None = None) -> None:
     """Broadcast item price updates to realtime subscribers.
 
     Args:
         doc: The Item Price document (``Document`` or mapping) provided by Frappe
             doc events.
+        event: Optional event name provided by Frappe doc event hooks (unused).
     """
 
     item_code = _normalise_text(_extract_doc_value(doc, "item_code"))
