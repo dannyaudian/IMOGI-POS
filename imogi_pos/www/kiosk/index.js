@@ -171,6 +171,7 @@ frappe.ready(async function() {
         priceRefreshTimer: null,
         priceRefreshInFlight: false,
         priceRefreshQueued: false,
+        selectionMemory: new Map(),
 
         discountState: {
             cartQuantity: 0,
@@ -2199,6 +2200,14 @@ frappe.ready(async function() {
         },
 
         handleItemClick: function(item) {
+            if (!item) {
+                return;
+            }
+
+            if (!item.has_variants && this.tryQuickAddItem(item)) {
+                return;
+            }
+
             if (item.has_variants) {
                 // Open variant picker
                 this.openVariantPicker(item);
@@ -2522,6 +2531,107 @@ frappe.ready(async function() {
 
             this.renderCart();
             this.updateCartTotals();
+            this.rememberItemSelection(item, item_options, notes);
+        },
+
+        tryQuickAddItem: function(item) {
+            const key = this.resolveSelectionKey(item);
+            if (!key) {
+                return false;
+            }
+
+            const memory = this.getRememberedSelection(key);
+            if (!memory) {
+                return false;
+            }
+
+            const normalizedNotes = memory.notes || '';
+            const targetSignature = JSON.stringify(memory.options || {});
+
+            const existingIndex = this.cart.findIndex(line => {
+                if (!line || line.item_code !== key) {
+                    return false;
+                }
+                const lineNotes = line.notes || '';
+                const lineSignature = JSON.stringify(line.item_options || {});
+                return lineNotes === normalizedNotes && lineSignature === targetSignature;
+            });
+
+            if (existingIndex >= 0) {
+                const currentQty = Number(this.cart[existingIndex].qty) || 0;
+                this.updateCartItemQuantity(existingIndex, currentQty + 1);
+                return true;
+            }
+
+            const clonedOptions = this.cloneSelectionOptions(memory.options);
+            this.addItemToCart(item, clonedOptions, normalizedNotes);
+            return true;
+        },
+
+        resolveSelectionKey: function(item) {
+            if (!item) {
+                return null;
+            }
+            if (typeof item === 'string') {
+                return item;
+            }
+            if (item.name) {
+                return item.name;
+            }
+            if (item.item_code) {
+                return item.item_code;
+            }
+            return null;
+        },
+
+        cloneSelectionOptions: function(options) {
+            if (!options) {
+                return {};
+            }
+
+            if (typeof structuredClone === 'function') {
+                try {
+                    return structuredClone(options);
+                } catch (error) {
+                    // Fallback to JSON cloning below
+                }
+            }
+
+            try {
+                return JSON.parse(JSON.stringify(options));
+            } catch (error) {
+                if (Array.isArray(options)) {
+                    return options.slice();
+                }
+                if (typeof options === 'object') {
+                    return Object.assign({}, options);
+                }
+                return {};
+            }
+        },
+
+        rememberItemSelection: function(item, item_options = {}, notes = '') {
+            const key = this.resolveSelectionKey(item);
+            if (!key) {
+                return;
+            }
+
+            const store = this.selectionMemory;
+            const normalizedOptions = this.cloneSelectionOptions(item_options);
+            store.set(key, {
+                options: normalizedOptions,
+                notes: notes || ''
+            });
+        },
+
+        getRememberedSelection: function(key) {
+            if (!key) {
+                return null;
+            }
+            if (!this.selectionMemory || typeof this.selectionMemory.get !== 'function') {
+                this.selectionMemory = new Map();
+            }
+            return this.selectionMemory.get(key) || null;
         },
 
         formatItemOptions: function(options) {
