@@ -3388,7 +3388,8 @@ frappe.ready(async function () {
         createOrderBranding?.address && String(createOrderBranding.address).trim()
           ? String(createOrderBranding.address)
           : "";
-      const logoCandidate = typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
+      const createOrderLogoCandidate =
+        typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
       const addressSource = createOrderBranchAddressRaw || createOrderBranchName;
       const addressHtml = addressSource
         ? addressSource
@@ -3397,7 +3398,7 @@ frappe.ready(async function () {
             .filter(Boolean)
             .join("<br>")
         : "";
-      const hasLogo = Boolean(logoCandidate);
+      const hasLogo = Boolean(createOrderLogoCandidate);
       const hasName = Boolean(createOrderBranchName);
       const hasAddress = Boolean(addressHtml);
       const brandingHtml =
@@ -3405,7 +3406,7 @@ frappe.ready(async function () {
           ? `
               ${
                 hasLogo
-                  ? `<img src="${logoCandidate}" alt="${escapeHtml(
+                  ? `<img src="${createOrderLogoCandidate}" alt="${escapeHtml(
                       createOrderBranchName || "Logo"
                     )}" class="success-branding-logo">`
                   : ""

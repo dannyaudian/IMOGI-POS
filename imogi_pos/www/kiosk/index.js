@@ -3589,7 +3589,8 @@ n
                 kioskBranchBranding?.address && String(kioskBranchBranding.address).trim()
                     ? String(kioskBranchBranding.address)
                     : '';
-            const logoCandidate = typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
+            const kioskLogoCandidate =
+                typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
             const addressSource = kioskBranchAddressRaw || kioskBranchName;
             const addressHtml = addressSource
                 ? addressSource
@@ -3598,7 +3599,7 @@ n
                       .filter(Boolean)
                       .join('<br>')
                 : '';
-            const hasLogo = Boolean(logoCandidate);
+            const hasLogo = Boolean(kioskLogoCandidate);
             const hasName = Boolean(kioskBranchName);
             const hasAddress = Boolean(addressHtml);
             const brandingHtml =
@@ -3606,7 +3607,7 @@ n
                     ? `
                         ${
                             hasLogo
-                                ? `<img src="${logoCandidate}" alt="${escapeHtml(
+                                ? `<img src="${kioskLogoCandidate}" alt="${escapeHtml(
                                       kioskBranchName || 'Logo'
                                   )}" class="success-branding-logo">`
                                 : ''
