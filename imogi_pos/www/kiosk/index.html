@@ -418,18 +418,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 /* Receipt (optional) */
 .success-receipt {
   margin-top: 1.25rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-  width: 100%; max-width: 420px; text-align: left;
-  box-shadow: var(--shadow-1);
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  text-align: left;
 }
 .success-receipt-brand {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 1.25rem;
+  width: 100%;
 }
 .success-receipt-logo {
   width: 56px;
@@ -438,6 +439,14 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   border-radius: 8px;
   background: #f3f4f6;
   padding: 6px;
+}
+.success-receipt-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  width: 100%;
+  box-shadow: var(--shadow-1);
 }
 .success-receipt-brand-details {
   display: flex;

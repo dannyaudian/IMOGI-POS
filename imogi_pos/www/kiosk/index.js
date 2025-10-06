@@ -3728,45 +3728,47 @@ n
 
             receiptContainer.innerHTML = `
                 ${brandingHtml}
-                <div class="success-receipt-header">
-                  <div class="success-receipt-title">${__('Receipt')}</div>
-                  <div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__('Order No.')}</div>
-                    <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                <div class="success-receipt-card">
+                  <div class="success-receipt-header">
+                    <div class="success-receipt-title">${__('Receipt')}</div>
+                    <div class="success-receipt-meta">
+                      <div class="success-receipt-label">${__('Order No.')}</div>
+                      <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                    </div>
                   </div>
-                </div>
-                <table class="success-receipt-table">
-                  <thead>
-                    <tr>
-                      <th>${__('Item')}</th>
-                      <th>${__('Qty')}</th>
-                      <th>${__('Amount')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemRows}
-                  </tbody>
-                </table>
-                <div class="success-receipt-summary">
-                  <div class="success-receipt-summary-row">
-                    <span>${__('Subtotal')}</span>
-                    <span>${formatRupiah(subtotalValue)}</span>
-                  </div>
-                  <div class="success-receipt-summary-row">
-                    <span>${__('PB1')}</span>
-                    <span>${formatRupiah(pb1Value)}</span>
-                  </div>
-                  ${
-                    discountValue > 0
-                        ? `<div class="success-receipt-summary-row discount">
-                            <span>${__('Discount')}</span>
-                            <span>- ${formatRupiah(discountValue)}</span>
-                          </div>`
-                        : ''
-                  }
-                  <div class="success-receipt-summary-row total">
-                    <span>${__('Total')}</span>
-                    <span>${formatRupiah(totalValue)}</span>
+                  <table class="success-receipt-table">
+                    <thead>
+                      <tr>
+                        <th>${__('Item')}</th>
+                        <th>${__('Qty')}</th>
+                        <th>${__('Amount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemRows}
+                    </tbody>
+                  </table>
+                  <div class="success-receipt-summary">
+                    <div class="success-receipt-summary-row">
+                      <span>${__('Subtotal')}</span>
+                      <span>${formatRupiah(subtotalValue)}</span>
+                    </div>
+                    <div class="success-receipt-summary-row">
+                      <span>${__('PB1')}</span>
+                      <span>${formatRupiah(pb1Value)}</span>
+                    </div>
+                    ${
+                      discountValue > 0
+                          ? `<div class="success-receipt-summary-row discount">
+                              <span>${__('Discount')}</span>
+                              <span>- ${formatRupiah(discountValue)}</span>
+                            </div>`
+                          : ''
+                    }
+                    <div class="success-receipt-summary-row total">
+                      <span>${__('Total')}</span>
+                      <span>${formatRupiah(totalValue)}</span>
+                    </div>
                   </div>
                 </div>
             `;
