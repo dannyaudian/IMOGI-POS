@@ -3432,7 +3432,6 @@ frappe.ready(async function () {
               }
             `.trim()
           : "";
-
       applyBranding(createOrderBrandingHtml);
 
       const createOrderToNumber = (value) => {
