@@ -2204,7 +2204,7 @@ frappe.ready(async function() {
                 return;
             }
 
-            if (!item.has_variants && this.tryQuickAddItem(item)) {
+            if (this.tryQuickAddItem(item)) {
                 return;
             }
 
@@ -2545,11 +2545,26 @@ frappe.ready(async function() {
                 return false;
             }
 
-            const normalizedNotes = memory.notes || '';
-            const targetSignature = JSON.stringify(memory.options || {});
+            let targetItem = item;
+            if (memory.preferred_item && memory.preferred_item !== key) {
+                const preferred = this.getCatalogItem(memory.preferred_item);
+                if (!preferred) {
+                    return false;
+                }
+                targetItem = preferred;
+            }
 
+            const normalizedOptions = this.cloneSelectionOptions(memory.options || {});
+            const normalizedNotes = memory.notes || '';
+            const targetKey = this.resolveSelectionKey(targetItem);
+            if (!targetKey) {
+                return false;
+            }
+
+            const targetSignature = JSON.stringify(normalizedOptions || {});
             const existingIndex = this.cart.findIndex(line => {
-                if (!line || line.item_code !== key) {
+                if (!line || line.item_code !== targetKey) {
+
                     return false;
                 }
                 const lineNotes = line.notes || '';
@@ -2560,11 +2575,12 @@ frappe.ready(async function() {
             if (existingIndex >= 0) {
                 const currentQty = Number(this.cart[existingIndex].qty) || 0;
                 this.updateCartItemQuantity(existingIndex, currentQty + 1);
-                return true;
+
+                this.rememberItemSelection(targetItem, normalizedOptions, normalizedNotes);
+            } else {
+                this.addItemToCart(targetItem, normalizedOptions, normalizedNotes);
             }
 
-            const clonedOptions = this.cloneSelectionOptions(memory.options);
-            this.addItemToCart(item, clonedOptions, normalizedNotes);
             return true;
         },
 
@@ -2584,6 +2600,27 @@ frappe.ready(async function() {
             return null;
         },
 
+        resolveTemplateKey: function(item) {
+            if (!item || typeof item !== 'object') {
+                return null;
+            }
+
+            const candidates = [
+                item.variant_of,
+                item.template_item,
+                item.template_item_code,
+                item.parent_item,
+                item.parent_item_code
+            ];
+
+            for (const candidate of candidates) {
+                if (typeof candidate === 'string' && candidate.trim()) {
+                    return candidate.trim();
+                }
+            }
+
+            return null;
+        },
         cloneSelectionOptions: function(options) {
             if (!options) {
                 return {};
@@ -2610,28 +2647,49 @@ frappe.ready(async function() {
             }
         },
 
+
+        ensureSelectionMemory: function() {
+            if (!(this.selectionMemory instanceof Map)) {
+                this.selectionMemory = new Map();
+            }
+            return this.selectionMemory;
+        },
+
+
         rememberItemSelection: function(item, item_options = {}, notes = '') {
             const key = this.resolveSelectionKey(item);
             if (!key) {
                 return;
             }
 
-            const store = this.selectionMemory;
+            const store = this.ensureSelectionMemory();
             const normalizedOptions = this.cloneSelectionOptions(item_options);
+            const normalizedNotes = notes || '';
+
             store.set(key, {
-                options: normalizedOptions,
-                notes: notes || ''
+                options: this.cloneSelectionOptions(normalizedOptions),
+                notes: normalizedNotes
             });
+
+            const templateKey = this.resolveTemplateKey(item);
+            if (templateKey && templateKey !== key) {
+                store.set(templateKey, {
+                    options: this.cloneSelectionOptions(normalizedOptions),
+                    notes: normalizedNotes,
+                    preferred_item: key
+                });
+            }
+n
         },
 
         getRememberedSelection: function(key) {
             if (!key) {
                 return null;
             }
-            if (!this.selectionMemory || typeof this.selectionMemory.get !== 'function') {
-                this.selectionMemory = new Map();
-            }
-            return this.selectionMemory.get(key) || null;
+
+            const store = this.ensureSelectionMemory();
+            return store.get(key) || null;
+
         },
 
         formatItemOptions: function(options) {
