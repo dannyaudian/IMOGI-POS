@@ -1047,15 +1047,17 @@ frappe.ready(function() {
             
             qtyMinusButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    const index = parseInt(button.dataset.index);
-                    this.updateCartItemQuantity(index, this.cart[index].qty - 1);
+                    const index = parseInt(button.dataset.index, 10);
+                    const currentQty = Number(this.cart[index] && this.cart[index].qty) || 0;
+                    this.updateCartItemQuantity(index, currentQty - 1);
                 });
             });
-            
+
             qtyPlusButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    const index = parseInt(button.dataset.index);
-                    this.updateCartItemQuantity(index, this.cart[index].qty + 1);
+                    const index = parseInt(button.dataset.index, 10);
+                    const currentQty = Number(this.cart[index] && this.cart[index].qty) || 0;
+                    this.updateCartItemQuantity(index, currentQty + 1);
                 });
             });
             
@@ -1330,8 +1332,13 @@ frappe.ready(function() {
             
             if (existingIndex >= 0) {
                 // Update quantity
-                this.cart[existingIndex].qty += 1;
-                this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
+                const existingItem = this.cart[existingIndex];
+                const currentQty = Number(existingItem && existingItem.qty) || 0;
+                const updatedQty = currentQty + 1;
+
+                existingItem.qty = updatedQty;
+                const rate = Number(existingItem.rate) || 0;
+                existingItem.amount = rate * updatedQty;
             } else {
                 // Add new item
                 this.cart.push({
@@ -1358,13 +1365,15 @@ frappe.ready(function() {
         
         // Update cart item quantity
         updateCartItemQuantity: function(index, newQty) {
-            if (newQty < 1) {
+            const safeQty = Number(newQty);
+            if (!Number.isFinite(safeQty) || safeQty < 1) {
                 this.removeCartItem(index);
                 return;
             }
-            
-            this.cart[index].qty = newQty;
-            this.cart[index].amount = this.cart[index].rate * newQty;
+
+            this.cart[index].qty = safeQty;
+            const rate = Number(this.cart[index].rate) || 0;
+            this.cart[index].amount = rate * safeQty;
             
             this.updateCartUI();
             

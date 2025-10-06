@@ -47,6 +47,8 @@ imogi_pos.self_order = {
         kotSubmitted: false,
         orderNumber: null
     },
+
+    selectionMemory: Object.create(null),
     
     /**
      * Initialize the Self Order
@@ -1066,6 +1068,14 @@ imogi_pos.self_order = {
      * @param {string} itemName - Selected item name
      */
     handleItemSelection: function(itemName) {
+        const remembered = this.getRememberedSelection(itemName);
+        if (remembered) {
+            const clonedOptions = this.cloneSelectionOptions(remembered.options);
+            const notes = remembered.notes || '';
+            this.addItemToCart(itemName, clonedOptions, 1, notes);
+            return;
+        }
+
         frappe.call({
             method: 'imogi_pos.api.items.get_item_options',
             args: { item: itemName },
@@ -1442,9 +1452,14 @@ imogi_pos.self_order = {
                 });
 
                 if (existingItemIndex !== -1) {
-                    this.state.cart[existingItemIndex].qty += line.qty;
-                    this.state.cart[existingItemIndex].amount =
-                        this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
+                    const existingItem = this.state.cart[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+                    const rate = Number(existingItem.rate) || 0;
+
+                    existingItem.qty = updatedQty;
+                    existingItem.amount = updatedQty * rate;
                 } else {
                     this.state.cart.push(line);
                 }
@@ -1456,6 +1471,7 @@ imogi_pos.self_order = {
                     ? existingItemIndex
                     : this.state.cart.length - 1;
                 this.promptForNotes(promptIndex);
+                this.rememberItemSelection(itemName, line.item_options, line.notes);
             })
             .catch((error) => {
                 console.error('Failed to add item to cart', error);
@@ -1465,6 +1481,58 @@ imogi_pos.self_order = {
             .finally(() => {
                 this.showLoading(false);
             });
+    },
+
+    cloneSelectionOptions: function(options) {
+        if (!options) {
+            return {};
+        }
+
+        if (typeof structuredClone === 'function') {
+            try {
+                return structuredClone(options);
+            } catch (error) {
+                // Fallback to JSON cloning below
+            }
+        }
+
+        try {
+            return JSON.parse(JSON.stringify(options));
+        } catch (error) {
+            if (Array.isArray(options)) {
+                return options.slice();
+            }
+            if (typeof options === 'object') {
+                return Object.assign({}, options);
+            }
+            return {};
+        }
+    },
+
+    ensureSelectionMemory: function() {
+        if (!this.selectionMemory || typeof this.selectionMemory !== 'object') {
+            this.selectionMemory = Object.create(null);
+        }
+        return this.selectionMemory;
+    },
+
+    rememberItemSelection: function(itemName, options = {}, notes = '') {
+        if (!itemName) {
+            return;
+        }
+        const store = this.ensureSelectionMemory();
+        store[itemName] = {
+            options: this.cloneSelectionOptions(options),
+            notes: notes || ''
+        };
+    },
+
+    getRememberedSelection: function(itemName) {
+        if (!itemName) {
+            return null;
+        }
+        const store = this.ensureSelectionMemory();
+        return store[itemName] || null;
     },
     
     /**
@@ -1527,14 +1595,22 @@ imogi_pos.self_order = {
                 const notesInput = modalContainer.querySelector('#item-notes');
                 if (notesInput) {
                     const notes = notesInput.value.trim();
-                    
+
                     // Update item notes
-                    this.state.cart[itemIndex].notes = notes;
-                    
+                    const cartItem = this.state.cart[itemIndex];
+                    if (cartItem) {
+                        cartItem.notes = notes;
+                        this.rememberItemSelection(
+                            cartItem.item || cartItem.item_code,
+                            cartItem.item_options || cartItem.options,
+                            notes
+                        );
+                    }
+
                     // Save cart to session
                     this.saveCartToSession();
                 }
-                
+
                 // Close modal
                 modalContainer.classList.remove('active');
             });
@@ -1774,13 +1850,19 @@ imogi_pos.self_order = {
      */
     decreaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            if (this.state.cart[index].qty > 1) {
-                this.state.cart[index].qty -= 1;
-                this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
-                
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
+
                 // Save cart to session
                 this.saveCartToSession();
-                
+
                 // Update UI
                 this.renderCart();
                 this.updateCartCount();
@@ -1797,12 +1879,17 @@ imogi_pos.self_order = {
      */
     increaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            this.state.cart[index].qty += 1;
-            this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
-            
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
+
             // Save cart to session
             this.saveCartToSession();
-            
+
             // Update UI
             this.renderCart();
             this.updateCartCount();

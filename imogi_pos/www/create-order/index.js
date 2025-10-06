@@ -196,6 +196,7 @@ frappe.ready(async function () {
     priceRefreshTimer: null,
     priceRefreshInFlight: false,
     priceRefreshQueued: false,
+    selectionMemory: new Map(),
 
     discountState: {
       cartQuantity: 0,
@@ -2260,6 +2261,12 @@ frappe.ready(async function () {
     },
 
     handleItemClick: function (item) {
+      if (!item) return;
+
+      if (this.tryQuickAddItem(item)) {
+        return;
+      }
+
       if (item.has_variants) this.openVariantPicker(item);
       else this.openItemDetailModal(item);
     },
@@ -2547,13 +2554,17 @@ frappe.ready(async function () {
       );
 
       if (existingIndex >= 0) {
-        this.cart[existingIndex].qty += 1;
-        this.cart[existingIndex]._base_rate = baseRate;
-        this.cart[existingIndex]._extra_rate = extraRate;
-        this.cart[existingIndex].rate = baseRate + extraRate;
-        this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
-        if (!this.cart[existingIndex].menu_category && resolvedCategory) {
-          this.cart[existingIndex].menu_category = resolvedCategory;
+        const existingItem = this.cart[existingIndex];
+        const currentQty = Number(existingItem && existingItem.qty) || 0;
+        const updatedQty = currentQty + 1;
+
+        existingItem.qty = updatedQty;
+        existingItem._base_rate = baseRate;
+        existingItem._extra_rate = extraRate;
+        existingItem.rate = baseRate + extraRate;
+        existingItem.amount = existingItem.rate * updatedQty;
+        if (!existingItem.menu_category && resolvedCategory) {
+          existingItem.menu_category = resolvedCategory;
         }
       } else {
         this.cart.push({
@@ -2574,6 +2585,127 @@ frappe.ready(async function () {
 
       this.renderCart();
       this.updateCartTotals();
+      this.rememberItemSelection(item, item_options, notes);
+    },
+
+    tryQuickAddItem: function (item) {
+      const key = this.resolveSelectionKey(item);
+      if (!key) return false;
+
+      const memory = this.getRememberedSelection(key);
+      if (!memory) return false;
+
+      let targetItem = item;
+      if (memory.preferred_item && memory.preferred_item !== key) {
+        const preferred = this.getCatalogItem(memory.preferred_item);
+        if (!preferred) return false;
+        targetItem = preferred;
+      }
+
+      const normalizedOptions = this.cloneSelectionOptions(memory.options || {});
+      const normalizedNotes = memory.notes || "";
+      const targetKey = this.resolveSelectionKey(targetItem);
+      if (!targetKey) return false;
+
+      const targetSignature = JSON.stringify(normalizedOptions || {});
+      const existingIndex = this.cart.findIndex((line) => {
+        if (!line || line.item_code !== targetKey) return false;
+        const lineNotes = line.notes || "";
+        const lineSignature = JSON.stringify(line.item_options || {});
+        return lineNotes === normalizedNotes && lineSignature === targetSignature;
+      });
+
+      if (existingIndex >= 0) {
+        const currentQty = Number(this.cart[existingIndex].qty) || 0;
+        this.updateCartItemQuantity(existingIndex, currentQty + 1);
+        this.rememberItemSelection(targetItem, normalizedOptions, normalizedNotes);
+      } else {
+        this.addItemToCart(targetItem, normalizedOptions, normalizedNotes);
+      }
+
+      return true;
+    },
+
+    resolveSelectionKey: function (item) {
+      if (!item) return null;
+      if (typeof item === "string") return item;
+      if (item.name) return item.name;
+      if (item.item_code) return item.item_code;
+      return null;
+    },
+
+    resolveTemplateKey: function (item) {
+      if (!item || typeof item !== "object") return null;
+
+      const candidates = [
+        item.variant_of,
+        item.template_item,
+        item.template_item_code,
+        item.parent_item,
+        item.parent_item_code,
+      ];
+
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.trim()) {
+          return candidate.trim();
+        }
+      }
+
+      return null;
+    },
+
+    cloneSelectionOptions: function (options) {
+      if (!options) return {};
+      if (typeof structuredClone === "function") {
+        try {
+          return structuredClone(options);
+        } catch (error) {
+          // Fallback to JSON clone below
+        }
+      }
+      try {
+        return JSON.parse(JSON.stringify(options));
+      } catch (error) {
+        if (Array.isArray(options)) return options.slice();
+        if (typeof options === "object") return Object.assign({}, options);
+        return {};
+      }
+    },
+
+    ensureSelectionMemory: function () {
+      if (!(this.selectionMemory instanceof Map)) {
+        this.selectionMemory = new Map();
+      }
+      return this.selectionMemory;
+    },
+
+    rememberItemSelection: function (item, item_options = {}, notes = "") {
+      const key = this.resolveSelectionKey(item);
+      if (!key) return;
+
+      const store = this.ensureSelectionMemory();
+      const normalizedOptions = this.cloneSelectionOptions(item_options);
+      const normalizedNotes = notes || "";
+
+      store.set(key, {
+        options: this.cloneSelectionOptions(normalizedOptions),
+        notes: normalizedNotes,
+      });
+
+      const templateKey = this.resolveTemplateKey(item);
+      if (templateKey && templateKey !== key) {
+        store.set(templateKey, {
+          options: this.cloneSelectionOptions(normalizedOptions),
+          notes: normalizedNotes,
+          preferred_item: key,
+        });
+      }
+    },
+
+    getRememberedSelection: function (key) {
+      if (!key) return null;
+      const store = this.ensureSelectionMemory();
+      return store.get(key) || null;
     },
 
     formatItemOptions: function (options) {
