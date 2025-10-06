@@ -1817,10 +1817,12 @@ frappe.ready(async function() {
 
                     if (control.classList.contains('qty-plus')) {
                         event.preventDefault();
-                        this.updateCartItemQuantity(index, cartItem.qty + 1);
+                        const currentQty = Number(cartItem && cartItem.qty) || 0;
+                        this.updateCartItemQuantity(index, currentQty + 1);
                     } else if (control.classList.contains('qty-minus')) {
                         event.preventDefault();
-                        this.updateCartItemQuantity(index, cartItem.qty - 1);
+                        const currentQty = Number(cartItem && cartItem.qty) || 0;
+                        this.updateCartItemQuantity(index, currentQty - 1);
                     } else if (control.classList.contains('cart-item-remove')) {
                         this.removeCartItem(index);
                     }
@@ -2494,11 +2496,14 @@ frappe.ready(async function() {
 
             if (existingIndex >= 0) {
                 const cartItem = this.cart[existingIndex];
-                cartItem.qty += 1;
+                const currentQty = Number(cartItem && cartItem.qty) || 0;
+                const updatedQty = currentQty + 1;
+
+                cartItem.qty = updatedQty;
                 cartItem._base_rate = safeBase;
                 cartItem._extra_rate = safeExtra;
                 cartItem.rate = safeBase + safeExtra;
-                cartItem.amount = cartItem.rate * cartItem.qty;
+                cartItem.amount = cartItem.rate * updatedQty;
             } else {
                 this.cart.push({
                     item_code: item.name,
@@ -2542,7 +2547,8 @@ frappe.ready(async function() {
         },
         
         updateCartItemQuantity: function(index, newQty) {
-            if (newQty < 1) {
+            const safeQty = Number(newQty);
+            if (!Number.isFinite(safeQty) || safeQty < 1) {
                 this.removeCartItem(index);
                 return;
             }
@@ -2565,8 +2571,8 @@ frappe.ready(async function() {
             cartItem._base_rate = safeBase;
             cartItem._extra_rate = safeExtra;
             cartItem.rate = safeBase + safeExtra;
-            cartItem.qty = newQty;
-            cartItem.amount = cartItem.rate * newQty;
+            cartItem.qty = safeQty;
+            cartItem.amount = cartItem.rate * safeQty;
 
             this.renderCart();
             this.updateCartTotals();
