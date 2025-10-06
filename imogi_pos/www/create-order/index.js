@@ -298,6 +298,7 @@ frappe.ready(async function () {
 
       // Success modal
       successModal: document.getElementById("success-modal"),
+      successBranding: document.getElementById("success-branding"),
       successQueueNumber: document.getElementById("success-queue-number"),
       successReceipt: document.getElementById("success-receipt"),
       successDoneBtn: document.getElementById("btn-success-done"),
@@ -3354,12 +3355,87 @@ frappe.ready(async function () {
 
     renderSuccessReceipt: async function () {
       const receiptEl = this.elements.successReceipt;
-      if (!receiptEl) return;
+      const brandingEl = this.elements.successBranding;
+      if (!receiptEl) {
+        if (brandingEl) {
+          brandingEl.classList.add("hidden");
+          brandingEl.innerHTML = "";
+        }
+        return;
+      }
 
       receiptEl.classList.remove("hidden");
       receiptEl.innerHTML = `<div class="success-receipt-loading">${__("Loading receipt...")}</div>`;
 
-      const toNumber = (value) => {
+      const applyBranding = (html) => {
+        if (!brandingEl) return;
+        if (html) {
+          brandingEl.innerHTML = html;
+          brandingEl.classList.remove("hidden");
+        } else {
+          brandingEl.classList.add("hidden");
+          brandingEl.innerHTML = "";
+        }
+      };
+
+      const createOrderBranding =
+        typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
+      const createOrderBranchName =
+        createOrderBranding?.display_name ||
+        createOrderBranding?.name ||
+        (typeof CURRENT_BRANCH === "string" ? CURRENT_BRANCH : "");
+      const createOrderBranchAddressRaw =
+        createOrderBranding?.address && String(createOrderBranding.address).trim()
+          ? String(createOrderBranding.address)
+          : "";
+      const createOrderLogoCandidate =
+        typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
+      const createOrderAddressSource =
+        createOrderBranchAddressRaw || createOrderBranchName;
+      const createOrderAddressHtml = createOrderAddressSource
+        ? createOrderAddressSource
+            .split(/\r?\n/)
+            .map((line) => escapeHtml(line.trim()))
+            .filter(Boolean)
+            .join("<br>")
+        : "";
+      const createOrderHasLogo = Boolean(createOrderLogoCandidate);
+      const createOrderHasName = Boolean(createOrderBranchName);
+      const createOrderHasAddress = Boolean(createOrderAddressHtml);
+      const createOrderBrandingHtml =
+        createOrderHasLogo || createOrderHasName || createOrderHasAddress
+          ? `
+              ${
+                createOrderHasLogo
+                  ? `<img src="${createOrderLogoCandidate}" alt="${escapeHtml(
+                      createOrderBranchName || "Logo"
+                    )}" class="success-branding-logo">`
+                  : ""
+              }
+              ${
+                createOrderHasName || createOrderHasAddress
+                    ? `<div class="success-branding-details">
+                        ${
+                            createOrderHasName
+                                ? `<div class="success-branding-name">${escapeHtml(
+                                      createOrderBranchName
+                                  )}</div>`
+                                : ""
+                        }
+                        ${
+                            createOrderHasAddress
+                                ? `<div class="success-branding-address">${createOrderAddressHtml}</div>`
+                                : ""
+                        }
+                      </div>`
+                  : ""
+              }
+            `.trim()
+          : "";
+
+      applyBranding(createOrderBrandingHtml);
+
+      const createOrderToNumber = (value) => {
         const num = parseFloat(value);
         return Number.isFinite(num) ? num : 0;
       };
@@ -3403,93 +3479,103 @@ frappe.ready(async function () {
         return;
       }
 
-      const orderNumber =
+      const createOrderOrderNumber =
         orderDetails?.queue_number ||
         orderDetails?.name ||
         invoiceDetails?.name ||
         this.queueNumber ||
         "-";
 
-      const itemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
+      const createOrderItemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
         ? orderDetails.items
         : Array.isArray(invoiceDetails?.items) && invoiceDetails.items.length
           ? invoiceDetails.items
           : [];
 
-      const itemRows = itemsSource.length
-        ? itemsSource
+      const createOrderItemRows = createOrderItemsSource.length
+        ? createOrderItemsSource
             .map((item) => {
-              const qtyValue = toNumber(item.qty ?? item.quantity ?? 0);
-              const qtyDisplay = Number.isInteger(qtyValue) ? qtyValue : qtyValue.toFixed(2);
-              const amountValue =
+              const createOrderQtyValue = createOrderToNumber(item.qty ?? item.quantity ?? 0);
+              const createOrderQtyDisplay = Number.isInteger(createOrderQtyValue)
+                ? createOrderQtyValue
+                : createOrderQtyValue.toFixed(2);
+              const createOrderAmountValue =
                 item.amount != null
-                  ? toNumber(item.amount)
-                  : toNumber(item.rate) * qtyValue;
-              const optionsText = this.formatReceiptItemOptions(item.item_options);
-              const optionsHtml = optionsText
-                ? `<div class="success-receipt-item-options">${escapeHtml(optionsText)}</div>`
+                  ? createOrderToNumber(item.amount)
+                  : createOrderToNumber(item.rate) * createOrderQtyValue;
+              const createOrderOptionsText = this.formatReceiptItemOptions(item.item_options);
+              const createOrderOptionsHtml = createOrderOptionsText
+                ? `<div class="success-receipt-item-options">${escapeHtml(createOrderOptionsText)}</div>`
                 : "";
 
               return `
                 <tr>
                   <td>
                     <div class="success-receipt-item-name">${escapeHtml(item.item_name || item.item_code || item.item || "")}</div>
-                    ${optionsHtml}
+                    ${createOrderOptionsHtml}
                   </td>
-                  <td>${qtyDisplay}</td>
-                  <td>${formatRupiah(amountValue)}</td>
+                  <td>${createOrderQtyDisplay}</td>
+                  <td>${formatRupiah(createOrderAmountValue)}</td>
                 </tr>
               `;
             })
             .join("")
         : `<tr><td colspan="3">${__("No items found")}</td></tr>`;
 
-      const subtotalValue = toNumber(
+      const createOrderSubtotalValue = createOrderToNumber(
         orderDetails?.subtotal ??
           invoiceDetails?.total ??
           invoiceDetails?.base_total ??
           0
       );
 
-      let pb1Value = orderDetails?.pb1_amount;
-      if (pb1Value == null) {
-        pb1Value = (invoiceDetails?.taxes || []).reduce(
-          (sum, tax) => sum + toNumber(tax?.tax_amount ?? tax?.base_tax_amount ?? 0),
+      let createOrderPb1Value = orderDetails?.pb1_amount;
+      if (createOrderPb1Value == null) {
+        createOrderPb1Value = (invoiceDetails?.taxes || []).reduce(
+          (sum, tax) =>
+            sum +
+            createOrderToNumber(
+              tax?.tax_amount ?? tax?.base_tax_amount ?? 0
+            ),
           0
         );
       }
-      pb1Value = toNumber(pb1Value);
+      createOrderPb1Value = createOrderToNumber(createOrderPb1Value);
 
-      const grossTotal = subtotalValue + pb1Value;
-      const discountCandidates = [
+      const createOrderGrossTotal = createOrderSubtotalValue + createOrderPb1Value;
+      const createOrderDiscountCandidates = [
         orderDetails?.discount_amount,
         orderDetails?.discount_value,
         invoiceDetails?.discount_amount,
         invoiceDetails?.base_discount_amount,
         invoiceDetails?.total_discount_amount,
       ];
-      let discountValue = discountCandidates.reduce((max, candidate) => {
-        const numeric = toNumber(candidate);
+      let createOrderDiscountValue = createOrderDiscountCandidates.reduce((max, candidate) => {
+        const numeric = createOrderToNumber(candidate);
         return numeric > max ? numeric : max;
       }, 0);
-      if (discountValue <= 0) {
-        const percentCandidates = [
+      if (createOrderDiscountValue <= 0) {
+        const createOrderPercentCandidates = [
           orderDetails?.discount_percent,
           orderDetails?.discount_percentage,
           invoiceDetails?.discount_percentage,
           invoiceDetails?.additional_discount_percentage,
         ];
-        const appliedPercent = percentCandidates.reduce((max, candidate) => {
-          const numeric = toNumber(candidate);
+        const createOrderAppliedPercent = createOrderPercentCandidates.reduce((max, candidate) => {
+          const numeric = createOrderToNumber(candidate);
           return numeric > max ? numeric : max;
         }, 0);
-        if (appliedPercent > 0) {
-          discountValue = grossTotal * (appliedPercent / 100);
+        if (createOrderAppliedPercent > 0) {
+          createOrderDiscountValue =
+            createOrderGrossTotal * (createOrderAppliedPercent / 100);
         }
       }
-      discountValue = Math.min(grossTotal, Math.max(0, discountValue));
+      createOrderDiscountValue = Math.min(
+        createOrderGrossTotal,
+        Math.max(0, createOrderDiscountValue)
+      );
 
-      const docTotal = toNumber(
+      const createOrderDocTotal = createOrderToNumber(
         orderDetails?.totals ??
           invoiceDetails?.rounded_total ??
           invoiceDetails?.grand_total ??
@@ -3497,49 +3583,59 @@ frappe.ready(async function () {
           invoiceDetails?.base_grand_total ??
           0
       );
-      const computedTotal = Math.max(0, grossTotal - discountValue);
-      const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
+      const createOrderComputedTotal = Math.max(
+        0,
+        createOrderGrossTotal - createOrderDiscountValue
+      );
+      const createOrderTotalValue =
+        createOrderDocTotal > 0
+          ? Math.max(0, createOrderDocTotal)
+          : createOrderComputedTotal;
 
       receiptEl.innerHTML = `
-        <div class="success-receipt-header">
-          <div class="success-receipt-title">${__("Receipt")}</div>
-          <div class="success-receipt-meta">
-            <div class="success-receipt-label">${__("Order No.")}</div>
-            <div class="success-receipt-value">${escapeHtml(orderNumber || "-")}</div>
+        <div class="success-receipt-card">
+          <div class="success-receipt-header">
+            <div class="success-receipt-title">${__("Receipt")}</div>
+            <div class="success-receipt-meta">
+              <div class="success-receipt-label">${__("Order No.")}</div>
+              <div class="success-receipt-value">${escapeHtml(
+                createOrderOrderNumber || "-"
+              )}</div>
+            </div>
           </div>
-        </div>
-        <table class="success-receipt-table">
-          <thead>
-            <tr>
-              <th>${__("Item")}</th>
-              <th>${__("Qty")}</th>
-              <th>${__("Amount")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemRows}
-          </tbody>
-        </table>
-        <div class="success-receipt-summary">
-          <div class="success-receipt-summary-row">
-            <span>${__("Subtotal")}</span>
-            <span>${formatRupiah(subtotalValue)}</span>
-          </div>
-          <div class="success-receipt-summary-row">
-            <span>${__("PB1")}</span>
-            <span>${formatRupiah(pb1Value)}</span>
-          </div>
-          ${
-            discountValue > 0
-              ? `<div class="success-receipt-summary-row discount">
-                  <span>${__("Discount")}</span>
-                  <span>- ${formatRupiah(discountValue)}</span>
-                </div>`
-              : ""
-          }
-          <div class="success-receipt-summary-row total">
-            <span>${__("Total")}</span>
-            <span>${formatRupiah(totalValue)}</span>
+          <table class="success-receipt-table">
+            <thead>
+              <tr>
+                <th>${__("Item")}</th>
+                <th>${__("Qty")}</th>
+                <th>${__("Amount")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${createOrderItemRows}
+            </tbody>
+          </table>
+          <div class="success-receipt-summary">
+            <div class="success-receipt-summary-row">
+              <span>${__("Subtotal")}</span>
+              <span>${formatRupiah(createOrderSubtotalValue)}</span>
+            </div>
+            <div class="success-receipt-summary-row">
+              <span>${__("PB1")}</span>
+              <span>${formatRupiah(createOrderPb1Value)}</span>
+            </div>
+            ${
+              createOrderDiscountValue > 0
+                ? `<div class="success-receipt-summary-row discount">
+                    <span>${__("Discount")}</span>
+                    <span>- ${formatRupiah(createOrderDiscountValue)}</span>
+                  </div>`
+                : ""
+            }
+            <div class="success-receipt-summary-row total">
+              <span>${__("Total")}</span>
+              <span>${formatRupiah(createOrderTotalValue)}</span>
+            </div>
           </div>
         </div>
       `;
@@ -3554,7 +3650,14 @@ frappe.ready(async function () {
 
     closeSuccessModal: function () {
       if (this.elements.successModal) this.elements.successModal.style.display = "none";
-      if (this.elements.successReceipt) this.elements.successReceipt.classList.add("hidden");
+      if (this.elements.successReceipt) {
+        this.elements.successReceipt.classList.add("hidden");
+        this.elements.successReceipt.innerHTML = "";
+      }
+      if (this.elements.successBranding) {
+        this.elements.successBranding.classList.add("hidden");
+        this.elements.successBranding.innerHTML = "";
+      }
     },
 
     resetApp: function () {
@@ -3578,6 +3681,10 @@ frappe.ready(async function () {
       if (this.elements.successReceipt) {
         this.elements.successReceipt.innerHTML = "";
         this.elements.successReceipt.classList.add("hidden");
+      }
+      if (this.elements.successBranding) {
+        this.elements.successBranding.innerHTML = "";
+        this.elements.successBranding.classList.add("hidden");
       }
 
       this.customerInfo = {

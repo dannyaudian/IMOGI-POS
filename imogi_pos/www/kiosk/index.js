@@ -281,6 +281,7 @@ frappe.ready(async function() {
             
             // Success modal
             successModal: document.getElementById('success-modal'),
+            successBranding: document.getElementById('success-branding'),
             successQueueNumber: document.getElementById('success-queue-number'),
             successReceipt: document.getElementById('success-receipt'),
             successDoneBtn: document.getElementById('btn-success-done'),
@@ -3561,11 +3562,85 @@ n
                 this.elements.successReceipt.classList.add('hidden');
                 this.elements.successReceipt.innerHTML = '';
             }
+            if (this.elements.successBranding) {
+                this.elements.successBranding.classList.add('hidden');
+                this.elements.successBranding.innerHTML = '';
+            }
         },
 
         renderSuccessReceipt: function(orderDetails, invoiceDetails) {
+            const brandingContainer = this.elements.successBranding;
+
             if (!this.elements.successReceipt) {
+                if (brandingContainer) {
+                    brandingContainer.classList.add('hidden');
+                    brandingContainer.innerHTML = '';
+                }
                 return;
+            }
+
+            const kioskBranchBranding =
+                typeof BRANCH_INFO === 'object' && BRANCH_INFO !== null ? BRANCH_INFO : null;
+            const kioskBranchName =
+                kioskBranchBranding?.display_name ||
+                kioskBranchBranding?.name ||
+                (typeof CURRENT_BRANCH === 'string' ? CURRENT_BRANCH : '');
+            const kioskBranchAddressRaw =
+                kioskBranchBranding?.address && String(kioskBranchBranding.address).trim()
+                    ? String(kioskBranchBranding.address)
+                    : '';
+            const kioskLogoCandidate =
+                typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
+            const kioskAddressSource = kioskBranchAddressRaw || kioskBranchName;
+            const kioskAddressHtml = kioskAddressSource
+                ? kioskAddressSource
+                      .split(/\r?\n/)
+                      .map((line) => escapeHtml(line.trim()))
+                      .filter(Boolean)
+                      .join('<br>')
+                : '';
+            const kioskHasLogo = Boolean(kioskLogoCandidate);
+            const kioskHasName = Boolean(kioskBranchName);
+            const kioskHasAddress = Boolean(kioskAddressHtml);
+            const kioskBrandingHtml =
+                kioskHasLogo || kioskHasName || kioskHasAddress
+                    ? `
+                        ${
+                            kioskHasLogo
+                                ? `<img src="${kioskLogoCandidate}" alt="${escapeHtml(
+                                      kioskBranchName || 'Logo'
+                                  )}" class="success-branding-logo">`
+                                : ''
+                        }
+                        ${
+                            kioskHasName || kioskHasAddress
+                                ? `<div class="success-branding-details">
+                                    ${
+                                        kioskHasName
+                                            ? `<div class="success-branding-name">${escapeHtml(
+                                                  kioskBranchName
+                                              )}</div>`
+                                            : ''
+                                    }
+                                    ${
+                                        kioskHasAddress
+                                            ? `<div class="success-branding-address">${kioskAddressHtml}</div>`
+                                            : ''
+                                    }
+                                  </div>`
+                                : ''
+                        }
+                      `.trim()
+                    : '';
+
+            if (brandingContainer) {
+                if (kioskBrandingHtml) {
+                    brandingContainer.innerHTML = kioskBrandingHtml;
+                    brandingContainer.classList.remove('hidden');
+                } else {
+                    brandingContainer.classList.add('hidden');
+                    brandingContainer.innerHTML = '';
+                }
             }
 
             if (!orderDetails && !invoiceDetails) {
@@ -3577,90 +3652,93 @@ n
             const receiptContainer = this.elements.successReceipt;
             receiptContainer.classList.remove('hidden');
 
-            const toNumber = (value) => {
+            const kioskToNumber = (value) => {
                 const num = parseFloat(value);
                 return Number.isFinite(num) ? num : 0;
             };
 
-            const orderNumber = orderDetails?.queue_number || orderDetails?.name || invoiceDetails?.name || '-';
-            const itemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
+            const kioskOrderNumber = orderDetails?.queue_number || orderDetails?.name || invoiceDetails?.name || '-';
+            const kioskItemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
                 ? orderDetails.items
                 : Array.isArray(invoiceDetails?.items)
                     ? invoiceDetails.items
                     : [];
 
-            const itemRows = itemsSource.length
-                ? itemsSource
+            const kioskItemRows = kioskItemsSource.length
+                ? kioskItemsSource
                       .map((item) => {
-                          const lineQty = item.qty || 0;
-                          const lineTotal =
+                          const kioskLineQtyValue = kioskToNumber(item.qty ?? item.quantity ?? 0);
+                          const kioskLineQtyDisplay = Number.isInteger(kioskLineQtyValue)
+                              ? kioskLineQtyValue
+                              : kioskLineQtyValue.toFixed(2);
+                          const kioskLineTotal =
                               item.amount != null
-                                  ? item.amount
-                                  : (item.rate || 0) * lineQty;
-                          const optionsText = this.formatReceiptItemOptions(item.item_options);
-                          const optionsHtml = optionsText
-                              ? `<div class="success-receipt-item-options">${escapeHtml(optionsText)}</div>`
+                                  ? kioskToNumber(item.amount)
+                                  : kioskToNumber(item.rate) * kioskLineQtyValue;
+                          const kioskOptionsText = this.formatReceiptItemOptions(item.item_options);
+                          const kioskOptionsHtml = kioskOptionsText
+                              ? `<div class="success-receipt-item-options">${escapeHtml(kioskOptionsText)}</div>`
                               : '';
 
                           return `
                               <tr>
                                 <td>
                                   <div class="success-receipt-item-name">${escapeHtml(item.item_name || item.item_code || item.item || '')}</div>
-                                  ${optionsHtml}
+                                  ${kioskOptionsHtml}
                                 </td>
-                                <td>${lineQty}</td>
-                                <td>${formatRupiah(lineTotal)}</td>
+                                <td>${kioskLineQtyDisplay}</td>
+                                <td>${formatRupiah(kioskLineTotal)}</td>
                               </tr>
                           `;
                       })
                       .join('')
                 : `<tr><td colspan="3">${__('No items found')}</td></tr>`;
 
-            const subtotalValue = toNumber(
+            const kioskSubtotalValue = kioskToNumber(
                 orderDetails?.subtotal ??
                 invoiceDetails?.total ??
                 invoiceDetails?.base_total ??
                 0
             );
-            let pb1Value = orderDetails?.pb1_amount;
-            if (pb1Value == null) {
-                pb1Value = (invoiceDetails?.taxes || []).reduce((sum, tax) => {
-                    const amount = toNumber(tax?.tax_amount ?? tax?.base_tax_amount ?? 0);
+            let kioskPb1Value = orderDetails?.pb1_amount;
+            if (kioskPb1Value == null) {
+                kioskPb1Value = (invoiceDetails?.taxes || []).reduce((sum, tax) => {
+                    const amount = kioskToNumber(tax?.tax_amount ?? tax?.base_tax_amount ?? 0);
                     return sum + amount;
                 }, 0);
             }
-            pb1Value = toNumber(pb1Value);
+            kioskPb1Value = kioskToNumber(kioskPb1Value);
 
-            const grossTotal = subtotalValue + pb1Value;
-            const discountCandidates = [
+            const kioskGrossTotal = kioskSubtotalValue + kioskPb1Value;
+            const kioskDiscountCandidates = [
                 orderDetails?.discount_amount,
                 orderDetails?.discount_value,
                 invoiceDetails?.discount_amount,
                 invoiceDetails?.base_discount_amount,
                 invoiceDetails?.total_discount_amount
             ];
-            let discountValue = discountCandidates.reduce((max, candidate) => {
-                const numeric = toNumber(candidate);
+            let kioskDiscountValue = kioskDiscountCandidates.reduce((max, candidate) => {
+                const numeric = kioskToNumber(candidate);
                 return numeric > max ? numeric : max;
             }, 0);
-            if (discountValue <= 0) {
-                const percentCandidates = [
+            if (kioskDiscountValue <= 0) {
+                const kioskPercentCandidates = [
                     orderDetails?.discount_percent,
                     orderDetails?.discount_percentage,
                     invoiceDetails?.discount_percentage,
                     invoiceDetails?.additional_discount_percentage
                 ];
-                const appliedPercent = percentCandidates.reduce((max, candidate) => {
-                    const numeric = toNumber(candidate);
+                const kioskAppliedPercent = kioskPercentCandidates.reduce((max, candidate) => {
+                    const numeric = kioskToNumber(candidate);
                     return numeric > max ? numeric : max;
                 }, 0);
-                if (appliedPercent > 0) {
-                    discountValue = grossTotal * (appliedPercent / 100);
+                if (kioskAppliedPercent > 0) {
+                    kioskDiscountValue = kioskGrossTotal * (kioskAppliedPercent / 100);
                 }
             }
-            discountValue = Math.min(grossTotal, Math.max(0, discountValue));
+            kioskDiscountValue = Math.min(kioskGrossTotal, Math.max(0, kioskDiscountValue));
 
-            const docTotal = toNumber(
+            const kioskDocTotal = kioskToNumber(
                 orderDetails?.totals ??
                 invoiceDetails?.rounded_total ??
                 invoiceDetails?.grand_total ??
@@ -3668,49 +3746,51 @@ n
                 invoiceDetails?.base_grand_total ??
                 0
             );
-            const computedTotal = Math.max(0, grossTotal - discountValue);
-            const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
+            const kioskComputedTotal = Math.max(0, kioskGrossTotal - kioskDiscountValue);
+            const kioskTotalValue = kioskDocTotal > 0 ? Math.max(0, kioskDocTotal) : kioskComputedTotal;
 
             receiptContainer.innerHTML = `
-                <div class="success-receipt-header">
-                  <div class="success-receipt-title">${__('Receipt')}</div>
-                  <div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__('Order No.')}</div>
-                    <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                <div class="success-receipt-card">
+                  <div class="success-receipt-header">
+                    <div class="success-receipt-title">${__('Receipt')}</div>
+                    <div class="success-receipt-meta">
+                      <div class="success-receipt-label">${__('Order No.')}</div>
+                      <div class="success-receipt-value">${escapeHtml(kioskOrderNumber || '-')}</div>
+                    </div>
                   </div>
-                </div>
-                <table class="success-receipt-table">
-                  <thead>
-                    <tr>
-                      <th>${__('Item')}</th>
-                      <th>${__('Qty')}</th>
-                      <th>${__('Amount')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemRows}
-                  </tbody>
-                </table>
-                <div class="success-receipt-summary">
-                  <div class="success-receipt-summary-row">
-                    <span>${__('Subtotal')}</span>
-                    <span>${formatRupiah(subtotalValue)}</span>
-                  </div>
-                  <div class="success-receipt-summary-row">
-                    <span>${__('PB1')}</span>
-                    <span>${formatRupiah(pb1Value)}</span>
-                  </div>
-                  ${
-                    discountValue > 0
-                        ? `<div class="success-receipt-summary-row discount">
-                            <span>${__('Discount')}</span>
-                            <span>- ${formatRupiah(discountValue)}</span>
-                          </div>`
-                        : ''
-                  }
-                  <div class="success-receipt-summary-row total">
-                    <span>${__('Total')}</span>
-                    <span>${formatRupiah(totalValue)}</span>
+                  <table class="success-receipt-table">
+                    <thead>
+                      <tr>
+                        <th>${__('Item')}</th>
+                        <th>${__('Qty')}</th>
+                        <th>${__('Amount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${kioskItemRows}
+                    </tbody>
+                  </table>
+                  <div class="success-receipt-summary">
+                    <div class="success-receipt-summary-row">
+                      <span>${__('Subtotal')}</span>
+                      <span>${formatRupiah(kioskSubtotalValue)}</span>
+                    </div>
+                    <div class="success-receipt-summary-row">
+                      <span>${__('PB1')}</span>
+                      <span>${formatRupiah(kioskPb1Value)}</span>
+                    </div>
+                    ${
+                      kioskDiscountValue > 0
+                          ? `<div class="success-receipt-summary-row discount">
+                              <span>${__('Discount')}</span>
+                              <span>- ${formatRupiah(kioskDiscountValue)}</span>
+                            </div>`
+                          : ''
+                    }
+                    <div class="success-receipt-summary-row total">
+                      <span>${__('Total')}</span>
+                      <span>${formatRupiah(kioskTotalValue)}</span>
+                    </div>
                   </div>
                 </div>
             `;

@@ -5,6 +5,7 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.branch import get_branch_details
 from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
@@ -35,7 +36,10 @@ def get_context(context):
     context.branding = get_branding_info(pos_profile)
     
     # Get branch
-    context.branch = get_current_branch(pos_profile)
+    branch_name = get_current_branch(pos_profile)
+    context.branch = branch_name
+    context.branch_info = get_branch_details(branch_name)
+    context.receipt_logo = "/service-select/images/imogi.png"
     
     # Get payment settings
     context.payment_settings = {
@@ -94,8 +98,10 @@ def get_context(context):
                 break
 
     # Get Queue Number if applicable
-    context.next_queue_number = get_next_queue_number(context.branch) if context.branch else 1
-    
+    context.next_queue_number = (
+        get_next_queue_number(context.branch) if context.branch else 1
+    )
+
     return context
 
 def get_pos_profile():
