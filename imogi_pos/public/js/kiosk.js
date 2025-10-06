@@ -1654,9 +1654,14 @@ imogi_pos.kiosk = {
                 });
 
                 if (existingItemIndex !== -1) {
-                    this.state.cart[existingItemIndex].qty += line.qty;
-                    this.state.cart[existingItemIndex].amount =
-                        this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
+                    const existingItem = this.state.cart[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+
+                    existingItem.qty = updatedQty;
+                    const rate = Number(existingItem.rate) || 0;
+                    existingItem.amount = updatedQty * rate;
                 } else {
                     this.state.cart.push(line);
                 }
@@ -1916,9 +1921,15 @@ imogi_pos.kiosk = {
      */
     decreaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            if (this.state.cart[index].qty > 1) {
-                this.state.cart[index].qty -= 1;
-                this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
                 this.renderCart();
             } else {
                 // If quantity would go below 1, remove the item
@@ -1933,8 +1944,13 @@ imogi_pos.kiosk = {
      */
     increaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            this.state.cart[index].qty += 1;
-            this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item && item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
             this.renderCart();
         }
     },

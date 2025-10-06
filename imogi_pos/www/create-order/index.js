@@ -2547,13 +2547,17 @@ frappe.ready(async function () {
       );
 
       if (existingIndex >= 0) {
-        this.cart[existingIndex].qty += 1;
-        this.cart[existingIndex]._base_rate = baseRate;
-        this.cart[existingIndex]._extra_rate = extraRate;
-        this.cart[existingIndex].rate = baseRate + extraRate;
-        this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
-        if (!this.cart[existingIndex].menu_category && resolvedCategory) {
-          this.cart[existingIndex].menu_category = resolvedCategory;
+        const existingItem = this.cart[existingIndex];
+        const currentQty = Number(existingItem && existingItem.qty) || 0;
+        const updatedQty = currentQty + 1;
+
+        existingItem.qty = updatedQty;
+        existingItem._base_rate = baseRate;
+        existingItem._extra_rate = extraRate;
+        existingItem.rate = baseRate + extraRate;
+        existingItem.amount = existingItem.rate * updatedQty;
+        if (!existingItem.menu_category && resolvedCategory) {
+          existingItem.menu_category = resolvedCategory;
         }
       } else {
         this.cart.push({

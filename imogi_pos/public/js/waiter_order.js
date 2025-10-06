@@ -1842,9 +1842,14 @@ imogi_pos.waiter_order = {
                 });
 
                 if (existingItemIndex !== -1) {
-                    this.state.orderItems[existingItemIndex].qty += line.qty;
-                    this.state.orderItems[existingItemIndex].amount =
-                        this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
+                    const existingItem = this.state.orderItems[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+                    const rate = Number(existingItem.rate) || 0;
+
+                    existingItem.qty = updatedQty;
+                    existingItem.amount = updatedQty * rate;
                 } else {
                     this.state.orderItems.push(line);
                 }
@@ -1976,10 +1981,16 @@ imogi_pos.waiter_order = {
      */
     decreaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            if (this.state.orderItems[index].qty > 1) {
-                this.state.orderItems[index].qty -= 1;
-                this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-                
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
+
                 // Update UI
                 this.updateOrderPanel();
             } else {
@@ -1995,9 +2006,14 @@ imogi_pos.waiter_order = {
      */
     increaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            this.state.orderItems[index].qty += 1;
-            this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-            
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
+
             // Update UI
             this.updateOrderPanel();
         }
