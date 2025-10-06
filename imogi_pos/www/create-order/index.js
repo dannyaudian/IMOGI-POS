@@ -1801,9 +1801,9 @@ frappe.ready(async function () {
               <div class="cart-item-price">${formatRupiah(item.amount)}</div>
             </div>
             <div class="cart-item-controls">
-              <button class="qty-btn qty-minus" data-index="${index}">-</button>
+              <button type="button" class="qty-btn qty-minus" data-index="${index}">-</button>
               <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
-              <button class="qty-btn qty-plus" data-index="${index}">+</button>
+              <button type="button" class="qty-btn qty-plus" data-index="${index}">+</button>
             </div>
             ${item.item_options ? `<div class="cart-item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
             ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ""}
@@ -2610,6 +2610,7 @@ frappe.ready(async function () {
       const targetSignature = JSON.stringify(normalizedOptions || {});
       const existingIndex = this.cart.findIndex((line) => {
         if (!line || line.item_code !== targetKey) return false;
+
         const lineNotes = line.notes || "";
         const lineSignature = JSON.stringify(line.item_options || {});
         return lineNotes === normalizedNotes && lineSignature === targetSignature;
@@ -2623,6 +2624,7 @@ frappe.ready(async function () {
         this.addItemToCart(targetItem, normalizedOptions, normalizedNotes);
       }
 
+
       return true;
     },
 
@@ -2633,6 +2635,7 @@ frappe.ready(async function () {
       if (item.item_code) return item.item_code;
       return null;
     },
+
 
     resolveTemplateKey: function (item) {
       if (!item || typeof item !== "object") return null;
@@ -2653,6 +2656,7 @@ frappe.ready(async function () {
 
       return null;
     },
+
 
     cloneSelectionOptions: function (options) {
       if (!options) return {};

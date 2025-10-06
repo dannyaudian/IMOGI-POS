@@ -2564,6 +2564,7 @@ frappe.ready(async function() {
             const targetSignature = JSON.stringify(normalizedOptions || {});
             const existingIndex = this.cart.findIndex(line => {
                 if (!line || line.item_code !== targetKey) {
+
                     return false;
                 }
                 const lineNotes = line.notes || '';
@@ -2574,6 +2575,7 @@ frappe.ready(async function() {
             if (existingIndex >= 0) {
                 const currentQty = Number(this.cart[existingIndex].qty) || 0;
                 this.updateCartItemQuantity(existingIndex, currentQty + 1);
+
                 this.rememberItemSelection(targetItem, normalizedOptions, normalizedNotes);
             } else {
                 this.addItemToCart(targetItem, normalizedOptions, normalizedNotes);
@@ -2619,7 +2621,6 @@ frappe.ready(async function() {
 
             return null;
         },
-
         cloneSelectionOptions: function(options) {
             if (!options) {
                 return {};
@@ -2646,12 +2647,14 @@ frappe.ready(async function() {
             }
         },
 
+
         ensureSelectionMemory: function() {
             if (!(this.selectionMemory instanceof Map)) {
                 this.selectionMemory = new Map();
             }
             return this.selectionMemory;
         },
+
 
         rememberItemSelection: function(item, item_options = {}, notes = '') {
             const key = this.resolveSelectionKey(item);
@@ -2676,14 +2679,17 @@ frappe.ready(async function() {
                     preferred_item: key
                 });
             }
+n
         },
 
         getRememberedSelection: function(key) {
             if (!key) {
                 return null;
             }
+
             const store = this.ensureSelectionMemory();
             return store.get(key) || null;
+
         },
 
         formatItemOptions: function(options) {
