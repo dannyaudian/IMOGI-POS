@@ -281,6 +281,7 @@ frappe.ready(async function() {
             
             // Success modal
             successModal: document.getElementById('success-modal'),
+            successBranding: document.getElementById('success-branding'),
             successQueueNumber: document.getElementById('success-queue-number'),
             successReceipt: document.getElementById('success-receipt'),
             successDoneBtn: document.getElementById('btn-success-done'),
@@ -3561,11 +3562,85 @@ n
                 this.elements.successReceipt.classList.add('hidden');
                 this.elements.successReceipt.innerHTML = '';
             }
+            if (this.elements.successBranding) {
+                this.elements.successBranding.classList.add('hidden');
+                this.elements.successBranding.innerHTML = '';
+            }
         },
 
         renderSuccessReceipt: function(orderDetails, invoiceDetails) {
+            const brandingContainer = this.elements.successBranding;
+
             if (!this.elements.successReceipt) {
+                if (brandingContainer) {
+                    brandingContainer.classList.add('hidden');
+                    brandingContainer.innerHTML = '';
+                }
                 return;
+            }
+
+            const kioskBranchBranding =
+                typeof BRANCH_INFO === 'object' && BRANCH_INFO !== null ? BRANCH_INFO : null;
+            const kioskBranchName =
+                kioskBranchBranding?.display_name ||
+                kioskBranchBranding?.name ||
+                (typeof CURRENT_BRANCH === 'string' ? CURRENT_BRANCH : '');
+            const kioskBranchAddressRaw =
+                kioskBranchBranding?.address && String(kioskBranchBranding.address).trim()
+                    ? String(kioskBranchBranding.address)
+                    : '';
+            const kioskLogoCandidate =
+                typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
+            const addressSource = kioskBranchAddressRaw || kioskBranchName;
+            const addressHtml = addressSource
+                ? addressSource
+                      .split(/\r?\n/)
+                      .map((line) => escapeHtml(line.trim()))
+                      .filter(Boolean)
+                      .join('<br>')
+                : '';
+            const hasLogo = Boolean(kioskLogoCandidate);
+            const hasName = Boolean(kioskBranchName);
+            const hasAddress = Boolean(addressHtml);
+            const brandingHtml =
+                hasLogo || hasName || hasAddress
+                    ? `
+                        ${
+                            hasLogo
+                                ? `<img src="${kioskLogoCandidate}" alt="${escapeHtml(
+                                      kioskBranchName || 'Logo'
+                                  )}" class="success-branding-logo">`
+                                : ''
+                        }
+                        ${
+                            hasName || hasAddress
+                                ? `<div class="success-branding-details">
+                                    ${
+                                        hasName
+                                            ? `<div class="success-branding-name">${escapeHtml(
+                                                  kioskBranchName
+                                              )}</div>`
+                                            : ''
+                                    }
+                                    ${
+                                        hasAddress
+                                            ? `<div class="success-branding-address">${addressHtml}</div>`
+                                            : ''
+                                    }
+                                  </div>`
+                                : ''
+                        }
+                      `.trim()
+                    : '';
+
+            if (brandingContainer) {
+                if (brandingHtml) {
+                    brandingContainer.innerHTML = brandingHtml;
+                    brandingContainer.classList.remove('hidden');
+                } else {
+                    brandingContainer.classList.add('hidden');
+                    brandingContainer.innerHTML = '';
+                }
             }
 
             if (!orderDetails && !invoiceDetails) {
@@ -3672,45 +3747,47 @@ n
             const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
 
             receiptContainer.innerHTML = `
-                <div class="success-receipt-header">
-                  <div class="success-receipt-title">${__('Receipt')}</div>
-                  <div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__('Order No.')}</div>
-                    <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                <div class="success-receipt-card">
+                  <div class="success-receipt-header">
+                    <div class="success-receipt-title">${__('Receipt')}</div>
+                    <div class="success-receipt-meta">
+                      <div class="success-receipt-label">${__('Order No.')}</div>
+                      <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                    </div>
                   </div>
-                </div>
-                <table class="success-receipt-table">
-                  <thead>
-                    <tr>
-                      <th>${__('Item')}</th>
-                      <th>${__('Qty')}</th>
-                      <th>${__('Amount')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemRows}
-                  </tbody>
-                </table>
-                <div class="success-receipt-summary">
-                  <div class="success-receipt-summary-row">
-                    <span>${__('Subtotal')}</span>
-                    <span>${formatRupiah(subtotalValue)}</span>
-                  </div>
-                  <div class="success-receipt-summary-row">
-                    <span>${__('PB1')}</span>
-                    <span>${formatRupiah(pb1Value)}</span>
-                  </div>
-                  ${
-                    discountValue > 0
-                        ? `<div class="success-receipt-summary-row discount">
-                            <span>${__('Discount')}</span>
-                            <span>- ${formatRupiah(discountValue)}</span>
-                          </div>`
-                        : ''
-                  }
-                  <div class="success-receipt-summary-row total">
-                    <span>${__('Total')}</span>
-                    <span>${formatRupiah(totalValue)}</span>
+                  <table class="success-receipt-table">
+                    <thead>
+                      <tr>
+                        <th>${__('Item')}</th>
+                        <th>${__('Qty')}</th>
+                        <th>${__('Amount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemRows}
+                    </tbody>
+                  </table>
+                  <div class="success-receipt-summary">
+                    <div class="success-receipt-summary-row">
+                      <span>${__('Subtotal')}</span>
+                      <span>${formatRupiah(subtotalValue)}</span>
+                    </div>
+                    <div class="success-receipt-summary-row">
+                      <span>${__('PB1')}</span>
+                      <span>${formatRupiah(pb1Value)}</span>
+                    </div>
+                    ${
+                      discountValue > 0
+                          ? `<div class="success-receipt-summary-row discount">
+                              <span>${__('Discount')}</span>
+                              <span>- ${formatRupiah(discountValue)}</span>
+                            </div>`
+                          : ''
+                    }
+                    <div class="success-receipt-summary-row total">
+                      <span>${__('Total')}</span>
+                      <span>${formatRupiah(totalValue)}</span>
+                    </div>
                   </div>
                 </div>
             `;
