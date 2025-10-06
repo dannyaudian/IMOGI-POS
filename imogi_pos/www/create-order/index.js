@@ -3390,9 +3390,10 @@ frappe.ready(async function () {
           : "";
       const createOrderLogoCandidate =
         typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
-      const addressSource = createOrderBranchAddressRaw || createOrderBranchName;
-      const addressHtml = addressSource
-        ? addressSource
+      const createOrderAddressSource =
+        createOrderBranchAddressRaw || createOrderBranchName;
+      const createOrderAddressHtml = createOrderAddressSource
+        ? createOrderAddressSource
             .split(/\r?\n/)
             .map((line) => escapeHtml(line.trim()))
             .filter(Boolean)
@@ -3400,7 +3401,7 @@ frappe.ready(async function () {
         : "";
       const hasLogo = Boolean(createOrderLogoCandidate);
       const hasName = Boolean(createOrderBranchName);
-      const hasAddress = Boolean(addressHtml);
+      const hasAddress = Boolean(createOrderAddressHtml);
       const brandingHtml =
         hasLogo || hasName || hasAddress
           ? `
@@ -3413,20 +3414,20 @@ frappe.ready(async function () {
               }
               ${
                 hasName || hasAddress
-                  ? `<div class="success-branding-details">
-                      ${
-                        hasName
-                          ? `<div class="success-branding-name">${escapeHtml(
-                                createOrderBranchName
-                              )}</div>`
-                          : ""
-                      }
-                      ${
-                        hasAddress
-                          ? `<div class="success-branding-address">${addressHtml}</div>`
-                          : ""
-                      }
-                    </div>`
+                    ? `<div class="success-branding-details">
+                        ${
+                            hasName
+                                ? `<div class="success-branding-name">${escapeHtml(
+                                      createOrderBranchName
+                                  )}</div>`
+                                : ""
+                        }
+                        ${
+                            hasAddress
+                                ? `<div class="success-branding-address">${createOrderAddressHtml}</div>`
+                                : ""
+                        }
+                      </div>`
                   : ""
               }
             `.trim()

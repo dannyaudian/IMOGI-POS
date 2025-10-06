@@ -3591,9 +3591,9 @@ n
                     : '';
             const kioskLogoCandidate =
                 typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
-            const addressSource = kioskBranchAddressRaw || kioskBranchName;
-            const addressHtml = addressSource
-                ? addressSource
+            const kioskAddressSource = kioskBranchAddressRaw || kioskBranchName;
+            const kioskAddressHtml = kioskAddressSource
+                ? kioskAddressSource
                       .split(/\r?\n/)
                       .map((line) => escapeHtml(line.trim()))
                       .filter(Boolean)
@@ -3601,7 +3601,7 @@ n
                 : '';
             const hasLogo = Boolean(kioskLogoCandidate);
             const hasName = Boolean(kioskBranchName);
-            const hasAddress = Boolean(addressHtml);
+            const hasAddress = Boolean(kioskAddressHtml);
             const brandingHtml =
                 hasLogo || hasName || hasAddress
                     ? `
@@ -3624,7 +3624,7 @@ n
                                     }
                                     ${
                                         hasAddress
-                                            ? `<div class="success-branding-address">${addressHtml}</div>`
+                                            ? `<div class="success-branding-address">${kioskAddressHtml}</div>`n
                                             : ''
                                     }
                                   </div>`
