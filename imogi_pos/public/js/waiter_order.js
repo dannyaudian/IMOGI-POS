@@ -40,6 +40,8 @@ imogi_pos.waiter_order = {
         customerPhone: null,
         kotSubmitted: false
     },
+
+    selectionMemory: Object.create(null),
     
     /**
      * Initialize the Waiter Order
@@ -1493,6 +1495,14 @@ imogi_pos.waiter_order = {
      * @param {string} itemName - Selected item name
      */
     handleItemSelection: function(itemName) {
+        const remembered = this.getRememberedSelection(itemName);
+        if (remembered) {
+            const clonedOptions = this.cloneSelectionOptions(remembered.options);
+            const notes = remembered.notes || '';
+            this.addItemToOrder(itemName, clonedOptions, 1, notes);
+            return;
+        }
+
         frappe.call({
             method: 'imogi_pos.api.items.get_item_options',
             args: { item: itemName },
@@ -1795,7 +1805,7 @@ imogi_pos.waiter_order = {
      * Add item to order
      * @param {string} itemName - Item name to add
      */
-    addItemToOrder: function(itemName, options = {}) {
+    addItemToOrder: function(itemName, options = {}, quantity = 1, notes = '') {
         const toolkit = imogi_pos.utils && imogi_pos.utils.options;
         const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
             ? toolkit.applyOptionsToLine
@@ -1807,7 +1817,8 @@ imogi_pos.waiter_order = {
         }
 
         const itemDetails = this.getCatalogItemDetails(itemName) || {};
-        const qty = 1;
+        const qty = Math.max(1, parseInt(quantity, 10) || 1);
+        const itemNotes = notes || '';
         const line = {
             item: itemName,
             item_code: itemName,
@@ -1816,7 +1827,7 @@ imogi_pos.waiter_order = {
             qty: qty,
             rate: 0,
             amount: 0,
-            notes: '',
+            notes: itemNotes,
             item_options: options || {},
             options: options || {},
             requires_variant: Number(itemDetails.has_variants) === 1,
@@ -1842,9 +1853,14 @@ imogi_pos.waiter_order = {
                 });
 
                 if (existingItemIndex !== -1) {
-                    this.state.orderItems[existingItemIndex].qty += line.qty;
-                    this.state.orderItems[existingItemIndex].amount =
-                        this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
+                    const existingItem = this.state.orderItems[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+                    const rate = Number(existingItem.rate) || 0;
+
+                    existingItem.qty = updatedQty;
+                    existingItem.amount = updatedQty * rate;
                 } else {
                     this.state.orderItems.push(line);
                 }
@@ -1854,7 +1870,14 @@ imogi_pos.waiter_order = {
                 const promptIndex = existingItemIndex !== -1
                     ? existingItemIndex
                     : this.state.orderItems.length - 1;
-                this.promptForNotes(promptIndex);
+
+                this.rememberItemSelection(itemName, line.item_options, line.notes);
+
+                const targetItem = this.state.orderItems[promptIndex];
+                const needsNotesPrompt = !(targetItem && targetItem.notes && targetItem.notes.trim());
+                if (needsNotesPrompt) {
+                    this.promptForNotes(promptIndex);
+                }
             })
             .catch((error) => {
                 console.error('Failed to add item to order', error);
@@ -1864,6 +1887,58 @@ imogi_pos.waiter_order = {
             .finally(() => {
                 this.showLoading(false);
             });
+    },
+
+    cloneSelectionOptions: function(options) {
+        if (!options) {
+            return {};
+        }
+
+        if (typeof structuredClone === 'function') {
+            try {
+                return structuredClone(options);
+            } catch (error) {
+                // Fallback to JSON cloning below
+            }
+        }
+
+        try {
+            return JSON.parse(JSON.stringify(options));
+        } catch (error) {
+            if (Array.isArray(options)) {
+                return options.slice();
+            }
+            if (typeof options === 'object') {
+                return Object.assign({}, options);
+            }
+            return {};
+        }
+    },
+
+    ensureSelectionMemory: function() {
+        if (!this.selectionMemory || typeof this.selectionMemory !== 'object') {
+            this.selectionMemory = Object.create(null);
+        }
+        return this.selectionMemory;
+    },
+
+    rememberItemSelection: function(itemName, options = {}, notes = '') {
+        if (!itemName) {
+            return;
+        }
+        const store = this.ensureSelectionMemory();
+        store[itemName] = {
+            options: this.cloneSelectionOptions(options),
+            notes: notes || ''
+        };
+    },
+
+    getRememberedSelection: function(itemName) {
+        if (!itemName) {
+            return null;
+        }
+        const store = this.ensureSelectionMemory();
+        return store[itemName] || null;
     },
     
     /**
@@ -1943,14 +2018,22 @@ imogi_pos.waiter_order = {
                 const notesInput = modalContainer.querySelector('#item-notes');
                 if (notesInput) {
                     const notes = notesInput.value.trim();
-                    
+
                     // Update item notes
-                    this.state.orderItems[itemIndex].notes = notes;
-                    
+                    const cartItem = this.state.orderItems[itemIndex];
+                    if (cartItem) {
+                        cartItem.notes = notes;
+                        this.rememberItemSelection(
+                            cartItem.item || cartItem.item_code,
+                            cartItem.item_options || cartItem.options,
+                            notes
+                        );
+                    }
+
                     // Update UI
                     this.updateOrderPanel();
                 }
-                
+
                 // Close modal
                 modalContainer.classList.remove('active');
             });
@@ -1976,10 +2059,16 @@ imogi_pos.waiter_order = {
      */
     decreaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            if (this.state.orderItems[index].qty > 1) {
-                this.state.orderItems[index].qty -= 1;
-                this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-                
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
+
                 // Update UI
                 this.updateOrderPanel();
             } else {
@@ -1995,9 +2084,14 @@ imogi_pos.waiter_order = {
      */
     increaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            this.state.orderItems[index].qty += 1;
-            this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-            
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
+
             // Update UI
             this.updateOrderPanel();
         }

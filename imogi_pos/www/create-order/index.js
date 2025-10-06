@@ -196,6 +196,7 @@ frappe.ready(async function () {
     priceRefreshTimer: null,
     priceRefreshInFlight: false,
     priceRefreshQueued: false,
+    selectionMemory: new Map(),
 
     discountState: {
       cartQuantity: 0,
@@ -2260,6 +2261,12 @@ frappe.ready(async function () {
     },
 
     handleItemClick: function (item) {
+      if (!item) return;
+
+      if (!item.has_variants && this.tryQuickAddItem(item)) {
+        return;
+      }
+
       if (item.has_variants) this.openVariantPicker(item);
       else this.openItemDetailModal(item);
     },
@@ -2547,13 +2554,17 @@ frappe.ready(async function () {
       );
 
       if (existingIndex >= 0) {
-        this.cart[existingIndex].qty += 1;
-        this.cart[existingIndex]._base_rate = baseRate;
-        this.cart[existingIndex]._extra_rate = extraRate;
-        this.cart[existingIndex].rate = baseRate + extraRate;
-        this.cart[existingIndex].amount = this.cart[existingIndex].rate * this.cart[existingIndex].qty;
-        if (!this.cart[existingIndex].menu_category && resolvedCategory) {
-          this.cart[existingIndex].menu_category = resolvedCategory;
+        const existingItem = this.cart[existingIndex];
+        const currentQty = Number(existingItem && existingItem.qty) || 0;
+        const updatedQty = currentQty + 1;
+
+        existingItem.qty = updatedQty;
+        existingItem._base_rate = baseRate;
+        existingItem._extra_rate = extraRate;
+        existingItem.rate = baseRate + extraRate;
+        existingItem.amount = existingItem.rate * updatedQty;
+        if (!existingItem.menu_category && resolvedCategory) {
+          existingItem.menu_category = resolvedCategory;
         }
       } else {
         this.cart.push({
@@ -2574,6 +2585,81 @@ frappe.ready(async function () {
 
       this.renderCart();
       this.updateCartTotals();
+      this.rememberItemSelection(item, item_options, notes);
+    },
+
+    tryQuickAddItem: function (item) {
+      const key = this.resolveSelectionKey(item);
+      if (!key) return false;
+
+      const memory = this.getRememberedSelection(key);
+      if (!memory) return false;
+
+      const normalizedNotes = memory.notes || "";
+      const targetSignature = JSON.stringify(memory.options || {});
+
+      const existingIndex = this.cart.findIndex((line) => {
+        if (!line || line.item_code !== key) return false;
+        const lineNotes = line.notes || "";
+        const lineSignature = JSON.stringify(line.item_options || {});
+        return lineNotes === normalizedNotes && lineSignature === targetSignature;
+      });
+
+      if (existingIndex >= 0) {
+        const currentQty = Number(this.cart[existingIndex].qty) || 0;
+        this.updateCartItemQuantity(existingIndex, currentQty + 1);
+        return true;
+      }
+
+      const clonedOptions = this.cloneSelectionOptions(memory.options);
+      this.addItemToCart(item, clonedOptions, normalizedNotes);
+      return true;
+    },
+
+    resolveSelectionKey: function (item) {
+      if (!item) return null;
+      if (typeof item === "string") return item;
+      if (item.name) return item.name;
+      if (item.item_code) return item.item_code;
+      return null;
+    },
+
+    cloneSelectionOptions: function (options) {
+      if (!options) return {};
+      if (typeof structuredClone === "function") {
+        try {
+          return structuredClone(options);
+        } catch (error) {
+          // Fallback to JSON clone below
+        }
+      }
+      try {
+        return JSON.parse(JSON.stringify(options));
+      } catch (error) {
+        if (Array.isArray(options)) return options.slice();
+        if (typeof options === "object") return Object.assign({}, options);
+        return {};
+      }
+    },
+
+    rememberItemSelection: function (item, item_options = {}, notes = "") {
+      const key = this.resolveSelectionKey(item);
+      if (!key) return;
+
+      const normalizedNotes = notes || "";
+      const normalizedOptions = this.cloneSelectionOptions(item_options);
+      this.selectionMemory.set(key, {
+        options: normalizedOptions,
+        notes: normalizedNotes,
+      });
+    },
+
+    getRememberedSelection: function (key) {
+      if (!key) return null;
+      if (!this.selectionMemory || typeof this.selectionMemory.get !== "function") {
+        this.selectionMemory = new Map();
+      }
+      return this.selectionMemory.get(key) || null;
     },
 
     formatItemOptions: function (options) {

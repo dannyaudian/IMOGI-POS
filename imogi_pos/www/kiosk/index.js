@@ -171,6 +171,7 @@ frappe.ready(async function() {
         priceRefreshTimer: null,
         priceRefreshInFlight: false,
         priceRefreshQueued: false,
+        selectionMemory: new Map(),
 
         discountState: {
             cartQuantity: 0,
@@ -1817,10 +1818,12 @@ frappe.ready(async function() {
 
                     if (control.classList.contains('qty-plus')) {
                         event.preventDefault();
-                        this.updateCartItemQuantity(index, cartItem.qty + 1);
+                        const currentQty = Number(cartItem && cartItem.qty) || 0;
+                        this.updateCartItemQuantity(index, currentQty + 1);
                     } else if (control.classList.contains('qty-minus')) {
                         event.preventDefault();
-                        this.updateCartItemQuantity(index, cartItem.qty - 1);
+                        const currentQty = Number(cartItem && cartItem.qty) || 0;
+                        this.updateCartItemQuantity(index, currentQty - 1);
                     } else if (control.classList.contains('cart-item-remove')) {
                         this.removeCartItem(index);
                     }
@@ -2197,6 +2200,14 @@ frappe.ready(async function() {
         },
 
         handleItemClick: function(item) {
+            if (!item) {
+                return;
+            }
+
+            if (!item.has_variants && this.tryQuickAddItem(item)) {
+                return;
+            }
+
             if (item.has_variants) {
                 // Open variant picker
                 this.openVariantPicker(item);
@@ -2494,11 +2505,14 @@ frappe.ready(async function() {
 
             if (existingIndex >= 0) {
                 const cartItem = this.cart[existingIndex];
-                cartItem.qty += 1;
+                const currentQty = Number(cartItem && cartItem.qty) || 0;
+                const updatedQty = currentQty + 1;
+
+                cartItem.qty = updatedQty;
                 cartItem._base_rate = safeBase;
                 cartItem._extra_rate = safeExtra;
                 cartItem.rate = safeBase + safeExtra;
-                cartItem.amount = cartItem.rate * cartItem.qty;
+                cartItem.amount = cartItem.rate * updatedQty;
             } else {
                 this.cart.push({
                     item_code: item.name,
@@ -2517,6 +2531,107 @@ frappe.ready(async function() {
 
             this.renderCart();
             this.updateCartTotals();
+            this.rememberItemSelection(item, item_options, notes);
+        },
+
+        tryQuickAddItem: function(item) {
+            const key = this.resolveSelectionKey(item);
+            if (!key) {
+                return false;
+            }
+
+            const memory = this.getRememberedSelection(key);
+            if (!memory) {
+                return false;
+            }
+
+            const normalizedNotes = memory.notes || '';
+            const targetSignature = JSON.stringify(memory.options || {});
+
+            const existingIndex = this.cart.findIndex(line => {
+                if (!line || line.item_code !== key) {
+                    return false;
+                }
+                const lineNotes = line.notes || '';
+                const lineSignature = JSON.stringify(line.item_options || {});
+                return lineNotes === normalizedNotes && lineSignature === targetSignature;
+            });
+
+            if (existingIndex >= 0) {
+                const currentQty = Number(this.cart[existingIndex].qty) || 0;
+                this.updateCartItemQuantity(existingIndex, currentQty + 1);
+                return true;
+            }
+
+            const clonedOptions = this.cloneSelectionOptions(memory.options);
+            this.addItemToCart(item, clonedOptions, normalizedNotes);
+            return true;
+        },
+
+        resolveSelectionKey: function(item) {
+            if (!item) {
+                return null;
+            }
+            if (typeof item === 'string') {
+                return item;
+            }
+            if (item.name) {
+                return item.name;
+            }
+            if (item.item_code) {
+                return item.item_code;
+            }
+            return null;
+        },
+
+        cloneSelectionOptions: function(options) {
+            if (!options) {
+                return {};
+            }
+
+            if (typeof structuredClone === 'function') {
+                try {
+                    return structuredClone(options);
+                } catch (error) {
+                    // Fallback to JSON cloning below
+                }
+            }
+
+            try {
+                return JSON.parse(JSON.stringify(options));
+            } catch (error) {
+                if (Array.isArray(options)) {
+                    return options.slice();
+                }
+                if (typeof options === 'object') {
+                    return Object.assign({}, options);
+                }
+                return {};
+            }
+        },
+
+        rememberItemSelection: function(item, item_options = {}, notes = '') {
+            const key = this.resolveSelectionKey(item);
+            if (!key) {
+                return;
+            }
+
+            const store = this.selectionMemory;
+            const normalizedOptions = this.cloneSelectionOptions(item_options);
+            store.set(key, {
+                options: normalizedOptions,
+                notes: notes || ''
+            });
+        },
+
+        getRememberedSelection: function(key) {
+            if (!key) {
+                return null;
+            }
+            if (!this.selectionMemory || typeof this.selectionMemory.get !== 'function') {
+                this.selectionMemory = new Map();
+            }
+            return this.selectionMemory.get(key) || null;
         },
 
         formatItemOptions: function(options) {
@@ -2542,7 +2657,8 @@ frappe.ready(async function() {
         },
         
         updateCartItemQuantity: function(index, newQty) {
-            if (newQty < 1) {
+            const safeQty = Number(newQty);
+            if (!Number.isFinite(safeQty) || safeQty < 1) {
                 this.removeCartItem(index);
                 return;
             }
@@ -2565,8 +2681,8 @@ frappe.ready(async function() {
             cartItem._base_rate = safeBase;
             cartItem._extra_rate = safeExtra;
             cartItem.rate = safeBase + safeExtra;
-            cartItem.qty = newQty;
-            cartItem.amount = cartItem.rate * newQty;
+            cartItem.qty = safeQty;
+            cartItem.amount = cartItem.rate * safeQty;
 
             this.renderCart();
             this.updateCartTotals();
