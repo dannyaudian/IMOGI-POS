@@ -3518,6 +3518,61 @@ frappe.ready(async function () {
             .join("")
         : `<tr><td colspan="3">${__("No items found")}</td></tr>`;
 
+      const branchInfo =
+        typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
+      const branchName =
+        branchInfo?.display_name ||
+        branchInfo?.name ||
+        (typeof CURRENT_BRANCH === "string" ? CURRENT_BRANCH : "");
+      const branchAddressRaw =
+        branchInfo?.address && String(branchInfo.address).trim()
+          ? String(branchInfo.address)
+          : "";
+      const logoCandidate = typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
+      const addressSource = branchAddressRaw || branchName;
+      const addressHtml = addressSource
+        ? addressSource
+            .split(/\r?\n/)
+            .map((line) => escapeHtml(line.trim()))
+            .filter(Boolean)
+            .join("<br>")
+        : "";
+      const hasLogo = Boolean(logoCandidate);
+      const hasName = Boolean(branchName);
+      const hasAddress = Boolean(addressHtml);
+      const brandingHtml =
+        hasLogo || hasName || hasAddress
+          ? `
+              <div class="success-receipt-brand">
+                ${
+                  hasLogo
+                    ? `<img src="${logoCandidate}" alt="${escapeHtml(
+                        branchName || "Logo"
+                      )}" class="success-receipt-logo">`
+                    : ""
+                }
+                ${
+                  hasName || hasAddress
+                    ? `<div class="success-receipt-brand-details">
+                        ${
+                          hasName
+                            ? `<div class="success-receipt-brand-name">${escapeHtml(
+                                  branchName
+                                )}</div>`
+                            : ""
+                        }
+                        ${
+                          hasAddress
+                            ? `<div class="success-receipt-brand-address">${addressHtml}</div>`
+                            : ""
+                        }
+                      </div>`
+                    : ""
+                }
+              </div>
+            `
+          : "";
+
       const subtotalValue = toNumber(
         orderDetails?.subtotal ??
           invoiceDetails?.total ??
