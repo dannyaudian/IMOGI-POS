@@ -3577,6 +3577,61 @@ n
             const receiptContainer = this.elements.successReceipt;
             receiptContainer.classList.remove('hidden');
 
+            const branchInfo =
+                typeof BRANCH_INFO === 'object' && BRANCH_INFO !== null ? BRANCH_INFO : null;
+            const branchName =
+                branchInfo?.display_name ||
+                branchInfo?.name ||
+                (typeof CURRENT_BRANCH === 'string' ? CURRENT_BRANCH : '');
+            const branchAddressRaw =
+                branchInfo?.address && String(branchInfo.address).trim()
+                    ? String(branchInfo.address)
+                    : '';
+            const logoCandidate = typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
+            const addressSource = branchAddressRaw || branchName;
+            const addressHtml = addressSource
+                ? addressSource
+                      .split(/\r?\n/)
+                      .map((line) => escapeHtml(line.trim()))
+                      .filter(Boolean)
+                      .join('<br>')
+                : '';
+            const hasLogo = Boolean(logoCandidate);
+            const hasName = Boolean(branchName);
+            const hasAddress = Boolean(addressHtml);
+            const brandingHtml =
+                hasLogo || hasName || hasAddress
+                    ? `
+                        <div class="success-receipt-brand">
+                          ${
+                              hasLogo
+                                  ? `<img src="${logoCandidate}" alt="${escapeHtml(
+                                        branchName || 'Logo'
+                                    )}" class="success-receipt-logo">`
+                                  : ''
+                          }
+                          ${
+                              hasName || hasAddress
+                                  ? `<div class="success-receipt-brand-details">
+                                      ${
+                                          hasName
+                                              ? `<div class="success-receipt-brand-name">${escapeHtml(
+                                                    branchName
+                                                )}</div>`
+                                              : ''
+                                      }
+                                      ${
+                                          hasAddress
+                                              ? `<div class="success-receipt-brand-address">${addressHtml}</div>`
+                                              : ''
+                                      }
+                                    </div>`
+                                  : ''
+                          }
+                        </div>
+                      `
+                    : '';
+
             const toNumber = (value) => {
                 const num = parseFloat(value);
                 return Number.isFinite(num) ? num : 0;
@@ -3672,45 +3727,48 @@ n
             const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
 
             receiptContainer.innerHTML = `
-                <div class="success-receipt-header">
-                  <div class="success-receipt-title">${__('Receipt')}</div>
-                  <div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__('Order No.')}</div>
-                    <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                ${brandingHtml}
+                <div class="success-receipt-card">
+                  <div class="success-receipt-header">
+                    <div class="success-receipt-title">${__('Receipt')}</div>
+                    <div class="success-receipt-meta">
+                      <div class="success-receipt-label">${__('Order No.')}</div>
+                      <div class="success-receipt-value">${escapeHtml(orderNumber || '-')}</div>
+                    </div>
                   </div>
-                </div>
-                <table class="success-receipt-table">
-                  <thead>
-                    <tr>
-                      <th>${__('Item')}</th>
-                      <th>${__('Qty')}</th>
-                      <th>${__('Amount')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemRows}
-                  </tbody>
-                </table>
-                <div class="success-receipt-summary">
-                  <div class="success-receipt-summary-row">
-                    <span>${__('Subtotal')}</span>
-                    <span>${formatRupiah(subtotalValue)}</span>
-                  </div>
-                  <div class="success-receipt-summary-row">
-                    <span>${__('PB1')}</span>
-                    <span>${formatRupiah(pb1Value)}</span>
-                  </div>
-                  ${
-                    discountValue > 0
-                        ? `<div class="success-receipt-summary-row discount">
-                            <span>${__('Discount')}</span>
-                            <span>- ${formatRupiah(discountValue)}</span>
-                          </div>`
-                        : ''
-                  }
-                  <div class="success-receipt-summary-row total">
-                    <span>${__('Total')}</span>
-                    <span>${formatRupiah(totalValue)}</span>
+                  <table class="success-receipt-table">
+                    <thead>
+                      <tr>
+                        <th>${__('Item')}</th>
+                        <th>${__('Qty')}</th>
+                        <th>${__('Amount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemRows}
+                    </tbody>
+                  </table>
+                  <div class="success-receipt-summary">
+                    <div class="success-receipt-summary-row">
+                      <span>${__('Subtotal')}</span>
+                      <span>${formatRupiah(subtotalValue)}</span>
+                    </div>
+                    <div class="success-receipt-summary-row">
+                      <span>${__('PB1')}</span>
+                      <span>${formatRupiah(pb1Value)}</span>
+                    </div>
+                    ${
+                      discountValue > 0
+                          ? `<div class="success-receipt-summary-row discount">
+                              <span>${__('Discount')}</span>
+                              <span>- ${formatRupiah(discountValue)}</span>
+                            </div>`
+                          : ''
+                    }
+                    <div class="success-receipt-summary-row total">
+                      <span>${__('Total')}</span>
+                      <span>${formatRupiah(totalValue)}</span>
+                    </div>
                   </div>
                 </div>
             `;
