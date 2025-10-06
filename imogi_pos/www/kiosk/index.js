@@ -3579,15 +3579,15 @@ n
                 return;
             }
 
-            const branchInfo =
+            const branchBranding =
                 typeof BRANCH_INFO === 'object' && BRANCH_INFO !== null ? BRANCH_INFO : null;
             const branchName =
-                branchInfo?.display_name ||
-                branchInfo?.name ||
+                branchBranding?.display_name ||
+                branchBranding?.name ||
                 (typeof CURRENT_BRANCH === 'string' ? CURRENT_BRANCH : '');
             const branchAddressRaw =
-                branchInfo?.address && String(branchInfo.address).trim()
-                    ? String(branchInfo.address)
+                branchBranding?.address && String(branchBranding.address).trim()
+                    ? String(branchBranding.address)
                     : '';
             const logoCandidate = typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
             const addressSource = branchAddressRaw || branchName;
