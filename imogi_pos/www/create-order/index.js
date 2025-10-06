@@ -298,6 +298,7 @@ frappe.ready(async function () {
 
       // Success modal
       successModal: document.getElementById("success-modal"),
+      successBranding: document.getElementById("success-branding"),
       successQueueNumber: document.getElementById("success-queue-number"),
       successReceipt: document.getElementById("success-receipt"),
       successDoneBtn: document.getElementById("btn-success-done"),
@@ -3354,10 +3355,83 @@ frappe.ready(async function () {
 
     renderSuccessReceipt: async function () {
       const receiptEl = this.elements.successReceipt;
-      if (!receiptEl) return;
+      const brandingEl = this.elements.successBranding;
+      if (!receiptEl) {
+        if (brandingEl) {
+          brandingEl.classList.add("hidden");
+          brandingEl.innerHTML = "";
+        }
+        return;
+      }
 
       receiptEl.classList.remove("hidden");
       receiptEl.innerHTML = `<div class="success-receipt-loading">${__("Loading receipt...")}</div>`;
+
+      const applyBranding = (html) => {
+        if (!brandingEl) return;
+        if (html) {
+          brandingEl.innerHTML = html;
+          brandingEl.classList.remove("hidden");
+        } else {
+          brandingEl.classList.add("hidden");
+          brandingEl.innerHTML = "";
+        }
+      };
+
+      const branchInfo =
+        typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
+      const branchName =
+        branchInfo?.display_name ||
+        branchInfo?.name ||
+        (typeof CURRENT_BRANCH === "string" ? CURRENT_BRANCH : "");
+      const branchAddressRaw =
+        branchInfo?.address && String(branchInfo.address).trim()
+          ? String(branchInfo.address)
+          : "";
+      const logoCandidate = typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
+      const addressSource = branchAddressRaw || branchName;
+      const addressHtml = addressSource
+        ? addressSource
+            .split(/\r?\n/)
+            .map((line) => escapeHtml(line.trim()))
+            .filter(Boolean)
+            .join("<br>")
+        : "";
+      const hasLogo = Boolean(logoCandidate);
+      const hasName = Boolean(branchName);
+      const hasAddress = Boolean(addressHtml);
+      const brandingHtml =
+        hasLogo || hasName || hasAddress
+          ? `
+              ${
+                hasLogo
+                  ? `<img src="${logoCandidate}" alt="${escapeHtml(
+                      branchName || "Logo"
+                    )}" class="success-branding-logo">`
+                  : ""
+              }
+              ${
+                hasName || hasAddress
+                  ? `<div class="success-branding-details">
+                      ${
+                        hasName
+                          ? `<div class="success-branding-name">${escapeHtml(
+                                branchName
+                              )}</div>`
+                          : ""
+                      }
+                      ${
+                        hasAddress
+                          ? `<div class="success-branding-address">${addressHtml}</div>`
+                          : ""
+                      }
+                    </div>`
+                  : ""
+              }
+            `.trim()
+          : "";
+
+      applyBranding(brandingHtml);
 
       const toNumber = (value) => {
         const num = parseFloat(value);
@@ -3501,45 +3575,47 @@ frappe.ready(async function () {
       const totalValue = docTotal > 0 ? Math.max(0, docTotal) : computedTotal;
 
       receiptEl.innerHTML = `
-        <div class="success-receipt-header">
-          <div class="success-receipt-title">${__("Receipt")}</div>
-          <div class="success-receipt-meta">
-            <div class="success-receipt-label">${__("Order No.")}</div>
-            <div class="success-receipt-value">${escapeHtml(orderNumber || "-")}</div>
+        <div class="success-receipt-card">
+          <div class="success-receipt-header">
+            <div class="success-receipt-title">${__("Receipt")}</div>
+            <div class="success-receipt-meta">
+              <div class="success-receipt-label">${__("Order No.")}</div>
+              <div class="success-receipt-value">${escapeHtml(orderNumber || "-")}</div>
+            </div>
           </div>
-        </div>
-        <table class="success-receipt-table">
-          <thead>
-            <tr>
-              <th>${__("Item")}</th>
-              <th>${__("Qty")}</th>
-              <th>${__("Amount")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemRows}
-          </tbody>
-        </table>
-        <div class="success-receipt-summary">
-          <div class="success-receipt-summary-row">
-            <span>${__("Subtotal")}</span>
-            <span>${formatRupiah(subtotalValue)}</span>
-          </div>
-          <div class="success-receipt-summary-row">
-            <span>${__("PB1")}</span>
-            <span>${formatRupiah(pb1Value)}</span>
-          </div>
-          ${
-            discountValue > 0
-              ? `<div class="success-receipt-summary-row discount">
-                  <span>${__("Discount")}</span>
-                  <span>- ${formatRupiah(discountValue)}</span>
-                </div>`
-              : ""
-          }
-          <div class="success-receipt-summary-row total">
-            <span>${__("Total")}</span>
-            <span>${formatRupiah(totalValue)}</span>
+          <table class="success-receipt-table">
+            <thead>
+              <tr>
+                <th>${__("Item")}</th>
+                <th>${__("Qty")}</th>
+                <th>${__("Amount")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemRows}
+            </tbody>
+          </table>
+          <div class="success-receipt-summary">
+            <div class="success-receipt-summary-row">
+              <span>${__("Subtotal")}</span>
+              <span>${formatRupiah(subtotalValue)}</span>
+            </div>
+            <div class="success-receipt-summary-row">
+              <span>${__("PB1")}</span>
+              <span>${formatRupiah(pb1Value)}</span>
+            </div>
+            ${
+              discountValue > 0
+                ? `<div class="success-receipt-summary-row discount">
+                    <span>${__("Discount")}</span>
+                    <span>- ${formatRupiah(discountValue)}</span>
+                  </div>`
+                : ""
+            }
+            <div class="success-receipt-summary-row total">
+              <span>${__("Total")}</span>
+              <span>${formatRupiah(totalValue)}</span>
+            </div>
           </div>
         </div>
       `;
@@ -3554,7 +3630,14 @@ frappe.ready(async function () {
 
     closeSuccessModal: function () {
       if (this.elements.successModal) this.elements.successModal.style.display = "none";
-      if (this.elements.successReceipt) this.elements.successReceipt.classList.add("hidden");
+      if (this.elements.successReceipt) {
+        this.elements.successReceipt.classList.add("hidden");
+        this.elements.successReceipt.innerHTML = "";
+      }
+      if (this.elements.successBranding) {
+        this.elements.successBranding.classList.add("hidden");
+        this.elements.successBranding.innerHTML = "";
+      }
     },
 
     resetApp: function () {
@@ -3578,6 +3661,10 @@ frappe.ready(async function () {
       if (this.elements.successReceipt) {
         this.elements.successReceipt.innerHTML = "";
         this.elements.successReceipt.classList.add("hidden");
+      }
+      if (this.elements.successBranding) {
+        this.elements.successBranding.innerHTML = "";
+        this.elements.successBranding.classList.add("hidden");
       }
 
       this.customerInfo = {
