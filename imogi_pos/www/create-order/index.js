@@ -1800,9 +1800,9 @@ frappe.ready(async function () {
               <div class="cart-item-price">${formatRupiah(item.amount)}</div>
             </div>
             <div class="cart-item-controls">
-              <button class="qty-btn qty-minus" data-index="${index}">-</button>
+              <button type="button" class="qty-btn qty-minus" data-index="${index}">-</button>
               <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
-              <button class="qty-btn qty-plus" data-index="${index}">+</button>
+              <button type="button" class="qty-btn qty-plus" data-index="${index}">+</button>
             </div>
             ${item.item_options ? `<div class="cart-item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
             ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ""}
