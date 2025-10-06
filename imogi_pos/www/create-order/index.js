@@ -3378,11 +3378,8 @@ frappe.ready(async function () {
         }
       };
 
-      const branchInfo =
-        typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
-      const branchName =
-        branchInfo?.display_name ||
-        branchInfo?.name ||
+      const branchInfo = typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
+      const branchName =branchInfo?.display_name || branchInfo?.name ||
         (typeof CURRENT_BRANCH === "string" ? CURRENT_BRANCH : "");
       const branchAddressRaw =
         branchInfo?.address && String(branchInfo.address).trim()
