@@ -3579,18 +3579,18 @@ n
                 return;
             }
 
-            const branchBranding =
+            const kioskBranchBranding =
                 typeof BRANCH_INFO === 'object' && BRANCH_INFO !== null ? BRANCH_INFO : null;
-            const branchName =
-                branchBranding?.display_name ||
-                branchBranding?.name ||
+            const kioskBranchName =
+                kioskBranchBranding?.display_name ||
+                kioskBranchBranding?.name ||
                 (typeof CURRENT_BRANCH === 'string' ? CURRENT_BRANCH : '');
-            const branchAddressRaw =
-                branchBranding?.address && String(branchBranding.address).trim()
-                    ? String(branchBranding.address)
+            const kioskBranchAddressRaw =
+                kioskBranchBranding?.address && String(kioskBranchBranding.address).trim()
+                    ? String(kioskBranchBranding.address)
                     : '';
             const logoCandidate = typeof RECEIPT_LOGO === 'string' ? RECEIPT_LOGO.trim() : '';
-            const addressSource = branchAddressRaw || branchName;
+            const addressSource = kioskBranchAddressRaw || kioskBranchName;
             const addressHtml = addressSource
                 ? addressSource
                       .split(/\r?\n/)
@@ -3599,7 +3599,7 @@ n
                       .join('<br>')
                 : '';
             const hasLogo = Boolean(logoCandidate);
-            const hasName = Boolean(branchName);
+            const hasName = Boolean(kioskBranchName);
             const hasAddress = Boolean(addressHtml);
             const brandingHtml =
                 hasLogo || hasName || hasAddress
@@ -3607,7 +3607,7 @@ n
                         ${
                             hasLogo
                                 ? `<img src="${logoCandidate}" alt="${escapeHtml(
-                                      branchName || 'Logo'
+                                      kioskBranchName || 'Logo'
                                   )}" class="success-branding-logo">`
                                 : ''
                         }
@@ -3617,7 +3617,7 @@ n
                                     ${
                                         hasName
                                             ? `<div class="success-branding-name">${escapeHtml(
-                                                  branchName
+                                                  kioskBranchName
                                               )}</div>`
                                             : ''
                                     }

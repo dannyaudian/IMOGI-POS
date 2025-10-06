@@ -3378,18 +3378,18 @@ frappe.ready(async function () {
         }
       };
 
-      const branchBranding =
+      const createOrderBranding =
         typeof BRANCH_INFO === "object" && BRANCH_INFO !== null ? BRANCH_INFO : null;
-      const branchName =
-        branchBranding?.display_name ||
-        branchBranding?.name ||
+      const createOrderBranchName =
+        createOrderBranding?.display_name ||
+        createOrderBranding?.name ||
         (typeof CURRENT_BRANCH === "string" ? CURRENT_BRANCH : "");
-      const branchAddressRaw =
-        branchBranding?.address && String(branchBranding.address).trim()
-          ? String(branchBranding.address)
+      const createOrderBranchAddressRaw =
+        createOrderBranding?.address && String(createOrderBranding.address).trim()
+          ? String(createOrderBranding.address)
           : "";
       const logoCandidate = typeof RECEIPT_LOGO === "string" ? RECEIPT_LOGO.trim() : "";
-      const addressSource = branchAddressRaw || branchName;
+      const addressSource = createOrderBranchAddressRaw || createOrderBranchName;
       const addressHtml = addressSource
         ? addressSource
             .split(/\r?\n/)
@@ -3398,7 +3398,7 @@ frappe.ready(async function () {
             .join("<br>")
         : "";
       const hasLogo = Boolean(logoCandidate);
-      const hasName = Boolean(branchName);
+      const hasName = Boolean(createOrderBranchName);
       const hasAddress = Boolean(addressHtml);
       const brandingHtml =
         hasLogo || hasName || hasAddress
@@ -3406,7 +3406,7 @@ frappe.ready(async function () {
               ${
                 hasLogo
                   ? `<img src="${logoCandidate}" alt="${escapeHtml(
-                      branchName || "Logo"
+                      createOrderBranchName || "Logo"
                     )}" class="success-branding-logo">`
                   : ""
               }
@@ -3416,7 +3416,7 @@ frappe.ready(async function () {
                       ${
                         hasName
                           ? `<div class="success-branding-name">${escapeHtml(
-                                branchName
+                                createOrderBranchName
                               )}</div>`
                           : ""
                       }
