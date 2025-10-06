@@ -3399,31 +3399,31 @@ frappe.ready(async function () {
             .filter(Boolean)
             .join("<br>")
         : "";
-      const hasLogo = Boolean(createOrderLogoCandidate);
-      const hasName = Boolean(createOrderBranchName);
-      const hasAddress = Boolean(createOrderAddressHtml);
+      const createOrderHasLogo = Boolean(createOrderLogoCandidate);
+      const createOrderHasName = Boolean(createOrderBranchName);
+      const createOrderHasAddress = Boolean(createOrderAddressHtml);
       const brandingHtml =
-        hasLogo || hasName || hasAddress
+        createOrderHasLogo || createOrderHasName || createOrderHasAddress
           ? `
               ${
-                hasLogo
+                createOrderHasLogo
                   ? `<img src="${createOrderLogoCandidate}" alt="${escapeHtml(
                       createOrderBranchName || "Logo"
                     )}" class="success-branding-logo">`
                   : ""
               }
               ${
-                hasName || hasAddress
+                createOrderHasName || createOrderHasAddress
                     ? `<div class="success-branding-details">
                         ${
-                            hasName
+                            createOrderHasName
                                 ? `<div class="success-branding-name">${escapeHtml(
                                       createOrderBranchName
                                   )}</div>`
                                 : ""
                         }
                         ${
-                            hasAddress
+                            createOrderHasAddress
                                 ? `<div class="success-branding-address">${createOrderAddressHtml}</div>`
                                 : ""
                         }

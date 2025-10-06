@@ -3599,32 +3599,32 @@ n
                       .filter(Boolean)
                       .join('<br>')
                 : '';
-            const hasLogo = Boolean(kioskLogoCandidate);
-            const hasName = Boolean(kioskBranchName);
-            const hasAddress = Boolean(kioskAddressHtml);
+            const kioskHasLogo = Boolean(kioskLogoCandidate);
+            const kioskHasName = Boolean(kioskBranchName);
+            const kioskHasAddress = Boolean(kioskAddressHtml);
             const brandingHtml =
-                hasLogo || hasName || hasAddress
+                kioskHasLogo || kioskHasName || kioskHasAddress
                     ? `
                         ${
-                            hasLogo
+                            kioskHasLogo
                                 ? `<img src="${kioskLogoCandidate}" alt="${escapeHtml(
                                       kioskBranchName || 'Logo'
                                   )}" class="success-branding-logo">`
                                 : ''
                         }
                         ${
-                            hasName || hasAddress
+                            kioskHasName || kioskHasAddress
                                 ? `<div class="success-branding-details">
                                     ${
-                                        hasName
+                                        kioskHasName
                                             ? `<div class="success-branding-name">${escapeHtml(
                                                   kioskBranchName
                                               )}</div>`
                                             : ''
                                     }
                                     ${
-                                        hasAddress
-                                            ? `<div class="success-branding-address">${kioskAddressHtml}</div>`n
+                                        kioskHasAddress
+                                            ? `<div class="success-branding-address">${kioskAddressHtml}</div>`
                                             : ''
                                     }
                                   </div>`
