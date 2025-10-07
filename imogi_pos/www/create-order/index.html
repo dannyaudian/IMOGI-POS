@@ -517,8 +517,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .success-receipt-meta {
   text-align: center;
 }
+.success-receipt-meta-row {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+  width: 100%;
+}
 .success-receipt-meta + .success-receipt-meta {
   margin-top: 0.35rem;
+}
+.success-receipt-meta-row .success-receipt-meta + .success-receipt-meta {
+  margin-top: 0;
 }
 .success-receipt-label {
   font-size: 0.75rem;
@@ -937,8 +948,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   <div class="modal-container">
     <div class="success-branding hidden" id="success-branding"></div>
     <div class="success-icon"><i class="fa fa-check-circle"></i></div>
-    <div class="success-message">{{ _("Order Completed!") }}</div>
-    <div class="success-details">{{ _("Your order has been sent to the kitchen") }}</div>
 
     <div class="success-receipt hidden" id="success-receipt">
       <div class="success-receipt-loading">{{ _("Loading receipt...") }}</div>

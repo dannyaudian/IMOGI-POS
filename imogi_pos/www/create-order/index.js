@@ -3720,22 +3720,28 @@ frappe.ready(async function () {
               )}</div>
             </div>
             ${
-              createOrderDateDisplay
-                ? `<div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__("Date")}</div>
-                    <div class="success-receipt-value">${escapeHtml(
+              createOrderDateDisplay || createOrderCashierDisplay
+                ? `<div class="success-receipt-meta-row">
+                    ${
                       createOrderDateDisplay
-                    )}</div>
-                  </div>`
-                : ""
-            }
-            ${
-              createOrderCashierDisplay
-                ? `<div class="success-receipt-meta">
-                    <div class="success-receipt-label">${__("Cashier")}</div>
-                    <div class="success-receipt-value">${escapeHtml(
+                        ? `<div class="success-receipt-meta">
+                            <div class="success-receipt-label">${__("Date")}</div>
+                            <div class="success-receipt-value">${escapeHtml(
+                              createOrderDateDisplay
+                            )}</div>
+                          </div>`
+                        : ""
+                    }
+                    ${
                       createOrderCashierDisplay
-                    )}</div>
+                        ? `<div class="success-receipt-meta">
+                            <div class="success-receipt-label">${__("Cashier")}</div>
+                            <div class="success-receipt-value">${escapeHtml(
+                              createOrderCashierDisplay
+                            )}</div>
+                          </div>`
+                        : ""
+                    }
                   </div>`
                 : ""
             }

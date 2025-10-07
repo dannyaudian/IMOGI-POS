@@ -3889,18 +3889,24 @@ n
                       <div class="success-receipt-value">${escapeHtml(kioskOrderNumber || '-')}</div>
                     </div>
                     ${
-                      kioskDateDisplay
-                          ? `<div class="success-receipt-meta">
-                              <div class="success-receipt-label">${__('Date')}</div>
-                              <div class="success-receipt-value">${escapeHtml(kioskDateDisplay)}</div>
-                            </div>`
-                          : ''
-                    }
-                    ${
-                      kioskCashierDisplay
-                          ? `<div class="success-receipt-meta">
-                              <div class="success-receipt-label">${__('Cashier')}</div>
-                              <div class="success-receipt-value">${escapeHtml(kioskCashierDisplay)}</div>
+                      kioskDateDisplay || kioskCashierDisplay
+                          ? `<div class="success-receipt-meta-row">
+                              ${
+                                kioskDateDisplay
+                                  ? `<div class="success-receipt-meta">
+                                      <div class="success-receipt-label">${__('Date')}</div>
+                                      <div class="success-receipt-value">${escapeHtml(kioskDateDisplay)}</div>
+                                    </div>`
+                                  : ''
+                              }
+                              ${
+                                kioskCashierDisplay
+                                  ? `<div class="success-receipt-meta">
+                                      <div class="success-receipt-label">${__('Cashier')}</div>
+                                      <div class="success-receipt-value">${escapeHtml(kioskCashierDisplay)}</div>
+                                    </div>`
+                                  : ''
+                              }
                             </div>`
                           : ''
                     }
