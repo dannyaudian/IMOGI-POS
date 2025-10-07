@@ -109,6 +109,135 @@ frappe.ready(async function() {
         return value.trim().length > 0;
     }
 
+    const RECEIPT_DATETIME_FORMATTER =
+        typeof Intl !== 'undefined' && typeof Intl.DateTimeFormat === 'function'
+            ? new Intl.DateTimeFormat('id-ID', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+              })
+            : null;
+
+    function normaliseReceiptDateTime(dateValue, timeValue) {
+        if (dateValue && timeValue) {
+            const datePart = String(dateValue).trim();
+            const timePart = String(timeValue).trim();
+            if (!datePart) {
+                return null;
+            }
+            const sanitizedDate = datePart.split(' ')[0].split('T')[0];
+            const sanitizedTime = (timePart || '00:00:00').split(' ')[0];
+            const isoCandidate = `${sanitizedDate}T${sanitizedTime || '00:00:00'}`;
+            return isoCandidate.replace(/\s+/g, 'T');
+        }
+
+        if (dateValue) {
+            const raw = String(dateValue).trim();
+            if (!raw) {
+                return null;
+            }
+            if (/^\d{2}:\d{2}/.test(raw)) {
+                return null;
+            }
+            const replaced = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            if (!replaced.includes('T')) {
+                return `${replaced}T00:00:00`;
+            }
+            return replaced;
+        }
+
+        return null;
+    }
+
+    function deriveReceiptDateTime(orderDetails, invoiceDetails) {
+        const candidates = [];
+
+        if (invoiceDetails && typeof invoiceDetails === 'object') {
+            candidates.push(normaliseReceiptDateTime(invoiceDetails.posting_datetime));
+            candidates.push(
+                normaliseReceiptDateTime(
+                    invoiceDetails.posting_date,
+                    invoiceDetails.posting_time
+                )
+            );
+            candidates.push(
+                normaliseReceiptDateTime(
+                    invoiceDetails.transaction_date,
+                    invoiceDetails.transaction_time
+                )
+            );
+            candidates.push(normaliseReceiptDateTime(invoiceDetails.creation));
+            candidates.push(normaliseReceiptDateTime(invoiceDetails.modified));
+        }
+
+        if (orderDetails && typeof orderDetails === 'object') {
+            candidates.push(
+                normaliseReceiptDateTime(
+                    orderDetails.posting_date,
+                    orderDetails.posting_time
+                )
+            );
+            candidates.push(
+                normaliseReceiptDateTime(
+                    orderDetails.transaction_date,
+                    orderDetails.transaction_time
+                )
+            );
+            candidates.push(
+                normaliseReceiptDateTime(orderDetails.order_date, orderDetails.order_time)
+            );
+            candidates.push(normaliseReceiptDateTime(orderDetails.creation));
+            candidates.push(normaliseReceiptDateTime(orderDetails.modified));
+        }
+
+        for (const candidate of candidates) {
+            if (!candidate) {
+                continue;
+            }
+            const parsed = new Date(candidate);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
+
+    function formatReceiptDateTime(orderDetails, invoiceDetails) {
+        const dateObj = deriveReceiptDateTime(orderDetails, invoiceDetails);
+        if (!dateObj) {
+            return '';
+        }
+        if (RECEIPT_DATETIME_FORMATTER) {
+            return RECEIPT_DATETIME_FORMATTER.format(dateObj);
+        }
+        return dateObj.toLocaleString('id-ID');
+    }
+
+    function getActiveCashierName() {
+        const candidates = [
+            frappe?.session?.user_fullname,
+            frappe?.session?.user,
+            frappe?.boot?.user?.full_name,
+            frappe?.boot?.user?.name,
+        ];
+
+        for (const candidate of candidates) {
+            if (typeof candidate === 'string') {
+                const trimmed = candidate.trim();
+                if (trimmed) {
+                    return trimmed;
+                }
+            }
+        }
+
+        return '';
+    }
+
     try {
         if (typeof POS_PROFILE === 'string') {
             const { message } = await frappe.call({
@@ -3658,6 +3787,8 @@ n
             };
 
             const kioskOrderNumber = orderDetails?.queue_number || orderDetails?.name || invoiceDetails?.name || '-';
+            const kioskDateDisplay = formatReceiptDateTime(orderDetails, invoiceDetails);
+            const kioskCashierDisplay = getActiveCashierName();
             const kioskItemsSource = Array.isArray(orderDetails?.items) && orderDetails.items.length
                 ? orderDetails.items
                 : Array.isArray(invoiceDetails?.items)
@@ -3757,6 +3888,22 @@ n
                       <div class="success-receipt-label">${__('Order No.')}</div>
                       <div class="success-receipt-value">${escapeHtml(kioskOrderNumber || '-')}</div>
                     </div>
+                    ${
+                      kioskDateDisplay
+                          ? `<div class="success-receipt-meta">
+                              <div class="success-receipt-label">${__('Date')}</div>
+                              <div class="success-receipt-value">${escapeHtml(kioskDateDisplay)}</div>
+                            </div>`
+                          : ''
+                    }
+                    ${
+                      kioskCashierDisplay
+                          ? `<div class="success-receipt-meta">
+                              <div class="success-receipt-label">${__('Cashier')}</div>
+                              <div class="success-receipt-value">${escapeHtml(kioskCashierDisplay)}</div>
+                            </div>`
+                          : ''
+                    }
                   </div>
                   <table class="success-receipt-table">
                     <thead>
