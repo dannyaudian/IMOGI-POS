@@ -426,7 +426,21 @@ button:disabled { opacity: .6; cursor: not-allowed; }
    SUCCESS MODAL + RECEIPT
 ========================================= */
 .success-modal .modal-container {
-  width: min(520px, 92vw); align-items: center; text-align: center; padding: 28px 22px;
+  width: min(520px, 92vw);
+  align-items: center;
+  text-align: center;
+  padding: 28px 22px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.success-modal .modal-container::-webkit-scrollbar {
+  width: 8px;
+}
+.success-modal .modal-container::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
 }
 .success-icon    { font-size: 56px; color: var(--success); margin-bottom: 10px; }
 .success-message { font-size: 20px; font-weight: 600; }
