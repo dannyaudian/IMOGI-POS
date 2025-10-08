@@ -1888,19 +1888,25 @@ frappe.ready(async function() {
             
             this.elements.cartItems.innerHTML = html;
 
-            const cartRoot = this.elements.cartItems instanceof Element ? this.elements.cartItems : null;
-
-            const findCartElement = (start, matcher) => {
-                if (!(start instanceof Element)) {
+            const getIndexCarrier = (node) => {
+                if (!(node instanceof Element)) {
                     return null;
                 }
-                let current = start;
-                while (current) {
-                    if (matcher(current)) {
-                        return current;
+                if (typeof node.closest === 'function') {
+                    const closestCarrier = node.closest('[data-index]');
+                    if (closestCarrier) {
+                        return closestCarrier;
                     }
-                    if (current === cartRoot) {
-                        break;
+                }
+
+                let current = node;
+                while (current) {
+                    if (
+                        current instanceof Element &&
+                        typeof current.hasAttribute === 'function' &&
+                        current.hasAttribute('data-index')
+                    ) {
+                        return current;
                     }
                     current = current.parentElement;
                 }
@@ -1908,12 +1914,40 @@ frappe.ready(async function() {
             };
 
             const resolveCartIndex = (node) => {
-                const carrier = findCartElement(node, element => element.hasAttribute && element.hasAttribute('data-index'));
+                const carrier = getIndexCarrier(node);
                 if (!carrier) {
                     return -1;
                 }
                 const value = Number(carrier.getAttribute('data-index'));
-                return Number.isInteger(value) ? value : -1;
+                return Number.isInteger(value) && value >= 0 ? value : -1;
+            };
+
+            const resolveCartControl = (target) => {
+                if (!(target instanceof Element)) {
+                    return null;
+                }
+                if (typeof target.closest === 'function') {
+                    const candidate = target.closest('.qty-btn, .cart-item-remove');
+                    if (candidate) {
+                        return candidate;
+                    }
+                }
+
+                let current = target;
+                while (current) {
+                    if (
+                        current instanceof Element &&
+                        current.classList &&
+                        (current.classList.contains('qty-btn') || current.classList.contains('cart-item-remove'))
+                    ) {
+                        return current;
+                    }
+                    if (current === this.elements.cartItems) {
+                        break;
+                    }
+                    current = current.parentElement;
+                }
+                return null;
             };
 
             // Add event listeners
@@ -1921,17 +1955,7 @@ frappe.ready(async function() {
 
             if (!this.cartClickHandler) {
                 this.cartClickHandler = event => {
-                    const { target } = event;
-                    if (!(target instanceof Element)) {
-                        return;
-                    }
-
-                    const control = findCartElement(
-                        target,
-                        element =>
-                            element.classList &&
-                            (element.classList.contains('qty-btn') || element.classList.contains('cart-item-remove')),
-                    );
+                    const control = resolveCartControl(event.target);
                     if (!control || !this.elements.cartItems.contains(control)) {
                         return;
                     }
@@ -1962,13 +1986,15 @@ frappe.ready(async function() {
             }
 
             qtyInputs.forEach(input => {
-                input.addEventListener('change', () => {
+                const handleQtyInput = () => {
                     const index = resolveCartIndex(input);
                     if (index < 0) {
                         return;
                     }
-                    this.updateCartItemQuantity(index, parseInt(input.value) || 1);
-                });
+                    this.updateCartItemQuantity(index, parseInt(input.value, 10) || 1);
+                };
+                input.addEventListener('change', handleQtyInput);
+                input.addEventListener('input', handleQtyInput);
             });
 
             this.elements.checkoutBtn.disabled = false;

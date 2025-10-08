@@ -1926,43 +1926,61 @@ frappe.ready(async function () {
 
       this.elements.cartItems.innerHTML = html;
 
-      const cartRoot =
-        this.elements.cartItems instanceof Element ? this.elements.cartItems : null;
+      const getIndexCarrier = (node) => {
+        if (!(node instanceof Element)) return null;
+        if (typeof node.closest === "function") {
+          const closestCarrier = node.closest("[data-index]");
+          if (closestCarrier) return closestCarrier;
+        }
 
-      const findCartElement = (start, matcher) => {
-        if (!(start instanceof Element)) return null;
-        let current = start;
+        let current = node;
         while (current) {
-          if (matcher(current)) return current;
-          if (current === cartRoot) break;
+          if (
+            current instanceof Element &&
+            typeof current.hasAttribute === "function" &&
+            current.hasAttribute("data-index")
+          ) {
+            return current;
+          }
           current = current.parentElement;
         }
         return null;
       };
 
       const resolveCartIndex = (node) => {
-        const carrier = findCartElement(
-          node,
-          (element) => element.hasAttribute && element.hasAttribute("data-index")
-        );
+        const carrier = getIndexCarrier(node);
         if (!carrier) return -1;
         const value = Number(carrier.getAttribute("data-index"));
-        return Number.isInteger(value) ? value : -1;
+        return Number.isInteger(value) && value >= 0 ? value : -1;
+      };
+
+      const resolveCartControl = (target) => {
+        if (!(target instanceof Element)) return null;
+        if (typeof target.closest === "function") {
+          const candidate = target.closest(".qty-btn, .cart-item-remove");
+          if (candidate) return candidate;
+        }
+
+        let current = target;
+        while (current) {
+          if (
+            current instanceof Element &&
+            current.classList &&
+            (current.classList.contains("qty-btn") ||
+              current.classList.contains("cart-item-remove"))
+          ) {
+            return current;
+          }
+          if (current === this.elements.cartItems) break;
+          current = current.parentElement;
+        }
+        return null;
       };
 
       // Quantity & remove handlers
       if (!this.cartClickHandler) {
         this.cartClickHandler = (event) => {
-          const { target } = event;
-          if (!(target instanceof Element)) return;
-
-          const control = findCartElement(
-            target,
-            (element) =>
-              element.classList &&
-              (element.classList.contains("qty-btn") ||
-                element.classList.contains("cart-item-remove"))
-          );
+          const control = resolveCartControl(event.target);
           if (!control || !this.elements.cartItems.contains(control)) return;
 
           const index = resolveCartIndex(control);
@@ -1988,11 +2006,13 @@ frappe.ready(async function () {
 
       const qtyInputs = this.elements.cartItems.querySelectorAll(".cart-item-qty");
       qtyInputs.forEach((input) => {
-        input.addEventListener("change", () => {
+        const handleQtyInput = () => {
           const idx = resolveCartIndex(input);
           if (idx < 0) return;
           this.updateCartItemQuantity(idx, parseInt(input.value, 10) || 1);
-        });
+        };
+        input.addEventListener("change", handleQtyInput);
+        input.addEventListener("input", handleQtyInput);
       });
 
       if (this.elements.checkoutBtn) this.elements.checkoutBtn.disabled = false;
