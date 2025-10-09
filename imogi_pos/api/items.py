@@ -221,3 +221,12 @@ def set_item_flags(doc, method=None):
 
     if doc.get("variant_of"):
         doc.set("has_variants", 0)
+
+        # When template items are saved, ERPNext updates their variants and runs
+        # :meth:`validate_stock_exists_for_template_item`. This validation throws
+        # ``StockExistsForTemplate`` if a variant with stock is being updated,
+        # even if the change only touches non-stock fields such as the item
+        # image. Marking the document with ``ignore_validate_update_after_stock``
+        # tells ERPNext to skip that check, allowing benign updates that do not
+        # impact inventory quantities to go through.
+        doc.flags.ignore_validate_update_after_stock = True
