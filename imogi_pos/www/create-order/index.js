@@ -1991,7 +1991,12 @@ frappe.ready(async function () {
     },
 
     renderCart: function () {
-      if (!this.elements.cartItems) return;
+      console.log("🔄 renderCart() called, cart items:", this.cart.length);
+      
+      if (!this.elements.cartItems) {
+        console.error("❌ cartItems element not found!");
+        return;
+      }
     
       if (this.cart.length === 0) {
         this.elements.cartItems.innerHTML = `
@@ -2007,8 +2012,12 @@ frappe.ready(async function () {
         return;
       }
     
+      // Build HTML
       let html = "";
       this.cart.forEach((item, index) => {
+        const itemOptions = item.item_options ? this.formatItemOptions(item.item_options) : "";
+        const itemNotes = item.notes || "";
+        
         html += `
           <div class="cart-item" data-index="${index}">
             <div class="cart-item-header">
@@ -2016,78 +2025,87 @@ frappe.ready(async function () {
               <div class="cart-item-price">${formatRupiah(item.amount)}</div>
             </div>
             <div class="cart-item-controls">
-              <button type="button" class="qty-btn qty-minus" data-index="${index}">-</button>
-              <input type="number" class="cart-item-qty" value="${item.qty}" min="1" data-index="${index}">
-              <button type="button" class="qty-btn qty-plus" data-index="${index}">+</button>
+              <button type="button" class="qty-btn qty-minus" data-index="${index}" data-action="minus">
+                -
+              </button>
+              <input 
+                type="number" 
+                class="cart-item-qty" 
+                value="${item.qty}" 
+                min="1" 
+                data-index="${index}"
+                readonly
+              >
+              <button type="button" class="qty-btn qty-plus" data-index="${index}" data-action="plus">
+                +
+              </button>
             </div>
-            ${item.item_options ? `<div class="cart-item-options">${this.formatItemOptions(item.item_options)}</div>` : ""}
-            ${item.notes ? `<div class="cart-item-notes">${item.notes}</div>` : ""}
-            <div class="cart-item-remove" data-index="${index}">&times;</div>
+            ${itemOptions ? `<div class="cart-item-options">${itemOptions}</div>` : ""}
+            ${itemNotes ? `<div class="cart-item-notes">${itemNotes}</div>` : ""}
+            <div class="cart-item-remove" data-index="${index}" data-action="remove">&times;</div>
           </div>`;
       });
     
       this.elements.cartItems.innerHTML = html;
+      console.log("✅ Cart HTML rendered");
     
-      // PERBAIKAN: Hapus event listener lama jika ada
+      // REMOVE old event listener if exists
       if (this.cartClickHandler) {
         this.elements.cartItems.removeEventListener("click", this.cartClickHandler);
+        console.log("🗑️ Old cart click handler removed");
       }
     
-      // Handler baru dengan event delegation yang lebih sederhana
+      // CREATE new simple event handler
       this.cartClickHandler = (event) => {
+        console.log("🖱️ Click detected on:", event.target);
+        
         const target = event.target;
+        const action = target.getAttribute("data-action");
+        const indexStr = target.getAttribute("data-index");
         
-        // Cek apakah yang diklik adalah tombol qty-plus
-        if (target.classList.contains("qty-plus")) {
-          event.preventDefault();
-          event.stopPropagation();
-          const index = parseInt(target.getAttribute("data-index"));
-          if (index >= 0 && index < this.cart.length) {
-            const currentQty = Number(this.cart[index].qty) || 0;
-            this.updateCartItemQuantity(index, currentQty + 1);
-          }
+        console.log("   Action:", action, "Index:", indexStr);
+        
+        if (!action || !indexStr) {
+          console.log("   ⚠️ No action or index found");
           return;
         }
         
-        // Cek apakah yang diklik adalah tombol qty-minus
-        if (target.classList.contains("qty-minus")) {
-          event.preventDefault();
-          event.stopPropagation();
-          const index = parseInt(target.getAttribute("data-index"));
-          if (index >= 0 && index < this.cart.length) {
-            const currentQty = Number(this.cart[index].qty) || 0;
-            this.updateCartItemQuantity(index, currentQty - 1);
-          }
+        const index = parseInt(indexStr, 10);
+        
+        if (isNaN(index) || index < 0 || index >= this.cart.length) {
+          console.error("   ❌ Invalid index:", index);
           return;
         }
-        
-        // Cek apakah yang diklik adalah tombol remove
-        if (target.classList.contains("cart-item-remove")) {
-          event.preventDefault();
-          event.stopPropagation();
-          const index = parseInt(target.getAttribute("data-index"));
-          if (index >= 0 && index < this.cart.length) {
-            this.removeCartItem(index);
-          }
-          return;
+    
+        event.preventDefault();
+        event.stopPropagation();
+    
+        console.log("   ✅ Valid click detected");
+        console.log("   Current cart item:", this.cart[index]);
+    
+        if (action === "plus") {
+          console.log("   ➕ Plus button clicked");
+          const currentQty = Number(this.cart[index].qty) || 0;
+          console.log("   Current qty:", currentQty, "New qty:", currentQty + 1);
+          this.updateCartItemQuantity(index, currentQty + 1);
+        } 
+        else if (action === "minus") {
+          console.log("   ➖ Minus button clicked");
+          const currentQty = Number(this.cart[index].qty) || 0;
+          console.log("   Current qty:", currentQty, "New qty:", currentQty - 1);
+          this.updateCartItemQuantity(index, currentQty - 1);
+        } 
+        else if (action === "remove") {
+          console.log("   ❌ Remove button clicked");
+          this.removeCartItem(index);
         }
       };
     
-      // Attach event listener
-      this.elements.cartItems.addEventListener("click", this.cartClickHandler);
+      // ATTACH event listener
+      this.elements.cartItems.addEventListener("click", this.cartClickHandler, true);
+      console.log("✅ New cart click handler attached");
     
-      // Event listener untuk input quantity (manual typing)
-      const qtyInputs = this.elements.cartItems.querySelectorAll(".cart-item-qty");
-      qtyInputs.forEach((input) => {
-        input.addEventListener("change", (event) => {
-          const index = parseInt(event.target.getAttribute("data-index"));
-          if (index >= 0 && index < this.cart.length) {
-            const newQty = parseInt(event.target.value, 10) || 1;
-            this.updateCartItemQuantity(index, newQty);
-          }
-        });
-      });
-    
+      // Update button states
       if (this.elements.checkoutBtn) this.elements.checkoutBtn.disabled = false;
       if (this.elements.clearBtn) this.elements.clearBtn.disabled = false;
       if (this.allowDiscounts) {
@@ -2959,43 +2977,62 @@ frappe.ready(async function () {
     },
 
     updateCartItemQuantity: function (index, newQty) {
+      console.log("📝 updateCartItemQuantity called");
+      console.log("   Index:", index);
+      console.log("   New Qty:", newQty);
+      console.log("   Cart length:", this.cart.length);
+      
       // Validasi index
       if (index < 0 || index >= this.cart.length) {
-        console.error("Invalid cart index:", index);
+        console.error("❌ Invalid cart index:", index);
+        alert("Error: Invalid cart index!");
         return;
       }
     
-      // Validasi quantity
+      // Validasi & normalize quantity
       const normalizedQty = parseInt(newQty, 10);
+      console.log("   Normalized Qty:", normalizedQty);
       
+      // Jika quantity tidak valid atau < 1, hapus item
       if (!Number.isFinite(normalizedQty) || normalizedQty < 1) {
-        // Jika quantity < 1, hapus item
+        console.log("   ⚠️ Qty < 1, removing item");
         return this.removeCartItem(index);
       }
     
-      // Update quantity dan amount
+      // Get cart item
       const cartItem = this.cart[index];
+      console.log("   Before update:", JSON.stringify(cartItem));
+      
+      // Update quantity dan amount
       cartItem.qty = normalizedQty;
       cartItem.amount = cartItem.rate * normalizedQty;
       
-      console.log(`Updated item ${cartItem.item_name}: qty=${normalizedQty}, amount=${cartItem.amount}`);
+      console.log("   After update:", JSON.stringify(cartItem));
+      console.log("   ✅ Item updated successfully");
       
       // Re-render cart dan update totals
       this.renderCart();
       this.updateCartTotals();
+      
+      console.log("   ✅ Cart re-rendered and totals updated");
     },
 
     removeCartItem: function (index) {
+      console.log("🗑️ removeCartItem called, index:", index);
+      
       // Validasi index
       if (index < 0 || index >= this.cart.length) {
-        console.error("Invalid cart index:", index);
+        console.error("❌ Invalid cart index:", index);
         return;
       }
     
-      console.log(`Removing item: ${this.cart[index].item_name}`);
+      const removedItem = this.cart[index];
+      console.log("   Removing:", removedItem.item_name);
       
       // Hapus item dari cart
       this.cart.splice(index, 1);
+      
+      console.log("   ✅ Item removed, new cart length:", this.cart.length);
       
       // Re-render cart dan update totals
       this.renderCart();
