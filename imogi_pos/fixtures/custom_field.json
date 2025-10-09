@@ -1207,7 +1207,6 @@
     "dt": "Sales Invoice Item",
     "doctype": "Custom Field",
     "name": "Sales Invoice Item-pos_display_details"
-
   },
   {
     "fieldname": "pos_menu_profile",
@@ -1290,5 +1289,18 @@
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
     "name": "Sales Invoice-customer_age"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Item",
+    "fieldname": "imogi_menu_channel",
+    "fieldtype": "Select",
+    "label": "Menu Channel",
+    "options": "Universal\nPOS\nRestaurant",
+    "default": "Universal",
+    "insert_after": "menu_category",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "name": "Item-imogi_menu_channel"
   }
 ]
