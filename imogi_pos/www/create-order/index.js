@@ -2012,129 +2012,126 @@ frappe.ready(async function () {
         return;
       }
     
-      // Build HTML
+      // ============================================
+      // FIX: Build HTML dengan concatenation biasa
+      // JANGAN pakai template literal untuk data-index
+      // ============================================
+      
       let html = "";
-      this.cart.forEach((item, index) => {
+      
+      for (let i = 0; i < this.cart.length; i++) {
+        const item = this.cart[i];
+        const index = i; // PENTING: Pakai variable biasa, bukan template
+        
         const itemOptions = item.item_options ? this.formatItemOptions(item.item_options) : "";
         const itemNotes = item.notes || "";
+        const formattedAmount = formatRupiah(item.amount);
         
-        html += `
-          <div class="cart-item" data-index="${index}">
-            <div class="cart-item-header">
-              <div class="cart-item-name">${item.item_name}</div>
-              <div class="cart-item-price">${formatRupiah(item.amount)}</div>
-            </div>
-            <div class="cart-item-controls">
-              <button type="button" class="qty-btn qty-minus" data-index="${index}">-</button>
-              <input 
-                type="number" 
-                class="cart-item-qty" 
-                value="${item.qty}" 
-                min="1" 
-                data-index="${index}"
-                readonly
-              >
-              <button type="button" class="qty-btn qty-plus" data-index="${index}">+</button>
-            </div>
-            ${itemOptions ? `<div class="cart-item-options">${itemOptions}</div>` : ""}
-            ${itemNotes ? `<div class="cart-item-notes">${itemNotes}</div>` : ""}
-            <div class="cart-item-remove" data-index="${index}">&times;</div>
-          </div>`;
-      });
+        // Build HTML tanpa template literal di data-index
+        html += '<div class="cart-item" data-index="' + index + '">';
+        html += '  <div class="cart-item-header">';
+        html += '    <div class="cart-item-name">' + item.item_name + '</div>';
+        html += '    <div class="cart-item-price">' + formattedAmount + '</div>';
+        html += '  </div>';
+        html += '  <div class="cart-item-controls">';
+        html += '    <button type="button" class="qty-btn qty-minus" data-index="' + index + '">-</button>';
+        html += '    <input type="number" class="cart-item-qty" value="' + item.qty + '" min="1" data-index="' + index + '" readonly>';
+        html += '    <button type="button" class="qty-btn qty-plus" data-index="' + index + '">+</button>';
+        html += '  </div>';
+        
+        if (itemOptions) {
+          html += '  <div class="cart-item-options">' + itemOptions + '</div>';
+        }
+        
+        if (itemNotes) {
+          html += '  <div class="cart-item-notes">' + itemNotes + '</div>';
+        }
+        
+        html += '  <div class="cart-item-remove" data-index="' + index + '">&times;</div>';
+        html += '</div>';
+      }
     
       this.elements.cartItems.innerHTML = html;
       console.log("✅ Cart HTML rendered");
+      
+      // Debug: Cek apakah data-index benar
+      const buttons = this.elements.cartItems.querySelectorAll('.qty-btn');
+      console.log("📊 Buttons rendered:", buttons.length);
+      buttons.forEach((btn, idx) => {
+        const dataIndex = btn.getAttribute('data-index');
+        console.log(`   Button ${idx}: data-index="${dataIndex}" (type: ${typeof dataIndex})`);
+      });
     
-      // REMOVE old event listener if exists
+      // REMOVE old event listener
       if (this.cartClickHandler) {
         this.elements.cartItems.removeEventListener("click", this.cartClickHandler);
-        console.log("🗑️ Old cart click handler removed");
       }
     
-      // ============================================
-      // EVENT HANDLER YANG DIPERBAIKI - PENTING!
-      // ============================================
+      // CREATE new event handler - SIMPLIFIED
       this.cartClickHandler = (event) => {
-        let target = event.target;
-        console.log("🖱️ Original click target:", target);
-        console.log("   Tag:", target.tagName);
-        console.log("   Class:", target.className);
+        const target = event.target;
         
-        // ✅ FIX: Cari parent button jika yang diklik bukan button langsung
-        // Kadang user klik text "-" atau "+" di dalam button
-        if (target.tagName !== 'BUTTON' && target.tagName !== 'DIV') {
-          target = target.closest('button, .cart-item-remove');
-          console.log("   🔍 Found parent:", target);
-        }
+        console.log("🖱️ Click on:", target.tagName, target.className);
         
-        if (!target) {
-          console.log("   ⚠️ No valid target found");
+        // Pastikan yang diklik adalah button atau remove div
+        if (target.tagName !== 'BUTTON' && !target.classList.contains('cart-item-remove')) {
+          console.log("   ⚠️ Not a button or remove div, ignoring");
           return;
         }
         
-        // Ambil index dari button atau parent-nya
-        let indexStr = target.getAttribute("data-index");
+        // Ambil data-index LANGSUNG dari target
+        const indexStr = target.getAttribute("data-index");
+        console.log("   📍 data-index attribute:", indexStr);
+        console.log("   📍 typeof:", typeof indexStr);
         
-        // ✅ FIX: Jika button tidak punya data-index, cari dari parent
-        if (!indexStr || indexStr === "$" || indexStr === "undefined") {
-          const parentItem = target.closest('.cart-item');
-          if (parentItem) {
-            indexStr = parentItem.getAttribute("data-index");
-            console.log("   🔍 Got index from parent cart-item:", indexStr);
-          }
-        }
-        
-        console.log("   Index string:", indexStr);
-        
-        // Validasi index string
-        if (!indexStr || indexStr === "$" || indexStr === "undefined" || indexStr === "null") {
-          console.error("   ❌ Invalid index string:", indexStr);
+        // Validasi string
+        if (!indexStr || indexStr === "" || indexStr === "undefined" || indexStr === "null") {
+          console.error("   ❌ Empty or invalid data-index");
           return;
         }
         
-        // Parse index
+        // Parse ke integer
         const index = parseInt(indexStr, 10);
-        console.log("   Parsed index:", index);
+        console.log("   🔢 Parsed index:", index);
         
-        // Validasi index number
-        if (isNaN(index) || index < 0 || index >= this.cart.length) {
-          console.error("   ❌ Invalid index number:", index, "Cart length:", this.cart.length);
+        // Validasi number
+        if (isNaN(index)) {
+          console.error("   ❌ NaN detected! indexStr was:", indexStr);
+          console.error("   ❌ Button HTML:", target.outerHTML);
+          return;
+        }
+        
+        if (index < 0 || index >= this.cart.length) {
+          console.error("   ❌ Index out of bounds:", index, "Cart length:", this.cart.length);
           return;
         }
     
         event.preventDefault();
         event.stopPropagation();
     
-        console.log("   ✅ Valid click detected, index:", index);
-        console.log("   Current cart item:", this.cart[index]);
+        console.log("   ✅ Valid index:", index);
+        console.log("   📦 Cart item:", this.cart[index].item_name);
     
-        // Deteksi action dari class
+        // Handle actions
         if (target.classList.contains('qty-plus')) {
-          console.log("   ➕ Plus button clicked");
-          const currentQty = Number(this.cart[index].qty) || 0;
-          console.log("   Current qty:", currentQty, "→ New qty:", currentQty + 1);
-          this.updateCartItemQuantity(index, currentQty + 1);
+          console.log("   ➕ Incrementing quantity");
+          this.updateCartItemQuantity(index, this.cart[index].qty + 1);
         } 
         else if (target.classList.contains('qty-minus')) {
-          console.log("   ➖ Minus button clicked");
-          const currentQty = Number(this.cart[index].qty) || 0;
-          console.log("   Current qty:", currentQty, "→ New qty:", currentQty - 1);
-          this.updateCartItemQuantity(index, currentQty - 1);
+          console.log("   ➖ Decrementing quantity");
+          this.updateCartItemQuantity(index, this.cart[index].qty - 1);
         } 
         else if (target.classList.contains('cart-item-remove')) {
-          console.log("   ❌ Remove button clicked");
+          console.log("   ❌ Removing item");
           this.removeCartItem(index);
-        }
-        else {
-          console.log("   ⚠️ Unknown action, target classes:", target.className);
         }
       };
     
-      // ATTACH event listener dengan capture phase
-      this.elements.cartItems.addEventListener("click", this.cartClickHandler, true);
-      console.log("✅ New cart click handler attached");
+      // ATTACH event listener
+      this.elements.cartItems.addEventListener("click", this.cartClickHandler, false);
+      console.log("✅ Event handler attached");
     
-      // Update button states
+      // Enable buttons
       if (this.elements.checkoutBtn) this.elements.checkoutBtn.disabled = false;
       if (this.elements.clearBtn) this.elements.clearBtn.disabled = false;
       if (this.allowDiscounts) {
