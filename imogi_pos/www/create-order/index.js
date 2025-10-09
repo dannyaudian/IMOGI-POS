@@ -2959,19 +2959,45 @@ frappe.ready(async function () {
     },
 
     updateCartItemQuantity: function (index, newQty) {
-      const normalizedQty = Number(newQty);
+      // Validasi index
+      if (index < 0 || index >= this.cart.length) {
+        console.error("Invalid cart index:", index);
+        return;
+      }
+    
+      // Validasi quantity
+      const normalizedQty = parseInt(newQty, 10);
+      
       if (!Number.isFinite(normalizedQty) || normalizedQty < 1) {
+        // Jika quantity < 1, hapus item
         return this.removeCartItem(index);
       }
-
-      this.cart[index].qty = normalizedQty;
-      this.cart[index].amount = this.cart[index].rate * normalizedQty;
+    
+      // Update quantity dan amount
+      const cartItem = this.cart[index];
+      cartItem.qty = normalizedQty;
+      cartItem.amount = cartItem.rate * normalizedQty;
+      
+      console.log(`Updated item ${cartItem.item_name}: qty=${normalizedQty}, amount=${cartItem.amount}`);
+      
+      // Re-render cart dan update totals
       this.renderCart();
       this.updateCartTotals();
     },
 
     removeCartItem: function (index) {
+      // Validasi index
+      if (index < 0 || index >= this.cart.length) {
+        console.error("Invalid cart index:", index);
+        return;
+      }
+    
+      console.log(`Removing item: ${this.cart[index].item_name}`);
+      
+      // Hapus item dari cart
       this.cart.splice(index, 1);
+      
+      // Re-render cart dan update totals
       this.renderCart();
       this.updateCartTotals();
     },
