@@ -176,6 +176,58 @@ def test_get_item_options_marks_default():
     assert result["size"][0]["default"] == 1
 
 
+def test_get_item_options_filters_by_channel():
+    item_doc = types.SimpleNamespace(
+        has_size_option=1,
+        has_spice_option=0,
+        has_topping_option=1,
+        item_size_options=[
+            types.SimpleNamespace(option_name="POS Size", additional_price=0, menu_channel="POS"),
+            types.SimpleNamespace(option_name="Shared Size", additional_price=1000, menu_channel="Universal"),
+            types.SimpleNamespace(option_name="Restaurant Size", additional_price=0, menu_channel="Restaurant"),
+        ],
+        item_topping_options=[
+            types.SimpleNamespace(option_name="POS Topping", additional_price=0, menu_channel="POS"),
+            types.SimpleNamespace(option_name="Shared Topping", additional_price=0, menu_channel="Both"),
+            types.SimpleNamespace(option_name="Restaurant Topping", additional_price=0, menu_channel="Restaurant"),
+        ],
+    )
+
+    items = load_items_with_doc(item_doc)
+
+    pos_options = items.get_item_options("ITEM-1", menu_channel="POS")
+    restaurant_options = items.get_item_options("ITEM-1", menu_channel="Restaurant")
+    universal_options = items.get_item_options("ITEM-1")
+
+    unload_items_module()
+
+    assert [opt["value"] for opt in pos_options["size"]] == ["POS Size", "Shared Size"]
+    assert [opt["value"] for opt in pos_options["topping"]] == [
+        "POS Topping",
+        "Shared Topping",
+    ]
+
+    assert [opt["value"] for opt in restaurant_options["size"]] == [
+        "Shared Size",
+        "Restaurant Size",
+    ]
+    assert [opt["value"] for opt in restaurant_options["topping"]] == [
+        "Shared Topping",
+        "Restaurant Topping",
+    ]
+
+    assert [opt["value"] for opt in universal_options["size"]] == [
+        "POS Size",
+        "Shared Size",
+        "Restaurant Size",
+    ]
+    assert [opt["value"] for opt in universal_options["topping"]] == [
+        "POS Topping",
+        "Shared Topping",
+        "Restaurant Topping",
+    ]
+
+
 def test_set_item_flags_special_category():
     items = load_items_with_doc(None)
 
