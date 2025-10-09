@@ -1,6 +1,33 @@
 frappe.ready(async function() {
     const POS_PROFILE_DATA = {};
 
+    function determineMenuChannel() {
+        const candidates = [];
+
+        if (typeof DOMAIN === 'string') {
+            candidates.push(DOMAIN);
+        }
+
+        if (POS_PROFILE_DATA && typeof POS_PROFILE_DATA === 'object') {
+            candidates.push(POS_PROFILE_DATA.imogi_pos_domain);
+        }
+
+        if (typeof POS_PROFILE === 'object' && POS_PROFILE !== null) {
+            candidates.push(POS_PROFILE.imogi_pos_domain);
+        }
+
+        for (const candidate of candidates) {
+            if (typeof candidate !== 'string') {
+                continue;
+            }
+            if (candidate.trim().toLowerCase() === 'restaurant') {
+                return 'Restaurant';
+            }
+        }
+
+        return 'POS';
+    }
+
     function normaliseCustomerInfo(source) {
         if (!source || typeof source !== 'object') {
             return null;
@@ -1530,7 +1557,8 @@ frappe.ready(async function() {
                         limit: 500,
                         pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
                         price_list: this.selectedPriceList || null,
-                        base_price_list: this.basePriceList || null
+                        base_price_list: this.basePriceList || null,
+                        menu_channel: determineMenuChannel()
                     }
                 });
 
@@ -1753,7 +1781,9 @@ frappe.ready(async function() {
                     method: 'imogi_pos.api.variants.get_item_variants',
                     args: {
                         item_template: templateItem.name,
-                        price_list: this.selectedPriceList || null
+                        price_list: this.selectedPriceList || null,
+                        base_price_list: this.basePriceList || null,
+                        menu_channel: determineMenuChannel()
 
                     }
                 });
@@ -2305,7 +2335,8 @@ frappe.ready(async function() {
                         limit: 500,
                         pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
                         price_list: this.selectedPriceList || null,
-                        base_price_list: this.basePriceList || null
+                        base_price_list: this.basePriceList || null,
+                        menu_channel: determineMenuChannel()
                     }
                 });
                 if (response.message) {
@@ -2417,7 +2448,10 @@ frappe.ready(async function() {
             try {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.items.get_item_options',
-                    args: { item: selectedVariant.name }
+                    args: {
+                        item: selectedVariant.name,
+                        menu_channel: determineMenuChannel()
+                    }
                 });
                 optionsPayload = (response && response.message) || {};
             } catch (error) {
@@ -2489,7 +2523,10 @@ frappe.ready(async function() {
             try {
                 const response = await frappe.call({
                     method: 'imogi_pos.api.items.get_item_options',
-                    args: { item: item.name }
+                    args: {
+                        item: item.name,
+                        menu_channel: determineMenuChannel()
+                    }
                 });
                 this.hideLoading();
                 const options = response.message || {};

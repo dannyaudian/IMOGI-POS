@@ -8,6 +8,7 @@
     "option_name",
     "linked_item",
     "additional_price",
+    "menu_channel",
     "qty_factor",
     "components",
     "components_delta"
@@ -32,6 +33,14 @@
       "fieldtype": "Currency",
       "in_list_view": 1,
       "label": "Additional Price"
+    },
+    {
+      "default": "Universal",
+      "fieldname": "menu_channel",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Menu Channel",
+      "options": "Universal\nPOS\nRestaurant"
     },
     {
       "fieldname": "qty_factor",

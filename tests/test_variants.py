@@ -490,3 +490,82 @@ def test_component_low_stock_recovers_when_quantity_restored(variants_module):
     result_recovered = variants.get_items_with_stock(warehouse='POS-WH', limit=10)
     assert result_recovered[0]['component_low_stock'] == []
 
+
+def test_get_items_with_stock_filters_by_menu_channel(variants_module):
+    variants, frappe, billing = variants_module
+
+    frappe._mock_data['Item'] = [
+        MockRow({
+            'name': 'ITEM-POS',
+            'item_name': 'POS Only',
+            'item_code': 'ITEM-POS',
+            'description': '',
+            'image': None,
+            'standard_rate': 10,
+            'has_variants': 0,
+            'variant_of': None,
+            'item_group': 'Snacks',
+            'menu_category': 'Snack',
+            'photo': None,
+            'default_kitchen': None,
+            'default_kitchen_station': None,
+            'pos_menu_profile': None,
+            'imogi_menu_channel': 'POS',
+        }),
+        MockRow({
+            'name': 'ITEM-REST',
+            'item_name': 'Restaurant Only',
+            'item_code': 'ITEM-REST',
+            'description': '',
+            'image': None,
+            'standard_rate': 12,
+            'has_variants': 0,
+            'variant_of': None,
+            'item_group': 'Meals',
+            'menu_category': 'Meal',
+            'photo': None,
+            'default_kitchen': None,
+            'default_kitchen_station': None,
+            'pos_menu_profile': None,
+            'imogi_menu_channel': 'Restaurant',
+        }),
+        MockRow({
+            'name': 'ITEM-UNIV',
+            'item_name': 'Shared Item',
+            'item_code': 'ITEM-UNIV',
+            'description': '',
+            'image': None,
+            'standard_rate': 11,
+            'has_variants': 0,
+            'variant_of': None,
+            'item_group': 'Snacks',
+            'menu_category': 'Snack',
+            'photo': None,
+            'default_kitchen': None,
+            'default_kitchen_station': None,
+            'pos_menu_profile': None,
+            'imogi_menu_channel': 'Universal',
+        }),
+    ]
+
+    frappe._mock_data['Item Group'] = [
+        MockRow({'name': 'Snacks', 'default_pos_menu_profile': None}),
+        MockRow({'name': 'Meals', 'default_pos_menu_profile': None}),
+    ]
+
+    frappe._mock_data['Bin'] = []
+
+    pos_items = variants.get_items_with_stock(
+        warehouse='POS-WH',
+        limit=10,
+        menu_channel='POS',
+    )
+    assert {item['name'] for item in pos_items} == {'ITEM-POS', 'ITEM-UNIV'}
+
+    restaurant_items = variants.get_items_with_stock(
+        warehouse='POS-WH',
+        limit=10,
+        menu_channel='Restaurant',
+    )
+    assert {item['name'] for item in restaurant_items} == {'ITEM-REST', 'ITEM-UNIV'}
+
