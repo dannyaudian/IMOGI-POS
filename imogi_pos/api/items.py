@@ -11,8 +11,31 @@ from imogi_pos.utils.kitchen_routing import (
 )
 
 
+CHANNEL_ALL = {"", "both", "all", "any", "universal"}
+
+
+def _normalise_channel(value):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip().casefold()
+    return str(value).strip().casefold()
+
+
+def _channel_matches(entry_channel, requested_channel):
+    requested = _normalise_channel(requested_channel)
+    if not requested or requested in CHANNEL_ALL:
+        return True
+
+    entry = _normalise_channel(entry_channel)
+    if entry in CHANNEL_ALL:
+        return True
+
+    return entry == requested
+
+
 @frappe.whitelist(allow_guest=True)
-def get_item_options(item):
+def get_item_options(item, menu_channel=None):
     """Retrieve available options for a given item using option flags.
 
     The Item document may define flags ``has_size_option``, ``has_spice_option``,
@@ -23,6 +46,9 @@ def get_item_options(item):
 
     Args:
         item (str): Item code or name.
+        menu_channel (str, optional): Channel context (e.g. ``POS`` or
+            ``Restaurant``) used to filter options that are specific to a
+            service channel. When omitted, all options are returned.
 
     Returns:
         dict: Only contains keys for active categories with list of dictionaries
@@ -108,7 +134,14 @@ def get_item_options(item):
         return opt
 
     def collect(child_rows):
-        return [opt for opt in (to_option(row) for row in child_rows or []) if opt]
+        collected = []
+        for row in child_rows or []:
+            if not _channel_matches(getattr(row, "menu_channel", None), menu_channel):
+                continue
+            option = to_option(row)
+            if option:
+                collected.append(option)
+        return collected
 
     if getattr(item_doc, "has_size_option", 0):
         size_opts = collect(getattr(item_doc, "item_size_options", []))

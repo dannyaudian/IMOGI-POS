@@ -7,6 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt
 from imogi_pos.api.billing import get_bom_capacity_summary
+from imogi_pos.api.items import _channel_matches
 from imogi_pos.api.pricing import get_price_list_rate_maps
 
 def validate_branch_access(branch):
@@ -53,6 +54,7 @@ def get_items_with_stock(
     pos_menu_profile=None,
     price_list=None,
     base_price_list=None,
+    menu_channel=None,
 ):
     """Return POS items with stock and allowed payment methods.
 
@@ -70,6 +72,9 @@ def get_items_with_stock(
             ``selling_price_list``). When an item has no ``standard_rate`` it
             will fall back to the rate defined in this list before applying
             any channel adjustment.
+        menu_channel (str, optional): Channel context (``POS`` or
+            ``Restaurant``) used to filter items that are specific to a
+            service channel. When omitted, all items are returned.
 
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
@@ -99,12 +104,18 @@ def get_items_with_stock(
             "default_kitchen",
             "default_kitchen_station",
             "pos_menu_profile",
+            "imogi_menu_channel",
         ],
         limit_page_length=limit,
     )
 
-    # Ensure only items with a valid menu category proceed
-    items = [d for d in items if (d.menu_category or "").strip()]
+    # Ensure only items with a valid menu category proceed and match the requested channel
+    items = [
+        d
+        for d in items
+        if (d.menu_category or "").strip()
+        and _channel_matches(getattr(d, "imogi_menu_channel", None), menu_channel)
+    ]
 
     # Map of item group -> default POS Menu Profile
     group_defaults = {}
