@@ -5,30 +5,105 @@ frappe.ready(async function () {
 
   const POS_PROFILE_DATA = {};
 
-  function determineMenuChannel() {
-    const candidates = [];
+  function determineMenuChannel(options = {}) {
+    const { fallback = "POS", allowDomainInference = true } = options;
 
-    if (typeof DOMAIN === "string") {
-      candidates.push(DOMAIN);
+    const normalise = (value) => {
+      if (typeof value !== "string") return null;
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const lowered = trimmed.toLowerCase();
+      if (["restaurant", "resto"].includes(lowered)) return "Restaurant";
+      if (["pos", "point-of-sale", "point_of_sale"].includes(lowered)) return "POS";
+      if (["universal", "any", "all", "both"].includes(lowered)) return "Universal";
+      return null;
+    };
+
+    const collectCandidate = (value, bucket) => {
+      if (value === undefined || value === null) return;
+      bucket.push(value);
+    };
+
+    const resolveFrom = (candidates) => {
+      for (const candidate of candidates) {
+        const channel = normalise(candidate);
+        if (channel) return channel;
+      }
+      return null;
+    };
+
+    const explicitCandidates = [];
+
+    if (typeof window !== "undefined") {
+      try {
+        const params = new URLSearchParams(window.location?.search || "");
+        collectCandidate(params.get("menu_channel"), explicitCandidates);
+        collectCandidate(params.get("channel"), explicitCandidates);
+      } catch (error) {
+        console.warn("Failed to inspect URL parameters for menu channel", error);
+      }
+
+      collectCandidate(window.IMOGI_MENU_CHANNEL, explicitCandidates);
+      collectCandidate(window.imogiMenuChannel, explicitCandidates);
+      collectCandidate(window.menu_channel, explicitCandidates);
     }
 
-    if (POS_PROFILE_DATA && typeof POS_PROFILE_DATA === "object") {
-      candidates.push(POS_PROFILE_DATA.imogi_pos_domain);
-    }
+    if (typeof document !== "undefined") {
+      const { body } = document;
+      if (body && body.dataset) {
+        collectCandidate(body.dataset.menuChannel, explicitCandidates);
+        collectCandidate(body.dataset.imogiMenuChannel, explicitCandidates);
+      }
 
-    if (typeof POS_PROFILE === "object" && POS_PROFILE !== null) {
-      candidates.push(POS_PROFILE.imogi_pos_domain);
-    }
+      const datasetElement = document.querySelector("[data-menu-channel]");
+      if (datasetElement) {
+        collectCandidate(datasetElement.getAttribute("data-menu-channel"), explicitCandidates);
+        if (datasetElement.dataset) {
+          collectCandidate(datasetElement.dataset.menuChannel, explicitCandidates);
+        }
+      }
 
-    for (const candidate of candidates) {
-      if (typeof candidate !== "string") continue;
-      if (candidate.trim().toLowerCase() === "restaurant") {
-        return "Restaurant";
+      const meta = document.querySelector(
+        'meta[name="menu-channel"], meta[name="imogi-menu-channel"]',
+      );
+      if (meta) {
+        collectCandidate(meta.getAttribute("content"), explicitCandidates);
       }
     }
 
-    return "POS";
+    const explicit = resolveFrom(explicitCandidates);
+    if (explicit) {
+      return explicit;
+    }
+
+    if (allowDomainInference) {
+      const inferredCandidates = [];
+
+      if (typeof DOMAIN === "string") {
+        inferredCandidates.push(DOMAIN);
+      }
+
+      if (POS_PROFILE_DATA && typeof POS_PROFILE_DATA === "object") {
+        inferredCandidates.push(POS_PROFILE_DATA.imogi_pos_domain);
+      }
+
+      if (typeof POS_PROFILE === "object" && POS_PROFILE !== null) {
+        inferredCandidates.push(POS_PROFILE.imogi_pos_domain);
+      }
+
+      const inferred = resolveFrom(inferredCandidates);
+      if (inferred) {
+        return inferred;
+      }
+    }
+
+    return normalise(fallback) || "POS";
   }
+
+  const ACTIVE_MENU_CHANNEL = determineMenuChannel({
+    fallback: "POS",
+    allowDomainInference: false,
+  });
 
   function normaliseCustomerInfo(source) {
     if (!source || typeof source !== "object") return null;
@@ -1582,7 +1657,7 @@ frappe.ready(async function () {
             pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
             price_list: this.selectedPriceList || null,
             base_price_list: this.basePriceList || null,
-            menu_channel: determineMenuChannel(),
+            menu_channel: ACTIVE_MENU_CHANNEL,
           },
         });
 
@@ -1814,7 +1889,7 @@ frappe.ready(async function () {
             item_template: templateItem.name,
             price_list: this.selectedPriceList || null,
             base_price_list: this.basePriceList || null,
-            menu_channel: determineMenuChannel(),
+            menu_channel: ACTIVE_MENU_CHANNEL,
           },
         });
         const variants = (message && message.variants) || [];
@@ -2307,7 +2382,7 @@ frappe.ready(async function () {
             pos_menu_profile: POS_PROFILE_DATA.pos_menu_profile || null,
             price_list: this.selectedPriceList || null,
             base_price_list: this.basePriceList || null,
-            menu_channel: determineMenuChannel(),
+            menu_channel: ACTIVE_MENU_CHANNEL,
           },
         });
         const responseItems = Array.isArray(message) ? message : [];
@@ -2465,7 +2540,7 @@ frappe.ready(async function () {
           method: "imogi_pos.api.items.get_item_options",
           args: {
             item: selectedVariant.name,
-            menu_channel: determineMenuChannel(),
+            menu_channel: ACTIVE_MENU_CHANNEL,
           },
         });
         optionsPayload = message || {};
@@ -2543,7 +2618,7 @@ frappe.ready(async function () {
           method: "imogi_pos.api.items.get_item_options",
           args: {
             item: item.name,
-            menu_channel: determineMenuChannel(),
+            menu_channel: ACTIVE_MENU_CHANNEL,
           },
         });
         const options = message || {};
