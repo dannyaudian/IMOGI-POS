@@ -1992,7 +1992,7 @@ frappe.ready(async function () {
 
     renderCart: function () {
       if (!this.elements.cartItems) return;
-
+    
       if (this.cart.length === 0) {
         this.elements.cartItems.innerHTML = `
           <div class="empty-cart">
@@ -2006,7 +2006,7 @@ frappe.ready(async function () {
         }
         return;
       }
-
+    
       let html = "";
       this.cart.forEach((item, index) => {
         html += `
@@ -2025,98 +2025,69 @@ frappe.ready(async function () {
             <div class="cart-item-remove" data-index="${index}">&times;</div>
           </div>`;
       });
-
+    
       this.elements.cartItems.innerHTML = html;
-
-      const getIndexCarrier = (node) => {
-        if (!(node instanceof Element)) return null;
-        if (typeof node.closest === "function") {
-          const closestCarrier = node.closest("[data-index]");
-          if (closestCarrier) return closestCarrier;
-        }
-
-        let current = node;
-        while (current) {
-          if (
-            current instanceof Element &&
-            typeof current.hasAttribute === "function" &&
-            current.hasAttribute("data-index")
-          ) {
-            return current;
-          }
-          current = current.parentElement;
-        }
-        return null;
-      };
-
-      const resolveCartIndex = (node) => {
-        const carrier = getIndexCarrier(node);
-        if (!carrier) return -1;
-        const value = Number(carrier.getAttribute("data-index"));
-        return Number.isInteger(value) && value >= 0 ? value : -1;
-      };
-
-      const resolveCartControl = (target) => {
-        if (!(target instanceof Element)) return null;
-        if (typeof target.closest === "function") {
-          const candidate = target.closest(".qty-btn, .cart-item-remove");
-          if (candidate) return candidate;
-        }
-
-        let current = target;
-        while (current) {
-          if (
-            current instanceof Element &&
-            current.classList &&
-            (current.classList.contains("qty-btn") ||
-              current.classList.contains("cart-item-remove"))
-          ) {
-            return current;
-          }
-          if (current === this.elements.cartItems) break;
-          current = current.parentElement;
-        }
-        return null;
-      };
-
-      // Quantity & remove handlers
-      if (!this.cartClickHandler) {
-        this.cartClickHandler = (event) => {
-          const control = resolveCartControl(event.target);
-          if (!control || !this.elements.cartItems.contains(control)) return;
-
-          const index = resolveCartIndex(control);
-          if (index < 0 || index >= this.cart.length) return;
-
-          const cartItem = this.cart[index];
-          if (!cartItem) return;
-
-          if (control.classList.contains("qty-plus")) {
-            event.preventDefault();
-            const currentQty = Number(cartItem.qty) || 0;
+    
+      // PERBAIKAN: Hapus event listener lama jika ada
+      if (this.cartClickHandler) {
+        this.elements.cartItems.removeEventListener("click", this.cartClickHandler);
+      }
+    
+      // Handler baru dengan event delegation yang lebih sederhana
+      this.cartClickHandler = (event) => {
+        const target = event.target;
+        
+        // Cek apakah yang diklik adalah tombol qty-plus
+        if (target.classList.contains("qty-plus")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = parseInt(target.getAttribute("data-index"));
+          if (index >= 0 && index < this.cart.length) {
+            const currentQty = Number(this.cart[index].qty) || 0;
             this.updateCartItemQuantity(index, currentQty + 1);
-          } else if (control.classList.contains("qty-minus")) {
-            event.preventDefault();
-            const currentQty = Number(cartItem.qty) || 0;
+          }
+          return;
+        }
+        
+        // Cek apakah yang diklik adalah tombol qty-minus
+        if (target.classList.contains("qty-minus")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = parseInt(target.getAttribute("data-index"));
+          if (index >= 0 && index < this.cart.length) {
+            const currentQty = Number(this.cart[index].qty) || 0;
             this.updateCartItemQuantity(index, currentQty - 1);
-          } else if (control.classList.contains("cart-item-remove")) {
+          }
+          return;
+        }
+        
+        // Cek apakah yang diklik adalah tombol remove
+        if (target.classList.contains("cart-item-remove")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = parseInt(target.getAttribute("data-index"));
+          if (index >= 0 && index < this.cart.length) {
             this.removeCartItem(index);
           }
-        };
-        this.elements.cartItems.addEventListener("click", this.cartClickHandler);
-      }
-
+          return;
+        }
+      };
+    
+      // Attach event listener
+      this.elements.cartItems.addEventListener("click", this.cartClickHandler);
+    
+      // Event listener untuk input quantity (manual typing)
       const qtyInputs = this.elements.cartItems.querySelectorAll(".cart-item-qty");
       qtyInputs.forEach((input) => {
-        const handleQtyInput = () => {
-          const idx = resolveCartIndex(input);
-          if (idx < 0) return;
-          this.updateCartItemQuantity(idx, parseInt(input.value, 10) || 1);
-        };
-        input.addEventListener("change", handleQtyInput);
-        input.addEventListener("input", handleQtyInput);
+        input.addEventListener("change", (event) => {
+          const index = parseInt(event.target.getAttribute("data-index"));
+          if (index >= 0 && index < this.cart.length) {
+            const newQty = parseInt(event.target.value, 10) || 1;
+            this.updateCartItemQuantity(index, newQty);
+          }
+        });
       });
-
+    
       if (this.elements.checkoutBtn) this.elements.checkoutBtn.disabled = false;
       if (this.elements.clearBtn) this.elements.clearBtn.disabled = false;
       if (this.allowDiscounts) {
