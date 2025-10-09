@@ -2025,9 +2025,7 @@ frappe.ready(async function () {
               <div class="cart-item-price">${formatRupiah(item.amount)}</div>
             </div>
             <div class="cart-item-controls">
-              <button type="button" class="qty-btn qty-minus" data-index="${index}" data-action="minus">
-                -
-              </button>
+              <button type="button" class="qty-btn qty-minus" data-index="${index}">-</button>
               <input 
                 type="number" 
                 class="cart-item-qty" 
@@ -2036,13 +2034,11 @@ frappe.ready(async function () {
                 data-index="${index}"
                 readonly
               >
-              <button type="button" class="qty-btn qty-plus" data-index="${index}" data-action="plus">
-                +
-              </button>
+              <button type="button" class="qty-btn qty-plus" data-index="${index}">+</button>
             </div>
             ${itemOptions ? `<div class="cart-item-options">${itemOptions}</div>` : ""}
             ${itemNotes ? `<div class="cart-item-notes">${itemNotes}</div>` : ""}
-            <div class="cart-item-remove" data-index="${index}" data-action="remove">&times;</div>
+            <div class="cart-item-remove" data-index="${index}">&times;</div>
           </div>`;
       });
     
@@ -2055,53 +2051,86 @@ frappe.ready(async function () {
         console.log("🗑️ Old cart click handler removed");
       }
     
-      // CREATE new simple event handler
+      // ============================================
+      // EVENT HANDLER YANG DIPERBAIKI - PENTING!
+      // ============================================
       this.cartClickHandler = (event) => {
-        console.log("🖱️ Click detected on:", event.target);
+        let target = event.target;
+        console.log("🖱️ Original click target:", target);
+        console.log("   Tag:", target.tagName);
+        console.log("   Class:", target.className);
         
-        const target = event.target;
-        const action = target.getAttribute("data-action");
-        const indexStr = target.getAttribute("data-index");
+        // ✅ FIX: Cari parent button jika yang diklik bukan button langsung
+        // Kadang user klik text "-" atau "+" di dalam button
+        if (target.tagName !== 'BUTTON' && target.tagName !== 'DIV') {
+          target = target.closest('button, .cart-item-remove');
+          console.log("   🔍 Found parent:", target);
+        }
         
-        console.log("   Action:", action, "Index:", indexStr);
-        
-        if (!action || !indexStr) {
-          console.log("   ⚠️ No action or index found");
+        if (!target) {
+          console.log("   ⚠️ No valid target found");
           return;
         }
         
-        const index = parseInt(indexStr, 10);
+        // Ambil index dari button atau parent-nya
+        let indexStr = target.getAttribute("data-index");
         
+        // ✅ FIX: Jika button tidak punya data-index, cari dari parent
+        if (!indexStr || indexStr === "$" || indexStr === "undefined") {
+          const parentItem = target.closest('.cart-item');
+          if (parentItem) {
+            indexStr = parentItem.getAttribute("data-index");
+            console.log("   🔍 Got index from parent cart-item:", indexStr);
+          }
+        }
+        
+        console.log("   Index string:", indexStr);
+        
+        // Validasi index string
+        if (!indexStr || indexStr === "$" || indexStr === "undefined" || indexStr === "null") {
+          console.error("   ❌ Invalid index string:", indexStr);
+          return;
+        }
+        
+        // Parse index
+        const index = parseInt(indexStr, 10);
+        console.log("   Parsed index:", index);
+        
+        // Validasi index number
         if (isNaN(index) || index < 0 || index >= this.cart.length) {
-          console.error("   ❌ Invalid index:", index);
+          console.error("   ❌ Invalid index number:", index, "Cart length:", this.cart.length);
           return;
         }
     
         event.preventDefault();
         event.stopPropagation();
     
-        console.log("   ✅ Valid click detected");
+        console.log("   ✅ Valid click detected, index:", index);
         console.log("   Current cart item:", this.cart[index]);
     
-        if (action === "plus") {
+        // Deteksi action dari class
+        if (target.classList.contains('qty-plus')) {
           console.log("   ➕ Plus button clicked");
           const currentQty = Number(this.cart[index].qty) || 0;
-          console.log("   Current qty:", currentQty, "New qty:", currentQty + 1);
+          console.log("   Current qty:", currentQty, "→ New qty:", currentQty + 1);
           this.updateCartItemQuantity(index, currentQty + 1);
         } 
-        else if (action === "minus") {
+        else if (target.classList.contains('qty-minus')) {
           console.log("   ➖ Minus button clicked");
           const currentQty = Number(this.cart[index].qty) || 0;
-          console.log("   Current qty:", currentQty, "New qty:", currentQty - 1);
+          console.log("   Current qty:", currentQty, "→ New qty:", currentQty - 1);
           this.updateCartItemQuantity(index, currentQty - 1);
         } 
-        else if (action === "remove") {
+        else if (target.classList.contains('cart-item-remove')) {
           console.log("   ❌ Remove button clicked");
           this.removeCartItem(index);
         }
+        else {
+          console.log("   ⚠️ Unknown action, target classes:", target.className);
+        }
       };
     
-      // ATTACH event listener
+      // ATTACH event listener dengan capture phase
       this.elements.cartItems.addEventListener("click", this.cartClickHandler, true);
       console.log("✅ New cart click handler attached");
     
@@ -2111,51 +2140,6 @@ frappe.ready(async function () {
       if (this.allowDiscounts) {
         this.refreshDiscountUI();
       }
-    },
-
-    renderVariants: function (variants) {
-      if (!this.elements.variantGrid) return;
-
-      if (!variants || variants.length === 0) {
-        this.elements.variantGrid.innerHTML = `
-          <div class="empty-variants">
-            <p>No variants available for this item</p>
-          </div>`;
-        return;
-      }
-
-      let html = "";
-      variants.forEach((variant) => {
-        const attributes = variant.attributes || {};
-        const attrs = Object.keys(attributes)
-          .map(
-            (k) => `
-          <div class="variant-attribute">
-            <span>${k}:</span><span>${attributes[k]}</span>
-          </div>`
-          )
-          .join("");
-
-        html += `
-          <div class="variant-card" data-variant="${variant.name}">
-            <div class="variant-name">${variant.item_name}</div>
-            <div class="variant-price">${formatRupiah(variant.standard_rate || 0)}</div>
-            ${attrs ? `<div class="variant-attributes">${attrs}</div>` : ""}
-          </div>`;
-      });
-
-      this.elements.variantGrid.innerHTML = html;
-
-      const cards = this.elements.variantGrid.querySelectorAll(".variant-card");
-      cards.forEach((card) => {
-        card.addEventListener("click", () => {
-          cards.forEach((c) => c.classList.remove("selected"));
-          card.classList.add("selected");
-          const variantName = card.dataset.variant;
-          this.selectedVariant = variants.find((v) => v.name === variantName);
-          if (this.elements.variantAddBtn) this.elements.variantAddBtn.disabled = false;
-        });
-      });
     },
 
     updateCartTotals: function () {
@@ -2980,12 +2964,10 @@ frappe.ready(async function () {
       console.log("📝 updateCartItemQuantity called");
       console.log("   Index:", index);
       console.log("   New Qty:", newQty);
-      console.log("   Cart length:", this.cart.length);
       
       // Validasi index
       if (index < 0 || index >= this.cart.length) {
         console.error("❌ Invalid cart index:", index);
-        alert("Error: Invalid cart index!");
         return;
       }
     
@@ -3001,26 +2983,33 @@ frappe.ready(async function () {
     
       // Get cart item
       const cartItem = this.cart[index];
-      console.log("   Before update:", JSON.stringify(cartItem));
+      console.log("   Before update:", {
+        name: cartItem.item_name,
+        qty: cartItem.qty,
+        rate: cartItem.rate,
+        amount: cartItem.amount
+      });
       
       // Update quantity dan amount
       cartItem.qty = normalizedQty;
       cartItem.amount = cartItem.rate * normalizedQty;
       
-      console.log("   After update:", JSON.stringify(cartItem));
+      console.log("   After update:", {
+        name: cartItem.item_name,
+        qty: cartItem.qty,
+        rate: cartItem.rate,
+        amount: cartItem.amount
+      });
       console.log("   ✅ Item updated successfully");
       
       // Re-render cart dan update totals
       this.renderCart();
       this.updateCartTotals();
-      
-      console.log("   ✅ Cart re-rendered and totals updated");
     },
 
     removeCartItem: function (index) {
       console.log("🗑️ removeCartItem called, index:", index);
       
-      // Validasi index
       if (index < 0 || index >= this.cart.length) {
         console.error("❌ Invalid cart index:", index);
         return;
@@ -3029,12 +3018,9 @@ frappe.ready(async function () {
       const removedItem = this.cart[index];
       console.log("   Removing:", removedItem.item_name);
       
-      // Hapus item dari cart
       this.cart.splice(index, 1);
-      
       console.log("   ✅ Item removed, new cart length:", this.cart.length);
       
-      // Re-render cart dan update totals
       this.renderCart();
       this.updateCartTotals();
     },
