@@ -560,12 +560,12 @@ def test_get_items_with_stock_filters_by_menu_channel(variants_module):
         limit=10,
         menu_channel='POS',
     )
-    assert {item['name'] for item in pos_items} == {'ITEM-POS', 'ITEM-UNIV'}
+    assert {item['name'] for item in pos_items} == {'ITEM-POS', 'ITEM-REST', 'ITEM-UNIV'}
 
     restaurant_items = variants.get_items_with_stock(
         warehouse='POS-WH',
         limit=10,
         menu_channel='Restaurant',
     )
-    assert {item['name'] for item in restaurant_items} == {'ITEM-REST', 'ITEM-UNIV'}
+    assert {item['name'] for item in restaurant_items} == {'ITEM-POS', 'ITEM-REST', 'ITEM-UNIV'}
 

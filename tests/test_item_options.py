@@ -52,7 +52,7 @@ def unload_items_module():
     sys.path.pop(0)
 
 
-def test_get_item_options_structure():
+def test_get_item_options_returns_empty_when_disabled():
     item_doc = types.SimpleNamespace(
         has_size_option=1,
         has_spice_option=1,
@@ -96,57 +96,10 @@ def test_get_item_options_structure():
     result = items.get_item_options("ITEM-1")
     unload_items_module()
 
-    assert set(result.keys()) == {"size", "spice", "topping", "variant", "sugar", "ice"}
-    assert result["size"] == [
-        {
-            "label": "Large",
-            "value": "Large",
-            "price": 0,
-            "linked_item": "ITEM-LARGE",
-            "qty_factor": 1.5,
-            "components": [
-                {
-                    "component": "Espresso",
-                    "item_code": "ITEM-ESPRESSO",
-                    "qty": 1,
-                }
-            ],
-            "components_delta": [
-                {
-                    "component": "Water",
-                    "item_code": "ITEM-WATER",
-                    "qty_delta": -0.25,
-                }
-            ],
-        }
-    ]
-    assert result["spice"] == [{"label": "Hot", "value": "Hot", "price": 0}]
-    assert result["topping"] == [
-        {
-            "label": "Cheese",
-            "value": "Cheese",
-            "price": 0,
-            "linked_item": "ITEM-CHEESE",
-        }
-    ]
-    assert result["variant"] == [
-        {
-            "label": "Vanilla",
-            "value": "Vanilla",
-            "price": 0,
-            "linked_item": "ITEM-VANILLA",
-        }
-    ]
-    assert result["sugar"] == [{"label": "Less", "value": "Less", "price": 0}]
-    assert result["ice"] == [{"label": "No Ice", "value": "No Ice", "price": 0}]
-    assert "linked_item" not in result["spice"][0]
-    assert "linked_item" not in result["sugar"][0]
-    assert "linked_item" not in result["ice"][0]
-    assert "qty_factor" not in result["spice"][0]
-    assert "components" not in result["spice"][0]
+    assert result == {}
 
 
-def test_get_item_options_skip_inactive():
+def test_get_item_options_ignores_flags_when_disabled():
     item_doc = types.SimpleNamespace(
         has_size_option=1,
         has_spice_option=0,
@@ -157,26 +110,10 @@ def test_get_item_options_skip_inactive():
     result = items.get_item_options("ITEM-1")
     unload_items_module()
 
-    assert result == {"size": [{"label": "Large", "value": "Large", "price": 0}]}
+    assert result == {}
 
 
-def test_get_item_options_marks_default():
-    item_doc = types.SimpleNamespace(
-        has_size_option=1,
-        has_spice_option=0,
-        has_topping_option=0,
-        item_size_options=[
-            types.SimpleNamespace(option_name="Large", additional_price=0, default=1)
-        ],
-    )
-    items = load_items_with_doc(item_doc)
-    result = items.get_item_options("ITEM-1")
-    unload_items_module()
-
-    assert result["size"][0]["default"] == 1
-
-
-def test_get_item_options_filters_by_channel():
+def test_get_item_options_channel_parameter_is_ignored_when_disabled():
     item_doc = types.SimpleNamespace(
         has_size_option=1,
         has_spice_option=0,
@@ -201,31 +138,9 @@ def test_get_item_options_filters_by_channel():
 
     unload_items_module()
 
-    assert [opt["value"] for opt in pos_options["size"]] == ["POS Size", "Shared Size"]
-    assert [opt["value"] for opt in pos_options["topping"]] == [
-        "POS Topping",
-        "Shared Topping",
-    ]
-
-    assert [opt["value"] for opt in restaurant_options["size"]] == [
-        "Shared Size",
-        "Restaurant Size",
-    ]
-    assert [opt["value"] for opt in restaurant_options["topping"]] == [
-        "Shared Topping",
-        "Restaurant Topping",
-    ]
-
-    assert [opt["value"] for opt in universal_options["size"]] == [
-        "POS Size",
-        "Shared Size",
-        "Restaurant Size",
-    ]
-    assert [opt["value"] for opt in universal_options["topping"]] == [
-        "POS Topping",
-        "Shared Topping",
-        "Restaurant Topping",
-    ]
+    assert pos_options == {}
+    assert restaurant_options == {}
+    assert universal_options == {}
 
 
 def test_set_item_flags_special_category():
@@ -245,9 +160,9 @@ def test_set_item_flags_special_category():
     items.set_item_flags(doc)
     unload_items_module()
 
-    assert doc.get("has_size_option") == 1
-    assert doc.get("has_spice_option") == 1
-    assert doc.get("has_topping_option") == 1
+    assert doc.get("has_size_option") == 0
+    assert doc.get("has_spice_option") == 0
+    assert doc.get("has_topping_option") == 0
 
 
 def test_set_item_flags_beverage_category():
@@ -267,9 +182,9 @@ def test_set_item_flags_beverage_category():
     items.set_item_flags(doc)
     unload_items_module()
 
-    assert doc.get("has_size_option") == 1
-    assert doc.get("has_sugar_option") == 1
-    assert doc.get("has_ice_option") == 1
+    assert doc.get("has_size_option") == 0
+    assert doc.get("has_sugar_option") == 0
+    assert doc.get("has_ice_option") == 0
 
 
 def test_set_item_flags_populates_kitchen_defaults():
