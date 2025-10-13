@@ -11,6 +11,11 @@ from imogi_pos.utils.kitchen_routing import (
 )
 
 
+# Feature flags for channel and menu option support. Both are disabled to honour
+# deployments that do not require granular item configuration.
+MENU_CHANNEL_FEATURE_ENABLED = False
+ITEM_OPTIONS_FEATURE_ENABLED = False
+
 CHANNEL_ALL = {"", "both", "all", "any", "universal"}
 
 
@@ -23,6 +28,9 @@ def _normalise_channel(value):
 
 
 def _channel_matches(entry_channel, requested_channel):
+    if not MENU_CHANNEL_FEATURE_ENABLED:
+        return True
+
     requested = _normalise_channel(requested_channel)
     if not requested or requested in CHANNEL_ALL:
         return True
@@ -58,6 +66,9 @@ def get_item_options(item, menu_channel=None):
     """
 
     result = {}
+    if not ITEM_OPTIONS_FEATURE_ENABLED:
+        return result
+
     if not item:
         return result
 
@@ -205,7 +216,12 @@ def set_item_flags(doc, method=None):
         method (str, optional): The event method name (unused).
     """
     category = (doc.get("menu_category") or "").lower()
-    flags = MENU_FLAG_MAP.get(category, {})
+
+    if ITEM_OPTIONS_FEATURE_ENABLED:
+        flags = MENU_FLAG_MAP.get(category, {})
+    else:
+        flags = {}
+
     for base in ("has_size", "has_spice", "has_topping", "has_sugar", "has_ice"):
         doc.set(f"{base}_option", flags.get(base, 0))
 
