@@ -96,12 +96,15 @@ The fixtures will automatically be loaded after migration due to the `after_migr
 
 ## Item Option Fields
 
-Items support configurable options that can be toggled per menu category:
+Historically, items supported configurable options that could be toggled per menu
+category. Deployments that do not need this behaviour can now disable it
+completely. In the default configuration shipped with this repository the
+feature is turned off, meaning:
 
-- `menu_category` selects the type of item (Appetizer, Main Course, Dessert, etc.)
-- Boolean flags (`has_size_option`, `has_spice_option`, `has_topping_option`) enable child tables for additional choices
-- Each child table (`item_size_options`, `item_spice_options`, `item_topping_options`) stores option names with an optional `additional_price`
-- When saving an item, the `menu_category` automatically sets these flags using `MENU_FLAG_MAP`
+- `imogi_menu_channel` and the option toggles are hidden on the Item form
+- option child tables (`item_size_options`, `item_spice_options`,
+  `item_topping_options`, `item_variant_options`) are no longer surfaced to users
+- saving an Item will always reset the related `has_*_option` flags to `0`
 
 ### Kitchen Routing Defaults
 
@@ -120,35 +123,9 @@ When not set to "Restaurant", the UI will hide restaurant-specific elements and 
 
 ## Item Options
 
-Items can expose configurable categories such as sizes, spice levels, or toppings. These are retrieved via the
-`get_item_options` API and stored on each POS Order Item using the `item_options` field. Each option entry includes the
-display `label`, persisted `value`, additional `price`, and can optionally expose `linked_item` when the selection should
-use a different Item/BOM code.
-
-```python
-# Fetch available options for an item
-frappe.call("imogi_pos.api.items.get_item_options", {"item": "ITEM-001"})
-# Returns:
-# {
-#   "size":   [{"label": "Large",  "value": "Large",  "price": 0, "linked_item": "ITEM-LARGE"}],
-#   "spice":  [{"label": "Hot",    "value": "Hot",    "price": 0}],
-#   "topping": [{"label": "Cheese", "value": "Cheese", "price": 0, "linked_item": "ITEM-CHEESE"}]
-# }
-
-# Example of adding an item with selected options to an order
-{
-    "item": "ITEM-001",
-    "qty": 1,
-    "item_options": {
-        "size": "Large",
-        "topping": ["Cheese"]
-    }
-}
-```
-
-To link an option to another SKU/BOM, open the relevant child table row (e.g., **Item Size Option**) and populate the
-**Linked Item** field with the target Item code. The API will return that code in the `linked_item` key so the frontend can
-swap to the replacement when the option is chosen.
+When the option system is disabled the `get_item_options` API returns an empty
+payload for every item. Downstream billing and ordering flows therefore behave
+as though no configurable modifiers are available.
 
 ## Stock Updates
 
