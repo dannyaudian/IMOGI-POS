@@ -1910,6 +1910,169 @@ frappe.ready(async function () {
     },
 
     // ====== RENDER ======
+    renderVariants: function (variants) {
+      const container = this.elements.variantGrid;
+      if (!container) return;
+
+      container.innerHTML = "";
+      this.selectedVariant = null;
+      if (this.elements.variantAddBtn) {
+        this.elements.variantAddBtn.disabled = true;
+      }
+
+      if (!Array.isArray(variants) || variants.length === 0) {
+        container.innerHTML = `
+          <div class="empty-variants">
+            <p>${escapeHtml(__("No options available for this item"))}</p>
+          </div>
+        `;
+        return;
+      }
+
+      const normalizeAttributes = (source) => {
+        if (!source || typeof source !== "object") return [];
+        return Object.keys(source)
+          .map((key) => {
+            const value = source[key];
+            if (value === undefined || value === null || value === "") return null;
+
+            if (typeof value === "object") {
+              const normalizedValue =
+                value.value ?? value.name ?? value.attribute_value ?? value.label ?? value.attribute_value_label;
+              const displayValue =
+                value.label ?? value.attribute_value_label ?? value.display ?? normalizedValue ?? "";
+              const resolved = normalizedValue ?? displayValue;
+              const text = resolved !== undefined && resolved !== null ? String(resolved).trim() : "";
+              const finalLabel = value.attribute_label || value.label || key;
+              if (!text) return null;
+              return {
+                label: finalLabel,
+                value: displayValue !== undefined && displayValue !== null ? String(displayValue).trim() : text,
+              };
+            }
+
+            const text = String(value).trim();
+            if (!text) return null;
+            return { label: key, value: text };
+          })
+          .filter(Boolean);
+      };
+
+      const collectPreferredVariantName = () => {
+        const templateItem = this.selectedTemplateItem;
+        if (!templateItem) return null;
+
+        const keysToInspect = new Set();
+        const primaryKey = this.resolveSelectionKey(templateItem);
+        if (primaryKey) keysToInspect.add(primaryKey);
+        const templateKey = this.resolveTemplateKey(templateItem);
+        if (templateKey) keysToInspect.add(templateKey);
+        if (templateItem.template_item_code) keysToInspect.add(templateItem.template_item_code);
+        if (templateItem.template_item) keysToInspect.add(templateItem.template_item);
+
+        for (const key of keysToInspect) {
+          if (!key) continue;
+          const memory = this.getRememberedSelection(key);
+          if (!memory || typeof memory !== "object") continue;
+          if (memory.preferred_item) return memory.preferred_item;
+          const variantOption = memory.options && memory.options.variant;
+          if (!variantOption) continue;
+          if (typeof variantOption === "object" && variantOption !== null) {
+            const candidate =
+              variantOption.value || variantOption.name || variantOption.label || variantOption.item_code || null;
+            if (candidate) return candidate;
+          } else if (typeof variantOption === "string") {
+            if (variantOption.trim()) return variantOption.trim();
+          }
+        }
+
+        return null;
+      };
+
+      const preferredVariantName = collectPreferredVariantName();
+
+      const cardsHtml = variants
+        .map((variant) => {
+          const attributes = normalizeAttributes(variant?.attributes);
+          const soldOut = this.isItemSoldOut(variant);
+
+          const attributeHtml = attributes
+            .map(
+              (attribute) =>
+                `<span class="variant-attribute">${escapeHtml(attribute.label)}: ${escapeHtml(attribute.value)}</span>`,
+            )
+            .join("");
+
+          const price = Number(variant?.standard_rate);
+          const formattedPrice = escapeHtml(
+            formatRupiah(Number.isFinite(price) ? price : 0),
+          );
+
+          const statusHtml = soldOut
+            ? `<div class="variant-status">${escapeHtml(__("Sold Out"))}</div>`
+            : "";
+
+          const classes = ["variant-card"];
+          if (soldOut) classes.push("sold-out");
+
+          return `
+            <div class="${classes.join(" ")}" data-variant="${escapeHtml(variant.name)}" data-sold-out="${soldOut ? "1" : "0"}">
+              <div class="variant-name">${escapeHtml(variant.item_name || variant.name || "")}</div>
+              <div class="variant-price">${formattedPrice}</div>
+              ${attributeHtml ? `<div class="variant-attributes">${attributeHtml}</div>` : ""}
+              ${statusHtml}
+            </div>
+          `;
+        })
+        .join("");
+
+      container.innerHTML = cardsHtml;
+
+      const variantCards = Array.from(container.querySelectorAll(".variant-card"));
+      if (!variantCards.length) return;
+
+      const findVariant = (name) => variants.find((variant) => variant && variant.name === name) || null;
+
+      const selectVariant = (name) => {
+        const targetCard = variantCards.find((card) => card.dataset.variant === name);
+        const variant = name ? findVariant(name) : null;
+        if (!targetCard || !variant) return;
+        if (targetCard.dataset.soldOut === "1") return;
+
+        variantCards.forEach((card) => card.classList.toggle("selected", card === targetCard));
+        this.selectedVariant = variant;
+        if (this.elements.variantAddBtn) {
+          this.elements.variantAddBtn.disabled = false;
+        }
+      };
+
+      variantCards.forEach((card) => {
+        if (card.dataset.soldOut === "1") {
+          card.setAttribute("aria-disabled", "true");
+          card.setAttribute("title", __("Sold Out"));
+          return;
+        }
+
+        card.addEventListener("click", () => {
+          selectVariant(card.dataset.variant);
+        });
+      });
+
+      const initialPreferred =
+        preferredVariantName && variantCards.some((card) => card.dataset.variant === preferredVariantName)
+          ? preferredVariantName
+          : null;
+
+      if (initialPreferred) {
+        selectVariant(initialPreferred);
+      } else {
+        const firstAvailable = variantCards.find((card) => card.dataset.soldOut !== "1");
+        if (firstAvailable) {
+          selectVariant(firstAvailable.dataset.variant);
+        }
+      }
+    },
+
     renderCategories: function () {
       const cats = ["all", ...this.categories];
       const html = cats
