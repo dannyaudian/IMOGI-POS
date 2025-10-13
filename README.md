@@ -103,7 +103,7 @@ feature is turned off, meaning:
 
 - `imogi_menu_channel` and the option toggles are hidden on the Item form
 - option child tables (`item_size_options`, `item_spice_options`,
-  `item_topping_options`) are no longer surfaced to users
+  `item_topping_options`, `item_variant_options`) are no longer surfaced to users
 - saving an Item will always reset the related `has_*_option` flags to `0`
 
 ### Kitchen Routing Defaults

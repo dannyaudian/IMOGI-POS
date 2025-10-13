@@ -163,6 +163,7 @@ def test_set_item_flags_special_category():
     assert doc.get("has_size_option") == 0
     assert doc.get("has_spice_option") == 0
     assert doc.get("has_topping_option") == 0
+    assert doc.get("has_variant_option") == 0
 
 
 def test_set_item_flags_beverage_category():
@@ -185,6 +186,7 @@ def test_set_item_flags_beverage_category():
     assert doc.get("has_size_option") == 0
     assert doc.get("has_sugar_option") == 0
     assert doc.get("has_ice_option") == 0
+    assert doc.get("has_variant_option") == 0
 
 
 def test_set_item_flags_populates_kitchen_defaults():

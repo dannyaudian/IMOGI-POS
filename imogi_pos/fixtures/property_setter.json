@@ -58,5 +58,53 @@
         "property": "hidden",
         "property_type": "Check",
         "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_size_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_size_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_spice_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_spice_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_variant_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_variant_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_topping_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_topping_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
     }
 ]

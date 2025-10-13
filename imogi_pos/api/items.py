@@ -222,8 +222,18 @@ def set_item_flags(doc, method=None):
     else:
         flags = {}
 
-    for base in ("has_size", "has_spice", "has_topping", "has_sugar", "has_ice"):
-        doc.set(f"{base}_option", flags.get(base, 0))
+    option_fields = (
+        "has_size_option",
+        "has_spice_option",
+        "has_topping_option",
+        "has_variant_option",
+        "has_sugar_option",
+        "has_ice_option",
+    )
+
+    for fieldname in option_fields:
+        base = fieldname.replace("_option", "")
+        doc.set(fieldname, flags.get(base, 0))
 
     kitchen, kitchen_station = get_menu_category_kitchen_station_by_category(
         doc.get("menu_category")
