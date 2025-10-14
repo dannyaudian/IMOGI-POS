@@ -1416,23 +1416,23 @@ imogi_pos.kitchen_display = {
 
     collapseEmptyColumns: function() {
         const columnsWrapper = this.container.querySelector('.kitchen-columns');
-        let hasCollapsedColumn = false;
+        let hasEmptyColumn = false;
 
         ['queued', 'preparing', 'ready'].forEach(status => {
             const column = this.container.querySelector(`.${status}-column`);
             if (!column) return;
 
             const isEmpty = this.state.filteredKots[status].length === 0;
-            column.classList.toggle('collapsed', isEmpty);
-            column.setAttribute('aria-hidden', isEmpty ? 'true' : 'false');
+            column.classList.toggle('is-empty', isEmpty);
+            column.removeAttribute('aria-hidden');
 
             if (isEmpty) {
-                hasCollapsedColumn = true;
+                hasEmptyColumn = true;
             }
         });
 
         if (columnsWrapper) {
-            columnsWrapper.classList.toggle('has-collapsed', hasCollapsedColumn);
+            columnsWrapper.classList.toggle('has-empty', hasEmptyColumn);
         }
     },
     
