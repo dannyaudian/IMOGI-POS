@@ -44,6 +44,7 @@ imogi_pos.kitchen_display = {
         kitchens: [],
         stations: [],
         refreshTimer: null,
+        refreshDebounceTimer: null,
         searchTerm: '',
         viewMode: 'full', // full, compact
         filterByItem: null,
@@ -476,6 +477,31 @@ imogi_pos.kitchen_display = {
         this.state.refreshTimer = setInterval(() => {
             this.safeStep('fetching KOT tickets', () => this.fetchTickets());
         }, this.settings.refreshInterval);
+    },
+
+    /**
+     * Queue an immediate refresh of KOT tickets after a short delay.
+     * Helps surface server-side workflow transitions without waiting
+     * for the next poll interval.
+     * @param {string} reason - Description for logging/debugging
+     * @param {number} delay - Optional delay before refreshing (ms)
+     */
+    queueImmediateRefresh: function(reason = 'status change', delay = 350) {
+        const canCallServer = window.frappe && typeof window.frappe.call === 'function';
+        if (!canCallServer) {
+            return;
+        }
+
+        if (this.state.refreshDebounceTimer) {
+            clearTimeout(this.state.refreshDebounceTimer);
+        }
+
+        const refreshDelay = typeof delay === 'number' && delay >= 0 ? delay : 0;
+
+        this.state.refreshDebounceTimer = setTimeout(() => {
+            this.state.refreshDebounceTimer = null;
+            this.safeStep(`refreshing KOT tickets after ${reason}`, () => this.fetchTickets());
+        }, refreshDelay);
     },
     
     /**
@@ -940,30 +966,44 @@ imogi_pos.kitchen_display = {
         // Map status string to state key
         const normalizedStatus = this.normalizeWorkflowState(status);
         const newStatusKey = this.getStateKeyForWorkflow(normalizedStatus);
-        
+
+        // Update the KOT status fields
+        kot.workflow_state = normalizedStatus;
+        kot.status = normalizedStatus;
+
+        // Ensure item statuses follow the parent workflow
+        const itemsUpdated = this.syncKotItemsWithStatus(kot, normalizedStatus);
+
         // If status is Served or Cancelled, remove from state
         if (newStatusKey === null) {
             this.removeKotFromState(kotName);
             return;
         }
-        
+
         // If status has changed, move the KOT
         if (newStatusKey !== currentStatus) {
-            // Remove from current status list
-            this.state.kots[currentStatus] = this.state.kots[currentStatus].filter(k => k.name !== kotName);
-            
-            // Update the KOT status
-            kot.workflow_state = normalizedStatus;
-            kot.status = normalizedStatus;
-            
+            if (currentStatus && this.state.kots[currentStatus]) {
+                // Remove from current status list
+                this.state.kots[currentStatus] = this.state.kots[currentStatus].filter(k => k.name !== kotName);
+            }
+
             // Add to new status list
+            if (!this.state.kots[newStatusKey]) {
+                this.state.kots[newStatusKey] = [];
+            }
             this.state.kots[newStatusKey].push(kot);
-            
+
             // Re-apply filters and sorting
             this.filterAndSortKots();
-            
+
             // Update UI
             this.renderColumns();
+        } else if (itemsUpdated) {
+            const kotCard = this.container.querySelector(`.kot-card[data-kot="${kotName}"]`);
+            if (kotCard) {
+                this.renderKotCard(kotCard, kot);
+                this.bindKotCardEvents(kotCard, null);
+            }
         }
     },
     
@@ -1017,7 +1057,74 @@ imogi_pos.kitchen_display = {
         const kotCard = this.container.querySelector(`.kot-card[data-kot="${kotName}"]`);
         if (kotCard) {
             this.renderKotCard(kotCard, kot);
+            this.bindKotCardEvents(kotCard, null);
         }
+    },
+
+    /**
+     * Keep individual KOT item statuses aligned with the KOT workflow status.
+     * @param {Object} kot - KOT record
+     * @param {string} workflowState - Target workflow state
+     * @returns {boolean} True when any item status was updated
+     */
+    syncKotItemsWithStatus: function(kot, workflowState) {
+        if (!kot || !Array.isArray(kot.items) || kot.items.length === 0) {
+            return false;
+        }
+
+        const targetStatus = this.normalizeWorkflowState(workflowState);
+        const managedStatuses = ['Queued', 'In Progress', 'Ready', 'Served', 'Cancelled'];
+
+        if (!managedStatuses.includes(targetStatus)) {
+            return false;
+        }
+
+        let updated = false;
+
+        kot.items.forEach(item => {
+            if (!item) return;
+
+            const currentStatus = this.normalizeWorkflowState(item.workflow_state || item.status);
+            let nextStatus = null;
+
+            switch (targetStatus) {
+                case 'Queued':
+                    if (currentStatus !== 'Queued') {
+                        nextStatus = 'Queued';
+                    }
+                    break;
+                case 'In Progress':
+                    if (currentStatus === 'Queued' || currentStatus === 'In Progress') {
+                        nextStatus = 'In Progress';
+                    }
+                    break;
+                case 'Ready':
+                    if (!['Ready', 'Served', 'Cancelled'].includes(currentStatus)) {
+                        nextStatus = 'Ready';
+                    }
+                    break;
+                case 'Served':
+                    if (currentStatus !== 'Served' && currentStatus !== 'Cancelled') {
+                        nextStatus = 'Served';
+                    }
+                    break;
+                case 'Cancelled':
+                    if (currentStatus !== 'Cancelled') {
+                        nextStatus = 'Cancelled';
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            if (nextStatus && nextStatus !== currentStatus) {
+                item.status = nextStatus;
+                item.workflow_state = nextStatus;
+                updated = true;
+            }
+        });
+
+        return updated;
     },
 
     /**
@@ -1609,8 +1716,8 @@ imogi_pos.kitchen_display = {
         const optionContentMap = [];
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsDisplay = (item.options_display || '').trim();
                 let optionsHtml = '';
                 const itemDisplayName = this.getItemDisplayName(item);
@@ -1639,6 +1746,9 @@ imogi_pos.kitchen_display = {
                         <div class="kot-item-details">
                             <div class="kot-item-name">
                                 ${this.escapeHtml(itemDisplayName)}
+                                <span class="kot-item-status-badge status-${itemStatusClass}" data-item-status-badge>
+                                    ${this.escapeHtml(itemStatus)}
+                                </span>
                             </div>
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
                             ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
@@ -1923,6 +2033,7 @@ imogi_pos.kitchen_display = {
                 console.warn('frappe.call is not available. Falling back to local state update for KOT workflow state.');
                 this.updateKotStatus(kotName, state);
                 this.showToast(`KOT ${kotName} updated to ${state}`);
+                this.queueImmediateRefresh('workflow transition (offline fallback)');
                 resolve({ success: true, offline: true });
                 return;
             }
@@ -1939,6 +2050,7 @@ imogi_pos.kitchen_display = {
 
                         // If locally processed, update the KOT status in state
                         this.updateKotStatus(kotName, state);
+                        this.queueImmediateRefresh('workflow transition');
                         resolve(response.message);
                     } else {
                         const errorMessage = `Failed to update KOT status: ${response.message && response.message.error || 'Unknown error'}`;
@@ -1969,6 +2081,7 @@ imogi_pos.kitchen_display = {
                 console.warn('frappe.call is not available. Falling back to local state update for KOT item state.');
                 this.updateKotItemStatus(kotName, itemIdx, state);
                 this.showToast(`Item updated to ${state}`);
+                this.queueImmediateRefresh('item status change (offline fallback)');
                 resolve({ success: true, offline: true });
                 return;
             }
@@ -1986,6 +2099,7 @@ imogi_pos.kitchen_display = {
 
                         // If locally processed, update the item status in UI
                         this.updateKotItemStatus(kotName, itemIdx, state);
+                        this.queueImmediateRefresh('item status change');
                         resolve(response.message);
                     } else {
                         const errorMessage = `Failed to update item status: ${response.message && response.message.error || 'Unknown error'}`;
@@ -2078,8 +2192,8 @@ imogi_pos.kitchen_display = {
         let itemsHtml = '';
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsHtml = this.getItemOptionsMarkup(item);
                 const itemDisplayName = this.getItemDisplayName(item);
 
@@ -2089,6 +2203,9 @@ imogi_pos.kitchen_display = {
                         <div class="kot-item-details">
                             <div class="kot-item-name">
                                 ${this.escapeHtml(itemDisplayName)}
+                                <span class="kot-item-status-badge status-${itemStatusClass}" data-item-status-badge>
+                                    ${this.escapeHtml(itemStatus)}
+                                </span>
                             </div>
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
                             ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
@@ -2533,7 +2650,93 @@ imogi_pos.kitchen_display = {
      */
     getItemDisplayName: function(item) {
         const baseName = this.getItemBaseName(item);
-        return baseName || 'Unnamed Item';
+        if (!baseName) {
+            return 'Unnamed Item';
+        }
+
+        const statusKeywords = [
+            'queued',
+            'in progress',
+            'in-progress',
+            'ready',
+            'served',
+            'cancelled',
+            'canceled',
+            'returned',
+            'draft',
+            'sent to kitchen',
+            'sent-to-kitchen',
+            'closed'
+        ];
+
+        const keywordSet = new Set(statusKeywords);
+        const escapeRegex = (value) => value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const statusAlternatives = statusKeywords
+            .map(keyword => keyword.trim())
+            .filter(Boolean)
+            .map(keyword => keyword
+                .split(/\s+/)
+                .map(part => escapeRegex(part))
+                .join('\\s+')
+            );
+
+        const statusPattern = statusAlternatives.length
+            ? new RegExp(`(?:[-–—|:/\\s(]*)(?:${statusAlternatives.join('|')})\\s*\\)?$`, 'i')
+            : null;
+
+        const sanitizePart = (part) => {
+            if (!part) {
+                return '';
+            }
+
+            let working = part.trim();
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            if (statusPattern) {
+                let iterations = 0;
+                while (statusPattern.test(working) && iterations < 3) {
+                    working = working.replace(statusPattern, '').trim();
+                    iterations += 1;
+                }
+            }
+
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            return working;
+        };
+
+        const parts = baseName
+            .split('|')
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        if (!parts.length) {
+            const sanitized = sanitizePart(baseName);
+            return sanitized || baseName;
+        }
+
+        const cleanedParts = parts
+            .map(part => sanitizePart(part))
+            .filter(Boolean);
+
+        if (!cleanedParts.length) {
+            const fallback = sanitizePart(parts[0]);
+            return fallback || parts[0];
+        }
+
+        return cleanedParts.join(' | ');
     },
 
     /**
