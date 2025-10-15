@@ -45,9 +45,9 @@
   /* ===== HEADER/NAVBAR ===== */
   #kitchen-display > div:first-child:not(.kitchen-header),
   .kitchen-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
     padding: 20px 32px !important;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -64,7 +64,7 @@
     font-weight: 700 !important;
     color: white !important;
     margin: 0 !important;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
 
   /* Header Left Section */
@@ -81,9 +81,9 @@
   .kitchen-header select,
   .station-selector select {
     padding: 10px 16px !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
+    border: 2px solid rgba(255,255,255,0.2) !important;
     border-radius: 8px !important;
-    background: rgba(255,255,255,0.15) !important;
+    background: rgba(255,255,255,0.1) !important;
     color: white !important;
     font-size: 14px !important;
     font-weight: 600 !important;
@@ -94,20 +94,20 @@
 
   #kitchen-display select:hover,
   .kitchen-header select:hover {
-    background: rgba(255,255,255,0.25) !important;
-    border-color: rgba(255,255,255,0.5) !important;
+    background: rgba(255,255,255,0.15) !important;
+    border-color: rgba(255,255,255,0.4) !important;
   }
 
   #kitchen-display select option {
-    background: white !important;
-    color: var(--grey-900) !important;
+    background: var(--grey-900) !important;
+    color: white !important;
   }
 
   /* Label Styling */
   #kitchen-display > div:first-child label,
   .kitchen-header label,
   .station-label {
-    color: rgba(255,255,255,0.9) !important;
+    color: rgba(255,255,255,0.8) !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     text-transform: uppercase !important;
@@ -127,16 +127,16 @@
   #kitchen-display input[type="text"],
   .search-input {
     padding: 10px 16px !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
+    border: 2px solid rgba(255,255,255,0.2) !important;
     border-radius: 8px !important;
-    background: rgba(255,255,255,0.15) !important;
+    background: rgba(255,255,255,0.1) !important;
     color: white !important;
     font-size: 14px !important;
     min-width: 250px !important;
   }
 
   #kitchen-display input[type="text"]::placeholder {
-    color: rgba(255,255,255,0.7) !important;
+    color: rgba(255,255,255,0.6) !important;
   }
 
   /* Header Buttons */
@@ -145,10 +145,10 @@
   .icon-button,
   .refresh-button {
     padding: 10px 16px !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
+    border: none !important;
     border-radius: 8px !important;
-    background: rgba(255,255,255,0.15) !important;
-    color: white !important;
+    background: white !important;
+    color: var(--grey-900) !important;
     font-size: 14px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
@@ -156,13 +156,14 @@
     display: inline-flex !important;
     align-items: center !important;
     gap: 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
   }
 
   #kitchen-display > div:first-child button:hover,
   .kitchen-header button:hover {
-    background: rgba(255,255,255,0.25) !important;
-    border-color: rgba(255,255,255,0.5) !important;
+    background: var(--grey-200) !important;
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
   }
 
   /* ===== COLUMNS LAYOUT ===== */
@@ -194,17 +195,17 @@
     align-items: center !important;
     border-bottom: 4px solid !important;
     font-weight: 700 !important;
+    background: white !important;
   }
 
   /* Queued Column */
   .kitchen-column:nth-child(1) > div:first-child {
-    background: linear-gradient(135deg, var(--orange-light) 0%, #FFECB3 100%) !important;
     border-bottom-color: var(--orange) !important;
   }
 
   .kitchen-column:nth-child(1) > div:first-child > div:first-child,
   .kitchen-column:nth-child(1) .column-title {
-    color: #E65100 !important;
+    color: var(--orange) !important;
     font-size: 16px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
@@ -213,13 +214,12 @@
 
   /* In Progress Column */
   .kitchen-column:nth-child(2) > div:first-child {
-    background: linear-gradient(135deg, var(--blue-light) 0%, #90CAF9 100%) !important;
     border-bottom-color: var(--blue) !important;
   }
 
   .kitchen-column:nth-child(2) > div:first-child > div:first-child,
   .kitchen-column:nth-child(2) .column-title {
-    color: #0D47A1 !important;
+    color: var(--blue) !important;
     font-size: 16px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
@@ -228,13 +228,12 @@
 
   /* Ready Column */
   .kitchen-column:nth-child(3) > div:first-child {
-    background: linear-gradient(135deg, var(--green-light) 0%, #A5D6A7 100%) !important;
     border-bottom-color: var(--green) !important;
   }
 
   .kitchen-column:nth-child(3) > div:first-child > div:first-child,
   .kitchen-column:nth-child(3) .column-title {
-    color: #1B5E20 !important;
+    color: var(--green) !important;
     font-size: 16px !important;
     font-weight: 800 !important;
     text-transform: uppercase !important;
@@ -250,11 +249,29 @@
     min-width: 40px !important;
     height: 40px !important;
     padding: 0 14px !important;
-    background: white !important;
     border-radius: 20px !important;
     font-size: 16px !important;
     font-weight: 900 !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    color: white !important;
+  }
+
+  /* Queued Count Badge */
+  .kitchen-column:nth-child(1) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(1) .column-count {
+    background: var(--orange) !important;
+  }
+
+  /* In Progress Count Badge */
+  .kitchen-column:nth-child(2) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(2) .column-count {
+    background: var(--blue) !important;
+  }
+
+  /* Ready Count Badge */
+  .kitchen-column:nth-child(3) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(3) .column-count {
+    background: var(--green) !important;
   }
 
   /* ===== COLUMN BODY ===== */
@@ -339,13 +356,14 @@
     align-items: center !important;
     gap: 8px !important;
     padding: 8px 16px !important;
-    background: linear-gradient(135deg, #FFF3E0 0%, var(--orange-light) 100%) !important;
-    color: #E65100 !important;
+    background: var(--orange) !important;
+    color: white !important;
     border-radius: 24px !important;
     font-size: 14px !important;
     font-weight: 700 !important;
-    border: 2px solid var(--orange-light) !important;
+    border: none !important;
     margin-bottom: 12px !important;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
   }
 
   /* Meta Info */
@@ -420,14 +438,36 @@
   .item-status-badge {
     display: inline-block !important;
     padding: 4px 12px !important;
-    background: var(--grey-200) !important;
-    color: var(--grey-700) !important;
     border-radius: 12px !important;
     font-size: 11px !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
     margin-left: 8px !important;
+    color: white !important;
+  }
+
+  /* Queued Status */
+  .kot-card .queued .item-status-badge,
+  .kot-card [data-status="Queued"] .item-status-badge {
+    background: var(--orange) !important;
+  }
+
+  /* In Progress Status */
+  .kot-card .in-progress .item-status-badge,
+  .kot-card [data-status="In Progress"] .item-status-badge {
+    background: var(--blue) !important;
+  }
+
+  /* Ready Status */
+  .kot-card .ready .item-status-badge,
+  .kot-card [data-status="Ready"] .item-status-badge {
+    background: var(--green) !important;
+  }
+
+  /* Default/Other Status */
+  .kot-card .item-status-badge {
+    background: var(--grey-700) !important;
   }
 
   /* Item Notes */
@@ -522,7 +562,7 @@
     justify-content: center;
     height: 100vh;
     padding: 60px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   }
 
   .spinner {
