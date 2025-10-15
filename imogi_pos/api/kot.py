@@ -9,7 +9,10 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
-from imogi_pos.kitchen.kot_service import update_kot_item_state as service_update_kot_item_state
+from imogi_pos.kitchen.kot_service import (
+    KOTService,
+    update_kot_item_state as service_update_kot_item_state,
+)
 from imogi_pos.utils.options import format_options_for_display
 from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
 
@@ -637,22 +640,9 @@ def bulk_update_kot_item_state(kot_items, state):
     results["failed_count"] = len(results["failed"])
     return results
 
-@frappe.whitelist()
-def update_kot_status(kot_ticket, state):
-    """
-    Updates the overall status of a KOT Ticket.
-    
-    Args:
-        kot_ticket (str): KOT Ticket name
-        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
-    
-    Returns:
-        dict: Updated KOT Ticket details
-    
-    Raises:
-        frappe.ValidationError: If the state transition is not allowed
-    """
-    # Get KOT Ticket details
+def _apply_ticket_state_change(kot_ticket, state):
+    """Validate permissions and change the KOT Ticket state."""
+
     ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
     pos_order = frappe.get_doc("POS Order", ticket_doc.pos_order)
 
@@ -668,4 +658,83 @@ def update_kot_status(kot_ticket, state):
         "new_state": result["new_state"],
         "updated_items": result.get("updated_items", [])
     }
+
+
+@frappe.whitelist()
+def start_preparing_kot_ticket(kot_ticket):
+    """Move a KOT Ticket from *Queued* to *In Progress*."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["IN_PROGRESS"],
+    )
+
+
+@frappe.whitelist()
+def mark_kot_ticket_ready(kot_ticket):
+    """Mark a KOT Ticket as *Ready*."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["READY"],
+    )
+
+
+@frappe.whitelist()
+def mark_kot_ticket_served(kot_ticket):
+    """Mark a KOT Ticket as *Served*."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["SERVED"],
+    )
+
+
+@frappe.whitelist()
+def return_kot_ticket_to_queue(kot_ticket):
+    """Return a KOT Ticket to the *Queued* state."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["QUEUED"],
+    )
+
+
+@frappe.whitelist()
+def return_kot_ticket_to_kitchen(kot_ticket):
+    """Return a *Ready* KOT Ticket back to *In Progress*."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["IN_PROGRESS"],
+    )
+
+
+@frappe.whitelist()
+def cancel_kot_ticket(kot_ticket):
+    """Cancel a KOT Ticket."""
+
+    return _apply_ticket_state_change(
+        kot_ticket,
+        KOTService.STATES["CANCELLED"],
+    )
+
+
+@frappe.whitelist()
+def update_kot_status(kot_ticket, state):
+    """
+    Updates the overall status of a KOT Ticket.
+
+    Args:
+        kot_ticket (str): KOT Ticket name
+        state (str): New state (Queued/In Progress/Ready/Served/Cancelled)
+
+    Returns:
+        dict: Updated KOT Ticket details
+
+    Raises:
+        frappe.ValidationError: If the state transition is not allowed
+    """
+
+    return _apply_ticket_state_change(kot_ticket, state)
 

@@ -377,6 +377,7 @@ def kot_service_env():
         now_datetime=lambda: datetime.datetime(2023, 1, 1),
         get_datetime=lambda x=None: datetime.datetime(2023, 1, 1),
         cstr=str,
+        cint=lambda x: int(x),
     )
     frappe.utils = utils
 
@@ -493,6 +494,32 @@ def test_update_kot_ticket_state_allows_in_progress_to_served(kot_service_env):
 
     assert ticket.workflow_state == "Served"
     assert all(item.workflow_state == "Served" for item in ticket.items)
+
+
+def test_update_kot_ticket_state_allows_return_to_queue(kot_service_env):
+    service, _, tickets = kot_service_env
+    ticket = tickets["KT-1"]
+    ticket.workflow_state = "In Progress"
+    for item in ticket.items:
+        item.workflow_state = "In Progress"
+
+    service.update_kot_ticket_state("KT-1", "Queued")
+
+    assert ticket.workflow_state == "Queued"
+    assert all(item.workflow_state == "Queued" for item in ticket.items)
+
+
+def test_update_kot_ticket_state_allows_return_to_kitchen(kot_service_env):
+    service, _, tickets = kot_service_env
+    ticket = tickets["KT-1"]
+    ticket.workflow_state = "Ready"
+    for item in ticket.items:
+        item.workflow_state = "Ready"
+
+    service.update_kot_ticket_state("KT-1", "In Progress")
+
+    assert ticket.workflow_state == "In Progress"
+    assert all(item.workflow_state == "In Progress" for item in ticket.items)
 
 
 def test_update_kot_ticket_state_blocks_invalid_transition(kot_service_env):

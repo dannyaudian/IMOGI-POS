@@ -47,8 +47,13 @@ class KOTService:
             STATES["READY"],
             STATES["SERVED"],
             STATES["CANCELLED"],
+            STATES["QUEUED"],
         },
-        STATES["READY"]: {STATES["SERVED"], STATES["CANCELLED"]},
+        STATES["READY"]: {
+            STATES["SERVED"],
+            STATES["CANCELLED"],
+            STATES["IN_PROGRESS"],
+        },
         STATES["SERVED"]: set(),
         STATES["CANCELLED"]: set(),
     }
