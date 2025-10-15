@@ -1681,28 +1681,28 @@ imogi_pos.kitchen_display = {
             
             <div class="kot-actions">
                 ${kot.workflow_state === 'Queued' ? `
-                    <button class="kot-action-btn primary start-btn" data-action="start" data-kot="${kot.name}">
+                    <button type="button" class="kot-action-btn primary start-btn" data-action="start" data-kot="${kot.name}" title="Start Preparing" aria-label="Start Preparing">
                         Start Preparing
                     </button>
                 ` : ''}
 
                 ${kot.workflow_state === 'In Progress' ? `
-                    <button class="kot-action-btn primary ready-btn" data-action="ready" data-kot="${kot.name}">
+                    <button type="button" class="kot-action-btn primary ready-btn" data-action="ready" data-kot="${kot.name}" title="Mark Ready" aria-label="Mark Ready">
                         Mark Ready
                     </button>
                 ` : ''}
 
                 ${['In Progress', 'Ready'].includes(kot.workflow_state) ? `
-                    <button class="kot-action-btn primary serve-btn" data-action="serve" data-kot="${kot.name}">
+                    <button type="button" class="kot-action-btn primary serve-btn" data-action="serve" data-kot="${kot.name}" title="Mark Served" aria-label="Mark Served">
                         Mark Served
                     </button>
                 ` : ''}
-                
-                <button class="kot-action-btn print-btn" data-action="print" data-kot="${kot.name}">
+
+                <button type="button" class="kot-action-btn print-btn" data-action="print" data-kot="${kot.name}" title="Print KOT" aria-label="Print KOT">
                     <i class="fa fa-print"></i>
                 </button>
-                
-                <button class="kot-action-btn info-btn" data-action="info" data-kot="${kot.name}">
+
+                <button type="button" class="kot-action-btn info-btn" data-action="info" data-kot="${kot.name}" title="View Details" aria-label="View Details">
                     <i class="fa fa-info-circle"></i>
                 </button>
             </div>
@@ -1806,28 +1806,8 @@ imogi_pos.kitchen_display = {
     bindKotCardEvents: function(container, status) {
         // Action buttons
         container.querySelectorAll('.kot-action-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const action = button.dataset.action;
-                const kotName = button.dataset.kot;
-                
-                switch (action) {
-                    case 'start':
-                        this.updateKotWorkflowState(kotName, 'In Progress');
-                        break;
-                    case 'ready':
-                        this.updateKotWorkflowState(kotName, 'Ready');
-                        break;
-                    case 'serve':
-                        this.updateKotWorkflowState(kotName, 'Served');
-                        break;
-                    case 'print':
-                        this.printKot(kotName);
-                        break;
-                    case 'info':
-                        this.showKotDetails(kotName);
-                        break;
-                }
+            button.addEventListener('click', (event) => {
+                this.handleActionButtonClick(event);
             });
         });
         
@@ -1867,6 +1847,47 @@ imogi_pos.kitchen_display = {
                 this.showKotDetails(kotName);
             });
         });
+    },
+
+    /**
+     * Handle clicks on KOT action buttons
+     * @param {MouseEvent} event - Click event
+     */
+    handleActionButtonClick: function(event) {
+        if (!event) return;
+
+        const button = event.currentTarget || event.target.closest('.kot-action-btn');
+        if (!button) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const action = button.dataset.action;
+        const kotName = button.dataset.kot;
+
+        if (!action || !kotName) {
+            return;
+        }
+
+        switch (action) {
+            case 'start':
+                this.updateKotWorkflowState(kotName, 'In Progress');
+                break;
+            case 'ready':
+                this.updateKotWorkflowState(kotName, 'Ready');
+                break;
+            case 'serve':
+                this.updateKotWorkflowState(kotName, 'Served');
+                break;
+            case 'print':
+                this.printKot(kotName);
+                break;
+            case 'info':
+                this.showKotDetails(kotName);
+                break;
+        }
     },
     
     /**
@@ -2103,8 +2124,13 @@ imogi_pos.kitchen_display = {
         const headerRowsHtml = headerRows.join('');
 
         // Show modal
-        const modalContainer = this.container.querySelector('#modal-root');
-        if (!modalContainer) return;
+        let modalContainer = this.container.querySelector('#modal-root');
+
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'modal-root';
+            this.container.appendChild(modalContainer);
+        }
 
         modalContainer.innerHTML = `
             <div class="modal-overlay">
