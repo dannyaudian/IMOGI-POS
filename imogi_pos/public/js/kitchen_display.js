@@ -2537,7 +2537,7 @@ imogi_pos.kitchen_display = {
             return 'Unnamed Item';
         }
 
-        const statusKeywords = new Set([
+        const statusKeywords = [
             'queued',
             'in progress',
             'in-progress',
@@ -2550,7 +2550,55 @@ imogi_pos.kitchen_display = {
             'sent to kitchen',
             'sent-to-kitchen',
             'closed'
-        ]);
+        ];
+
+        const keywordSet = new Set(statusKeywords);
+        const escapeRegex = (value) => value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const statusAlternatives = statusKeywords
+            .map(keyword => keyword.trim())
+            .filter(Boolean)
+            .map(keyword => keyword
+                .split(/\s+/)
+                .map(part => escapeRegex(part))
+                .join('\\s+')
+            );
+
+        const statusPattern = statusAlternatives.length
+            ? new RegExp(`(?:[-–—|:/\\s(]*)(?:${statusAlternatives.join('|')})\\s*\\)?$`, 'i')
+            : null;
+
+        const sanitizePart = (part) => {
+            if (!part) {
+                return '';
+            }
+
+            let working = part.trim();
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            if (statusPattern) {
+                let iterations = 0;
+                while (statusPattern.test(working) && iterations < 3) {
+                    working = working.replace(statusPattern, '').trim();
+                    iterations += 1;
+                }
+            }
+
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            return working;
+        };
 
         const parts = baseName
             .split('|')
@@ -2558,19 +2606,20 @@ imogi_pos.kitchen_display = {
             .filter(Boolean);
 
         if (!parts.length) {
-            return baseName;
+            const sanitized = sanitizePart(baseName);
+            return sanitized || baseName;
         }
 
-        const filteredParts = parts.filter(part => {
-            const normalized = part.toLowerCase();
-            return !statusKeywords.has(normalized);
-        });
+        const cleanedParts = parts
+            .map(part => sanitizePart(part))
+            .filter(Boolean);
 
-        if (filteredParts.length === 0) {
-            return parts[0];
+        if (!cleanedParts.length) {
+            const fallback = sanitizePart(parts[0]);
+            return fallback || parts[0];
         }
 
-        return filteredParts.join(' | ');
+        return cleanedParts.join(' | ');
     },
 
     /**
