@@ -748,9 +748,9 @@ body {
   flex: 1;
 }
 
+
 .kot-item-name {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   font-weight: 500;
   color: var(--text-dark);
@@ -761,29 +761,6 @@ body {
   font-size: 14px;
   color: var(--text-medium);
   margin-top: var(--spacing-xs);
-}
-
-.item-status-badge {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: var(--radius-round);
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.queued .item-status-badge {
-  background-color: var(--queued-bg);
-  color: var(--queued-color);
-}
-
-.in-progress .item-status-badge {
-  background-color: var(--in-progress-bg);
-  color: var(--in-progress-color);
-}
-
-.ready .item-status-badge {
-  background-color: var(--ready-bg);
-  color: var(--ready-color);
 }
 
 /* Opsi Item */

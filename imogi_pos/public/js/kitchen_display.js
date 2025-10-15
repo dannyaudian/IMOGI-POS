@@ -1639,7 +1639,6 @@ imogi_pos.kitchen_display = {
                         <div class="kot-item-details">
                             <div class="kot-item-name">
                                 ${this.escapeHtml(itemDisplayName)}
-                                <span class="item-status-badge">${itemStatus}</span>
                             </div>
                             ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
                             ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
