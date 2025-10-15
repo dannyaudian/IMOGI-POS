@@ -638,6 +638,12 @@ imogi_pos.kitchen_display = {
 
         const normalizedKot = Object.assign({}, kot);
 
+        const workflowState = this.normalizeWorkflowState(
+            normalizedKot.workflow_state || normalizedKot.status
+        );
+        normalizedKot.workflow_state = workflowState;
+        normalizedKot.status = workflowState;
+
         if (Array.isArray(normalizedKot.items)) {
             normalizedKot.items = normalizedKot.items.map(item => this.normalizeKotItem(item)).filter(Boolean);
         } else {
@@ -654,13 +660,12 @@ imogi_pos.kitchen_display = {
 
         const normalizedItem = Object.assign({}, item);
 
-        if (normalizedItem.workflow_state && !normalizedItem.status) {
-            normalizedItem.status = normalizedItem.workflow_state;
-        }
+        const workflowState = this.normalizeWorkflowState(
+            normalizedItem.workflow_state || normalizedItem.status
+        );
 
-        if (normalizedItem.status && !normalizedItem.workflow_state) {
-            normalizedItem.workflow_state = normalizedItem.status;
-        }
+        normalizedItem.status = workflowState;
+        normalizedItem.workflow_state = workflowState;
 
         return normalizedItem;
     },
@@ -696,16 +701,16 @@ imogi_pos.kitchen_display = {
 
         // Process each KOT
         response.message.forEach(kot => {
-            switch (kot.workflow_state) {
-                case 'Queued':
-                    kots.queued.push(kot);
-                    break;
-                case 'In Progress':
-                    kots.preparing.push(kot);
-                    break;
-                case 'Ready':
-                    kots.ready.push(kot);
-                    break;
+            const normalizedKot = this.normalizeKotPayload(kot);
+            if (!normalizedKot) {
+                return;
+            }
+
+            const status = normalizedKot.workflow_state;
+            const stateKey = this.getStateKeyForWorkflow(status);
+
+            if (stateKey) {
+                kots[stateKey].push(normalizedKot);
             }
         });
 
@@ -859,17 +864,15 @@ imogi_pos.kitchen_display = {
         // First remove the KOT from all status lists if it exists
         this.removeKotFromState(kot.name);
         
+        const normalizedKot = this.normalizeKotPayload(kot);
+        if (!normalizedKot) {
+            return;
+        }
+
         // Then add to the appropriate list based on current status
-        switch (kot.workflow_state) {
-            case 'Queued':
-                this.state.kots.queued.push(kot);
-                break;
-            case 'In Progress':
-                this.state.kots.preparing.push(kot);
-                break;
-            case 'Ready':
-                this.state.kots.ready.push(kot);
-                break;
+        const stateKey = this.getStateKeyForWorkflow(normalizedKot.workflow_state);
+        if (stateKey) {
+            this.state.kots[stateKey].push(normalizedKot);
         }
         
         // Re-apply filters and sorting
@@ -917,15 +920,8 @@ imogi_pos.kitchen_display = {
         if (!kot) return;
         
         // Map status string to state key
-        const statusMap = {
-            'Queued': 'queued',
-            'In Progress': 'preparing',
-            'Ready': 'ready',
-            'Served': null, // Remove from KDS when served
-            'Cancelled': null // Remove from KDS when cancelled
-        };
-        
-        const newStatusKey = statusMap[status];
+        const normalizedStatus = this.normalizeWorkflowState(status);
+        const newStatusKey = this.getStateKeyForWorkflow(normalizedStatus);
         
         // If status is Served or Cancelled, remove from state
         if (newStatusKey === null) {
@@ -939,7 +935,8 @@ imogi_pos.kitchen_display = {
             this.state.kots[currentStatus] = this.state.kots[currentStatus].filter(k => k.name !== kotName);
             
             // Update the KOT status
-            kot.workflow_state = status;
+            kot.workflow_state = normalizedStatus;
+            kot.status = normalizedStatus;
             
             // Add to new status list
             this.state.kots[newStatusKey].push(kot);
@@ -994,13 +991,93 @@ imogi_pos.kitchen_display = {
         if (!targetItem) return;
 
         // Update the item status
-        targetItem.status = status;
-        targetItem.workflow_state = status;
+        const normalizedStatus = this.normalizeWorkflowState(status);
+        targetItem.status = normalizedStatus;
+        targetItem.workflow_state = normalizedStatus;
 
         // Re-render the KOT card
         const kotCard = this.container.querySelector(`.kot-card[data-kot="${kotName}"]`);
         if (kotCard) {
             this.renderKotCard(kotCard, kot);
+        }
+    },
+
+    /**
+     * Normalize workflow state strings to canonical values
+     * @param {string} status - Raw workflow status value
+     * @returns {string} Canonical workflow state
+     */
+    normalizeWorkflowState: function(status) {
+        if (status === null || status === undefined) {
+            return 'Queued';
+        }
+
+        const normalized = String(status).trim().toLowerCase();
+
+        switch (normalized) {
+            case 'queued':
+            case 'queue':
+            case 'queuing':
+            case 'waiting':
+            case 'pending':
+            case 'new':
+                return 'Queued';
+
+            case 'in progress':
+            case 'in-progress':
+            case 'progress':
+            case 'preparing':
+            case 'prepare':
+            case 'processing':
+            case 'in preparation':
+            case 'in_preparation':
+            case 'ongoing':
+                return 'In Progress';
+
+            case 'ready':
+            case 'completed':
+            case 'complete':
+            case 'done':
+            case 'selesai':
+            case 'ready to serve':
+                return 'Ready';
+
+            case 'served':
+            case 'serve':
+            case 'served to customer':
+                return 'Served';
+
+            case 'cancelled':
+            case 'canceled':
+            case 'void':
+            case 'voided':
+                return 'Cancelled';
+
+            default:
+                return String(status).trim() || 'Queued';
+        }
+    },
+
+    /**
+     * Map canonical workflow state to internal state key
+     * @param {string} status - Workflow state
+     * @returns {string|null} Internal key or null when not displayed
+     */
+    getStateKeyForWorkflow: function(status) {
+        const normalizedStatus = this.normalizeWorkflowState(status);
+
+        switch (normalizedStatus) {
+            case 'Queued':
+                return 'queued';
+            case 'In Progress':
+                return 'preparing';
+            case 'Ready':
+                return 'ready';
+            case 'Served':
+            case 'Cancelled':
+                return null;
+            default:
+                return 'queued';
         }
     },
     
