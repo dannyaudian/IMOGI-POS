@@ -198,6 +198,24 @@ imogi_pos.kitchen_display = {
     },
 
     /**
+     * Ensure the shared modal root exists on the document body.
+     * @returns {HTMLElement|null} The modal root container when available.
+     */
+    getModalRoot: function() {
+        let modalRoot = document.getElementById('modal-root');
+
+        if (!modalRoot) {
+            modalRoot = document.createElement('div');
+            modalRoot.id = 'modal-root';
+            document.body.appendChild(modalRoot);
+        } else if (modalRoot.parentElement !== document.body) {
+            document.body.appendChild(modalRoot);
+        }
+
+        return modalRoot;
+    },
+
+    /**
      * Load kitchens and stations
      * @returns {Promise} Promise resolving when kitchens are loaded
      */
@@ -1178,9 +1196,12 @@ imogi_pos.kitchen_display = {
                 </div>
             </main>
 
-            <div id="modal-root"></div>
             <div id="toast-container" class="toast-container"></div>
         `;
+
+        // Ensure the modal root exists outside the kitchen display container so overlays
+        // are not clipped by local layout constraints.
+        this.getModalRoot();
 
     },
     
@@ -1311,7 +1332,7 @@ imogi_pos.kitchen_display = {
      * Show settings modal
      */
     showSettings: function() {
-        const modalContainer = this.container.querySelector('#modal-root');
+        const modalContainer = this.getModalRoot();
         if (!modalContainer) return;
         
         modalContainer.innerHTML = `
@@ -2124,13 +2145,8 @@ imogi_pos.kitchen_display = {
         const headerRowsHtml = headerRows.join('');
 
         // Show modal
-        let modalContainer = this.container.querySelector('#modal-root');
-
-        if (!modalContainer) {
-            modalContainer = document.createElement('div');
-            modalContainer.id = 'modal-root';
-            this.container.appendChild(modalContainer);
-        }
+        const modalContainer = this.getModalRoot();
+        if (!modalContainer) return;
 
         modalContainer.innerHTML = `
             <div class="modal-overlay">
