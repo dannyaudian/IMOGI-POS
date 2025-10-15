@@ -1798,25 +1798,42 @@ imogi_pos.kitchen_display = {
      * @param {string} state - New workflow state
      */
     updateKotWorkflowState: function(kotName, state) {
-        frappe.call({
-            method: 'imogi_pos.api.kot.update_kot_status',
-            args: {
-                kot_ticket: kotName,
-                state: state
-            },
-            callback: (response) => {
-                if (response.message) {
-                    this.showToast(`KOT ${kotName} updated to ${state}`);
+        return new Promise((resolve, reject) => {
+            const canCallServer = window.frappe && typeof window.frappe.call === 'function';
 
-                    // If locally processed, update the KOT status in state
-                    this.updateKotStatus(kotName, state);
-                } else {
-                    this.showError(`Failed to update KOT status: ${response.message && response.message.error || 'Unknown error'}`);
-                }
-            },
-            error: () => {
-                this.showError('Failed to update KOT status');
+            if (!canCallServer) {
+                console.warn('frappe.call is not available. Falling back to local state update for KOT workflow state.');
+                this.updateKotStatus(kotName, state);
+                this.showToast(`KOT ${kotName} updated to ${state}`);
+                resolve({ success: true, offline: true });
+                return;
             }
+
+            frappe.call({
+                method: 'imogi_pos.api.kot.update_kot_status',
+                args: {
+                    kot_ticket: kotName,
+                    state: state
+                },
+                callback: (response) => {
+                    if (response.message) {
+                        this.showToast(`KOT ${kotName} updated to ${state}`);
+
+                        // If locally processed, update the KOT status in state
+                        this.updateKotStatus(kotName, state);
+                        resolve(response.message);
+                    } else {
+                        const errorMessage = `Failed to update KOT status: ${response.message && response.message.error || 'Unknown error'}`;
+                        this.showError(errorMessage);
+                        reject(new Error(errorMessage));
+                    }
+                },
+                error: (error) => {
+                    const errorMessage = 'Failed to update KOT status';
+                    this.showError(errorMessage);
+                    reject(error || new Error(errorMessage));
+                }
+            });
         });
     },
     
@@ -1827,26 +1844,43 @@ imogi_pos.kitchen_display = {
      * @param {string} state - New state
      */
     updateKotItemState: function(kotName, itemIdx, state) {
-        frappe.call({
-            method: 'imogi_pos.api.kot.update_kot_item_state',
-            args: {
-                kot: kotName,
-                item_idx: itemIdx,
-                status: state
-            },
-            callback: (response) => {
-                if (response.message && response.message.success) {
-                    this.showToast(`Item updated to ${state}`);
-                    
-                    // If locally processed, update the item status in UI
-                    this.updateKotItemStatus(kotName, itemIdx, state);
-                } else {
-                    this.showError(`Failed to update item status: ${response.message && response.message.error || 'Unknown error'}`);
-                }
-            },
-            error: () => {
-                this.showError('Failed to update item status');
+        return new Promise((resolve, reject) => {
+            const canCallServer = window.frappe && typeof window.frappe.call === 'function';
+
+            if (!canCallServer) {
+                console.warn('frappe.call is not available. Falling back to local state update for KOT item state.');
+                this.updateKotItemStatus(kotName, itemIdx, state);
+                this.showToast(`Item updated to ${state}`);
+                resolve({ success: true, offline: true });
+                return;
             }
+
+            frappe.call({
+                method: 'imogi_pos.api.kot.update_kot_item_state',
+                args: {
+                    kot: kotName,
+                    item_idx: itemIdx,
+                    status: state
+                },
+                callback: (response) => {
+                    if (response.message && response.message.success) {
+                        this.showToast(`Item updated to ${state}`);
+
+                        // If locally processed, update the item status in UI
+                        this.updateKotItemStatus(kotName, itemIdx, state);
+                        resolve(response.message);
+                    } else {
+                        const errorMessage = `Failed to update item status: ${response.message && response.message.error || 'Unknown error'}`;
+                        this.showError(errorMessage);
+                        reject(new Error(errorMessage));
+                    }
+                },
+                error: (error) => {
+                    const errorMessage = 'Failed to update item status';
+                    this.showError(errorMessage);
+                    reject(error || new Error(errorMessage));
+                }
+            });
         });
     },
     
@@ -1855,23 +1889,39 @@ imogi_pos.kitchen_display = {
      * @param {string} kotName - KOT name
      */
     printKot: function(kotName) {
-        frappe.call({
-            method: 'imogi_pos.api.printing.print_kot',
-            args: {
-                kot: kotName,
-                kitchen: this.settings.kitchen,
-                station: this.settings.station
-            },
-            callback: (response) => {
-                if (response.message && response.message.success) {
-                    this.showToast('KOT printed successfully');
-                } else {
-                    this.showError(`Failed to print KOT: ${response.message && response.message.error || 'Unknown error'}`);
-                }
-            },
-            error: () => {
-                this.showError('Failed to print KOT');
+        return new Promise((resolve, reject) => {
+            const canCallServer = window.frappe && typeof window.frappe.call === 'function';
+
+            if (!canCallServer) {
+                console.warn('frappe.call is not available. Simulating KOT print.');
+                this.showToast('Simulated KOT print');
+                resolve({ success: true, offline: true });
+                return;
             }
+
+            frappe.call({
+                method: 'imogi_pos.api.printing.print_kot',
+                args: {
+                    kot: kotName,
+                    kitchen: this.settings.kitchen,
+                    station: this.settings.station
+                },
+                callback: (response) => {
+                    if (response.message && response.message.success) {
+                        this.showToast('KOT printed successfully');
+                        resolve(response.message);
+                    } else {
+                        const errorMessage = `Failed to print KOT: ${response.message && response.message.error || 'Unknown error'}`;
+                        this.showError(errorMessage);
+                        reject(new Error(errorMessage));
+                    }
+                },
+                error: (error) => {
+                    const errorMessage = 'Failed to print KOT';
+                    this.showError(errorMessage);
+                    reject(error || new Error(errorMessage));
+                }
+            });
         });
     },
     
@@ -2020,12 +2070,26 @@ imogi_pos.kitchen_display = {
         
         // Show modal
         modalContainer.classList.add('active');
+
+        const closeModal = () => {
+            modalContainer.classList.remove('active');
+            modalContainer.innerHTML = '';
+        };
+
+        const modalOverlay = modalContainer.querySelector('.modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (event) => {
+                if (event.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+        }
         
         // Bind close button
         const closeBtn = modalContainer.querySelector('.modal-close');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                modalContainer.classList.remove('active');
+                closeModal();
             });
         }
         
@@ -2033,17 +2097,28 @@ imogi_pos.kitchen_display = {
         const printBtn = modalContainer.querySelector('#print-kot-btn');
         if (printBtn) {
             printBtn.addEventListener('click', () => {
-                this.printKot(kotName);
+                const originalText = printBtn.textContent;
+                printBtn.disabled = true;
+                printBtn.classList.add('loading');
+                printBtn.textContent = 'Printing...';
+
+                this.printKot(kotName)
+                    .catch(() => {})
+                    .finally(() => {
+                        printBtn.disabled = false;
+                        printBtn.classList.remove('loading');
+                        printBtn.textContent = originalText;
+                    });
             });
         }
-        
+
         // Bind save button
         const saveBtn = modalContainer.querySelector('#save-kot-btn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 // Get KOT status
                 const kotStatus = modalContainer.querySelector('#kot-status-select').value;
-                
+
                 // Get item statuses
                 const itemStatuses = [];
                 modalContainer.querySelectorAll('.item-status-select').forEach(select => {
@@ -2052,17 +2127,29 @@ imogi_pos.kitchen_display = {
                         status: select.value
                     });
                 });
-                
-                // Update KOT status
-                this.updateKotWorkflowState(kotName, kotStatus);
-                
-                // Update item statuses
-                itemStatuses.forEach(item => {
-                    this.updateKotItemState(kotName, item.idx, item.status);
-                });
-                
-                // Close modal
-                modalContainer.classList.remove('active');
+
+                const originalText = saveBtn.textContent;
+                saveBtn.disabled = true;
+                saveBtn.classList.add('loading');
+                saveBtn.textContent = 'Saving...';
+
+                const updatePromises = [
+                    this.updateKotWorkflowState(kotName, kotStatus),
+                    ...itemStatuses.map(item => this.updateKotItemState(kotName, item.idx, item.status))
+                ];
+
+                Promise.allSettled(updatePromises)
+                    .then(results => {
+                        const hasError = results.some(result => result.status === 'rejected');
+                        if (!hasError) {
+                            closeModal();
+                        }
+                    })
+                    .finally(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.classList.remove('loading');
+                        saveBtn.textContent = originalText;
+                    });
             });
         }
     },
