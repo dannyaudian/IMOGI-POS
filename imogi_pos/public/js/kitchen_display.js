@@ -1609,8 +1609,8 @@ imogi_pos.kitchen_display = {
         const optionContentMap = [];
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsDisplay = (item.options_display || '').trim();
                 let optionsHtml = '';
                 const itemDisplayName = this.getItemDisplayName(item);
@@ -2078,8 +2078,8 @@ imogi_pos.kitchen_display = {
         let itemsHtml = '';
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsHtml = this.getItemOptionsMarkup(item);
                 const itemDisplayName = this.getItemDisplayName(item);
 
@@ -2533,7 +2533,93 @@ imogi_pos.kitchen_display = {
      */
     getItemDisplayName: function(item) {
         const baseName = this.getItemBaseName(item);
-        return baseName || 'Unnamed Item';
+        if (!baseName) {
+            return 'Unnamed Item';
+        }
+
+        const statusKeywords = [
+            'queued',
+            'in progress',
+            'in-progress',
+            'ready',
+            'served',
+            'cancelled',
+            'canceled',
+            'returned',
+            'draft',
+            'sent to kitchen',
+            'sent-to-kitchen',
+            'closed'
+        ];
+
+        const keywordSet = new Set(statusKeywords);
+        const escapeRegex = (value) => value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const statusAlternatives = statusKeywords
+            .map(keyword => keyword.trim())
+            .filter(Boolean)
+            .map(keyword => keyword
+                .split(/\s+/)
+                .map(part => escapeRegex(part))
+                .join('\\s+')
+            );
+
+        const statusPattern = statusAlternatives.length
+            ? new RegExp(`(?:[-–—|:/\\s(]*)(?:${statusAlternatives.join('|')})\\s*\\)?$`, 'i')
+            : null;
+
+        const sanitizePart = (part) => {
+            if (!part) {
+                return '';
+            }
+
+            let working = part.trim();
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            if (statusPattern) {
+                let iterations = 0;
+                while (statusPattern.test(working) && iterations < 3) {
+                    working = working.replace(statusPattern, '').trim();
+                    iterations += 1;
+                }
+            }
+
+            if (!working) {
+                return '';
+            }
+
+            if (keywordSet.has(working.toLowerCase())) {
+                return '';
+            }
+
+            return working;
+        };
+
+        const parts = baseName
+            .split('|')
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        if (!parts.length) {
+            const sanitized = sanitizePart(baseName);
+            return sanitized || baseName;
+        }
+
+        const cleanedParts = parts
+            .map(part => sanitizePart(part))
+            .filter(Boolean);
+
+        if (!cleanedParts.length) {
+            const fallback = sanitizePart(parts[0]);
+            return fallback || parts[0];
+        }
+
+        return cleanedParts.join(' | ');
     },
 
     /**
