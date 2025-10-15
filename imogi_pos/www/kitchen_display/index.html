@@ -22,46 +22,463 @@
   
   .hidden { display: none !important; }
   
-  #kitchen-display {
-    font-family: 'Roboto', 'Open Sans', sans-serif;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: #f5f5f5;
-    color: #333;
+  /* Kitchen Display - Clean & Professional Styling */
+
+/* Reset dan Base */
+#kitchen-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+/* Header */
+.kitchen-header {
+  background-color: #ffffff;
+  padding: 16px 24px;
+  border-bottom: 2px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  z-index: 10;
+}
+
+.kitchen-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #212529;
+}
+
+/* Columns Layout */
+.kitchen-columns {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+.kitchen-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+}
+
+.kitchen-column:not(:last-child) {
+  border-right: 2px solid #dee2e6;
+}
+
+/* Column Headers */
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.column-title {
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.column-count {
+  background-color: #f8f9fa;
+  color: #495057;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Queued Column - Orange Theme */
+.kitchen-column.queued .column-title {
+  color: #fd7e14;
+}
+.kitchen-column.queued .column-count {
+  background-color: #fff3cd;
+  color: #fd7e14;
+}
+
+/* In Progress Column - Blue Theme */
+.kitchen-column.in-progress .column-title {
+  color: #0d6efd;
+}
+.kitchen-column.in-progress .column-count {
+  background-color: #cfe2ff;
+  color: #0d6efd;
+}
+
+/* Ready Column - Green Theme */
+.kitchen-column.ready .column-title {
+  color: #198754;
+}
+.kitchen-column.ready .column-count {
+  background-color: #d1e7dd;
+  color: #198754;
+}
+
+/* KOT Cards */
+.kot-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  border-left: 4px solid #dee2e6;
+}
+
+.kot-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Status-based left border colors */
+.kitchen-column.queued .kot-card {
+  border-left-color: #fd7e14;
+}
+
+.kitchen-column.in-progress .kot-card {
+  border-left-color: #0d6efd;
+}
+
+.kitchen-column.ready .kot-card {
+  border-left-color: #198754;
+}
+
+/* KOT Card Header */
+.kot-card-header {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.kot-order-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.kot-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #212529;
+  letter-spacing: -0.5px;
+}
+
+.kot-table {
+  background-color: #ffffff;
+  color: #495057;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #dee2e6;
+}
+
+.kot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.kot-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kot-meta-item i {
+  font-size: 11px;
+}
+
+/* Time Badge */
+.kot-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #fff3cd;
+  color: #fd7e14;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.kot-time i {
+  font-size: 12px;
+}
+
+/* Priority Badge */
+.priority-high {
+  background-color: #f8d7da !important;
+  border-left-color: #dc3545 !important;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #dc3545;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* KOT Card Body */
+.kot-card-body {
+  padding: 16px;
+}
+
+.kot-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kot-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e9ecef;
+}
+
+.kot-item:last-child {
+  border-bottom: none;
+}
+
+.kot-item-qty {
+  background-color: #212529;
+  color: #ffffff;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.kot-item-details {
+  flex: 1;
+}
+
+.kot-item-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #212529;
+  line-height: 1.4;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.kot-item-notes {
+  font-size: 13px;
+  color: #6c757d;
+  font-style: italic;
+  line-height: 1.4;
+  display: block;
+}
+
+.kot-item-notes::before {
+  content: "Note: ";
+  font-weight: 600;
+  color: #495057;
+}
+
+/* KOT Card Footer */
+.kot-card-footer {
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
+.kot-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.kot-actions button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.kot-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.kot-actions button:active {
+  transform: translateY(0);
+}
+
+.kot-actions button i {
+  font-size: 13px;
+}
+
+/* Button Variants */
+.btn-start {
+  background-color: #0d6efd;
+  color: #ffffff;
+}
+
+.btn-start:hover {
+  background-color: #0b5ed7;
+}
+
+.btn-complete {
+  background-color: #198754;
+  color: #ffffff;
+}
+
+.btn-complete:hover {
+  background-color: #157347;
+}
+
+.btn-serve {
+  background-color: #fd7e14;
+  color: #ffffff;
+}
+
+.btn-serve:hover {
+  background-color: #e66a0c;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: #ffffff;
+}
+
+.btn-cancel:hover {
+  background-color: #5c636a;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #6c757d;
+  text-align: center;
+}
+
+.empty-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.empty-state p {
+  font-size: 15px;
+  margin: 0;
+}
+
+/* Loading State */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e9ecef;
+  border-top: 4px solid #0d6efd;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Scrollbar Styling */
+.kitchen-column::-webkit-scrollbar {
+  width: 8px;
+}
+
+.kitchen-column::-webkit-scrollbar-track {
+  background-color: #f8f9fa;
+}
+
+.kitchen-column::-webkit-scrollbar-thumb {
+  background-color: #dee2e6;
+  border-radius: 4px;
+}
+
+.kitchen-column::-webkit-scrollbar-thumb:hover {
+  background-color: #ced4da;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .kot-number {
+    font-size: 18px;
   }
   
-  .kitchen-header {
-    background-color: #fff;
-    padding: 10px 16px;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-  
-  .kitchen-columns {
-    display: flex;
-    flex-grow: 1;
-    overflow: hidden;
+  .kot-item-name {
+    font-size: 14px;
   }
   
   .kitchen-column {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #e0e0e0;
-    overflow: hidden;
+    padding: 12px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .kitchen-header,
+  .kot-actions {
+    display: none;
   }
   
   .kot-card {
-    background-color: #fff;
-    border-radius: 6px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    overflow: hidden;
-    border-left: 4px solid #ddd;
+    page-break-inside: avoid;
   }
   
   .queued { border-left-color: #ff9800; }
@@ -205,302 +622,239 @@
   }
 
 
-  // Tambahkan di bagian script sebelum DOMContentLoaded
-// atau buat file baru fix_kitchen_display_detailed.js
+  // JavaScript untuk render Kitchen Display dengan struktur baru
+// Tambahkan ke file kitchen_display.js atau sebagai override
 
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Kitchen Display Fix - Starting...');
+// Function untuk render KOT Card dengan styling baru
+function renderKOTCard(ticket) {
+  const duration = calculateDuration(ticket.creation);
+  const priorityClass = ticket.priority === 'High' ? 'priority-high' : '';
+  const priorityBadge = ticket.priority === 'High' 
+    ? '<span class="priority-badge"><i class="fas fa-exclamation-circle"></i> HIGH PRIORITY</span>' 
+    : '';
   
-  setTimeout(function() {
-    if (typeof imogi_pos === 'undefined' || typeof imogi_pos.kitchen_display === 'undefined') {
-      console.error('imogi_pos.kitchen_display tidak tersedia');
-      return;
-    }
-    
-    // Override render function untuk memastikan konten card muncul
-    const originalRender = imogi_pos.kitchen_display.renderColumns;
-    
-    imogi_pos.kitchen_display.renderColumns = function() {
-      console.log('Rendering columns dengan perbaikan...');
-      
-      // Panggil original render
-      if (originalRender) {
-        originalRender.call(this);
-      }
-      
-      // Verifikasi dan perbaiki cards yang kosong
-      setTimeout(function() {
-        const allCards = document.querySelectorAll('.kot-card');
-        console.log(`Total cards ditemukan: ${allCards.length}`);
+  const items = ticket.items || [];
+  const itemsHTML = items.length > 0 
+    ? items.map(item => renderKOTItem(item)).join('')
+    : '<div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada item</p></div>';
+  
+  return `
+    <div class="kot-card ${priorityClass}" data-ticket-id="${ticket.name}">
+      <div class="kot-card-header">
+        <div class="kot-order-info">
+          <span class="kot-number">${ticket.name || 'N/A'}</span>
+          ${ticket.table ? `<span class="kot-table"><i class="fas fa-chair"></i> ${ticket.table}</span>` : ''}
+          ${priorityBadge}
+        </div>
         
-        allCards.forEach((card, index) => {
-          // Cek apakah card kosong (tidak ada content)
-          if (!card.innerHTML || card.innerHTML.trim() === '') {
-            console.warn(`Card ${index} kosong, mencoba render ulang...`);
-            
-            // Ambil data dari attribute atau global state
-            const ticketId = card.getAttribute('data-ticket-id');
-            if (ticketId && imogi_pos.kitchen_display.tickets) {
-              const ticket = imogi_pos.kitchen_display.tickets.find(t => t.name === ticketId);
-              if (ticket) {
-                card.innerHTML = renderKOTCard(ticket);
-              }
-            }
-          }
+        <div class="kot-meta">
+          ${ticket.order_ref ? `
+            <span class="kot-meta-item">
+              <i class="fas fa-receipt"></i>
+              ${ticket.order_ref}
+            </span>
+          ` : ''}
           
-          // Tambahkan min-height untuk memastikan terlihat
-          if (card.style.height === '0px' || !card.style.minHeight) {
-            card.style.minHeight = '120px';
-          }
-        });
-      }, 100);
-    };
-    
-    // Function helper untuk render KOT card
-    function renderKOTCard(ticket) {
-      const duration = calculateDuration(ticket.creation);
-      const priorityClass = ticket.priority === 'High' ? 'priority-high' : '';
+          ${ticket.branch ? `
+            <span class="kot-meta-item">
+              <i class="fas fa-store"></i>
+              ${ticket.branch}
+            </span>
+          ` : ''}
+          
+          ${ticket.station ? `
+            <span class="kot-meta-item">
+              <i class="fas fa-utensils"></i>
+              ${ticket.station}
+            </span>
+          ` : ''}
+          
+          ${ticket.kitchen ? `
+            <span class="kot-meta-item">
+              <i class="fas fa-fire"></i>
+              ${ticket.kitchen}
+            </span>
+          ` : ''}
+        </div>
+        
+        <div class="kot-time">
+          <i class="far fa-clock"></i>
+          <span>${duration}</span>
+        </div>
+      </div>
       
-      return `
-        <div class="kot-card-header ${priorityClass}">
-          <div class="kot-order-info">
-            <span class="kot-order-number">${ticket.name || 'N/A'}</span>
-            <span class="kot-table">${ticket.table || 'Takeaway'}</span>
-          </div>
-          <div class="kot-time">
-            <i class="far fa-clock"></i>
-            <span>${duration}</span>
-          </div>
+      <div class="kot-card-body">
+        <div class="kot-items">
+          ${itemsHTML}
         </div>
-        <div class="kot-card-body">
-          ${renderKOTItems(ticket.items || [])}
+      </div>
+      
+      <div class="kot-card-footer">
+        <div class="kot-actions">
+          ${renderActionButtons(ticket)}
         </div>
-        <div class="kot-card-footer">
-          <div class="kot-actions">
-            ${renderActionButtons(ticket)}
-          </div>
-        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Function untuk render item dengan struktur baru
+function renderKOTItem(item) {
+  return `
+    <div class="kot-item">
+      <div class="kot-item-qty">${item.qty || 1}</div>
+      <div class="kot-item-details">
+        <span class="kot-item-name">${item.item_name || item.name || 'Unknown Item'}</span>
+        ${item.notes ? `<span class="kot-item-notes">${item.notes}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// Function untuk render action buttons
+function renderActionButtons(ticket) {
+  const status = ticket.status || 'Queued';
+  
+  let buttons = '';
+  
+  switch(status) {
+    case 'Queued':
+      buttons = `
+        <button class="btn-start" data-action="start" data-ticket="${ticket.name}">
+          <i class="fas fa-play"></i>
+          <span>Mulai Masak</span>
+        </button>
       `;
-    }
-    
-    function renderKOTItems(items) {
-      if (!items || items.length === 0) {
-        return '<p class="no-items">Tidak ada item</p>';
-      }
+      break;
       
-      return items.map(item => `
-        <div class="kot-item">
-          <span class="kot-item-qty">${item.qty || 1}x</span>
-          <span class="kot-item-name">${item.item_name || item.name}</span>
-          ${item.notes ? `<span class="kot-item-notes">${item.notes}</span>` : ''}
-        </div>
-      `).join('');
-    }
-    
-    function renderActionButtons(ticket) {
-      const status = ticket.status || 'Queued';
+    case 'In Progress':
+      buttons = `
+        <button class="btn-complete" data-action="complete" data-ticket="${ticket.name}">
+          <i class="fas fa-check"></i>
+          <span>Selesai</span>
+        </button>
+      `;
+      break;
       
-      if (status === 'Queued') {
-        return `
-          <button class="btn-start" data-ticket="${ticket.name}">
-            <i class="fas fa-play"></i> Mulai
-          </button>
-        `;
-      } else if (status === 'In Progress') {
-        return `
-          <button class="btn-complete" data-ticket="${ticket.name}">
-            <i class="fas fa-check"></i> Selesai
-          </button>
-        `;
-      } else if (status === 'Ready') {
-        return `
-          <button class="btn-serve" data-ticket="${ticket.name}">
-            <i class="fas fa-utensils"></i> Sajikan
-          </button>
-        `;
-      }
-      return '';
-    }
-    
-    function calculateDuration(creationTime) {
-      if (!creationTime) return '0m';
-      
-      const created = new Date(creationTime);
-      const now = new Date();
-      const diffMinutes = Math.floor((now - created) / 60000);
-      
-      if (diffMinutes < 60) {
-        return `${diffMinutes}m`;
-      } else {
-        const hours = Math.floor(diffMinutes / 60);
-        const minutes = diffMinutes % 60;
-        return `${hours}h ${minutes}m`;
-      }
-    }
-    
-    // Perbaiki fetchTickets untuk memastikan data lengkap
-    const originalFetch = imogi_pos.kitchen_display.fetchTickets;
-    
-    imogi_pos.kitchen_display.fetchTickets = function() {
-      console.log('Fetching tickets...');
-      
-      return originalFetch.call(this).then(function(tickets) {
-        console.log(`Tickets fetched: ${tickets ? tickets.length : 0}`);
-        
-        // Validasi setiap ticket memiliki data yang dibutuhkan
-        if (tickets && Array.isArray(tickets)) {
-          tickets.forEach(ticket => {
-            if (!ticket.name) {
-              console.warn('Ticket tanpa name:', ticket);
-            }
-            if (!ticket.items || ticket.items.length === 0) {
-              console.warn('Ticket tanpa items:', ticket.name);
-            }
-          });
-        }
-        
-        return tickets;
-      }).catch(function(error) {
-        console.error('Error fetching tickets:', error);
-        throw error;
-      });
-    };
-    
-    // Inisialisasi dengan monitoring
-    console.log('Menginisialisasi Kitchen Display...');
-    
-    try {
-      if (typeof imogi_pos.kitchen_display.init === 'function') {
-        imogi_pos.kitchen_display.init({
-          container: '#kitchen-display',
-          refreshInterval: 30000
-        });
-        
-        // Monitor rendering setelah init
-        setTimeout(function() {
-          const cards = document.querySelectorAll('.kot-card');
-          console.log(`Status render: ${cards.length} cards ditemukan`);
-          
-          if (cards.length === 0) {
-            console.error('Tidak ada cards yang ter-render!');
-            // Trigger manual render
-            if (typeof imogi_pos.kitchen_display.renderColumns === 'function') {
-              imogi_pos.kitchen_display.renderColumns();
-            }
-          }
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Error inisialisasi:', err);
-    }
-    
-  }, 300);
-});
+    case 'Ready':
+      buttons = `
+        <button class="btn-serve" data-action="serve" data-ticket="${ticket.name}">
+          <i class="fas fa-concierge-bell"></i>
+          <span>Sajikan</span>
+        </button>
+      `;
+      break;
+  }
+  
+  // Tambahkan tombol cancel untuk semua status
+  buttons += `
+    <button class="btn-cancel" data-action="cancel" data-ticket="${ticket.name}">
+      <i class="fas fa-times"></i>
+      <span>Batal</span>
+    </button>
+  `;
+  
+  return buttons;
+}
 
-// CSS tambahan untuk memastikan cards terlihat
-const style = document.createElement('style');
-style.textContent = `
-  .kot-card {
-    min-height: 120px !important;
-    margin-bottom: 12px !important;
-    padding: 12px !important;
-  }
+// Function untuk calculate duration
+function calculateDuration(creationTime) {
+  if (!creationTime) return '0m';
   
-  .kot-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #eee;
-  }
+  const created = new Date(creationTime);
+  const now = new Date();
+  const diffMinutes = Math.floor((now - created) / 60000);
   
-  .kot-order-number {
-    font-weight: bold;
-    font-size: 16px;
-    color: #333;
+  if (diffMinutes < 1) {
+    return 'Baru saja';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  } else {
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    return `${hours}j ${minutes}m`;
   }
+}
+
+// Function untuk render columns dengan header baru
+function renderColumns() {
+  const columns = ['queued', 'in-progress', 'ready'];
+  const columnTitles = {
+    'queued': 'Menunggu',
+    'in-progress': 'Sedang Dimasak',
+    'ready': 'Siap Disajikan'
+  };
   
-  .kot-table {
-    margin-left: 8px;
-    color: #666;
-    font-size: 14px;
-  }
+  columns.forEach(status => {
+    const columnEl = document.querySelector(`.kitchen-column.${status}`);
+    if (!columnEl) return;
+    
+    // Filter tickets by status
+    const tickets = (imogi_pos.kitchen_display.tickets || [])
+      .filter(t => t.status.toLowerCase().replace(' ', '-') === status);
+    
+    // Render column header
+    const headerHTML = `
+      <div class="column-header">
+        <span class="column-title">${columnTitles[status]}</span>
+        <span class="column-count">${tickets.length}</span>
+      </div>
+    `;
+    
+    // Render tickets
+    const ticketsHTML = tickets.length > 0
+      ? tickets.map(ticket => renderKOTCard(ticket)).join('')
+      : `<div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>Tidak ada pesanan ${columnTitles[status].toLowerCase()}</p>
+        </div>`;
+    
+    columnEl.innerHTML = headerHTML + ticketsHTML;
+  });
+}
+
+// Override render function di imogi_pos.kitchen_display
+if (typeof imogi_pos !== 'undefined' && imogi_pos.kitchen_display) {
+  imogi_pos.kitchen_display.renderColumns = renderColumns;
   
-  .kot-time {
-    color: #ff9800;
-    font-weight: bold;
-  }
-  
-  .kot-card-body {
-    margin: 12px 0;
-    min-height: 40px;
-  }
-  
-  .kot-item {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 6px;
-    padding: 4px 0;
-  }
-  
-  .kot-item-qty {
-    font-weight: bold;
-    margin-right: 8px;
-    min-width: 30px;
-  }
-  
-  .kot-item-name {
-    flex: 1;
-  }
-  
-  .kot-item-notes {
-    display: block;
-    margin-left: 38px;
-    font-size: 12px;
-    color: #666;
-    font-style: italic;
-  }
-  
-  .kot-card-footer {
-    border-top: 1px solid #eee;
-    padding-top: 8px;
-  }
-  
-  .kot-actions button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s;
-  }
-  
-  .btn-start {
-    background-color: #2196f3;
-    color: white;
-  }
-  
-  .btn-complete {
-    background-color: #4caf50;
-    color: white;
-  }
-  
-  .btn-serve {
-    background-color: #ff9800;
-    color: white;
-  }
-  
-  .priority-high {
-    background-color: #ffebee;
-  }
-  
-  .no-items {
-    color: #999;
-    font-style: italic;
-    padding: 8px 0;
-  }
-`;
+  // Bind action button events
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    
+    const action = btn.getAttribute('data-action');
+    const ticketId = btn.getAttribute('data-ticket');
+    
+    if (!ticketId) return;
+    
+    // Handle actions
+    switch(action) {
+      case 'start':
+        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'In Progress');
+        break;
+      case 'complete':
+        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Ready');
+        break;
+      case 'serve':
+        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Served');
+        break;
+      case 'cancel':
+        if (confirm('Apakah Anda yakin ingin membatalkan pesanan ini?')) {
+          imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Cancelled');
+        }
+        break;
+    }
+  });
+}
+
+// Export functions untuk digunakan di tempat lain
+window.KitchenDisplayRenderer = {
+  renderKOTCard,
+  renderKOTItem,
+  renderActionButtons,
+  calculateDuration,
+  renderColumns
+};
 document.head.appendChild(style);
 </script>
 {% endblock %}
