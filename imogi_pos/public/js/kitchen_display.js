@@ -2084,21 +2084,15 @@ imogi_pos.kitchen_display = {
                 const itemDisplayName = this.getItemDisplayName(item);
 
                 itemsHtml += `
-                    <div class="kot-detail-item ${itemStatusClass}">
-                        <div class="item-info">
-                            <div class="item-quantity">${item.qty}x</div>
-                            <div class="item-name">${this.escapeHtml(itemDisplayName)}</div>
+                    <div class="kot-item ${itemStatusClass}" data-item-idx="${item.idx}" data-status="${itemStatus}">
+                        <div class="kot-item-qty">${item.qty}x</div>
+                        <div class="kot-item-details">
+                            <div class="kot-item-name">
+                                ${this.escapeHtml(itemDisplayName)}
+                            </div>
+                            ${item.notes ? `<div class="kot-item-note">${item.notes}</div>` : ''}
+                            ${optionsHtml ? `<div class="item-options" data-options-idx="${item.idx}"></div>` : ''}
                         </div>
-                        <div class="item-status">
-                            <select class="item-status-select" data-item-idx="${item.idx}">
-                                <option value="Queued" ${itemStatus === 'Queued' ? 'selected' : ''}>Queued</option>
-                                <option value="In Progress" ${itemStatus === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                                <option value="Ready" ${itemStatus === 'Ready' ? 'selected' : ''}>Ready</option>
-                                <option value="Served" ${itemStatus === 'Served' ? 'selected' : ''}>Served</option>
-                            </select>
-                        </div>
-                        ${optionsHtml}
-                        ${item.notes ? `<div class="item-notes">${item.notes}</div>` : ''}
                     </div>
                 `;
             });
