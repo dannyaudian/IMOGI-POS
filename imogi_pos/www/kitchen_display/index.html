@@ -22,491 +22,446 @@
   
   .hidden { display: none !important; }
   
-  /* Kitchen Display - Clean & Professional Styling */
-
-/* Reset dan Base */
-#kitchen-display {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: #f8f9fa;
-  color: #212529;
-}
-
-/* Header */
-.kitchen-header {
-  background-color: #ffffff;
-  padding: 16px 24px;
-  border-bottom: 2px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  z-index: 10;
-}
-
-.kitchen-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #212529;
-}
-
-/* Columns Layout */
-.kitchen-columns {
-  display: flex;
-  flex-grow: 1;
-  overflow: hidden;
-  gap: 0;
-}
-
-.kitchen-column {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #f8f9fa;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px;
-}
-
-.kitchen-column:not(:last-child) {
-  border-right: 2px solid #dee2e6;
-}
-
-/* Column Headers */
-.column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.column-title {
-  font-size: 18px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.column-count {
-  background-color: #f8f9fa;
-  color: #495057;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-/* Queued Column - Orange Theme */
-.kitchen-column.queued .column-title {
-  color: #fd7e14;
-}
-.kitchen-column.queued .column-count {
-  background-color: #fff3cd;
-  color: #fd7e14;
-}
-
-/* In Progress Column - Blue Theme */
-.kitchen-column.in-progress .column-title {
-  color: #0d6efd;
-}
-.kitchen-column.in-progress .column-count {
-  background-color: #cfe2ff;
-  color: #0d6efd;
-}
-
-/* Ready Column - Green Theme */
-.kitchen-column.ready .column-title {
-  color: #198754;
-}
-.kitchen-column.ready .column-count {
-  background-color: #d1e7dd;
-  color: #198754;
-}
-
-/* KOT Cards */
-.kot-card {
-  background-color: #ffffff;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  transition: all 0.2s ease;
-  border-left: 4px solid #dee2e6;
-}
-
-.kot-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
-/* Status-based left border colors */
-.kitchen-column.queued .kot-card {
-  border-left-color: #fd7e14;
-}
-
-.kitchen-column.in-progress .kot-card {
-  border-left-color: #0d6efd;
-}
-
-.kitchen-column.ready .kot-card {
-  border-left-color: #198754;
-}
-
-/* KOT Card Header */
-.kot-card-header {
-  padding: 16px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.kot-order-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.kot-number {
-  font-size: 20px;
-  font-weight: 700;
-  color: #212529;
-  letter-spacing: -0.5px;
-}
-
-.kot-table {
-  background-color: #ffffff;
-  color: #495057;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid #dee2e6;
-}
-
-.kot-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: #6c757d;
-}
-
-.kot-meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.kot-meta-item i {
-  font-size: 11px;
-}
-
-/* Time Badge */
-.kot-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: #fff3cd;
-  color: #fd7e14;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 8px;
-}
-
-.kot-time i {
-  font-size: 12px;
-}
-
-/* Priority Badge */
-.priority-high {
-  background-color: #f8d7da !important;
-  border-left-color: #dc3545 !important;
-}
-
-.priority-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background-color: #dc3545;
-  color: #ffffff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-/* KOT Card Body */
-.kot-card-body {
-  padding: 16px;
-}
-
-.kot-items {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.kot-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px dashed #e9ecef;
-}
-
-.kot-item:last-child {
-  border-bottom: none;
-}
-
-.kot-item-qty {
-  background-color: #212529;
-  color: #ffffff;
-  min-width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.kot-item-details {
-  flex: 1;
-}
-
-.kot-item-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: #212529;
-  line-height: 1.4;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.kot-item-notes {
-  font-size: 13px;
-  color: #6c757d;
-  font-style: italic;
-  line-height: 1.4;
-  display: block;
-}
-
-.kot-item-notes::before {
-  content: "Note: ";
-  font-weight: 600;
-  color: #495057;
-}
-
-/* KOT Card Footer */
-.kot-card-footer {
-  padding: 12px 16px;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-}
-
-.kot-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.kot-actions button {
-  flex: 1;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.kot-actions button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.kot-actions button:active {
-  transform: translateY(0);
-}
-
-.kot-actions button i {
-  font-size: 13px;
-}
-
-/* Button Variants */
-.btn-start {
-  background-color: #0d6efd;
-  color: #ffffff;
-}
-
-.btn-start:hover {
-  background-color: #0b5ed7;
-}
-
-.btn-complete {
-  background-color: #198754;
-  color: #ffffff;
-}
-
-.btn-complete:hover {
-  background-color: #157347;
-}
-
-.btn-serve {
-  background-color: #fd7e14;
-  color: #ffffff;
-}
-
-.btn-serve:hover {
-  background-color: #e66a0c;
-}
-
-.btn-cancel {
-  background-color: #6c757d;
-  color: #ffffff;
-}
-
-.btn-cancel:hover {
-  background-color: #5c636a;
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 24px;
-  color: #6c757d;
-  text-align: center;
-}
-
-.empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-
-.empty-state p {
-  font-size: 15px;
-  margin: 0;
-}
-
-/* Loading State */
-.loading-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 40px;
-}
-
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e9ecef;
-  border-top: 4px solid #0d6efd;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Scrollbar Styling */
-.kitchen-column::-webkit-scrollbar {
-  width: 8px;
-}
-
-.kitchen-column::-webkit-scrollbar-track {
-  background-color: #f8f9fa;
-}
-
-.kitchen-column::-webkit-scrollbar-thumb {
-  background-color: #dee2e6;
-  border-radius: 4px;
-}
-
-.kitchen-column::-webkit-scrollbar-thumb:hover {
-  background-color: #ced4da;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 1200px) {
-  .kot-number {
-    font-size: 18px;
+  /* Kitchen Display - Enhanced Styling (Non-Breaking) */
+  #kitchen-display {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f7fa;
   }
-  
-  .kot-item-name {
-    font-size: 14px;
+
+  /* Header Improvements */
+  .kitchen-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 24px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  
+
+  .kitchen-header h3,
+  .kitchen-header .title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: white !important;
+  }
+
+  /* Columns Layout */
+  .kitchen-columns {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
   .kitchen-column {
-    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    background-color: #f8f9fa;
   }
-}
 
-/* Print Styles */
-@media print {
-  .kitchen-header,
-  .kot-actions {
-    display: none;
+  .kitchen-column:nth-child(1) {
+    border-right: 2px solid #dee2e6;
+    background-color: #fff9f0;
   }
-  
+
+  .kitchen-column:nth-child(2) {
+    border-right: 2px solid #dee2e6;
+    background-color: #f0f7ff;
+  }
+
+  .kitchen-column:nth-child(3) {
+    background-color: #f0fff4;
+  }
+
+  /* Column Headers */
+  .kitchen-column > h4,
+  .kitchen-column > .column-title {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 20px 0;
+    padding: 12px 16px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: -20px;
+    z-index: 10;
+  }
+
+  /* Color Coding for Column Headers */
+  .kitchen-column:nth-child(1) > h4,
+  .kitchen-column:nth-child(1) > .column-title {
+    color: #ff9800;
+    border-left: 4px solid #ff9800;
+  }
+
+  .kitchen-column:nth-child(2) > h4,
+  .kitchen-column:nth-child(2) > .column-title {
+    color: #2196f3;
+    border-left: 4px solid #2196f3;
+  }
+
+  .kitchen-column:nth-child(3) > h4,
+  .kitchen-column:nth-child(3) > .column-title {
+    color: #4caf50;
+    border-left: 4px solid #4caf50;
+  }
+
+  /* Count Badge */
+  .kitchen-column > h4 .count,
+  .kitchen-column > .column-title .count {
+    background: #f0f0f0;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 28px;
+    text-align: center;
+  }
+
+  /* KOT Card Styling */
   .kot-card {
-    page-break-inside: avoid;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border-left: 5px solid #ddd;
   }
-  
-  .queued { border-left-color: #ff9800; }
-  .in-progress { border-left-color: #2196f3; }
-  .ready { border-left-color: #4caf50; }
-  
+
+  .kot-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
+
+  /* Border colors based on column */
+  .kitchen-column:nth-child(1) .kot-card {
+    border-left-color: #ff9800;
+  }
+
+  .kitchen-column:nth-child(2) .kot-card {
+    border-left-color: #2196f3;
+  }
+
+  .kitchen-column:nth-child(3) .kot-card {
+    border-left-color: #4caf50;
+  }
+
+  /* KOT Card Header */
+  .kot-card-header,
+  .kot-card .card-header {
+    padding: 16px 20px;
+    background: linear-gradient(to right, #fafafa, #ffffff);
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .kot-order-number,
+  .kot-card h5,
+  .kot-card .order-number {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+  }
+
+  .kot-table,
+  .kot-card .table-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    border: 1px solid #e0e0e0;
+    margin-right: 8px;
+  }
+
+  .kot-meta,
+  .kot-card .meta-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #666;
+  }
+
+  .kot-meta-item,
+  .kot-card .meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .kot-time,
+  .kot-card .time-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff3cd;
+    color: #ff9800;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+
+  /* Priority Badge */
+  .priority-high {
+    background: #fff0f0 !important;
+    border-left-color: #f44336 !important;
+  }
+
+  .priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f44336;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* KOT Card Body */
+  .kot-card-body,
+  .kot-card .card-body {
+    padding: 16px 20px;
+  }
+
+  .kot-items,
+  .kot-card .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .kot-item,
+  .kot-card .item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px dashed #e8e8e8;
+  }
+
+  .kot-item:last-child,
+  .kot-card .item-row:last-child {
+    border-bottom: none;
+  }
+
+  .kot-item-qty,
+  .kot-card .item-qty {
+    background: #2c3e50;
+    color: white;
+    min-width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .kot-item-name,
+  .kot-card .item-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #2c3e50;
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .kot-item-notes,
+  .kot-card .item-notes {
+    font-size: 13px;
+    color: #7f8c8d;
+    font-style: italic;
+    margin-top: 4px;
+    padding-left: 8px;
+    border-left: 3px solid #e8e8e8;
+  }
+
+  /* KOT Card Footer */
+  .kot-card-footer,
+  .kot-card .card-footer {
+    padding: 14px 20px;
+    background: #fafafa;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .kot-actions,
+  .kot-card .actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .kot-actions button,
+  .kot-card .actions button {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .kot-actions button:hover,
+  .kot-card .actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .kot-actions button:active,
+  .kot-card .actions button:active {
+    transform: translateY(0);
+  }
+
+  /* Button Colors */
+  .btn-start,
+  button[data-action="start"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .btn-complete,
+  button[data-action="complete"] {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+  }
+
+  .btn-serve,
+  button[data-action="serve"] {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+  }
+
+  .btn-cancel,
+  button[data-action="cancel"] {
+    background: #95a5a6;
+    color: white;
+  }
+
+  /* Empty State */
+  .empty-state,
+  .no-orders {
+    text-align: center;
+    padding: 60px 20px;
+    color: #95a5a6;
+  }
+
+  .empty-state i,
+  .no-orders i {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-state p,
+  .no-orders p {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  /* Loading */
   .loading-indicator {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
-    padding: 40px;
+    padding: 60px;
   }
-  
+
   .spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #3498db;
+    width: 56px;
+    height: 56px;
+    border: 5px solid #f0f0f0;
+    border-top: 5px solid #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Scrollbar */
+  .kitchen-column::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .kitchen-column::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 5px;
+  }
+
+  .kitchen-column::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 5px;
+  }
+
+  .kitchen-column::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+  }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .kitchen-column {
+      padding: 16px 12px;
+    }
+
+    .kot-card-header,
+    .kot-card .card-header {
+      padding: 14px 16px;
+    }
+
+    .kot-card-body,
+    .kot-card .card-body {
+      padding: 14px 16px;
+    }
+
+    .kot-order-number,
+    .kot-card h5 {
+      font-size: 20px;
+    }
+
+    .kot-item-name,
+    .kot-card .item-name {
+      font-size: 15px;
+    }
   }
 </style>
 {% endblock %}
@@ -536,10 +491,10 @@
 <script src="/assets/imogi_pos/js/kitchen_display.js"></script>
 <script src="/assets/imogi_pos/js/fix_kitchen_display.js"></script>
 
-<!-- Perbaikan langsung untuk lifecycle -->
+<!-- Inisialisasi Kitchen Display -->
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('Menginisialisasi Kitchen Display dengan perbaikan...');
+    console.log('Menginisialisasi Kitchen Display...');
     
     // Menunggu untuk memastikan imogi_pos dan kitchen_display dimuat
     setTimeout(function() {
@@ -553,43 +508,18 @@
         return;
       }
       
-      // Membuat objek lifecycle secara manual
-      if (typeof imogi_pos.kitchen_display.lifecycle === 'undefined') {
-        console.log('Membuat objek lifecycle secara manual');
-        imogi_pos.kitchen_display.lifecycle = {
-          init: function(options) {
-            return imogi_pos.kitchen_display.init(options);
-          },
-          fetchTickets: function() {
-            return imogi_pos.kitchen_display.fetchTickets();
-          },
-          renderColumns: function() {
-            return imogi_pos.kitchen_display.renderColumns();
-          },
-          bindEvents: function() {
-            return imogi_pos.kitchen_display.bindEvents();
-          }
-        };
-      }
-      
-      // Inisialisasi Kitchen Display langsung menggunakan objek asli jika lifecycle gagal
+      // Inisialisasi Kitchen Display
       try {
-        if (typeof imogi_pos.kitchen_display.lifecycle.init === 'function') {
-          console.log('Menginisialisasi menggunakan lifecycle...');
-          imogi_pos.kitchen_display.lifecycle.init({
-            container: '#kitchen-display',
-            kitchenSelector: '#kitchen-selector',
-            stationSelector: '#station-selector',
-            refreshInterval: 30000
-          });
-        } else if (typeof imogi_pos.kitchen_display.init === 'function') {
-          console.log('Menginisialisasi langsung menggunakan init...');
+        if (typeof imogi_pos.kitchen_display.init === 'function') {
+          console.log('Menginisialisasi Kitchen Display...');
           imogi_pos.kitchen_display.init({
             container: '#kitchen-display',
             kitchenSelector: '#kitchen-selector',
             stationSelector: '#station-selector',
             refreshInterval: 30000
           });
+          
+          console.log('Kitchen Display berhasil diinisialisasi');
         } else {
           showError('Fungsi init tidak tersedia');
         }
@@ -605,256 +535,20 @@
     if (!container) return;
     
     container.innerHTML = `
-      <div style="text-align: center; padding: 40px;">
-        <div style="color: #f44336; font-size: 64px; margin-bottom: 20px;">
+      <div style="text-align: center; padding: 60px 40px;">
+        <div style="color: #f44336; font-size: 72px; margin-bottom: 24px;">
           <i class="fas fa-exclamation-triangle"></i>
         </div>
-        <h2>Error Kitchen Display</h2>
-        <p>Fungsi inisialisasi Kitchen Display tidak tersedia</p>
-        <div style="background-color: #f9f9f9; padding: 12px; border-radius: 4px; margin: 20px auto; max-width: 600px; text-align: left;">
-          <p>${message}</p>
+        <h2 style="color: #2c3e50; margin-bottom: 16px;">Error Kitchen Display</h2>
+        <p style="color: #7f8c8d; margin-bottom: 24px;">Fungsi inisialisasi Kitchen Display tidak tersedia</p>
+        <div style="background: #f8f9fa; padding: 16px 24px; border-radius: 8px; margin: 24px auto; max-width: 600px; text-align: left; border-left: 4px solid #f44336;">
+          <p style="margin: 0; color: #555; font-family: monospace;">${message}</p>
         </div>
-        <button onclick="location.reload()" style="background-color: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 20px;">
+        <button onclick="location.reload()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 14px 28px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">
           <i class="fas fa-sync"></i> Muat Ulang Halaman
         </button>
       </div>
     `;
   }
-
-
-  // JavaScript untuk render Kitchen Display dengan struktur baru
-// Tambahkan ke file kitchen_display.js atau sebagai override
-
-// Function untuk render KOT Card dengan styling baru
-function renderKOTCard(ticket) {
-  const duration = calculateDuration(ticket.creation);
-  const priorityClass = ticket.priority === 'High' ? 'priority-high' : '';
-  const priorityBadge = ticket.priority === 'High' 
-    ? '<span class="priority-badge"><i class="fas fa-exclamation-circle"></i> HIGH PRIORITY</span>' 
-    : '';
-  
-  const items = ticket.items || [];
-  const itemsHTML = items.length > 0 
-    ? items.map(item => renderKOTItem(item)).join('')
-    : '<div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada item</p></div>';
-  
-  return `
-    <div class="kot-card ${priorityClass}" data-ticket-id="${ticket.name}">
-      <div class="kot-card-header">
-        <div class="kot-order-info">
-          <span class="kot-number">${ticket.name || 'N/A'}</span>
-          ${ticket.table ? `<span class="kot-table"><i class="fas fa-chair"></i> ${ticket.table}</span>` : ''}
-          ${priorityBadge}
-        </div>
-        
-        <div class="kot-meta">
-          ${ticket.order_ref ? `
-            <span class="kot-meta-item">
-              <i class="fas fa-receipt"></i>
-              ${ticket.order_ref}
-            </span>
-          ` : ''}
-          
-          ${ticket.branch ? `
-            <span class="kot-meta-item">
-              <i class="fas fa-store"></i>
-              ${ticket.branch}
-            </span>
-          ` : ''}
-          
-          ${ticket.station ? `
-            <span class="kot-meta-item">
-              <i class="fas fa-utensils"></i>
-              ${ticket.station}
-            </span>
-          ` : ''}
-          
-          ${ticket.kitchen ? `
-            <span class="kot-meta-item">
-              <i class="fas fa-fire"></i>
-              ${ticket.kitchen}
-            </span>
-          ` : ''}
-        </div>
-        
-        <div class="kot-time">
-          <i class="far fa-clock"></i>
-          <span>${duration}</span>
-        </div>
-      </div>
-      
-      <div class="kot-card-body">
-        <div class="kot-items">
-          ${itemsHTML}
-        </div>
-      </div>
-      
-      <div class="kot-card-footer">
-        <div class="kot-actions">
-          ${renderActionButtons(ticket)}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// Function untuk render item dengan struktur baru
-function renderKOTItem(item) {
-  return `
-    <div class="kot-item">
-      <div class="kot-item-qty">${item.qty || 1}</div>
-      <div class="kot-item-details">
-        <span class="kot-item-name">${item.item_name || item.name || 'Unknown Item'}</span>
-        ${item.notes ? `<span class="kot-item-notes">${item.notes}</span>` : ''}
-      </div>
-    </div>
-  `;
-}
-
-// Function untuk render action buttons
-function renderActionButtons(ticket) {
-  const status = ticket.status || 'Queued';
-  
-  let buttons = '';
-  
-  switch(status) {
-    case 'Queued':
-      buttons = `
-        <button class="btn-start" data-action="start" data-ticket="${ticket.name}">
-          <i class="fas fa-play"></i>
-          <span>Mulai Masak</span>
-        </button>
-      `;
-      break;
-      
-    case 'In Progress':
-      buttons = `
-        <button class="btn-complete" data-action="complete" data-ticket="${ticket.name}">
-          <i class="fas fa-check"></i>
-          <span>Selesai</span>
-        </button>
-      `;
-      break;
-      
-    case 'Ready':
-      buttons = `
-        <button class="btn-serve" data-action="serve" data-ticket="${ticket.name}">
-          <i class="fas fa-concierge-bell"></i>
-          <span>Sajikan</span>
-        </button>
-      `;
-      break;
-  }
-  
-  // Tambahkan tombol cancel untuk semua status
-  buttons += `
-    <button class="btn-cancel" data-action="cancel" data-ticket="${ticket.name}">
-      <i class="fas fa-times"></i>
-      <span>Batal</span>
-    </button>
-  `;
-  
-  return buttons;
-}
-
-// Function untuk calculate duration
-function calculateDuration(creationTime) {
-  if (!creationTime) return '0m';
-  
-  const created = new Date(creationTime);
-  const now = new Date();
-  const diffMinutes = Math.floor((now - created) / 60000);
-  
-  if (diffMinutes < 1) {
-    return 'Baru saja';
-  } else if (diffMinutes < 60) {
-    return `${diffMinutes}m`;
-  } else {
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-    return `${hours}j ${minutes}m`;
-  }
-}
-
-// Function untuk render columns dengan header baru
-function renderColumns() {
-  const columns = ['queued', 'in-progress', 'ready'];
-  const columnTitles = {
-    'queued': 'Menunggu',
-    'in-progress': 'Sedang Dimasak',
-    'ready': 'Siap Disajikan'
-  };
-  
-  columns.forEach(status => {
-    const columnEl = document.querySelector(`.kitchen-column.${status}`);
-    if (!columnEl) return;
-    
-    // Filter tickets by status
-    const tickets = (imogi_pos.kitchen_display.tickets || [])
-      .filter(t => t.status.toLowerCase().replace(' ', '-') === status);
-    
-    // Render column header
-    const headerHTML = `
-      <div class="column-header">
-        <span class="column-title">${columnTitles[status]}</span>
-        <span class="column-count">${tickets.length}</span>
-      </div>
-    `;
-    
-    // Render tickets
-    const ticketsHTML = tickets.length > 0
-      ? tickets.map(ticket => renderKOTCard(ticket)).join('')
-      : `<div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>Tidak ada pesanan ${columnTitles[status].toLowerCase()}</p>
-        </div>`;
-    
-    columnEl.innerHTML = headerHTML + ticketsHTML;
-  });
-}
-
-// Override render function di imogi_pos.kitchen_display
-if (typeof imogi_pos !== 'undefined' && imogi_pos.kitchen_display) {
-  imogi_pos.kitchen_display.renderColumns = renderColumns;
-  
-  // Bind action button events
-  document.addEventListener('click', function(e) {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    
-    const action = btn.getAttribute('data-action');
-    const ticketId = btn.getAttribute('data-ticket');
-    
-    if (!ticketId) return;
-    
-    // Handle actions
-    switch(action) {
-      case 'start':
-        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'In Progress');
-        break;
-      case 'complete':
-        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Ready');
-        break;
-      case 'serve':
-        imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Served');
-        break;
-      case 'cancel':
-        if (confirm('Apakah Anda yakin ingin membatalkan pesanan ini?')) {
-          imogi_pos.kitchen_display.updateTicketStatus(ticketId, 'Cancelled');
-        }
-        break;
-    }
-  });
-}
-
-// Export functions untuk digunakan di tempat lain
-window.KitchenDisplayRenderer = {
-  renderKOTCard,
-  renderKOTItem,
-  renderActionButtons,
-  calculateDuration,
-  renderColumns
-};
-document.head.appendChild(style);
 </script>
 {% endblock %}
