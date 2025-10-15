@@ -718,6 +718,13 @@ body {
   transition: background-color 0.2s;
 }
 
+.kitchen-column .kot-card .status-badge,
+.kitchen-column .kot-card .kot-item::after {
+  /* Hide automatic status chips/badges inside KOT cards */
+  content: none !important;
+  display: none !important;
+}
+
 .kot-item:last-child {
   border-bottom: none;
   padding-bottom: 0;

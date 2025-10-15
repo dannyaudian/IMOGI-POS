@@ -1609,8 +1609,8 @@ imogi_pos.kitchen_display = {
         const optionContentMap = [];
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsDisplay = (item.options_display || '').trim();
                 let optionsHtml = '';
                 const itemDisplayName = this.getItemDisplayName(item);
@@ -2078,8 +2078,8 @@ imogi_pos.kitchen_display = {
         let itemsHtml = '';
         if (kot.items && kot.items.length > 0) {
             kot.items.forEach(item => {
-                const itemStatus = item.status || 'Queued';
-                const itemStatusClass = itemStatus.toLowerCase().replace(' ', '-');
+                const itemStatus = this.normalizeWorkflowState(item.status || 'Queued');
+                const itemStatusClass = itemStatus.toLowerCase().replace(/\s+/g, '-');
                 const optionsHtml = this.getItemOptionsMarkup(item);
                 const itemDisplayName = this.getItemDisplayName(item);
 
@@ -2533,7 +2533,44 @@ imogi_pos.kitchen_display = {
      */
     getItemDisplayName: function(item) {
         const baseName = this.getItemBaseName(item);
-        return baseName || 'Unnamed Item';
+        if (!baseName) {
+            return 'Unnamed Item';
+        }
+
+        const statusKeywords = new Set([
+            'queued',
+            'in progress',
+            'in-progress',
+            'ready',
+            'served',
+            'cancelled',
+            'canceled',
+            'returned',
+            'draft',
+            'sent to kitchen',
+            'sent-to-kitchen',
+            'closed'
+        ]);
+
+        const parts = baseName
+            .split('|')
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        if (!parts.length) {
+            return baseName;
+        }
+
+        const filteredParts = parts.filter(part => {
+            const normalized = part.toLowerCase();
+            return !statusKeywords.has(normalized);
+        });
+
+        if (filteredParts.length === 0) {
+            return parts[0];
+        }
+
+        return filteredParts.join(' | ');
     },
 
     /**
