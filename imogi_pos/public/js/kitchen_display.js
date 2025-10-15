@@ -44,6 +44,7 @@ imogi_pos.kitchen_display = {
         kitchens: [],
         stations: [],
         refreshTimer: null,
+        refreshDebounceTimer: null,
         searchTerm: '',
         viewMode: 'full', // full, compact
         filterByItem: null,
@@ -476,6 +477,31 @@ imogi_pos.kitchen_display = {
         this.state.refreshTimer = setInterval(() => {
             this.safeStep('fetching KOT tickets', () => this.fetchTickets());
         }, this.settings.refreshInterval);
+    },
+
+    /**
+     * Queue an immediate refresh of KOT tickets after a short delay.
+     * Helps surface server-side workflow transitions without waiting
+     * for the next poll interval.
+     * @param {string} reason - Description for logging/debugging
+     * @param {number} delay - Optional delay before refreshing (ms)
+     */
+    queueImmediateRefresh: function(reason = 'status change', delay = 350) {
+        const canCallServer = window.frappe && typeof window.frappe.call === 'function';
+        if (!canCallServer) {
+            return;
+        }
+
+        if (this.state.refreshDebounceTimer) {
+            clearTimeout(this.state.refreshDebounceTimer);
+        }
+
+        const refreshDelay = typeof delay === 'number' && delay >= 0 ? delay : 0;
+
+        this.state.refreshDebounceTimer = setTimeout(() => {
+            this.state.refreshDebounceTimer = null;
+            this.safeStep(`refreshing KOT tickets after ${reason}`, () => this.fetchTickets());
+        }, refreshDelay);
     },
     
     /**
@@ -2007,6 +2033,7 @@ imogi_pos.kitchen_display = {
                 console.warn('frappe.call is not available. Falling back to local state update for KOT workflow state.');
                 this.updateKotStatus(kotName, state);
                 this.showToast(`KOT ${kotName} updated to ${state}`);
+                this.queueImmediateRefresh('workflow transition (offline fallback)');
                 resolve({ success: true, offline: true });
                 return;
             }
@@ -2023,6 +2050,7 @@ imogi_pos.kitchen_display = {
 
                         // If locally processed, update the KOT status in state
                         this.updateKotStatus(kotName, state);
+                        this.queueImmediateRefresh('workflow transition');
                         resolve(response.message);
                     } else {
                         const errorMessage = `Failed to update KOT status: ${response.message && response.message.error || 'Unknown error'}`;
@@ -2053,6 +2081,7 @@ imogi_pos.kitchen_display = {
                 console.warn('frappe.call is not available. Falling back to local state update for KOT item state.');
                 this.updateKotItemStatus(kotName, itemIdx, state);
                 this.showToast(`Item updated to ${state}`);
+                this.queueImmediateRefresh('item status change (offline fallback)');
                 resolve({ success: true, offline: true });
                 return;
             }
@@ -2070,6 +2099,7 @@ imogi_pos.kitchen_display = {
 
                         // If locally processed, update the item status in UI
                         this.updateKotItemStatus(kotName, itemIdx, state);
+                        this.queueImmediateRefresh('item status change');
                         resolve(response.message);
                     } else {
                         const errorMessage = `Failed to update item status: ${response.message && response.message.error || 'Unknown error'}`;
