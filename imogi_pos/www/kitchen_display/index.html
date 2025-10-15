@@ -203,5 +203,304 @@
       </div>
     `;
   }
+
+
+  // Tambahkan di bagian script sebelum DOMContentLoaded
+// atau buat file baru fix_kitchen_display_detailed.js
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Kitchen Display Fix - Starting...');
+  
+  setTimeout(function() {
+    if (typeof imogi_pos === 'undefined' || typeof imogi_pos.kitchen_display === 'undefined') {
+      console.error('imogi_pos.kitchen_display tidak tersedia');
+      return;
+    }
+    
+    // Override render function untuk memastikan konten card muncul
+    const originalRender = imogi_pos.kitchen_display.renderColumns;
+    
+    imogi_pos.kitchen_display.renderColumns = function() {
+      console.log('Rendering columns dengan perbaikan...');
+      
+      // Panggil original render
+      if (originalRender) {
+        originalRender.call(this);
+      }
+      
+      // Verifikasi dan perbaiki cards yang kosong
+      setTimeout(function() {
+        const allCards = document.querySelectorAll('.kot-card');
+        console.log(`Total cards ditemukan: ${allCards.length}`);
+        
+        allCards.forEach((card, index) => {
+          // Cek apakah card kosong (tidak ada content)
+          if (!card.innerHTML || card.innerHTML.trim() === '') {
+            console.warn(`Card ${index} kosong, mencoba render ulang...`);
+            
+            // Ambil data dari attribute atau global state
+            const ticketId = card.getAttribute('data-ticket-id');
+            if (ticketId && imogi_pos.kitchen_display.tickets) {
+              const ticket = imogi_pos.kitchen_display.tickets.find(t => t.name === ticketId);
+              if (ticket) {
+                card.innerHTML = renderKOTCard(ticket);
+              }
+            }
+          }
+          
+          // Tambahkan min-height untuk memastikan terlihat
+          if (card.style.height === '0px' || !card.style.minHeight) {
+            card.style.minHeight = '120px';
+          }
+        });
+      }, 100);
+    };
+    
+    // Function helper untuk render KOT card
+    function renderKOTCard(ticket) {
+      const duration = calculateDuration(ticket.creation);
+      const priorityClass = ticket.priority === 'High' ? 'priority-high' : '';
+      
+      return `
+        <div class="kot-card-header ${priorityClass}">
+          <div class="kot-order-info">
+            <span class="kot-order-number">${ticket.name || 'N/A'}</span>
+            <span class="kot-table">${ticket.table || 'Takeaway'}</span>
+          </div>
+          <div class="kot-time">
+            <i class="far fa-clock"></i>
+            <span>${duration}</span>
+          </div>
+        </div>
+        <div class="kot-card-body">
+          ${renderKOTItems(ticket.items || [])}
+        </div>
+        <div class="kot-card-footer">
+          <div class="kot-actions">
+            ${renderActionButtons(ticket)}
+          </div>
+        </div>
+      `;
+    }
+    
+    function renderKOTItems(items) {
+      if (!items || items.length === 0) {
+        return '<p class="no-items">Tidak ada item</p>';
+      }
+      
+      return items.map(item => `
+        <div class="kot-item">
+          <span class="kot-item-qty">${item.qty || 1}x</span>
+          <span class="kot-item-name">${item.item_name || item.name}</span>
+          ${item.notes ? `<span class="kot-item-notes">${item.notes}</span>` : ''}
+        </div>
+      `).join('');
+    }
+    
+    function renderActionButtons(ticket) {
+      const status = ticket.status || 'Queued';
+      
+      if (status === 'Queued') {
+        return `
+          <button class="btn-start" data-ticket="${ticket.name}">
+            <i class="fas fa-play"></i> Mulai
+          </button>
+        `;
+      } else if (status === 'In Progress') {
+        return `
+          <button class="btn-complete" data-ticket="${ticket.name}">
+            <i class="fas fa-check"></i> Selesai
+          </button>
+        `;
+      } else if (status === 'Ready') {
+        return `
+          <button class="btn-serve" data-ticket="${ticket.name}">
+            <i class="fas fa-utensils"></i> Sajikan
+          </button>
+        `;
+      }
+      return '';
+    }
+    
+    function calculateDuration(creationTime) {
+      if (!creationTime) return '0m';
+      
+      const created = new Date(creationTime);
+      const now = new Date();
+      const diffMinutes = Math.floor((now - created) / 60000);
+      
+      if (diffMinutes < 60) {
+        return `${diffMinutes}m`;
+      } else {
+        const hours = Math.floor(diffMinutes / 60);
+        const minutes = diffMinutes % 60;
+        return `${hours}h ${minutes}m`;
+      }
+    }
+    
+    // Perbaiki fetchTickets untuk memastikan data lengkap
+    const originalFetch = imogi_pos.kitchen_display.fetchTickets;
+    
+    imogi_pos.kitchen_display.fetchTickets = function() {
+      console.log('Fetching tickets...');
+      
+      return originalFetch.call(this).then(function(tickets) {
+        console.log(`Tickets fetched: ${tickets ? tickets.length : 0}`);
+        
+        // Validasi setiap ticket memiliki data yang dibutuhkan
+        if (tickets && Array.isArray(tickets)) {
+          tickets.forEach(ticket => {
+            if (!ticket.name) {
+              console.warn('Ticket tanpa name:', ticket);
+            }
+            if (!ticket.items || ticket.items.length === 0) {
+              console.warn('Ticket tanpa items:', ticket.name);
+            }
+          });
+        }
+        
+        return tickets;
+      }).catch(function(error) {
+        console.error('Error fetching tickets:', error);
+        throw error;
+      });
+    };
+    
+    // Inisialisasi dengan monitoring
+    console.log('Menginisialisasi Kitchen Display...');
+    
+    try {
+      if (typeof imogi_pos.kitchen_display.init === 'function') {
+        imogi_pos.kitchen_display.init({
+          container: '#kitchen-display',
+          refreshInterval: 30000
+        });
+        
+        // Monitor rendering setelah init
+        setTimeout(function() {
+          const cards = document.querySelectorAll('.kot-card');
+          console.log(`Status render: ${cards.length} cards ditemukan`);
+          
+          if (cards.length === 0) {
+            console.error('Tidak ada cards yang ter-render!');
+            // Trigger manual render
+            if (typeof imogi_pos.kitchen_display.renderColumns === 'function') {
+              imogi_pos.kitchen_display.renderColumns();
+            }
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error inisialisasi:', err);
+    }
+    
+  }, 300);
+});
+
+// CSS tambahan untuk memastikan cards terlihat
+const style = document.createElement('style');
+style.textContent = `
+  .kot-card {
+    min-height: 120px !important;
+    margin-bottom: 12px !important;
+    padding: 12px !important;
+  }
+  
+  .kot-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .kot-order-number {
+    font-weight: bold;
+    font-size: 16px;
+    color: #333;
+  }
+  
+  .kot-table {
+    margin-left: 8px;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .kot-time {
+    color: #ff9800;
+    font-weight: bold;
+  }
+  
+  .kot-card-body {
+    margin: 12px 0;
+    min-height: 40px;
+  }
+  
+  .kot-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 6px;
+    padding: 4px 0;
+  }
+  
+  .kot-item-qty {
+    font-weight: bold;
+    margin-right: 8px;
+    min-width: 30px;
+  }
+  
+  .kot-item-name {
+    flex: 1;
+  }
+  
+  .kot-item-notes {
+    display: block;
+    margin-left: 38px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+  }
+  
+  .kot-card-footer {
+    border-top: 1px solid #eee;
+    padding-top: 8px;
+  }
+  
+  .kot-actions button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .btn-start {
+    background-color: #2196f3;
+    color: white;
+  }
+  
+  .btn-complete {
+    background-color: #4caf50;
+    color: white;
+  }
+  
+  .btn-serve {
+    background-color: #ff9800;
+    color: white;
+  }
+  
+  .priority-high {
+    background-color: #ffebee;
+  }
+  
+  .no-items {
+    color: #999;
+    font-style: italic;
+    padding: 8px 0;
+  }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}
