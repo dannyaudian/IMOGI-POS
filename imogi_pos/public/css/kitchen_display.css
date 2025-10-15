@@ -18,6 +18,10 @@
   --in-progress-bg: #e3f2fd;
   --ready-color: #4caf50;
   --ready-bg: #e8f5e9;
+  --served-color: #6d4c41;
+  --served-bg: #efebe9;
+  --cancelled-color: #f44336;
+  --cancelled-bg: #ffebee;
   
   /* Warna Netral */
   --bg-light: #f5f7fa;
@@ -759,9 +763,50 @@ body {
 .kot-item-name {
   display: flex;
   align-items: center;
+  gap: var(--spacing-xs);
   font-weight: 500;
   color: var(--text-dark);
   margin-bottom: var(--spacing-xs);
+}
+
+.kot-item-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-round);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  background-color: var(--bg-light);
+  color: var(--text-medium);
+}
+
+.kot-item-status-badge.status-queued {
+  color: var(--queued-color);
+  background-color: var(--queued-bg);
+}
+
+.kot-item-status-badge.status-in-progress {
+  color: var(--in-progress-color);
+  background-color: var(--in-progress-bg);
+}
+
+.kot-item-status-badge.status-ready {
+  color: var(--ready-color);
+  background-color: var(--ready-bg);
+}
+
+.kot-item-status-badge.status-served {
+  color: var(--served-color);
+  background-color: var(--served-bg);
+}
+
+.kot-item-status-badge.status-cancelled {
+  color: var(--cancelled-color);
+  background-color: var(--cancelled-bg);
 }
 
 .kot-item-note {
