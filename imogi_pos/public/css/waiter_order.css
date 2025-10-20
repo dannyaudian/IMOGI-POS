@@ -370,8 +370,29 @@
   margin-bottom: var(--spacing-2);
 }
 
+.item-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
 .item-name {
   font-weight: var(--font-weight-semibold);
+}
+
+.item-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+}
+
+.item-status .status-time {
+  font-size: var(--font-size-2xs, 0.7rem);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .item-remove {

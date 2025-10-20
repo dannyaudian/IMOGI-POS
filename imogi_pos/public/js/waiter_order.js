@@ -214,6 +214,8 @@ imogi_pos.waiter_order = {
                     // Copy order items
                     if (this.state.order.items && Array.isArray(this.state.order.items)) {
                         this.state.orderItems = this.state.order.items.map(item => {
+                            const counters = this.parseCounters(item.counters);
+                            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
                             let parsedOptions = {};
                             if (item.item_options) {
                                 if (typeof item.item_options === 'string') {
@@ -249,6 +251,8 @@ imogi_pos.waiter_order = {
                                 sku_changed: skuChanged,
                                 expected_linked_item: expectedLinked,
                                 requires_variant: expectedLinked,
+                                counters,
+                                kitchen_status: kitchenStatus,
                             };
                         });
                     }
@@ -414,10 +418,20 @@ imogi_pos.waiter_order = {
         
         let html = '';
         this.state.orderItems.forEach((item, index) => {
+            const kitchenStatus = item.kitchen_status || this.getKitchenStatusFromCounters(item.counters);
+            const statusTime = kitchenStatus ? this.formatKitchenStatusTime(kitchenStatus.timestamp) : '';
             html += `
                 <div class="order-item">
                     <div class="item-header">
-                        <div class="item-name">${item.item_name}</div>
+                        <div class="item-title">
+                            <div class="item-name">${item.item_name}</div>
+                            ${kitchenStatus ? `
+                                <div class="item-status">
+                                    <span class="status-badge ${kitchenStatus.className}">${kitchenStatus.label}</span>
+                                    ${statusTime ? `<span class="status-time">${statusTime}</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
                         <button class="item-remove" data-index="${index}">
                             <i class="fa fa-times"></i>
                         </button>
@@ -1831,6 +1845,8 @@ imogi_pos.waiter_order = {
             item_options: options || {},
             options: options || {},
             requires_variant: Number(itemDetails.has_variants) === 1,
+            counters: {},
+            kitchen_status: null,
         };
 
         const context = this.buildPricingContext({
@@ -2478,6 +2494,91 @@ imogi_pos.waiter_order = {
     },
     
     /**
+     * Parse counters field from POS Order Item
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Parsed counters object
+     */
+    parseCounters: function(rawCounters) {
+        if (!rawCounters) {
+            return {};
+        }
+
+        if (typeof rawCounters === 'object') {
+            return { ...rawCounters };
+        }
+
+        if (typeof rawCounters === 'string') {
+            try {
+                const parsed = JSON.parse(rawCounters);
+                if (parsed && typeof parsed === 'object') {
+                    return parsed;
+                }
+            } catch (error) {
+                console.warn('Failed to parse counters for POS Order Item', error);
+            }
+        }
+
+        return {};
+    },
+
+    /**
+     * Determine kitchen status information from counters
+     * @param {Object} counters - Parsed counters object
+     * @returns {Object|null} Kitchen status data
+     */
+    getKitchenStatusFromCounters: function(counters) {
+        if (!counters || typeof counters !== 'object') {
+            return null;
+        }
+
+        const statusPriority = [
+            { key: 'served', label: 'Served', className: 'served' },
+            { key: 'ready', label: 'Ready', className: 'ready' },
+            { key: 'preparing', label: 'In Progress', className: 'in-progress' },
+            { key: 'sent', label: 'Queued', className: 'queued' },
+            { key: 'cancelled', label: 'Cancelled', className: 'cancelled' }
+        ];
+
+        for (const status of statusPriority) {
+            if (counters[status.key]) {
+                return {
+                    label: status.label,
+                    className: status.className,
+                    timestamp: counters[status.key]
+                };
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Format kitchen status timestamp into human readable time
+     * @param {string} timestamp - ISO timestamp string
+     * @returns {string} Formatted time string
+     */
+    formatKitchenStatusTime: function(timestamp) {
+        if (!timestamp) {
+            return '';
+        }
+
+        try {
+            const date = new Date(timestamp);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            console.warn('Failed to format kitchen status time', error);
+            return '';
+        }
+    },
+
+    /**
      * Format currency
      * @param {number} amount - Amount to format
      * @returns {string} Formatted amount
@@ -2486,7 +2587,7 @@ imogi_pos.waiter_order = {
         if (typeof amount !== 'number') {
             amount = parseFloat(amount) || 0;
         }
-        
+
         return frappe.format(amount, { fieldtype: 'Currency' });
     }
 };
