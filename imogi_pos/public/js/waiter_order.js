@@ -214,7 +214,7 @@ imogi_pos.waiter_order = {
                     // Copy order items
                     if (this.state.order.items && Array.isArray(this.state.order.items)) {
                         this.state.orderItems = this.state.order.items.map(item => {
-                            const counters = this.parseCounters(item.counters);
+                            const counters = this.normalizeCounters(item.counters);
                             const kitchenStatus = this.getKitchenStatusFromCounters(counters);
                             let parsedOptions = {};
                             if (item.item_options) {
@@ -418,16 +418,34 @@ imogi_pos.waiter_order = {
         
         let html = '';
         this.state.orderItems.forEach((item, index) => {
-            const kitchenStatus = item.kitchen_status || this.getKitchenStatusFromCounters(item.counters);
-            const statusTime = kitchenStatus ? this.formatKitchenStatusTime(kitchenStatus.timestamp) : '';
+            const counters = this.normalizeCounters(item.counters);
+            if (counters && counters !== item.counters) {
+                item.counters = counters;
+            }
+
+            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
+            if (kitchenStatus) {
+                const existingStatus = item.kitchen_status || {};
+                if (
+                    existingStatus.className !== kitchenStatus.className ||
+                    existingStatus.timestamp !== kitchenStatus.timestamp
+                ) {
+                    item.kitchen_status = kitchenStatus;
+                }
+            } else if (item.kitchen_status) {
+                item.kitchen_status = null;
+            }
+
+            const displayStatus = item.kitchen_status || kitchenStatus;
+            const statusTime = displayStatus ? this.formatKitchenStatusTime(displayStatus.timestamp) : '';
             html += `
                 <div class="order-item">
                     <div class="item-header">
                         <div class="item-title">
                             <div class="item-name">${item.item_name}</div>
-                            ${kitchenStatus ? `
+                            ${displayStatus ? `
                                 <div class="item-status">
-                                    <span class="status-badge ${kitchenStatus.className}">${kitchenStatus.label}</span>
+                                    <span class="status-badge ${displayStatus.className}">${displayStatus.label}</span>
                                     ${statusTime ? `<span class="status-time">${statusTime}</span>` : ''}
                                 </div>
                             ` : ''}
@@ -1845,7 +1863,7 @@ imogi_pos.waiter_order = {
             item_options: options || {},
             options: options || {},
             requires_variant: Number(itemDetails.has_variants) === 1,
-            counters: {},
+            counters: this.normalizeCounters({}),
             kitchen_status: null,
         };
 
@@ -2503,7 +2521,7 @@ imogi_pos.waiter_order = {
             return {};
         }
 
-        if (typeof rawCounters === 'object') {
+        if (typeof rawCounters === 'object' && !Array.isArray(rawCounters)) {
             return { ...rawCounters };
         }
 
@@ -2519,6 +2537,84 @@ imogi_pos.waiter_order = {
         }
 
         return {};
+    },
+
+    /**
+     * Normalize counters into a predictable lowercase-keyed object
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Normalized counters
+     */
+    normalizeCounters: function(rawCounters) {
+        if (rawCounters && typeof rawCounters === 'object' && rawCounters.__normalized) {
+            return rawCounters;
+        }
+
+        const parsed = this.parseCounters(rawCounters);
+        const normalized = {};
+
+        if (Array.isArray(parsed)) {
+            parsed.forEach(entry => {
+                if (!entry) {
+                    return;
+                }
+
+                const keySource = entry.key || entry.name || entry.state || entry.status;
+                const value = this.getTimestampValue(entry.value || entry.timestamp || entry.time || entry.datetime || entry);
+                if (!keySource || !value) {
+                    return;
+                }
+
+                const normalizedKey = String(keySource).toLowerCase();
+                normalized[normalizedKey] = value;
+            });
+        } else {
+            Object.keys(parsed || {}).forEach(key => {
+                if (!key) {
+                    return;
+                }
+
+                const normalizedKey = String(key).toLowerCase();
+                const value = this.getTimestampValue(parsed[key]);
+
+                if (value) {
+                    normalized[normalizedKey] = value;
+                }
+            });
+        }
+
+        Object.defineProperty(normalized, '__normalized', {
+            value: true,
+            enumerable: false,
+            configurable: false,
+        });
+
+        return normalized;
+    },
+
+    /**
+     * Extract a usable timestamp string from a counter value
+     * @param {*} rawValue - Raw counter value
+     * @returns {string|null} Timestamp string if available
+     */
+    getTimestampValue: function(rawValue) {
+        if (!rawValue) {
+            return null;
+        }
+
+        if (typeof rawValue === 'string' || typeof rawValue === 'number') {
+            return String(rawValue);
+        }
+
+        if (typeof rawValue === 'object') {
+            const possibleKeys = ['timestamp', 'time', 'datetime', 'date', 'value'];
+            for (const key of possibleKeys) {
+                if (rawValue[key]) {
+                    return String(rawValue[key]);
+                }
+            }
+        }
+
+        return null;
     },
 
     /**
@@ -2540,11 +2636,13 @@ imogi_pos.waiter_order = {
         ];
 
         for (const status of statusPriority) {
-            if (counters[status.key]) {
+            const value = counters[status.key] || counters[status.key.toUpperCase()];
+            const timestamp = this.getTimestampValue(value);
+            if (timestamp) {
                 return {
                     label: status.label,
                     className: status.className,
-                    timestamp: counters[status.key]
+                    timestamp,
                 };
             }
         }
@@ -2554,16 +2652,17 @@ imogi_pos.waiter_order = {
 
     /**
      * Format kitchen status timestamp into human readable time
-     * @param {string} timestamp - ISO timestamp string
+     * @param {string|Object} timestamp - ISO timestamp or object containing timestamp
      * @returns {string} Formatted time string
      */
     formatKitchenStatusTime: function(timestamp) {
-        if (!timestamp) {
+        const rawValue = this.getTimestampValue(timestamp);
+        if (!rawValue) {
             return '';
         }
 
         try {
-            const date = new Date(timestamp);
+            const date = new Date(rawValue);
             if (Number.isNaN(date.getTime())) {
                 return '';
             }
