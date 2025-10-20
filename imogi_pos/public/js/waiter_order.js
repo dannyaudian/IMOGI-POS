@@ -214,6 +214,8 @@ imogi_pos.waiter_order = {
                     // Copy order items
                     if (this.state.order.items && Array.isArray(this.state.order.items)) {
                         this.state.orderItems = this.state.order.items.map(item => {
+                            const counters = this.normalizeCounters(item.counters);
+                            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
                             let parsedOptions = {};
                             if (item.item_options) {
                                 if (typeof item.item_options === 'string') {
@@ -249,6 +251,8 @@ imogi_pos.waiter_order = {
                                 sku_changed: skuChanged,
                                 expected_linked_item: expectedLinked,
                                 requires_variant: expectedLinked,
+                                counters,
+                                kitchen_status: kitchenStatus,
                             };
                         });
                     }
@@ -414,10 +418,38 @@ imogi_pos.waiter_order = {
         
         let html = '';
         this.state.orderItems.forEach((item, index) => {
+            const counters = this.normalizeCounters(item.counters);
+            if (counters && counters !== item.counters) {
+                item.counters = counters;
+            }
+
+            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
+            if (kitchenStatus) {
+                const existingStatus = item.kitchen_status || {};
+                if (
+                    existingStatus.className !== kitchenStatus.className ||
+                    existingStatus.timestamp !== kitchenStatus.timestamp
+                ) {
+                    item.kitchen_status = kitchenStatus;
+                }
+            } else if (item.kitchen_status) {
+                item.kitchen_status = null;
+            }
+
+            const displayStatus = item.kitchen_status || kitchenStatus;
+            const statusTime = displayStatus ? this.formatKitchenStatusTime(displayStatus.timestamp) : '';
             html += `
                 <div class="order-item">
                     <div class="item-header">
-                        <div class="item-name">${item.item_name}</div>
+                        <div class="item-title">
+                            <div class="item-name">${item.item_name}</div>
+                            ${displayStatus ? `
+                                <div class="item-status">
+                                    <span class="status-badge ${displayStatus.className}">${displayStatus.label}</span>
+                                    ${statusTime ? `<span class="status-time">${statusTime}</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
                         <button class="item-remove" data-index="${index}">
                             <i class="fa fa-times"></i>
                         </button>
@@ -1831,6 +1863,8 @@ imogi_pos.waiter_order = {
             item_options: options || {},
             options: options || {},
             requires_variant: Number(itemDetails.has_variants) === 1,
+            counters: this.normalizeCounters({}),
+            kitchen_status: null,
         };
 
         const context = this.buildPricingContext({
@@ -2478,6 +2512,172 @@ imogi_pos.waiter_order = {
     },
     
     /**
+     * Parse counters field from POS Order Item
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Parsed counters object
+     */
+    parseCounters: function(rawCounters) {
+        if (!rawCounters) {
+            return {};
+        }
+
+        if (typeof rawCounters === 'object' && !Array.isArray(rawCounters)) {
+            return { ...rawCounters };
+        }
+
+        if (typeof rawCounters === 'string') {
+            try {
+                const parsed = JSON.parse(rawCounters);
+                if (parsed && typeof parsed === 'object') {
+                    return parsed;
+                }
+            } catch (error) {
+                console.warn('Failed to parse counters for POS Order Item', error);
+            }
+        }
+
+        return {};
+    },
+
+    /**
+     * Normalize counters into a predictable lowercase-keyed object
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Normalized counters
+     */
+    normalizeCounters: function(rawCounters) {
+        if (rawCounters && typeof rawCounters === 'object' && rawCounters.__normalized) {
+            return rawCounters;
+        }
+
+        const parsed = this.parseCounters(rawCounters);
+        const normalized = {};
+
+        if (Array.isArray(parsed)) {
+            parsed.forEach(entry => {
+                if (!entry) {
+                    return;
+                }
+
+                const keySource = entry.key || entry.name || entry.state || entry.status;
+                const value = this.getTimestampValue(entry.value || entry.timestamp || entry.time || entry.datetime || entry);
+                if (!keySource || !value) {
+                    return;
+                }
+
+                const normalizedKey = String(keySource).toLowerCase();
+                normalized[normalizedKey] = value;
+            });
+        } else {
+            Object.keys(parsed || {}).forEach(key => {
+                if (!key) {
+                    return;
+                }
+
+                const normalizedKey = String(key).toLowerCase();
+                const value = this.getTimestampValue(parsed[key]);
+
+                if (value) {
+                    normalized[normalizedKey] = value;
+                }
+            });
+        }
+
+        Object.defineProperty(normalized, '__normalized', {
+            value: true,
+            enumerable: false,
+            configurable: false,
+        });
+
+        return normalized;
+    },
+
+    /**
+     * Extract a usable timestamp string from a counter value
+     * @param {*} rawValue - Raw counter value
+     * @returns {string|null} Timestamp string if available
+     */
+    getTimestampValue: function(rawValue) {
+        if (!rawValue) {
+            return null;
+        }
+
+        if (typeof rawValue === 'string' || typeof rawValue === 'number') {
+            return String(rawValue);
+        }
+
+        if (typeof rawValue === 'object') {
+            const possibleKeys = ['timestamp', 'time', 'datetime', 'date', 'value'];
+            for (const key of possibleKeys) {
+                if (rawValue[key]) {
+                    return String(rawValue[key]);
+                }
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Determine kitchen status information from counters
+     * @param {Object} counters - Parsed counters object
+     * @returns {Object|null} Kitchen status data
+     */
+    getKitchenStatusFromCounters: function(counters) {
+        if (!counters || typeof counters !== 'object') {
+            return null;
+        }
+
+        const statusPriority = [
+            { key: 'served', label: 'Served', className: 'served' },
+            { key: 'ready', label: 'Ready', className: 'ready' },
+            { key: 'preparing', label: 'In Progress', className: 'in-progress' },
+            { key: 'sent', label: 'Queued', className: 'queued' },
+            { key: 'cancelled', label: 'Cancelled', className: 'cancelled' }
+        ];
+
+        for (const status of statusPriority) {
+            const value = counters[status.key] || counters[status.key.toUpperCase()];
+            const timestamp = this.getTimestampValue(value);
+            if (timestamp) {
+                return {
+                    label: status.label,
+                    className: status.className,
+                    timestamp,
+                };
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Format kitchen status timestamp into human readable time
+     * @param {string|Object} timestamp - ISO timestamp or object containing timestamp
+     * @returns {string} Formatted time string
+     */
+    formatKitchenStatusTime: function(timestamp) {
+        const rawValue = this.getTimestampValue(timestamp);
+        if (!rawValue) {
+            return '';
+        }
+
+        try {
+            const date = new Date(rawValue);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            console.warn('Failed to format kitchen status time', error);
+            return '';
+        }
+    },
+
+    /**
      * Format currency
      * @param {number} amount - Amount to format
      * @returns {string} Formatted amount
@@ -2486,7 +2686,7 @@ imogi_pos.waiter_order = {
         if (typeof amount !== 'number') {
             amount = parseFloat(amount) || 0;
         }
-        
+
         return frappe.format(amount, { fieldtype: 'Currency' });
     }
 };

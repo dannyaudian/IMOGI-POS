@@ -370,8 +370,67 @@
   margin-bottom: var(--spacing-2);
 }
 
+.item-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
 .item-name {
   font-weight: var(--font-weight-semibold);
+}
+
+.item-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-600);
+}
+
+.item-status .status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.status-badge.ready {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #059669;
+}
+
+.status-badge.served {
+  background-color: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+}
+
+.status-badge.in-progress {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #ea580c;
+}
+
+.status-badge.queued {
+  background-color: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+}
+
+.status-badge.cancelled {
+  background-color: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+}
+
+.item-status .status-time {
+  font-size: var(--font-size-2xs, 0.7rem);
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .item-remove {
