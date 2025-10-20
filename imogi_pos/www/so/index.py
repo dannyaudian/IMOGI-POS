@@ -27,7 +27,7 @@ def get_context(context):
 
     if not token:
         # No token provided
-        context.template = "invalid_token.html"
+        context.template = "so/invalid_token.html"
         context.error_title = _("Missing Token")
         context.error_message = _(
             "No token was provided. Please scan the QR code again or use a valid link."
@@ -37,7 +37,7 @@ def get_context(context):
     # Verify token and get session data
     session_data, failure_reason = verify_token(token)
     if not session_data:
-        context.template = "invalid_token.html"
+        context.template = "so/invalid_token.html"
         if failure_reason == "session_expired":
             context.error_title = _("Session Expired")
             context.error_message = _(
