@@ -8,10 +8,15 @@ frappe.ready(function() {
 
   // Get redirect URL from query parameter or set default
   const urlParams = new URLSearchParams(window.location.search);
-  const redirect = urlParams.get('redirect') || '/cashier-console';
+  const redirectStorageKey = 'login_redirect';
+  const redirectSourceKey = 'login_redirect_source';
+  const redirectParam = urlParams.get('redirect');
+  const fallbackRedirect = '/cashier-console';
 
-  // Save the redirect URL for after login
-  localStorage.setItem('login_redirect', redirect);
+  // Save the redirect URL for after login and remember if it was explicit
+  const initialRedirect = redirectParam || fallbackRedirect;
+  localStorage.setItem(redirectStorageKey, initialRedirect);
+  localStorage.setItem(redirectSourceKey, redirectParam ? 'explicit' : 'default');
   
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -62,36 +67,43 @@ frappe.ready(function() {
               frappe.sid = sid;
             }
 
-            const storedRedirect = localStorage.getItem('login_redirect') || '/cashier-console';
+            const storedRedirect = localStorage.getItem(redirectStorageKey) || fallbackRedirect;
+            const redirectSource = localStorage.getItem(redirectSourceKey) || 'default';
 
             frappe.call({
               method: 'imogi_pos.api.public.get_current_user_info',
               callback: function(r) {
                 let redirectTo = storedRedirect;
                 try {
-                  const roles = (r.message && r.message.roles) || [];
-                  if (roles.includes('Cashier')) {
-                    const url = new URL(window.location.origin + storedRedirect);
-                    const redirectParam = url.searchParams.get('redirect');
-                    redirectTo = '/device-select';
-                    if (redirectParam) {
-                      redirectTo += `?redirect=${encodeURIComponent(redirectParam)}`;
-                    }
+                  const userInfo = r.message || {};
+                  const defaultRedirect = userInfo.default_redirect;
+
+                  if (redirectSource !== 'explicit' && defaultRedirect) {
+                    redirectTo = defaultRedirect;
                   }
+
+                  if (!redirectTo) {
+                    redirectTo = defaultRedirect || '/';
+                  }
+
                   window.location.href = redirectTo;
                 } finally {
-                  localStorage.removeItem('login_redirect');
+                  localStorage.removeItem(redirectStorageKey);
+                  localStorage.removeItem(redirectSourceKey);
                 }
               },
               error: function() {
-                window.location.href = storedRedirect;
-                localStorage.removeItem('login_redirect');
+                const redirectTo = storedRedirect || '/';
+                window.location.href = redirectTo;
+                localStorage.removeItem(redirectStorageKey);
+                localStorage.removeItem(redirectSourceKey);
               }
             });
           } catch (e) {
             console.error('Redirect error:', e);
-            window.location.href = '/cashier-console';
-            localStorage.removeItem('login_redirect');
+            window.location.href = fallbackRedirect;
+            localStorage.removeItem(redirectStorageKey);
+            localStorage.removeItem(redirectSourceKey);
           }
         } else {
           // Show error message if login did not succeed
