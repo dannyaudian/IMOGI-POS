@@ -239,9 +239,18 @@ const IMOGIAuth = {
                             this.options.onLogin(username);
                         }
 
-                        // Redirect if specified
+                        // Redirect based on explicit target or role defaults
                         if (redirect) {
                             window.location.href = redirect;
+                        } else {
+                            this.getCurrentUser()
+                                .then((userInfo) => {
+                                    const defaultRedirect = userInfo.default_redirect || '/';
+                                    window.location.href = defaultRedirect;
+                                })
+                                .catch(() => {
+                                    window.location.href = '/';
+                                });
                         }
 
                         resolve(username);

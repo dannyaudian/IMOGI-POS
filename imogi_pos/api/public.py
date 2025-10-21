@@ -195,24 +195,40 @@ def check_session():
     }
 
 
+def _get_role_based_redirect(roles):
+    """Return the default landing page based on the provided roles."""
+
+    roles = roles or []
+
+    if "Kiosk Manager" in roles:
+        return "/kiosk"
+
+    if any(role in roles for role in ("POS Manager", "Cashier")):
+        return "/create-order"
+
+    return None
+
+
 @frappe.whitelist()
 def get_current_user_info():
     """Return information about the currently logged-in user.
 
     Returns:
-        dict: User details including full name and roles.
+        dict: User details including full name, roles and default redirect.
     """
 
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
+    roles = frappe.get_roles(user)
     user_doc = frappe.get_doc("User", user)
     return {
         "user": user,
         "full_name": user_doc.full_name,
         "email": user_doc.email,
-        "roles": frappe.get_roles(user),
+        "roles": roles,
+        "default_redirect": _get_role_based_redirect(roles),
     }
 
 
