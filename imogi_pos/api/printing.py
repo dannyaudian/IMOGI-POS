@@ -9,6 +9,7 @@ from frappe.utils import cint, now_datetime, get_url
 from imogi_pos.utils.permissions import validate_branch_access
 import json
 import os
+import base64
 
 
 def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, kitchen_station=None):
@@ -683,6 +684,81 @@ def test_print(adapter_type, target, config=None):
         }
 
 @frappe.whitelist()
+def submit_print_job(interface, job, adapter_config=None):
+    """Accept a print job from the client and dispatch it through the server."""
+
+    if isinstance(adapter_config, str):
+        try:
+            adapter_config = json.loads(adapter_config)
+        except ValueError:
+            adapter_config = {}
+
+    adapter_config = adapter_config or {}
+
+    if isinstance(job, str):
+        try:
+            job = json.loads(job)
+        except ValueError:
+            job = {"data": job}
+
+    job = job or {}
+
+    interface = interface or "LAN"
+
+    if interface != "LAN":
+        frappe.throw(_("Client initiated printing is only supported for LAN printers"))
+
+    job_format = (job.get("format") or "html").lower()
+    copies = cint(job.get("copies") or 1)
+    if copies < 1:
+        copies = 1
+
+    options = job.get("options") or {}
+    if options.get("paper_width_mm") and not adapter_config.get("paper_width_mm"):
+        adapter_config["paper_width_mm"] = options.get("paper_width_mm")
+
+    if job_format == "html":
+        from imogi_pos.utils.printing import print_document
+
+        html_content = _extract_html_from_job(job.get("data"))
+        if not html_content:
+            frappe.throw(_("No HTML content provided for print job"))
+
+        return print_document(html_content, interface, adapter_config, copies=copies)
+
+    if job_format in {"raw", "command"}:
+        from imogi_pos.utils.printing import print_via_lan
+
+        payload_bytes = _coerce_print_bytes(job.get("data"))
+
+        if not payload_bytes:
+            frappe.throw(_("No print data provided for raw print job"))
+
+        host = adapter_config.get("host")
+        port = cint(adapter_config.get("port") or 9100)
+
+        if not host:
+            frappe.throw(_("LAN printer host/IP is required for LAN interface"))
+
+        results = []
+        for _ in range(copies):
+            results.append(print_via_lan(host, port, payload_bytes))
+
+        success = all(result.get("success") for result in results)
+
+        return {
+            "success": success,
+            "copies": copies,
+            "details": results,
+            "host": host,
+            "port": port,
+            "error": None if success else _("Failed to print one or more copies")
+        }
+
+    frappe.throw(_("Unsupported print job format: {0}").format(job_format))
+
+
+@frappe.whitelist()
 def get_print_capabilities():
     """
     Gets information about available print capabilities.
@@ -757,3 +833,63 @@ def _detect_web_bluetooth_support():
 
     # If we can't determine, assume not supported for safety
     return False
+
+
+def _extract_html_from_job(data):
+    """Extract HTML string from job data."""
+
+    if not data:
+        return ""
+
+    if isinstance(data, str):
+        return data
+
+    if isinstance(data, dict):
+        for key in ["html", "data", "content", "body"]:
+            value = data.get(key)
+            if value:
+                return value
+
+    if isinstance(data, list):
+        return "".join(str(item) for item in data)
+
+    return str(data)
+
+
+def _coerce_print_bytes(data):
+    """Convert job data to bytes for raw LAN printing."""
+
+    if data is None:
+        return b""
+
+    if isinstance(data, bytes):
+        return data
+
+    if isinstance(data, bytearray):
+        return bytes(data)
+
+    if isinstance(data, str):
+        try:
+            return data.encode("latin-1")
+        except UnicodeEncodeError:
+            return data.encode("utf-8")
+
+    if isinstance(data, dict):
+        base64_value = data.get("base64")
+        if base64_value:
+            try:
+                return base64.b64decode(base64_value)
+            except Exception:
+                return b""
+        if data.get("raw"):
+            return _coerce_print_bytes(data.get("raw"))
+        if data.get("data"):
+            return _coerce_print_bytes(data.get("data"))
+
+    if isinstance(data, list):
+        try:
+            return bytes(data)
+        except Exception:
+            return "".join(str(item) for item in data).encode("utf-8")
+
+    return str(data).encode("utf-8")
