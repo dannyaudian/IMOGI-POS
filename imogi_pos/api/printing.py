@@ -175,14 +175,11 @@ def get_print_format_html(doc, print_format_name=None):
     # Get the Print Format
     print_format = frappe.get_doc("Print Format", print_format_name)
     
-    if print_format.format_data:
-        # Generate HTML from the Print Format
-        html_content = frappe.render_template(print_format.format_data, {"doc": doc})
-    else:
-        # Use standard print format
-        html_content = frappe.get_print(doc.doctype, doc.name, print_format=print_format_name)
-    
-    return html_content
+    # Always use frappe.get_print to let Frappe handle both classic and builder
+    # print formats correctly. Directly rendering ``format_data`` would fail for
+    # JSON-based print formats (builder templates) resulting in ``Can't compile
+    # non template nodes`` errors.
+    return frappe.get_print(doc.doctype, doc.name, print_format=print_format_name)
 
 @frappe.whitelist()
 def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_format=None):
