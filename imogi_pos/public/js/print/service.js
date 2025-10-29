@@ -18,6 +18,37 @@
 // Import adapters conditionally to avoid errors in unsupported environments
 let BluetoothAdapter, BridgeAdapter, SpoolerAdapter, LANAdapter;
 
+/**
+ * Ensure adapter references are synced from the window object when running in the
+ * browser. The adapter scripts are loaded after this service and expose their
+ * constructors on the window once executed, so we lazily resolve them here.
+ *
+ * @param {boolean} [logMissing=false] - Whether to log a warning when an adapter
+ *   script has not been detected yet. We only want to surface this when the
+ *   adapters are actually required, not during initial page load.
+ */
+function resolveBrowserAdapters(logMissing = false) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const mappings = [
+        ['IMOGIPrintBluetoothAdapter', (Adapter) => { BluetoothAdapter = Adapter; }, 'Bluetooth adapter not detected. Include adapter_bluetooth.js'],
+        ['IMOGIPrintBridgeAdapter', (Adapter) => { BridgeAdapter = Adapter; }, 'Bridge adapter not detected. Include adapter_bridge.js'],
+        ['IMOGIPrintSpoolerAdapter', (Adapter) => { SpoolerAdapter = Adapter; }, 'Spooler adapter not detected. Include adapter_spool.js'],
+        ['IMOGIPrintLANAdapter', (Adapter) => { LANAdapter = Adapter; }, 'LAN adapter not detected. Include adapter_lan.js']
+    ];
+
+    mappings.forEach(([globalName, assign, missingMessage]) => {
+        const AdapterClass = window[globalName];
+        if (AdapterClass) {
+            assign(AdapterClass);
+        } else if (logMissing) {
+            console.warn(`IMOGI Print Service: ${missingMessage}`);
+        }
+    });
+}
+
 // We'll dynamically import these based on environment support
 if (typeof require !== 'undefined') {
     try {
@@ -44,25 +75,18 @@ if (typeof require !== 'undefined') {
         console.warn('IMOGI Print Service: LAN adapter not loaded', e);
     }
 } else {
-    // In browser, we'll assume these are loaded via <script> tags
-    BluetoothAdapter = window.IMOGIPrintBluetoothAdapter;
-    if (!BluetoothAdapter) {
-        console.error('IMOGI Print Service: Bluetooth adapter not detected. Include adapter_bluetooth.js');
-    }
+    // In browser, adapters are exposed via <script> tags. They may load after
+    // this service, so resolve them lazily once the DOM is ready.
+    const syncAdapters = () => resolveBrowserAdapters(false);
 
-    BridgeAdapter = window.IMOGIPrintBridgeAdapter;
-    if (!BridgeAdapter) {
-        console.error('IMOGI Print Service: Bridge adapter not detected. Include adapter_bridge.js');
-    }
-
-    SpoolerAdapter = window.IMOGIPrintSpoolerAdapter;
-    if (!SpoolerAdapter) {
-        console.error('IMOGI Print Service: Spooler adapter not detected. Include adapter_spool.js');
-    }
-
-    LANAdapter = window.IMOGIPrintLANAdapter;
-    if (!LANAdapter) {
-        console.error('IMOGI Print Service: LAN adapter not detected. Include adapter_lan.js');
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', syncAdapters, { once: true });
+        } else {
+            syncAdapters();
+        }
+    } else {
+        syncAdapters();
     }
 }
 
@@ -123,6 +147,8 @@ const IMOGIPrintService = {
             autoDetect: true
         }, options);
 
+        resolveBrowserAdapters(false);
+
         // Check available capabilities
         this.capabilities = this.detectCapabilities();
         
@@ -170,6 +196,8 @@ const IMOGIPrintService = {
      * @returns {string} Selected interface
      */
     selectBestAdapter: function() {
+        resolveBrowserAdapters(false);
+
         // Preference order: Bluetooth > LAN > Bridge > OS
         if (this.capabilities.webBluetooth && BluetoothAdapter) {
             return this.selectAdapter(this.INTERFACES.BLUETOOTH);
@@ -192,6 +220,8 @@ const IMOGIPrintService = {
      * @returns {string} Selected interface
      */
     selectAdapter: function(interfaceType, config = {}) {
+        resolveBrowserAdapters(true);
+
         // Clear current adapter
         if (this.currentAdapter && typeof this.currentAdapter.disconnect === 'function') {
             this.currentAdapter.disconnect();
