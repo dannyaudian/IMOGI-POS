@@ -732,9 +732,13 @@ const IMOGIPrintService = {
     }
 };
 
-// Export for module usage
-if (typeof module !== 'undefined') {
+// Export for module usage and expose on window for legacy callers
+if (typeof module !== 'undefined' && module.exports) {
     module.exports = IMOGIPrintService;
-} else {
+}
+
+if (typeof window !== 'undefined') {
     window.IMOGIPrintService = IMOGIPrintService;
+    // Provide camelCase alias used by legacy bundles (e.g. ImogiPrintService)
+    window.ImogiPrintService = IMOGIPrintService;
 }
