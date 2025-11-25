@@ -1,0 +1,110 @@
+[
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "imogi_menu_channel",
+        "module": "IMOGI POS",
+        "name": "Item-imogi_menu_channel-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "has_size_option",
+        "module": "IMOGI POS",
+        "name": "Item-has_size_option-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "has_spice_option",
+        "module": "IMOGI POS",
+        "name": "Item-has_spice_option-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "has_variant_option",
+        "module": "IMOGI POS",
+        "name": "Item-has_variant_option-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "has_topping_option",
+        "module": "IMOGI POS",
+        "name": "Item-has_topping_option-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_size_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_size_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_spice_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_spice_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_variant_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_variant_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    },
+    {
+        "doc_type": "Item",
+        "docstatus": 0,
+        "doctype": "Property Setter",
+        "doctype_or_field": "DocField",
+        "field_name": "item_topping_options",
+        "module": "IMOGI POS",
+        "name": "Item-item_topping_options-hidden",
+        "property": "hidden",
+        "property_type": "Check",
+        "value": "1"
+    }
+]

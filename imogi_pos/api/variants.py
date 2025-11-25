@@ -5,7 +5,10 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, flt
+from imogi_pos.api.billing import get_bom_capacity_summary
+from imogi_pos.api.items import _channel_matches
+from imogi_pos.api.pricing import get_price_list_rate_maps
 
 def validate_branch_access(branch):
     """
@@ -34,11 +37,232 @@ def get_order_branch(pos_order):
     Raises:
         frappe.DoesNotExistError: If POS Order not found
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     branch = frappe.db.get_value("POS Order", pos_order, "branch")
     if not branch:
         frappe.throw(_("POS Order not found or has no branch"), frappe.DoesNotExistError)
-    
+
     return branch
+
+
+@frappe.whitelist(allow_guest=True)
+def get_items_with_stock(
+    warehouse=None,
+    limit=500,
+    pos_menu_profile=None,
+    price_list=None,
+    base_price_list=None,
+    menu_channel=None,
+):
+    """Return POS items with stock and allowed payment methods.
+
+    Args:
+        warehouse (str, optional): Warehouse to fetch stock levels from.
+        limit (int, optional): Maximum number of items to return. Defaults to 500.
+        pos_menu_profile (str, optional): If provided, only items for this
+            POS Menu Profile will be returned. Each item uses its own
+            ``pos_menu_profile`` if set, falling back to its Item Group's
+            ``default_pos_menu_profile``.
+        price_list (str, optional): Selling Price List used for explicit
+            channel pricing and adjustments.
+        base_price_list (str, optional): Baseline Price List that represents
+            the original product catalogue (e.g. POS Profile
+            ``selling_price_list``). When an item has no ``standard_rate`` it
+            will fall back to the rate defined in this list before applying
+            any channel adjustment.
+        menu_channel (str, optional): Channel context (``POS`` or
+            ``Restaurant``) used to filter items that are specific to a
+            service channel. When omitted, all items are returned.
+
+    Returns:
+        list[dict]: List of item data including available quantity and payment methods.
+    """
+    item_filters = [
+        ["Item", "disabled", "=", 0],
+        ["Item", "is_sales_item", "=", 1],
+        ["Item", "menu_category", "is", "set"],
+        ["Item", "menu_category", "!=", ""],
+    ]
+
+    items = frappe.get_all(
+        "Item",
+        filters=item_filters,
+        fields=[
+            "name",
+            "item_name",
+            "item_code",
+            "description",
+            "image",
+            "standard_rate",
+            "has_variants",
+            "variant_of",
+            "item_group",
+            "menu_category",
+            "photo",
+            "default_kitchen",
+            "default_kitchen_station",
+            "pos_menu_profile",
+            "imogi_menu_channel",
+        ],
+        limit_page_length=limit,
+    )
+
+    # Ensure only items with a valid menu category proceed and match the requested channel
+    items = [
+        d
+        for d in items
+        if (d.menu_category or "").strip()
+        and _channel_matches(getattr(d, "imogi_menu_channel", None), menu_channel)
+    ]
+
+    # Map of item group -> default POS Menu Profile
+    group_defaults = {}
+    groups = {d.item_group for d in items if d.item_group}
+    if groups:
+        group_rows = frappe.get_all(
+            "Item Group",
+            filters={"name": ["in", list(groups)]},
+            fields=["name", "default_pos_menu_profile"],
+        )
+        group_defaults = {g.name: g.default_pos_menu_profile for g in group_rows}
+
+    # Resolve effective POS Menu Profile for each item
+    for item in items:
+        item.pos_menu_profile = item.pos_menu_profile or group_defaults.get(item.item_group)
+
+    # If a profile filter is provided, apply it
+    if pos_menu_profile:
+        items = [d for d in items if d.pos_menu_profile == pos_menu_profile]
+
+    item_names = [d.name for d in items]
+
+    # Fetch stock quantities from Bin for the given warehouse
+    stock_map = {}
+    if warehouse and item_names:
+        bin_rows = frappe.get_all(
+            "Bin",
+            filters={"item_code": ["in", item_names], "warehouse": warehouse},
+            fields=["item_code", "actual_qty"],
+        )
+        stock_map = {b.item_code: b.actual_qty for b in bin_rows}
+
+    price_list_adjustment = 0.0
+    price_list_currency = None
+    adjustment_field_available = frappe.db.has_column("Price List", "imogi_price_adjustment")
+
+    if price_list:
+        fields = ["currency"]
+        if adjustment_field_available:
+            fields.append("imogi_price_adjustment")
+
+        price_list_doc = frappe.db.get_value(
+            "Price List",
+            price_list,
+            fields,
+            as_dict=True,
+        )
+        if price_list_doc:
+            if adjustment_field_available:
+                price_list_adjustment = flt(price_list_doc.get("imogi_price_adjustment") or 0)
+            price_list_currency = price_list_doc.get("currency")
+
+    rate_maps = get_price_list_rate_maps(
+        item_names,
+        price_list=price_list,
+        base_price_list=base_price_list,
+    )
+
+    rate_map = rate_maps["price_list_rates"]
+    currency_map = rate_maps["price_list_currencies"]
+    base_rate_map = rate_maps["base_price_list_rates"]
+    base_currency_map = rate_maps["base_price_list_currencies"]
+
+    # Fetch allowed payment methods if doctype exists
+    payment_map = {}
+    payment_doctype = None
+    for dt in ["Item Payment Method", "Item Payment Mode", "Item Payment"]:
+        if frappe.db.exists("DocType", dt):
+            payment_doctype = dt
+            break
+
+    if payment_doctype and item_names:
+        payment_rows = frappe.get_all(
+            payment_doctype,
+            filters={"parent": ["in", item_names]},
+            fields=["parent", "mode_of_payment"],
+        )
+        for row in payment_rows:
+            payment_map.setdefault(row.parent, []).append(row.mode_of_payment)
+
+    bom_cache = {}
+
+    for item in items:
+        base_standard_rate = flt(item.standard_rate)
+        fallback_currency = None
+        if not base_standard_rate and base_rate_map:
+            if item.name in base_rate_map:
+                base_standard_rate = flt(base_rate_map[item.name])
+                fallback_currency = base_currency_map.get(item.name)
+
+        item["imogi_base_standard_rate"] = base_standard_rate
+        item["imogi_price_adjustment_amount"] = 0
+        item["imogi_price_adjustment_applied"] = 0
+        item["has_explicit_price_list_rate"] = 0
+
+        finished_goods_stock = flt(stock_map.get(item.name, 0))
+        if finished_goods_stock < 0:
+            finished_goods_stock = 0
+
+        summary = get_bom_capacity_summary(
+            item.name,
+            warehouse,
+            warehouse,
+            bom_cache,
+        )
+
+        shortage = False
+        component_low_stock = []
+        if summary:
+            bom_capacity = flt(summary.get("bom_capacity") or 0)
+            if bom_capacity < 0:
+                bom_capacity = 0
+            shortage = bool(summary.get("has_component_shortage"))
+            item["actual_qty"] = 0 if shortage else bom_capacity
+            component_low_stock = list(summary.get("low_stock_components") or [])
+        else:
+            item["actual_qty"] = finished_goods_stock
+        item["component_low_stock"] = component_low_stock
+        item["is_component_shortage"] = 1 if shortage else 0
+        item["payment_methods"] = payment_map.get(item.name, [])
+
+        if fallback_currency and not item.get("currency"):
+            item["currency"] = fallback_currency
+
+        if rate_map and item.name in rate_map:
+            explicit_rate = flt(rate_map[item.name])
+            item["standard_rate"] = explicit_rate
+            item["has_explicit_price_list_rate"] = 1
+            item["imogi_base_standard_rate"] = explicit_rate
+            currency_value = currency_map.get(item.name) or price_list_currency
+            if currency_value:
+                item["currency"] = currency_value
+            continue
+
+        # Fall back to the item's own rate and apply adjustments if configured
+        final_rate = base_standard_rate
+        if price_list_currency:
+            item["currency"] = price_list_currency
+
+        if price_list and price_list_adjustment:
+            final_rate += price_list_adjustment
+            item["imogi_price_adjustment_amount"] = price_list_adjustment
+            item["imogi_price_adjustment_applied"] = 1
+
+        item["standard_rate"] = final_rate
+
+    return items
 
 @frappe.whitelist()
 def get_variant_picker_config(item_template):
@@ -108,8 +332,8 @@ def get_variant_picker_config(item_template):
         "has_variants": len(attributes) > 0
     }
 
-@frappe.whitelist()
-def get_item_variants(item_template):
+@frappe.whitelist(allow_guest=True)
+def get_item_variants(item_template=None, price_list=None, base_price_list=None, **kwargs):
     """
     Gets all variants for a template item.
     
@@ -122,6 +346,26 @@ def get_item_variants(item_template):
     Raises:
         frappe.ValidationError: If item is not a template
     """
+    form_dict = getattr(frappe, "form_dict", {}) or {}
+
+    base_price_list = (
+        base_price_list
+        or kwargs.get("base_price_list")
+        or form_dict.get("base_price_list")
+    )
+
+    item_template = (
+        item_template
+        or kwargs.get("template_item")
+        or kwargs.get("template")
+        or form_dict.get("item_template")
+        or form_dict.get("template_item")
+        or form_dict.get("template")
+    )
+
+    if not item_template:
+        frappe.throw(_("Item template is required"), frappe.ValidationError)
+
     # Check if item is a template
     is_template = frappe.db.get_value("Item", item_template, "has_variants")
     if not is_template:
@@ -132,15 +376,37 @@ def get_item_variants(item_template):
     attributes = attr_config.get("attributes", [])
     
     # Get all variants
-    variants = frappe.get_all("Item", 
-                            filters={"variant_of": item_template, "disabled": 0},
-                            fields=["name", "item_name", "image", "item_code", "description", 
-                                   "standard_rate", "stock_uom"])
-    
+    variants = frappe.get_all(
+        "Item",
+        filters={"variant_of": item_template, "disabled": 0},
+        fields=[
+            "name",
+            "item_name",
+            "image",
+            "item_code",
+            "description",
+            "standard_rate",
+            "stock_uom",
+        ],
+    )
+
+    variant_names = [variant.name for variant in variants]
+
+    rate_maps = get_price_list_rate_maps(
+        variant_names,
+        price_list=price_list,
+        base_price_list=base_price_list,
+    )
+
+    rate_map = rate_maps["price_list_rates"]
+    currency_map = rate_maps["price_list_currencies"]
+    base_rate_map = rate_maps["base_price_list_rates"]
+    base_currency_map = rate_maps["base_price_list_currencies"]
+
     # Enrich variants with their attribute values
     for variant in variants:
         item_code = variant["name"]
-        
+
         # Get attribute values for this variant
         attr_values = frappe.get_all("Item Variant Attribute", 
                                    filters={"parent": item_code},
@@ -154,12 +420,38 @@ def get_item_variants(item_template):
         variant["attributes"] = variant_attrs
         
         # Check if this variant has menu category, kitchen, etc.
-        routing = frappe.db.get_value("Item", item_code, 
-                                   ["menu_category", "default_kitchen", "default_kitchen_station"], 
+        routing = frappe.db.get_value("Item", item_code,
+                                   ["menu_category", "default_kitchen", "default_kitchen_station"],
                                    as_dict=True)
         if routing:
             variant.update(routing)
-    
+
+        base_standard_rate = flt(variant.get("standard_rate"))
+        fallback_currency = None
+        if not base_standard_rate and base_rate_map:
+            if item_code in base_rate_map:
+                base_standard_rate = flt(base_rate_map[item_code])
+                fallback_currency = base_currency_map.get(item_code)
+
+        if not flt(variant.get("standard_rate")) and base_standard_rate:
+            variant["standard_rate"] = base_standard_rate
+
+        variant["imogi_base_standard_rate"] = base_standard_rate
+        variant["has_explicit_price_list_rate"] = 0
+        if fallback_currency and not variant.get("currency"):
+            variant["currency"] = fallback_currency
+
+        if item_code in rate_map:
+            explicit_rate = flt(rate_map[item_code])
+            variant["standard_rate"] = explicit_rate
+            variant["imogi_base_standard_rate"] = explicit_rate
+            variant["has_explicit_price_list_rate"] = 1
+            if currency_map.get(item_code):
+                variant["currency"] = currency_map[item_code]
+
+        # Provide a ``rate`` alias for compatibility with clients expecting this field
+        variant["rate"] = variant.get("standard_rate")
+
     return {
         "template": item_template,
         "attributes": attributes,
@@ -185,6 +477,9 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
         frappe.ValidationError: If neither attributes nor variant are provided,
                               or if template item cannot be replaced
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     # Get order details for branch validation
     branch = get_order_branch(pos_order)
     validate_branch_access(branch)
@@ -198,7 +493,7 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
     order_doc = frappe.get_doc("POS Order", pos_order)
     
     # Verify this is a template item
-    item_code = order_item.item_code
+    item_code = order_item.item
     is_template = frappe.db.get_value("Item", item_code, "has_variants")
     
     if not is_template:
@@ -231,31 +526,53 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
         # Find the matching variant based on selected attributes
         template_doc = frappe.get_doc("Item", item_code)
         
-        # Build attribute filters for finding the variant
-        attribute_filters = []
+        # Build candidate variants by intersecting attribute matches
+        candidate_variants = None
         for attr in template_doc.attributes:
             attr_name = attr.attribute
             if attr_name not in selected_attributes:
-                frappe.throw(_("Required attribute {0} not provided").format(attr_name), 
+                frappe.throw(_("Required attribute {0} not provided").format(attr_name),
                             frappe.ValidationError)
-            
-            attribute_filters.append([
-                "Item Variant Attribute", 
-                "attribute", "=", attr_name, 
-                "and", 
-                "Item Variant Attribute", 
-                "attribute_value", "=", selected_attributes[attr_name]
-            ])
-        
-        # Find variant that matches all attributes
-        variants = frappe.get_all("Item", 
-                                filters=[
-                                    ["variant_of", "=", item_code],
-                                    ["disabled", "=", 0],
-                                    *attribute_filters
-                                ],
-                                fields=["name"])
-        
+
+            attr_value = selected_attributes[attr_name]
+            attr_rows = frappe.get_all(
+                "Item Variant Attribute",
+                filters={
+                    "attribute": attr_name,
+                    "attribute_value": attr_value,
+                },
+                fields=["parent"],
+            )
+
+            matching_variants = {row.parent for row in attr_rows}
+            if not matching_variants:
+                candidate_variants = set()
+                break
+
+            if candidate_variants is None:
+                candidate_variants = matching_variants
+            else:
+                candidate_variants &= matching_variants
+
+            if not candidate_variants:
+                break
+
+        candidate_variants = candidate_variants or set()
+
+        if not candidate_variants:
+            frappe.throw(_("No variant found with the selected attributes"), frappe.ValidationError)
+
+        # Find variant that matches all attributes and belongs to the template
+        variants = frappe.get_all(
+            "Item",
+            filters={
+                "name": ["in", sorted(candidate_variants)],
+                "variant_of": item_code,
+                "disabled": 0,
+            },
+            fields=["name"],
+        )
+
         if not variants:
             frappe.throw(_("No variant found with the selected attributes"), frappe.ValidationError)
         
@@ -273,7 +590,7 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
     original_notes = order_item.notes or ""
     
     # Update order item with variant details
-    order_item.item_code = variant.name
+    order_item.item = variant.name
     order_item.item_name = variant.item_name
     order_item.description = variant.description or variant.item_name
     

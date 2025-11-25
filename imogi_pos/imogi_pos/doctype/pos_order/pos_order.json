@@ -1,27 +1,36 @@
 {
-    "actions": [],
-    "allow_rename": 0,
-    "autoname": "POS-ORD-.#####",
-    "creation": "2023-01-01 00:00:00.000000",
-    "doctype": "DocType",
-    "editable_grid": 1,
-    "engine": "InnoDB",
-    "field_order": [
+  "actions": [],
+  "allow_rename": 0,
+  "autoname": "POS-ORD-.#####",
+  "creation": "2023-01-01 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
         "branch",
         "table",
         "floor",
         "order_type",
         "pos_profile",
         "customer",
+        "customer_full_name",
+        "customer_gender",
+        "customer_phone",
+        "customer_age",
         "column_break_7",
         "workflow_state",
         "posting_date",
         "posting_time",
-        "pos_session",
         "sales_invoice",
+        "queue_number",
         "section_break_11",
         "items",
         "section_break_13",
+        "subtotal",
+        "pb1_amount",
+        "discount_percent",
+        "discount_amount",
+        "promo_code",
         "totals",
         "section_break_15",
         "notes",
@@ -55,7 +64,7 @@
             "fieldtype": "Select",
             "in_list_view": 1,
             "label": "Order Type",
-            "options": "Dine-in\nTakeaway\nKiosk",
+            "options": "Dine-in\nTakeaway\nKiosk\nPOS",
             "reqd": 1
         },
         {
@@ -71,6 +80,27 @@
             "fieldtype": "Link",
             "label": "Customer",
             "options": "Customer"
+        },
+        {
+            "fieldname": "customer_full_name",
+            "fieldtype": "Data",
+            "label": "Customer Full Name"
+        },
+        {
+            "fieldname": "customer_gender",
+            "fieldtype": "Select",
+            "label": "Customer Gender",
+            "options": "Male\nFemale\nOther"
+        },
+        {
+            "fieldname": "customer_phone",
+            "fieldtype": "Data",
+            "label": "Customer Phone"
+        },
+        {
+            "fieldname": "customer_age",
+            "fieldtype": "Int",
+            "label": "Customer Age"
         },
         {
             "fieldname": "column_break_7",
@@ -96,17 +126,16 @@
             "default": "now"
         },
         {
-            "fieldname": "pos_session",
-            "fieldtype": "Link",
-            "label": "POS Session",
-            "options": "POS Session",
-            "read_only": 1
-        },
-        {
             "fieldname": "sales_invoice",
             "fieldtype": "Link",
             "label": "Sales Invoice",
             "options": "Sales Invoice",
+            "read_only": 1
+        },
+        {
+            "fieldname": "queue_number",
+            "fieldtype": "Int",
+            "label": "Queue Number",
             "read_only": 1
         },
         {
@@ -125,6 +154,33 @@
             "fieldname": "section_break_13",
             "fieldtype": "Section Break",
             "label": "Totals"
+        },
+        {
+            "fieldname": "subtotal",
+            "fieldtype": "Currency",
+            "label": "Subtotal",
+            "read_only": 1
+        },
+        {
+            "fieldname": "pb1_amount",
+            "fieldtype": "Currency",
+            "label": "PB1 Amount",
+            "read_only": 1
+        },
+        {
+            "fieldname": "discount_percent",
+            "fieldtype": "Percent",
+            "label": "Discount Percent"
+        },
+        {
+            "fieldname": "discount_amount",
+            "fieldtype": "Currency",
+            "label": "Discount Amount"
+        },
+        {
+            "fieldname": "promo_code",
+            "fieldtype": "Data",
+            "label": "Promo Code"
         },
         {
             "fieldname": "totals",

@@ -4,16 +4,89 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe import _
-import socket
-import requests
+
+if hasattr(frappe, "_"):
+    _ = frappe._  # type: ignore[attr-defined]
+else:
+    def _(message):  # type: ignore[override]
+        """Fallback translation function when frappe._ is unavailable."""
+        return message
+
+import base64
+import importlib.util
 import json
 import os
-import tempfile
-from bs4 import BeautifulSoup
 import re
-import base64
-from typing import Dict, Any, Union, Optional, List
+import socket
+import tempfile
+from typing import Any, Dict, List, Optional, Union
+
+if importlib.util.find_spec("bs4") is not None:
+    from bs4 import BeautifulSoup  # type: ignore[import]
+else:
+    BeautifulSoup = None  # type: ignore[assignment]
+
+if importlib.util.find_spec("requests") is not None:
+    import requests  # type: ignore[import]
+    RequestException = requests.exceptions.RequestException
+else:
+    requests = None  # type: ignore[assignment]
+
+    class RequestException(Exception):
+        """Fallback request exception when the requests library is unavailable."""
+
+        pass
+
+
+def format_kot_options(options: Union[str, Dict[str, Any], List[Any], None]) -> str:
+    """Format item options for display on KOT tickets.
+
+    Args:
+        options: Item options as a dict, list or JSON string.
+
+    Returns:
+        str: Human-readable string representation of the options.
+    """
+
+    if not options:
+        return ""
+
+    if isinstance(options, str):
+        try:
+            options = json.loads(options)
+        except Exception:
+            return options
+
+    parts: List[str] = []
+
+    if isinstance(options, dict):
+        for key, value in options.items():
+            label = key.replace("_", " ").title()
+            if isinstance(value, dict):
+                name = value.get("name") or value.get("label") or str(value)
+                parts.append(f"{label}: {name}")
+            elif isinstance(value, list):
+                names = [
+                    (item.get("name") or item.get("label") or str(item))
+                    if isinstance(item, dict)
+                    else str(item)
+                    for item in value
+                ]
+                parts.append(f"{label}: {', '.join(names)}")
+            else:
+                parts.append(f"{label}: {value}")
+    elif isinstance(options, list):
+        names = [
+            (item.get("name") or item.get("label") or str(item))
+            if isinstance(item, dict)
+            else str(item)
+            for item in options
+        ]
+        parts.append(", ".join(names))
+    else:
+        return str(options)
+
+    return " | ".join(parts)
 
 def print_document(html_content: str, interface: str, adapter_config: Dict[str, Any], copies: int = 1) -> Dict[str, Any]:
     """
@@ -237,6 +310,12 @@ def print_via_bridge(url: str, token: str, payload_bytes: bytes, bt_config: Dict
     Returns:
         dict: Print result with success flag and any error messages
     """
+    if requests is None:
+        return {
+            "success": False,
+            "error": _("Requests library is not available")
+        }
+
     if not payload_bytes:
         return {
             "success": False,
@@ -293,7 +372,7 @@ def print_via_bridge(url: str, token: str, payload_bytes: bytes, bt_config: Dict
                 "response_text": response.text
             }
             
-    except requests.exceptions.RequestException as e:
+    except RequestException as e:
         return {
             "success": False,
             "error": _("Error connecting to print bridge: {0}").format(str(e))
@@ -343,10 +422,13 @@ def render_html_to_bytes_for_thermal(html: str, paper_width_mm: int = 80) -> byt
         bytes: ESC/POS formatted binary data
     """
     try:
+        if BeautifulSoup is None:
+            raise RuntimeError("BeautifulSoup is required for HTML rendering")
+
         # In a real implementation, this would use a library like python-escpos
         # to convert HTML to printer commands based on the specific printer profile.
         # For this stub, we'll simulate the conversion with a simplified approach.
-        
+
         # Parse the HTML to extract plain text
         soup = BeautifulSoup(html, 'html.parser')
         

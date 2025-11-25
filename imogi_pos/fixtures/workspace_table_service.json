@@ -8,6 +8,8 @@
   "icon": "table",
   "module": "IMOGI POS",
   "label": "Table Service",
+  "title": "Table Service",
+  "type": "Workspace",
   "links": [
     {
       "label": "Floor Management",
@@ -72,34 +74,19 @@
       "icon": "list",
       "color": "orange",
       "filters": {
-        "status": ["!=", "Closed"],
-        "floor": ["=", "current_floor"]
-      }
-    }
-  ],
-  "charts": [],
-  "content": [
-    {
-      "type": "header",
-      "data": {
-        "text": "Layout Management",
-        "level": 4,
-        "description": "Floor and table management"
-      }
-    },
-    {
-      "type": "card",
-      "data": {
-        "label": "Layout Tools",
-        "items": [
-          {
-            "label": "Layout Editor",
-            "url": "/app/table-layout-editor"
-          }
+        "status": [
+          "!=",
+          "Closed"
+        ],
+        "floor": [
+          "=",
+          "current_floor"
         ]
       }
     }
   ],
+  "charts": [],
+  "content": "[{\"type\": \"header\", \"data\": {\"text\": \"Layout Management\", \"level\": 4, \"description\": \"Floor and table management\"}}, {\"type\": \"card\", \"data\": {\"label\": \"Layout Tools\", \"items\": [{\"label\": \"Layout Editor\", \"url\": \"/app/table-layout-editor\"}]}}]",
   "roles": [
     {
       "role": "Waiter"

@@ -4,6 +4,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
+from frappe.utils import flt
 
 
 class POSOrder(Document):
@@ -29,13 +30,40 @@ class POSOrder(Document):
         self.last_edited_by = self.modified_by or frappe.session.user
     
     def calculate_totals(self):
-        """Calculate order totals from items"""
-        total = 0
+        """Calculate order totals including PB1 and discounts"""
+        subtotal = 0
         for item in self.items:
             if not item.amount:
                 item.amount = (item.qty or 0) * (item.rate or 0)
-            total += item.amount
-        self.totals = total
+            subtotal += item.amount
+
+        # store subtotal
+        self.subtotal = subtotal
+
+        # apply PB1 tax (11%)
+        pb1 = subtotal * 0.11
+        self.pb1_amount = pb1
+        subtotal_with_pb1 = subtotal + pb1
+
+        # apply discounts on subtotal with PB1
+        discount = 0
+
+        # convert discount fields to numeric values
+        discount_percent = flt(getattr(self, "discount_percent", 0))
+        discount_amount = flt(getattr(self, "discount_amount", 0))
+
+        # apply discount percent if provided
+        if discount_percent:
+            discount += subtotal_with_pb1 * (discount_percent / 100)
+
+        # apply fixed discount amount if provided
+        if discount_amount:
+            discount += discount_amount
+
+        # store calculated amounts and ensure numeric fields
+        self.discount_percent = discount_percent
+        self.discount_amount = discount
+        self.totals = max(subtotal_with_pb1 - discount, 0)
     
     def update_table_status(self):
         """Update table status if applicable"""
@@ -43,25 +71,32 @@ class POSOrder(Document):
             return
             
         # Get current table status
-        table_status = frappe.db.get_value("Restaurant Table", self.table, ["status", "current_pos_order"])
-        
+        table_status = frappe.db.get_value(
+            "Restaurant Table",
+            self.table,
+            ["status", "current_pos_order"],
+            as_dict=True,
+        )
         # Only update if this is a new order or status has changed
         workflow_closed_states = ["Closed", "Cancelled", "Returned"]
-        
+
+        current_order = table_status.get("current_pos_order") if table_status else None
+
         if self.workflow_state in workflow_closed_states:
             # If order is closed/cancelled/returned, clear table if it's still linked to this order
-            if table_status and table_status[1] == self.name:
+            if table_status and table_status.get("current_pos_order") == self.name:
                 frappe.db.set_value("Restaurant Table", self.table, {
                     "status": "Available",
                     "current_pos_order": None
                 })
-        elif table_status and (not table_status[1] or table_status[1] == self.name):
+        elif table_status and (not table_status.get("current_pos_order") or table_status.get("current_pos_order") == self.name):
             # Link table to this order if not already linked to another order
-            frappe.db.set_value("Restaurant Table", self.table, {
-                "status": "Occupied",
-                "current_pos_order": self.name
-            })
-            
+            frappe.db.set_value(
+                "Restaurant Table",
+                self.table,
+                {"status": "Occupied", "current_pos_order": self.name},
+            )
+
     def on_trash(self):
         """Clean up when document is deleted"""
         # If linked to a table, update table status

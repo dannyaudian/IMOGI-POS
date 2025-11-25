@@ -13,7 +13,7 @@
 .table-display {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--color-gray-50);
 }
 
@@ -216,6 +216,15 @@
 .table-shape.bill-requested {
   background-color: var(--color-info-light);
   border-color: var(--color-info);
+}
+
+.table-in-progress .table-shape {
+  background-color: var(--color-warning-light);
+  border-color: var(--color-warning);
+}
+
+.table-in-progress .table-status-indicator {
+  background-color: var(--color-warning);
 }
 
 .table-status-indicator {
@@ -431,7 +440,7 @@
   color: var(--color-info);
 }
 
-.status-preparing {
+.status-in-progress {
   background-color: var(--color-warning-light);
   color: var(--color-warning);
 }

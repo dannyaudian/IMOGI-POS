@@ -1,30 +1,55 @@
 import frappe
 from frappe import _
-from frappe.utils import cint, get_formatted_currency, get_datetime, now_datetime
+from frappe.utils import cint, get_datetime, now_datetime
 import json
 import hashlib
 import hmac
+import base64
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.currency import get_currency_symbol
 
 def get_context(context):
     """Get context for Self-Order page accessed via token/slug."""
     context.title = _("Self-Order")
     
-    # Get token or slug from URL
+    # Get token or slug from URL or route
     token = frappe.form_dict.get("token") or frappe.form_dict.get("slug")
     if not token:
-        frappe.throw(_("Invalid token or slug"), frappe.AuthenticationError)
-    
+        # Parse from route path when query params are absent
+        path_parts = frappe.request.path.strip("/").split("/")
+        if path_parts and path_parts[0] == "so" and len(path_parts) > 1:
+            # Use the first part after /so/
+            token = path_parts[1]
+
+    if not token:
+        # No token provided
+        context.template = "so/invalid_token.html"
+        context.error_title = _("Missing Token")
+        context.error_message = _(
+            "No token was provided. Please scan the QR code again or use a valid link."
+        )
+        return context
+
     # Verify token and get session data
-    session_data = verify_token(token)
+    session_data, failure_reason = verify_token(token)
     if not session_data:
-        frappe.local.flags.redirect_location = "/404"
-        raise frappe.Redirect
-    
+        context.template = "so/invalid_token.html"
+        if failure_reason == "session_expired":
+            context.error_title = _("Session Expired")
+            context.error_message = _(
+                "Your self-order session has expired. Please scan the QR code again or request a new link."
+            )
+        else:
+            context.error_title = _("Invalid Token")
+            context.error_message = _(
+                "The self-order link is invalid. Please check the link or ask for a new one."
+            )
+        return context
+
     context.session_data = session_data
     context.token = token
     
@@ -52,6 +77,20 @@ def get_context(context):
     context.allow_guest = cint(pos_profile.get("imogi_self_order_allow_guest", 0))
     context.require_payment = cint(pos_profile.get("imogi_self_order_require_payment", 0))
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_self_order", 1))
+
+    discount_fields = [
+        "imogi_allow_discounts_on_self_order",
+        "imogi_allow_discounts",
+        "imogi_enable_discounts",
+        "allow_discount",
+    ]
+    discount_flag = 0
+    for field in discount_fields:
+        value = pos_profile.get(field)
+        if value is not None:
+            discount_flag = value
+            break
+    context.allow_discounts = cint(discount_flag)
     
     # Check if there's already an active session
     self_order_session = get_or_create_self_order_session(token, session_data)
@@ -71,7 +110,7 @@ def get_context(context):
     }
     
     # Currency information
-    context.currency_symbol = get_formatted_currency(0).replace('0', '')
+    context.currency_symbol = get_currency_symbol()
     context.default_currency = frappe.get_cached_doc("Company", frappe.defaults.get_user_default("Company")).default_currency
     
     # Item categories for filtering
@@ -96,24 +135,24 @@ def get_context(context):
     return context
 
 def verify_token(token):
-    """Verify the token/slug and return session data if valid."""
+    """Verify the token/slug and return session data and failure reason."""
     try:
         # Check if token exists in Self Order Session
         session = frappe.get_all(
             "Self Order Session",
             filters={"token": token, "status": "Active"},
-            fields=["name", "token", "branch", "table", "pos_profile", 
+            fields=["name", "token", "branch", "table", "pos_profile",
                     "expires_on", "order_linkage", "data", "is_guest"]
         )
-        
+
         if session:
             # Token found in Self Order Session
             session_data = session[0]
-            
+
             # Check if session has expired
             if session_data.get("expires_on") and get_datetime(session_data.get("expires_on")) < now_datetime():
-                return None
-            
+                return None, "session_expired"
+
             # Return session data
             data = session_data.get("data")
             if data and isinstance(data, str):
@@ -123,7 +162,7 @@ def verify_token(token):
                     data = {}
             else:
                 data = {}
-                
+
             return {
                 "session_id": session_data.get("name"),
                 "token": token,
@@ -134,21 +173,21 @@ def verify_token(token):
                 "order_linkage": session_data.get("order_linkage"),
                 "is_guest": session_data.get("is_guest"),
                 "data": data
-            }
-        
+            }, None
+
         # Check if it's a slug on Restaurant Table
         if frappe.db.exists("Restaurant Table", {"qr_slug": token}):
             table = frappe.get_doc("Restaurant Table", {"qr_slug": token})
-            
+
             # Get POS Profile
             pos_profile_name = frappe.db.get_value(
-                "Restaurant Settings", None, "default_pos_profile"
+                "Restaurant Settings", None, "default_pos_profile",
             )
-            
+
             # Get expiry time
             settings = frappe.get_cached_doc("Restaurant Settings")
             token_ttl = getattr(settings, "imogi_self_order_token_ttl", 60)  # default 60 minutes
-            
+
             # Return session data
             return {
                 "session_id": None,
@@ -159,17 +198,54 @@ def verify_token(token):
                 "expires_on": None,
                 "order_linkage": None,
                 "is_guest": 1,
-                "data": {}
-            }
-            
+                "data": {},
+            }, None
+
         # Finally, try to verify if it's a signed token
-        # This would be a more complex implementation using cryptographic verification
-        # For simplicity, we'll just return None for now
-        return None
-    
+        if "." in token:
+            try:
+                payload_b64, signature = token.rsplit(".", 1)
+                padding = "=" * (-len(payload_b64) % 4)
+                payload_json = base64.urlsafe_b64decode(payload_b64 + padding).decode()
+                payload = json.loads(payload_json)
+            except Exception:
+                return None, "invalid_token"
+
+            secret = (
+                frappe.conf.get("self_order_token_secret")
+                or frappe.get_site_config().get("encryption_key")
+            )
+            if not secret:
+                return None, "invalid_token"
+
+            expected_signature = hmac.new(
+                secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256
+            ).hexdigest()
+
+            if not hmac.compare_digest(signature, expected_signature):
+                return None, "invalid_token"
+
+            expires_on = payload.get("expires_on")
+            if expires_on and get_datetime(expires_on) < now_datetime():
+                return None, "session_expired"
+
+            return {
+                "session_id": None,
+                "token": payload.get("token") or token,
+                "branch": payload.get("branch"),
+                "table": payload.get("table"),
+                "pos_profile": payload.get("pos_profile"),
+                "expires_on": payload.get("expires_on"),
+                "order_linkage": None,
+                "is_guest": payload.get("is_guest", 1),
+                "data": payload.get("data", {}),
+            }, None
+
+        return None, "invalid_token"
+
     except Exception as e:
         frappe.log_error(f"Error verifying self-order token: {str(e)}")
-        return None
+        return None, "invalid_token"
 
 def get_or_create_self_order_session(token, session_data):
     """Get or create a Self Order Session for this token."""
@@ -240,7 +316,7 @@ def get_pos_order(order_name):
             "name": order.name,
             "table": order.table,
             "customer": order.customer_name or order.customer,
-            "total": order.grand_total,
+            "total": order.totals,
             "status": order.workflow_state,
             "items": []
         }

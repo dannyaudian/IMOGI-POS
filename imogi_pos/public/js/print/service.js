@@ -18,22 +18,76 @@
 // Import adapters conditionally to avoid errors in unsupported environments
 let BluetoothAdapter, BridgeAdapter, SpoolerAdapter, LANAdapter;
 
-// We'll dynamically import these based on browser support
-try {
-    if (typeof require !== 'undefined') {
-        BluetoothAdapter = require('./adapter_bluetooth');
-        BridgeAdapter = require('./adapter_bridge');
-        SpoolerAdapter = require('./adapter_spool');
-        LANAdapter = require('./adapter_lan');
-    } else {
-        // In browser, we'll assume these are loaded via <script> tags
-        BluetoothAdapter = window.IMOGIPrintBluetoothAdapter;
-        BridgeAdapter = window.IMOGIPrintBridgeAdapter;
-        SpoolerAdapter = window.IMOGIPrintSpoolerAdapter;
-        LANAdapter = window.IMOGIPrintLANAdapter;
+/**
+ * Ensure adapter references are synced from the window object when running in the
+ * browser. The adapter scripts are loaded after this service and expose their
+ * constructors on the window once executed, so we lazily resolve them here.
+ *
+ * @param {boolean} [logMissing=false] - Whether to log a warning when an adapter
+ *   script has not been detected yet. We only want to surface this when the
+ *   adapters are actually required, not during initial page load.
+ */
+function resolveBrowserAdapters(logMissing = false) {
+    if (typeof window === 'undefined') {
+        return;
     }
-} catch (e) {
-    console.warn('IMOGI Print Service: Failed to import adapters', e);
+
+    const mappings = [
+        ['IMOGIPrintBluetoothAdapter', (Adapter) => { BluetoothAdapter = Adapter; }, 'Bluetooth adapter not detected. Include adapter_bluetooth.js'],
+        ['IMOGIPrintBridgeAdapter', (Adapter) => { BridgeAdapter = Adapter; }, 'Bridge adapter not detected. Include adapter_bridge.js'],
+        ['IMOGIPrintSpoolerAdapter', (Adapter) => { SpoolerAdapter = Adapter; }, 'Spooler adapter not detected. Include adapter_spool.js'],
+        ['IMOGIPrintLANAdapter', (Adapter) => { LANAdapter = Adapter; }, 'LAN adapter not detected. Include adapter_lan.js']
+    ];
+
+    mappings.forEach(([globalName, assign, missingMessage]) => {
+        const AdapterClass = window[globalName];
+        if (AdapterClass) {
+            assign(AdapterClass);
+        } else if (logMissing) {
+            console.warn(`IMOGI Print Service: ${missingMessage}`);
+        }
+    });
+}
+
+// We'll dynamically import these based on environment support
+if (typeof require !== 'undefined') {
+    try {
+        BluetoothAdapter = require('./adapter_bluetooth.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Bluetooth adapter not loaded', e);
+    }
+
+    try {
+        BridgeAdapter = require('./adapter_bridge.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Bridge adapter not loaded', e);
+    }
+
+    try {
+        SpoolerAdapter = require('./adapter_spool.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: Spooler adapter not loaded', e);
+    }
+
+    try {
+        LANAdapter = require('./adapter_lan.js');
+    } catch (e) {
+        console.warn('IMOGI Print Service: LAN adapter not loaded', e);
+    }
+} else {
+    // In browser, adapters are exposed via <script> tags. They may load after
+    // this service, so resolve them lazily once the DOM is ready.
+    const syncAdapters = () => resolveBrowserAdapters(false);
+
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', syncAdapters, { once: true });
+        } else {
+            syncAdapters();
+        }
+    } else {
+        syncAdapters();
+    }
 }
 
 const IMOGIPrintService = {
@@ -93,6 +147,8 @@ const IMOGIPrintService = {
             autoDetect: true
         }, options);
 
+        resolveBrowserAdapters(false);
+
         // Check available capabilities
         this.capabilities = this.detectCapabilities();
         
@@ -140,6 +196,8 @@ const IMOGIPrintService = {
      * @returns {string} Selected interface
      */
     selectBestAdapter: function() {
+        resolveBrowserAdapters(false);
+
         // Preference order: Bluetooth > LAN > Bridge > OS
         if (this.capabilities.webBluetooth && BluetoothAdapter) {
             return this.selectAdapter(this.INTERFACES.BLUETOOTH);
@@ -162,6 +220,8 @@ const IMOGIPrintService = {
      * @returns {string} Selected interface
      */
     selectAdapter: function(interfaceType, config = {}) {
+        resolveBrowserAdapters(true);
+
         // Clear current adapter
         if (this.currentAdapter && typeof this.currentAdapter.disconnect === 'function') {
             this.currentAdapter.disconnect();
@@ -672,9 +732,13 @@ const IMOGIPrintService = {
     }
 };
 
-// Export for module usage
-if (typeof module !== 'undefined') {
+// Export for module usage and expose on window for legacy callers
+if (typeof module !== 'undefined' && module.exports) {
     module.exports = IMOGIPrintService;
-} else {
+}
+
+if (typeof window !== 'undefined') {
     window.IMOGIPrintService = IMOGIPrintService;
+    // Provide camelCase alias used by legacy bundles (e.g. ImogiPrintService)
+    window.ImogiPrintService = IMOGIPrintService;
 }

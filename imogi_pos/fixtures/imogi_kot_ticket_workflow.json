@@ -18,7 +18,7 @@
       "style": "Primary"
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "doc_status": 0,
       "allow_edit": "Restaurant Manager",
       "is_optional_state": 0,
@@ -58,16 +58,48 @@
     {
       "state": "Queued",
       "action": "Start Preparing",
-      "next_state": "Preparing",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "next_state": "In Progress",
+      "allowed": "Restaurant Manager",
       "allow_self_approval": 1,
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "Queued",
+      "action": "Start Preparing",
+      "next_state": "In Progress",
+      "allowed": "Kitchen Staff",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
       "action": "Mark as Ready",
       "next_state": "Ready",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Mark as Ready",
+      "next_state": "Ready",
+      "allowed": "Kitchen Staff",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Mark as Served",
+      "next_state": "Served",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Mark as Served",
+      "next_state": "Served",
+      "allowed": "Waiter",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -75,7 +107,15 @@
       "state": "Ready",
       "action": "Mark as Served",
       "next_state": "Served",
-      "allowed": "Restaurant Manager,Waiter",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "Ready",
+      "action": "Mark as Served",
+      "next_state": "Served",
+      "allowed": "Waiter",
       "allow_self_approval": 1,
       "condition": ""
     },
@@ -88,7 +128,7 @@
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "action": "Cancel",
       "next_state": "Cancelled",
       "allowed": "Restaurant Manager",
@@ -96,18 +136,34 @@
       "condition": ""
     },
     {
-      "state": "Preparing",
+      "state": "In Progress",
       "action": "Return to Queue",
       "next_state": "Queued",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "In Progress",
+      "action": "Return to Queue",
+      "next_state": "Queued",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     },
     {
       "state": "Ready",
       "action": "Return to Kitchen",
-      "next_state": "Preparing",
-      "allowed": "Restaurant Manager,Kitchen Staff",
+      "next_state": "In Progress",
+      "allowed": "Restaurant Manager",
+      "allow_self_approval": 1,
+      "condition": ""
+    },
+    {
+      "state": "Ready",
+      "action": "Return to Kitchen",
+      "next_state": "In Progress",
+      "allowed": "Kitchen Staff",
       "allow_self_approval": 1,
       "condition": ""
     }

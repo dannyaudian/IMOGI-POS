@@ -42,10 +42,16 @@ def build_sales_invoice_from_pos_order(
     
     # Get active POS session if required
     pos_session = None
-    if frappe.db.get_value("POS Profile", pos_order.pos_profile, "imogi_require_pos_session"):
+    if frappe.db.exists("DocType", "POS Session") and frappe.db.get_value(
+        "POS Profile", pos_order.pos_profile, "imogi_require_pos_session"
+    ):
         pos_session = get_active_pos_session(pos_order.pos_profile)
         if not pos_session:
-            frappe.throw(_("No active POS Session found. Please open a session before creating an invoice."))
+            frappe.throw(
+                _(
+                    "No active POS Session found. Please open a session before creating an invoice."
+                )
+            )
     
     # Determine notes handling based on POS Profile settings and order type
     should_include_notes = _should_include_notes_in_description(
@@ -87,10 +93,26 @@ def build_sales_invoice_from_pos_order(
     # Copy tax/charging template from POS Profile
     if pos_profile.taxes_and_charges:
         si.taxes_and_charges = pos_profile.taxes_and_charges
-    
-    # Apply selling price list from POS Profile
-    if pos_profile.selling_price_list:
-        si.selling_price_list = pos_profile.selling_price_list
+
+    if not pos_profile.taxes_and_charges:
+        si.append("taxes", {
+            "charge_type": "On Net Total",
+            "description": "PB1 11%",
+            "rate": 11.0
+        })
+
+    # Apply order discount if any
+    if getattr(pos_order, "discount_amount", None) or getattr(pos_order, "discount_percent", None):
+        si.apply_discount_on = "Grand Total"
+        if getattr(pos_order, "discount_amount", None):
+            si.discount_amount = pos_order.discount_amount
+        if getattr(pos_order, "discount_percent", None):
+            si.additional_discount_percentage = pos_order.discount_percent
+
+    # Apply selling price list preference: order override > profile default
+    price_list = getattr(pos_order, "selling_price_list", None) or pos_profile.selling_price_list
+    if price_list:
+        si.selling_price_list = price_list
     
     # Add items
     for order_item in pos_order.items:
@@ -154,6 +176,9 @@ def get_active_pos_session(pos_profile: str) -> Optional[str]:
     Returns:
         Name of the active POS Session or None
     """
+    if not frappe.db.exists("DocType", "POS Session"):
+        return None
+
     scope = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_session_scope") or "User"
     
     filters = {
@@ -206,33 +231,30 @@ def _should_include_notes_in_description(
 
 
 def split_pos_order_to_invoices(
-    pos_order: Union[str, Dict, Any], 
+    pos_order: Union[str, Dict, Any],
     split_data: List[Dict]
 ) -> List[str]:
     """
-    Split a POS Order into multiple Sales Invoices based on split data.
-    
+    Split a POS Order into multiple Sales Invoices based on ``split_data``.
+
     Args:
         pos_order: POS Order name or document
-        split_data: List of dictionaries containing split information
-            Each dict should have: customer, items (list of dicts with item_id, qty)
-    
+        split_data: A list of dictionaries describing how the order should be
+            divided. Each dictionary is expected to include a ``customer`` and
+            an ``items`` list containing ``{"item_id": str, "qty": float}``
+            entries.
+
     Returns:
-        List of created Sales Invoice names
+        List of created Sales Invoice names.
+
+    Intended behaviour:
+        1. Validate the provided split data to ensure item quantities and totals
+           match the original POS Order.
+        2. Create a new Sales Invoice for each split entry using the specified
+           customer and items.
+        3. Mark the original POS Order as split and link the resulting invoices.
+
+    Currently, this function is not implemented and will raise an exception
+    when called to prevent silent failures.
     """
-    # This is a stub - would need to be implemented based on full requirements
-    # Basic implementation would:
-    # 1. Validate split data (totals match, items exist, etc.)
-    # 2. For each split entry, create a new SI with the specified items/quantities
-    # 3. Mark original POS Order as split
-    # 4. Return list of created SIs
-    
-    # Placeholder for now
-    invoice_names = []
-    for split in split_data:
-        # Would create invoice here with the split data
-        # invoice_name = build_sales_invoice_from_split(pos_order, split)
-        # invoice_names.append(invoice_name)
-        pass
-    
-    return invoice_names
+    frappe.throw(_("Invoice splitting not implemented"))

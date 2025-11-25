@@ -50,6 +50,7 @@ Fixtures will automatically be loaded after migration due to the `after_migrate`
    - Self-Order
 
 3. Set `imogi_pos_domain` to "Restaurant" for restaurant operations
+4. Enable `allow_non_sales_items` if non-sales items should be skipped during billing
 
 ### 6. Configure Printer Interfaces
 

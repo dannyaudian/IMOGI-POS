@@ -5,12 +5,25 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import now, get_url
+from frappe.utils import now, nowdate, get_url, flt
 from imogi_pos.utils.branding import (
     PRIMARY_COLOR,
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.permissions import validate_branch_access
+
+__all__ = [
+    "health",
+    "get_branding",
+    "get_active_branch",
+    "set_active_branch",
+    "check_session",
+    "get_current_user_info",
+    "check_permission",
+    "record_opening_balance",
+    "get_cashier_device_sessions",
+]
 
 @frappe.whitelist(allow_guest=True)
 def health():
@@ -111,8 +124,330 @@ def get_branding(pos_profile=None):
     # Format URLs for logo paths
     if result["logo"] and not result["logo"].startswith(("http:", "https:", "/")):
         result["logo"] = get_url(result["logo"])
-        
+
     if result["logo_dark"] and not result["logo_dark"].startswith(("http:", "https:", "/")):
         result["logo_dark"] = get_url(result["logo_dark"])
-    
+
     return result
+
+
+@frappe.whitelist()
+def get_active_branch():
+    """Return the active branch for the current user.
+
+    Checks the user's default branch setting and falls back to the branch
+    associated with their default POS Profile.
+
+    Returns:
+        str | None: Branch name if available.
+    """
+
+    branch = frappe.defaults.get_user_default("imogi_branch")
+    if branch:
+        return branch
+
+    pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
+    if pos_profile:
+        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+        if branch:
+            return branch
+
+    return None
+
+
+@frappe.whitelist()
+def set_active_branch(branch):
+    """Persist the user's active branch after verifying access rights.
+
+    Args:
+        branch (str): Branch name to set as active.
+
+    Returns:
+        str | None: The branch that was set, or ``None`` if input was falsy.
+    """
+
+    if not branch:
+        return None
+
+    validate_branch_access(branch)
+    frappe.defaults.set_user_default("imogi_branch", branch)
+    return branch
+
+
+@frappe.whitelist(allow_guest=True)
+def check_session():
+    """Check if the current session is valid.
+
+    Returns:
+        dict: Session information with validity flag.
+    """
+
+    user = getattr(frappe.session, "user", "Guest")
+    if user and user != "Guest":
+        return {
+            "valid": True,
+            "user": user,
+        }
+
+    return {
+        "valid": False,
+        "user": "Guest",
+    }
+
+
+def _get_role_based_redirect(roles):
+    """Return the default landing page based on the provided roles."""
+
+    roles = roles or []
+
+    if "Kiosk Manager" in roles:
+        return "/kiosk"
+
+    if any(role in roles for role in ("POS Manager", "Cashier")):
+        return "/create-order"
+
+    return None
+
+
+@frappe.whitelist()
+def get_current_user_info():
+    """Return information about the currently logged-in user.
+
+    Returns:
+        dict: User details including full name, roles and default redirect.
+    """
+
+    user = frappe.session.user
+    if not user or user == "Guest":
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+    roles = frappe.get_roles(user)
+    user_doc = frappe.get_doc("User", user)
+    return {
+        "user": user,
+        "full_name": user_doc.full_name,
+        "email": user_doc.email,
+        "roles": roles,
+        "default_redirect": _get_role_based_redirect(roles),
+    }
+
+
+@frappe.whitelist()
+def check_permission(doctype, perm_type="read"):
+    """Check if current user has the given permission on a DocType.
+
+    Args:
+        doctype (str): DocType to check.
+        perm_type (str): Permission type like read, write, create, etc.
+
+    Returns:
+        bool: ``True`` if user has permission, else ``False``.
+    """
+
+    if frappe.session.user == "Guest":
+        return False
+
+    return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
+
+
+@frappe.whitelist()
+def record_opening_balance(device_type, opening_balance, denominations=None):
+    """Record the opening balance for a user's device session.
+
+    Args:
+        device_type (str): Jenis perangkat kasir.
+        opening_balance (float): Total saldo pembukaan.
+        denominations (list | None): Rincian pecahan uang yang diterima.
+
+    """
+    from frappe.utils import flt, now, nowdate
+    from frappe import _
+    import frappe, json
+
+    user = frappe.session.user
+
+    # --- Cegah multi device aktif untuk user
+    cache = frappe.cache()
+    if cache.hget("active_devices", user):
+        frappe.throw(_("Active device already registered for user"))
+
+    # --- Validasi & hitung dari denominasi
+    denominations = denominations or []
+
+    # If denominations is provided as JSON string, attempt to parse it
+    if isinstance(denominations, str):
+        try:
+            denominations = frappe.parse_json(denominations)
+        except Exception:
+            try:
+                denominations = json.loads(denominations)
+            except Exception:
+                denominations = []
+
+    # Ensure denominations is a list for iteration
+    if not isinstance(denominations, list):
+        denominations = []
+
+    if denominations:
+        total = 0
+        for d in denominations:
+            value = d.get("value", d.get("nominal"))
+            qty = d.get("qty", d.get("quantity"))
+            total += flt(value) * flt(qty)
+        opening_balance = flt(total)
+    else:
+        opening_balance = flt(opening_balance)
+
+    if opening_balance <= 0:
+        frappe.throw(_("Opening balance must be greater than 0"))
+
+    serialized_denominations = json.dumps(denominations)
+
+    # --- Buat record sesi device (akan ikut rollback bila error di bawah)
+    doc = frappe.get_doc({
+        "doctype": "Cashier Device Session",
+        "user": user,
+        "device": device_type,
+        "opening_balance": opening_balance,
+        "denominations": serialized_denominations,
+        "timestamp": now(),
+    })
+    doc.insert(ignore_permissions=True)
+
+    # --- Ambil / siapkan akun kas dari Restaurant Settings (auto-create bila kosong)
+    settings = frappe.get_cached_doc("Restaurant Settings")
+    big_cash_account = getattr(settings, "big_cash_account", None)
+    petty_cash_account = getattr(settings, "petty_cash_account", None)
+
+    if not big_cash_account or not petty_cash_account:
+        # coba auto-create sesuai code kamu
+        try:
+            from imogi_pos.setup.install import create_cash_accounts
+            create_cash_accounts()
+        except Exception:
+            # biarkan lanjut ke pengecekan & error user-friendly di bawah
+            pass
+
+        # refresh settings setelah auto-create
+        settings = frappe.get_cached_doc("Restaurant Settings")
+        big_cash_account = getattr(settings, "big_cash_account", None)
+        petty_cash_account = getattr(settings, "petty_cash_account", None)
+
+    if not big_cash_account or not petty_cash_account:
+        frappe.throw(_(
+            "Cash accounts are not configured in Restaurant Settings. "
+            "Please configure big and petty cash accounts."
+        ))
+
+    company = (
+        frappe.defaults.get_user_default("company")
+        or frappe.defaults.get_global_default("company")
+    )
+    if not company:
+        frappe.throw(_("Default Company is not set"))
+
+    # --- Helper aturan sisi akun
+    def account_rule(acc_name: str):
+        acc = frappe.db.get_value(
+            "Account", acc_name,
+            ["root_type", "balance_must_be", "company"],
+            as_dict=True,
+        )
+        if not acc:
+            frappe.throw(_("Account {0} not found").format(acc_name))
+
+        # Jika dikunci, pakai aturan kunci. Jika tidak, pakai default root_type.
+        if acc.balance_must_be in ("Debit", "Credit"):
+            normal_side = acc.balance_must_be
+        else:
+            # Default: Asset/Expense -> Debit ; Liability/Equity/Income -> Credit
+            normal_side = "Credit" if acc.root_type in ("Liability", "Equity", "Income") else "Debit"
+
+        return normal_side, acc
+
+    def ensure_side_allowed(acc_name: str, side: str):
+        must = frappe.db.get_value("Account", acc_name, "balance_must_be")
+        if must in ("Debit", "Credit") and must != side:
+            frappe.throw(_(
+                "Account {0} is locked to {1} postings, cannot post {2}. "
+                "Adjust Chart of Accounts / Restaurant Settings."
+            ).format(acc_name, must, side))
+
+    # --- Tentukan sisi yang dipakai: tambah saldo petty pada sisi normalnya
+    petty_side, _ = account_rule(petty_cash_account)
+    offset_side = "Credit" if petty_side == "Debit" else "Debit"
+
+    # Validasi dua akun sesuai sisi yang akan diposting
+    ensure_side_allowed(petty_cash_account, petty_side)
+    ensure_side_allowed(big_cash_account, offset_side)
+
+    # --- Susun baris JE sesuai aturan sisi
+    petty_row = {
+        "account": petty_cash_account,
+        "reference_type": "Cashier Device Session",
+        "reference_name": doc.name,
+    }
+    offset_row = {
+        "account": big_cash_account,
+        "reference_type": "Cashier Device Session",
+        "reference_name": doc.name,
+    }
+
+    if petty_side == "Debit":
+        petty_row["debit_in_account_currency"] = opening_balance
+        petty_row["credit_in_account_currency"] = 0
+        offset_row["credit_in_account_currency"] = opening_balance
+        offset_row["debit_in_account_currency"] = 0
+    else:
+        # Jika petty direquire Credit, balik sisi
+        petty_row["credit_in_account_currency"] = opening_balance
+        petty_row["debit_in_account_currency"] = 0
+        offset_row["debit_in_account_currency"] = opening_balance
+        offset_row["credit_in_account_currency"] = 0
+
+    # --- Buat & submit Journal Entry
+    je = frappe.new_doc("Journal Entry")
+    je.voucher_type = "Cash Entry"  # atau "Journal Entry" sesuai kebijakan
+    je.posting_date = nowdate()
+    je.company = company
+    je.append("accounts", petty_row)
+    je.append("accounts", offset_row)
+
+    je.insert(ignore_permissions=True)
+    je.submit()
+
+    # Simpan relasi JE pada sesi (jika field tersedia)
+    if doc.meta.get_field("journal_entry"):
+        doc.db_set("journal_entry", je.name)
+
+    # --- SET LOCK cache SETELAH semua sukses agar tidak nyangkut bila error di atas
+    cache.hset("active_devices", user, device_type)
+
+    return {"status": "ok", "shift_id": doc.name, "opening_balance": opening_balance}
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_cashier_device_sessions(limit=5, device=None):
+    """Retrieve recent cashier device sessions for the current user.
+
+    Args:
+        limit (int, optional): Number of records to fetch. Defaults to 5.
+        device (str, optional): Device type to filter sessions by. Defaults to "POS".
+
+    Returns:
+        list[dict]: List of session records.
+    """
+
+    user = frappe.session.user
+    filters = {"user": user, "device": device or "POS"}
+
+    return frappe.get_all(
+        "Cashier Device Session",
+        filters=filters,
+        fields=["name", "device", "opening_balance", "timestamp", "user"],
+        order_by="timestamp desc",
+        limit=limit,
+    )
+

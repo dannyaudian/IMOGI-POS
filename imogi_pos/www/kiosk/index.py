@@ -5,7 +5,10 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from frappe.utils import cint, get_formatted_currency
+from imogi_pos.utils.branch import get_branch_details
+from frappe.utils import cint
+from imogi_pos.utils.currency import get_currency_symbol
+from imogi_pos.api.queue import get_next_queue_number
 
 def get_context(context):
     """Get context for kiosk page."""
@@ -28,20 +31,15 @@ def get_context(context):
     domain = pos_profile.get("imogi_pos_domain", "Restaurant")
     context.domain = domain
     
-    # Check active POS session if required
-    if cint(pos_profile.get("imogi_require_pos_session", 0)) and cint(pos_profile.get("imogi_enforce_session_on_kiosk", 0)):
-        active_session = check_active_pos_session(pos_profile.name)
-        context.has_active_session = bool(active_session)
-        context.active_pos_session = active_session
-    else:
-        context.has_active_session = True
-        context.active_pos_session = None
     
     # Get branding information
     context.branding = get_branding_info(pos_profile)
     
     # Get branch
-    context.branch = get_current_branch(pos_profile)
+    branch_name = get_current_branch(pos_profile)
+    context.branch = branch_name
+    context.branch_info = get_branch_details(branch_name)
+    context.receipt_logo = "/service-select/images/imogi.png"
     
     # Get payment settings
     context.payment_settings = {
@@ -52,7 +50,7 @@ def get_context(context):
     }
     
     # Currency information
-    context.currency_symbol = get_formatted_currency(0).replace('0', '')
+    context.currency_symbol = get_currency_symbol()
     context.default_currency = frappe.get_cached_doc("Company", frappe.defaults.get_user_default("Company")).default_currency
     
     # Item categories for filtering
@@ -68,10 +66,42 @@ def get_context(context):
     # UI Settings
     context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1))
     context.allow_notes = cint(pos_profile.get("imogi_allow_notes_on_kiosk", 1))
+    discount_fields = [
+        "imogi_allow_discounts_on_kiosk",
+        "imogi_allow_discounts",
+        "imogi_enable_discounts",
+        "allow_discount",
+    ]
+    discount_flag = 0
+    for field in discount_fields:
+        value = pos_profile.get(field)
+        if value is not None:
+            discount_flag = value
+            break
+    context.allow_discounts = cint(discount_flag)
     
+    try:
+        restaurant_settings = frappe.get_cached_doc("Restaurant Settings")
+    except Exception:
+        restaurant_settings = None
+
+    if restaurant_settings:
+        restaurant_discount_fields = [
+            "imogi_allow_discounts_on_kiosk",
+            "imogi_allow_discounts",
+            "imogi_enable_discounts",
+            "allow_discount",
+        ]
+        for field in restaurant_discount_fields:
+            if cint(restaurant_settings.get(field)):
+                context.allow_discounts = 1
+                break
+
     # Get Queue Number if applicable
-    context.next_queue_number = get_next_queue_number()
-    
+    context.next_queue_number = (
+        get_next_queue_number(context.branch) if context.branch else 1
+    )
+
     return context
 
 def get_pos_profile():
@@ -103,35 +133,6 @@ def get_pos_profile():
         frappe.log_error(f"Error fetching Kiosk POS Profile: {str(e)}")
         return None
 
-def check_active_pos_session(pos_profile_name):
-    """Check if there's an active POS session for the user and profile."""
-    try:
-        if frappe.session.user == "Guest":
-            # For guest mode, check any active session for this profile
-            filters = {
-                "pos_profile": pos_profile_name,
-                "status": "Open"
-            }
-        else:
-            # For logged-in users, check user-specific session
-            filters = {
-                "user": frappe.session.user,
-                "pos_profile": pos_profile_name,
-                "status": "Open"
-            }
-        
-        session = frappe.get_all(
-            "POS Session",
-            filters=filters,
-            fields=["name", "pos_opening_shift", "creation"],
-            order_by="creation desc",
-            limit=1
-        )
-        
-        return session[0] if session else None
-    except Exception as e:
-        frappe.log_error(f"Error checking active POS session: {str(e)}")
-        return None
 
 def get_branding_info(pos_profile):
     """Get branding information from profile or settings."""
@@ -231,31 +232,3 @@ def get_item_categories():
     except Exception as e:
         frappe.log_error(f"Error getting item categories: {str(e)}")
         return {"item_groups": [], "menu_categories": []}
-
-def get_next_queue_number():
-    """Get next queue number for this branch/day."""
-    try:
-        branch = get_current_branch(get_pos_profile())
-        if not branch:
-            return 1
-            
-        # Get max queue number for today
-        queue_number = frappe.db.sql(
-            """
-            SELECT MAX(queue_number) as max_number
-            FROM `tabPOS Order`
-            WHERE DATE(creation) = CURDATE()
-            AND branch = %s
-            AND queue_number IS NOT NULL
-            """,
-            branch,
-            as_dict=True
-        )
-        
-        if queue_number and queue_number[0]['max_number']:
-            return queue_number[0]['max_number'] + 1
-        
-        return 1
-    except Exception as e:
-        frappe.log_error(f"Error getting next queue number: {str(e)}")
-        return 1

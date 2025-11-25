@@ -25,6 +25,8 @@
     "kot_print_format",
     "kot_group_by_kitchen_station",
     "print_notes_on_kot",
+    "menu_category_routing_section",
+    "menu_category_routes",
     "table_section",
     "default_floor",
     "default_table_layout_profile",
@@ -39,6 +41,9 @@
     "column_break_os",
     "allow_void_items",
     "require_void_reason",
+    "discounts_section",
+    "imogi_allow_discounts_on_kiosk",
+    "imogi_allow_discounts_on_cashier",
     "self_order_section",
     "enable_self_order",
     "default_self_order_mode",
@@ -48,6 +53,10 @@
     "self_order_default_token_ttl",
     "self_order_disclaimer",
     "miscellaneous_section",
+    "imogi_default_receipt_format",
+    "imogi_default_queue_format",
+    "big_cash_account",
+    "petty_cash_account",
     "show_prices_on_qr_menu",
     "show_out_of_stock_indicator",
     "hide_inactive_items"
@@ -252,6 +261,23 @@
       "label": "Require Void Reason"
     },
     {
+      "fieldname": "discounts_section",
+      "fieldtype": "Section Break",
+      "label": "Discounts"
+    },
+    {
+      "default": "0",
+      "fieldname": "imogi_allow_discounts_on_kiosk",
+      "fieldtype": "Check",
+      "label": "Allow Discounts on Kiosk"
+    },
+    {
+      "default": "0",
+      "fieldname": "imogi_allow_discounts_on_cashier",
+      "fieldtype": "Check",
+      "label": "Allow Discounts on Cashier"
+    },
+    {
       "fieldname": "self_order_section",
       "fieldtype": "Section Break",
       "label": "Self Order"
@@ -307,6 +333,30 @@
       "label": "Miscellaneous"
     },
     {
+      "fieldname": "imogi_default_receipt_format",
+      "fieldtype": "Link",
+      "label": "Default Receipt Print Format",
+      "options": "Print Format"
+    },
+    {
+      "fieldname": "imogi_default_queue_format",
+      "fieldtype": "Link",
+      "label": "Default Queue Print Format",
+      "options": "Print Format"
+    },
+    {
+      "fieldname": "big_cash_account",
+      "fieldtype": "Link",
+      "label": "Kas Besar",
+      "options": "Account"
+    },
+    {
+      "fieldname": "petty_cash_account",
+      "fieldtype": "Link",
+      "label": "Kas Kecil",
+      "options": "Account"
+    },
+    {
       "default": "1",
       "fieldname": "show_prices_on_qr_menu",
       "fieldtype": "Check",
@@ -323,6 +373,19 @@
       "fieldname": "hide_inactive_items",
       "fieldtype": "Check",
       "label": "Hide Inactive Items"
+    },
+    {
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "menu_category_routing_section",
+      "fieldtype": "Section Break",
+      "label": "Menu Category Routing"
+    },
+    {
+      "depends_on": "eval:doc.enable_kot==1",
+      "fieldname": "menu_category_routes",
+      "fieldtype": "Table",
+      "label": "Menu Category Routes",
+      "options": "Restaurant Menu Category Route"
     }
   ],
   "in_create": 1,

@@ -35,32 +35,49 @@ class Kitchen(Document):
     
     def update_station_links(self):
         """Update the stations table with current linked stations"""
-        # Clear existing links
+        # Clear current child table
         self.stations = []
-        
-        # Get all stations linked to this kitchen
+
+        # Gather stations linked to this kitchen
         stations = frappe.get_all(
-            "Kitchen Station", 
+            "Kitchen Station",
             filters={"kitchen": self.name},
-            fields=["name", "station_name"]
+            fields=["name", "station_name"],
         )
-        
-        # Add them to the stations table
-        for station in stations:
+
+        # Prepare explicit field/value sets for persistence
+        fields = [
+            "name",
+            "parent",
+            "parenttype",
+            "parentfield",
+            "idx",
+            "kitchen_station",
+            "station_name",
+        ]
+        values = []
+        for idx, station in enumerate(stations, start=1):
+            row_values = (
+                frappe.generate_hash(10),
+                self.name,
+                "Kitchen",
+                "stations",
+                idx,
+                station.name,
+                station.station_name,
+            )
+
+            # Keep in-memory representation for this document
             self.append("stations", {
                 "kitchen_station": station.name,
-                "station_name": station.station_name
+                "station_name": station.station_name,
             })
-        
-        # Save without triggering on_update again
-        if stations:
-            frappe.db.set_value(
-                "Kitchen", 
-                self.name, 
-                "stations", 
-                self.stations, 
-                update_modified=False
-            )
+            values.append(row_values)
+
+        # Persist without modifying parent timestamps
+        frappe.db.delete("Kitchen Station Link", {"parent": self.name})
+        if values:
+            frappe.db.bulk_insert("Kitchen Station Link", fields, values)
     
     def get_print_settings(self):
         """Get the default print settings for this kitchen"""

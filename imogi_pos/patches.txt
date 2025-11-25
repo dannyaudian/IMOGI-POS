@@ -6,3 +6,7 @@
 #
 # Patches execute in order, from top to bottom
 # Each successful patch execution is recorded in the database to prevent rerunning
+imogi_pos.patches.v1_1.create_cash_accounts
+imogi_pos.patches.add_cashier_session_ref
+
+imogi_pos.patches.v1_1.reload_restaurant_settings_discounts

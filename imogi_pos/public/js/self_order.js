@@ -1,6 +1,6 @@
 /**
  * IMOGI POS - Self Order
- * 
+ *
  * Main module for the Self Order interface
  * Handles:
  * - Template-first catalog with variant picker
@@ -11,6 +11,8 @@
  * - Session management
  * - QR-based authentication
  */
+
+import './utils/options';
 
 frappe.provide('imogi_pos.self_order');
 
@@ -45,6 +47,8 @@ imogi_pos.self_order = {
         kotSubmitted: false,
         orderNumber: null
     },
+
+    selectionMemory: Object.create(null),
     
     /**
      * Initialize the Self Order
@@ -122,6 +126,8 @@ imogi_pos.self_order = {
                         if (expiry > now) {
                             // Session is valid
                             this.state.session = session;
+                            this.settings.sellingPriceList = session.selling_price_list || null;
+                            this.settings.basePriceList = session.base_price_list || null;
                             this.settings.posProfile = session.pos_profile;
                             this.settings.branch = session.branch;
                             this.settings.table = session.table;
@@ -131,7 +137,7 @@ imogi_pos.self_order = {
                             
                             // Load cart from session
                             if (session.cart && Array.isArray(session.cart)) {
-                                this.state.cart = session.cart;
+                                this.state.cart = this.normaliseCartItems(session.cart);
                             }
                             
                             resolve();
@@ -789,11 +795,11 @@ imogi_pos.self_order = {
             card.addEventListener('click', () => {
                 const itemName = card.dataset.item;
                 const hasVariants = card.dataset.hasVariants === '1';
-                
+
                 if (hasVariants) {
                     this.showVariantPicker(itemName);
                 } else {
-                    this.addItemToCart(itemName);
+                    this.handleItemSelection(itemName);
                 }
             });
         });
@@ -841,7 +847,7 @@ imogi_pos.self_order = {
         frappe.call({
             method: 'imogi_pos.api.variants.get_item_variants',
             args: {
-                template: templateName
+                item_template: templateName
             },
             callback: (response) => {
                 if (response.message && Array.isArray(response.message.variants)) {
@@ -881,7 +887,9 @@ imogi_pos.self_order = {
         
         const variants = data.variants || [];
         const attributes = data.attributes || [];
-        
+        const attributeLabelMap = {};
+        const attributeValueLabelMap = {};
+
         if (variants.length === 0) {
             modalBody.innerHTML = `
                 <div class="empty-state">
@@ -898,31 +906,87 @@ imogi_pos.self_order = {
                 <div class="variant-filters">
                     ${attributes.map(attr => `
                         <div class="variant-filter">
-                            <label>${attr.attribute}</label>
-                            <select class="variant-attribute-select" data-attribute="${attr.attribute}">
-                                <option value="">All</option>
-                                ${attr.values.map(val => `
-                                    <option value="${val}">${val}</option>
-                                `).join('')}
-                            </select>
+                            ${(() => {
+                                const attributeKey = attr.name || attr.fieldname || attr.attribute;
+                                if (!attributeKey) {
+                                    return '';
+                                }
+                                const attributeLabel = attr.label || attr.name || attr.attribute || attributeKey;
+                                const attributeValues = (attr.values || []).map(val => {
+                                    if (val && typeof val === 'object') {
+                                        return {
+                                            value: val.value ?? val.name ?? '',
+                                            label: val.label ?? val.value ?? val.name ?? ''
+                                        };
+                                    }
+                                    return { value: val, label: val };
+                                }).filter(option => option.value !== undefined && option.value !== null && option.value !== '');
+
+                                attributeLabelMap[attributeKey] = attributeLabel;
+                                if (!attributeValueLabelMap[attributeKey]) {
+                                    attributeValueLabelMap[attributeKey] = {};
+                                }
+
+                                const optionsHtml = attributeValues.map(option => {
+                                    const optionValue = String(option.value);
+                                    const optionLabel = option.label || optionValue;
+                                    attributeValueLabelMap[attributeKey][optionValue] = optionLabel;
+                                    return `<option value="${optionValue}">${optionLabel}</option>`;
+                                }).join('');
+
+                                return `
+                                    <label>${attributeLabel}</label>
+                                    <select class="variant-attribute-select" data-attribute="${attributeKey}">
+                                        <option value="">All</option>
+                                        ${optionsHtml}
+                                    </select>
+                                `;
+                            })()}
                         </div>
                     `).join('')}
                 </div>
             `;
         }
-        
+
         // Create variant list
         let variantsHtml = `
             <div class="variant-list" id="variant-list">
-                ${variants.map(variant => `
-                    <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(variant.attributes || {})}'>
-                        <div class="variant-name">${variant.item_name}</div>
-                        <div class="variant-attrs">
-                            ${Object.entries(variant.attributes || {}).map(([attr, val]) => `
-                                <span class="variant-attr">${attr}: ${val}</span>
-                            `).join('')}
+                ${variants.map(variant => {
+                    const normalizedAttributes = {};
+                    const variantAttributesHtml = Object.entries(variant.attributes || {}).map(([attrKey, attrValue]) => {
+                        const attributeLabel = attributeLabelMap[attrKey] || attrKey;
+                        let normalizedValue = attrValue;
+                        let displayValue = attrValue;
+
+                        if (attrValue && typeof attrValue === 'object') {
+                            normalizedValue = attrValue.value ?? attrValue.name ?? '';
+                            displayValue = attrValue.label ?? attrValue.value ?? attrValue.name ?? '';
+                        }
+
+                        const normalizedString = normalizedValue !== undefined && normalizedValue !== null ? String(normalizedValue) : '';
+
+                        if (normalizedString) {
+                            normalizedAttributes[attrKey] = normalizedString;
+                        }
+
+                        const valueLabelMap = attributeValueLabelMap[attrKey] || {};
+                        const lookupLabel = normalizedString ? valueLabelMap[normalizedString] : undefined;
+                        const finalDisplayValue = lookupLabel || displayValue || normalizedString;
+
+                        return `<span class="variant-attr">${attributeLabel}: ${finalDisplayValue}</span>`;
+                    }).join('');
+
+                    return `
+                        <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(normalizedAttributes)}'>
+                            <div class="variant-name">${variant.item_name}</div>
+                            <div class="variant-attrs">${variantAttributesHtml}</div>
+                            <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
                         </div>
-                        <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
+                        <div class="variant-price">${this.formatCurrency(
+                            variant.standard_rate !== undefined && variant.standard_rate !== null
+                                ? variant.standard_rate
+                                : (variant.rate !== undefined && variant.rate !== null ? variant.rate : 0)
+                        )}</div>
                     </div>
                 `).join('')}
             </div>
@@ -950,13 +1014,11 @@ imogi_pos.self_order = {
             variantCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
-                    this.addItemToCart(itemName);
-                    
-                    // Close modal
                     const modalContainer = this.container.querySelector('#modal-container');
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
+                    this.handleItemSelection(itemName);
                 });
             });
         }
@@ -976,21 +1038,22 @@ imogi_pos.self_order = {
         attributeSelects.forEach(select => {
             const attribute = select.dataset.attribute;
             const value = select.value;
-            
-            if (value) {
+
+            if (attribute && value !== '') {
                 selectedAttributes[attribute] = value;
             }
         });
-        
+
         // Filter variant cards
         const variantCards = variantList.querySelectorAll('.variant-card');
         variantCards.forEach(card => {
             const attributes = JSON.parse(card.dataset.attributes || '{}');
             let show = true;
-            
+
             // Check if variant matches all selected attributes
             Object.entries(selectedAttributes).forEach(([attr, value]) => {
-                if (attributes[attr] !== value) {
+                const variantValue = attributes[attr];
+                if (variantValue === undefined || String(variantValue) !== String(value)) {
                     show = false;
                 }
             });
@@ -999,69 +1062,477 @@ imogi_pos.self_order = {
             card.style.display = show ? '' : 'none';
         });
     },
-    
+
+    /**
+     * Handle item selection and fetch option details
+     * @param {string} itemName - Selected item name
+     */
+    handleItemSelection: function(itemName) {
+        const remembered = this.getRememberedSelection(itemName);
+        if (remembered) {
+            const clonedOptions = this.cloneSelectionOptions(remembered.options);
+            const notes = remembered.notes || '';
+            this.addItemToCart(itemName, clonedOptions, 1, notes);
+            return;
+        }
+
+        frappe.call({
+            method: 'imogi_pos.api.items.get_item_options',
+            args: { item: itemName },
+            callback: (r) => {
+                const data = r.message || {};
+                if (Object.keys(data).length === 0) {
+                    this.addItemToCart(itemName);
+                } else {
+                    this.showItemOptionsModal(itemName, data);
+                }
+            },
+            error: () => {
+                this.addItemToCart(itemName);
+            }
+        });
+    },
+
+    /**
+     * Show dynamic item options modal
+     * @param {string} itemName - Item to add
+     * @param {Object} optionsData - Options returned from server
+     */
+    showItemOptionsModal: function(itemName, optionsData) {
+        const modalContainer = this.container.querySelector('#modal-container');
+        if (!modalContainer) return;
+
+        const escapeAttr = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+
+        let fieldsHtml = '';
+        Object.entries(optionsData).forEach(([field, choices]) => {
+            if (!['size', 'spice', 'topping', 'variant'].includes(field)) return;
+            const title = this.toTitleCase(field);
+            if (field === 'topping') {
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label>` +
+                    choices.map(opt => {
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr}> ${label}</label>`;
+                    }).join('') + '</div>';
+            } else if (field === 'variant') {
+                fieldsHtml += `<div class="option-group" data-option="${field}" data-required="1"><label>${title}</label>` +
+                    choices.map((opt, index) => {
+                        const { label, value, price = 0, default: isDefault, linked_item: linkedItem } = opt;
+                        const checked = isDefault ? 'checked' : '';
+                        const optionId = `option-${field}-${index}`;
+                        const priceText = price ? ` (+${this.formatCurrency(price)})` : '';
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label for="${optionId}"><input type="radio" id="${optionId}" class="option-radio" name="option-${field}" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr} ${checked}> ${label}${priceText}</label>`;
+                    }).join('') + '</div>';
+            } else {
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                    `<option value="" data-price="0">Select ${title}</option>` +
+                    choices.map(opt => {
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<option value="${value}" data-price="${price}"${linkedAttr}${labelAttr}>${label}</option>`;
+                    }).join('') + '</select></div>';
+            }
+        });
+
+        modalContainer.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Select Options</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">${fieldsHtml}</div>
+                    <div class="modal-footer">
+                        <button class="modal-cancel">Cancel</button>
+                        <button class="modal-confirm">Add</button>
+                    </div>
+                </div>
+            </div>`;
+
+        modalContainer.classList.add('active');
+
+        const close = () => modalContainer.classList.remove('active');
+        const closeBtn = modalContainer.querySelector('.modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        const cancelBtn = modalContainer.querySelector('.modal-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+
+        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                const selectedOptions = {};
+                let optionPrice = 0;
+                const missing = [];
+
+                const buildOptionPayload = (value, label, linkedItem, priceValue) => {
+                    if (!value) {
+                        return null;
+                    }
+                    const payload = {
+                        value: value,
+                        name: label && label !== '' ? label : value,
+                    };
+                    if (linkedItem && linkedItem !== '') {
+                        payload.linked_item = linkedItem;
+                    }
+                    const numericPrice = Number(priceValue || 0) || 0;
+                    if (numericPrice) {
+                        payload.additional_price = numericPrice;
+                    } else {
+                        payload.additional_price = 0;
+                    }
+                    return payload;
+                };
+
+                modalContainer.querySelectorAll('.option-group[data-option]').forEach(group => {
+                    const key = group.dataset.option;
+                    const required = group.dataset.required === '1';
+
+                    const select = group.querySelector('.option-select');
+                    if (select) {
+                        const opt = select.options[select.selectedIndex];
+                        const value = select.value;
+                        const price = parseFloat((opt && opt.dataset.price) || 0);
+                        if (value) {
+                            const linkedItem = (opt && opt.dataset.linkedItem) || '';
+                            const label = (opt && (opt.dataset.label || opt.textContent)) || value;
+                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem, price) || value;
+                            optionPrice += price;
+                        } else if (required) {
+                            missing.push(this.toTitleCase(key));
+                        }
+                        return;
+                    }
+
+                    const radio = group.querySelector('.option-radio:checked');
+                    if (radio) {
+                        const linkedItem = radio.dataset.linkedItem || '';
+                        const price = parseFloat(radio.dataset.price || 0);
+                        const label = radio.dataset.label || radio.value;
+                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem, price) || radio.value;
+                        optionPrice += price;
+                        return;
+                    } else if (group.querySelector('.option-radio') && required) {
+                        missing.push(this.toTitleCase(key));
+                        return;
+                    }
+
+                    const checkboxes = group.querySelectorAll('.option-checkbox:checked');
+                    if (checkboxes.length) {
+                        const values = [];
+                        checkboxes.forEach(cb => {
+                            const price = parseFloat(cb.dataset.price || 0);
+                            optionPrice += price;
+                            const linkedItem = cb.dataset.linkedItem || '';
+                            const label = cb.dataset.label || cb.value;
+                            const payload = buildOptionPayload(cb.value, label, linkedItem, price) || cb.value;
+                            if (payload) {
+                                values.push(payload);
+                            }
+                        });
+                        if (values.length) {
+                            selectedOptions[key] = values;
+                        }
+                    } else if (group.querySelector('.option-checkbox') && required) {
+                        missing.push(this.toTitleCase(key));
+                    }
+                });
+
+                if (missing.length) {
+                    this.showError('Please select: ' + missing.join(', '));
+                    return;
+                }
+
+                selectedOptions.price = optionPrice;
+                this.addItemToCart(itemName, selectedOptions);
+                close();
+            });
+        }
+    },
+
+    /**
+     * Convert string to title case
+     */
+    toTitleCase: function(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
+
+    /**
+     * Format selected options for display
+     */
+    formatSelectedOptions: function(options) {
+        if (!options) return '';
+        const extractValue = (value) => {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => extractValue(item))
+                    .filter(part => part !== '')
+                    .join(', ');
+            }
+
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (typeof value === 'object') {
+                const nested = value.name || value.label || value.value;
+                if (nested !== undefined && nested !== null && nested !== '') {
+                    return String(nested);
+                }
+                return '';
+            }
+
+            return String(value);
+        };
+
+        return Object.entries(options)
+            .filter(([k]) => !['price', 'extra_price'].includes(k))
+            .map(([k, v]) => {
+                const val = extractValue(v);
+                if (!val) return null;
+                return `${this.toTitleCase(k)}: ${val}`;
+            })
+            .filter(Boolean)
+            .join(', ');
+    },
+
+    getCatalogItemDetails: function(itemCode) {
+        if (!itemCode) return null;
+        const collections = [
+            this.state.catalogItems || [],
+            this.state.searchResults || [],
+        ];
+        for (const items of collections) {
+            const match = items.find(item => item && item.name === itemCode);
+            if (match) {
+                return match;
+            }
+        }
+        return null;
+    },
+
+    getOptionsSignature: function(options) {
+        try {
+            return JSON.stringify(options || {});
+        } catch (error) {
+            console.warn('Failed to serialise options payload', error);
+            return '';
+        }
+    },
+
+    buildPricingContext: function({ itemCode, qty = 1, itemDetails = null } = {}) {
+        return {
+            qty,
+            priceList: this.settings.sellingPriceList || null,
+            basePriceList: this.settings.basePriceList || null,
+            posProfile: this.settings.posProfile || null,
+            itemName: (itemDetails && itemDetails.item_name) || itemCode,
+        };
+    },
+
+    hasUnresolvedSku: function(line) {
+        if (!line) return false;
+        if (!line.expected_linked_item) return false;
+        if (!line.template_item) return false;
+        if (line.sku_changed) return false;
+        if (line.item && line.template_item && line.item !== line.template_item) {
+            return false;
+        }
+        return true;
+    },
+
+    ensureAllSkusResolved: function(lines) {
+        const unresolved = (lines || []).filter(item => this.hasUnresolvedSku(item));
+        if (unresolved.length) {
+            const names = unresolved
+                .map(item => item.item_name || item.item || 'Unknown Item')
+                .join(', ');
+            throw new Error(`Please select a specific variant for: ${names}`);
+        }
+    },
+
+    normaliseCartItems: function(items) {
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const helperBag = (toolkit && toolkit.__helpers) || {};
+        const sumAdditionalPrice = helperBag.sumAdditionalPrice || (() => 0);
+        const hasAnyLinkedItem = helperBag.hasAnyLinkedItem || (() => false);
+
+        return (items || []).map(entry => {
+            const item = Object.assign({}, entry);
+
+            let parsedOptions = item.item_options || item.options || {};
+            if (typeof parsedOptions === 'string') {
+                try {
+                    parsedOptions = JSON.parse(parsedOptions);
+                } catch (error) {
+                    console.warn('Failed to parse stored cart options', error);
+                    parsedOptions = {};
+                }
+            }
+
+            item.item = item.item || item.item_code;
+            item.item_code = item.item;
+            item.template_item = item.template_item || item.item;
+            item.item_options = parsedOptions;
+            item.options = parsedOptions;
+            item.additional_price_total = sumAdditionalPrice(parsedOptions);
+            item.expected_linked_item = hasAnyLinkedItem(parsedOptions);
+            item.sku_changed = Boolean(item.template_item && item.item && item.template_item !== item.item);
+            item.requires_variant = item.expected_linked_item;
+            item.qty = Number(item.qty || 1);
+            item.rate = Number(item.rate || 0);
+            item.amount = item.qty * item.rate;
+
+            return item;
+        });
+    },
+
     /**
      * Add item to cart
      * @param {string} itemName - Item name to add
      */
-    addItemToCart: function(itemName) {
-        // Show loading indicator
-        this.showLoading(true, 'Adding item...');
-        
-        // Get item details
-        frappe.call({
-            method: 'frappe.client.get',
-            args: {
-                doctype: 'Item',
-                name: itemName
-            },
-            callback: (response) => {
-                if (response.message) {
-                    const item = response.message;
-                    
-                    // Check if item is already in cart
-                    const existingItemIndex = this.state.cart.findIndex(cartItem => 
-                        cartItem.item === itemName && !cartItem.notes
-                    );
-                    
-                    if (existingItemIndex !== -1) {
-                        // Increment quantity
-                        this.state.cart[existingItemIndex].qty += 1;
-                        this.state.cart[existingItemIndex].amount = 
-                            this.state.cart[existingItemIndex].qty * this.state.cart[existingItemIndex].rate;
-                    } else {
-                        // Add new item
-                        this.state.cart.push({
-                            item: itemName,
-                            item_name: item.item_name,
-                            qty: 1,
-                            rate: item.standard_rate || 0,
-                            amount: item.standard_rate || 0,
-                            notes: ''
-                        });
-                    }
-                    
-                    // Save cart to session
-                    this.saveCartToSession();
-                    
-                    // Update UI
-                    this.updateCartCount();
-                    
-                    // Hide loading indicator
-                    this.showLoading(false);
-                    
-                    // Show prompt for notes
-                    this.promptForNotes(existingItemIndex !== -1 ? existingItemIndex : this.state.cart.length - 1);
-                } else {
-                    this.showLoading(false);
-                    this.showError('Failed to add item');
-                }
-            },
-            error: () => {
-                this.showLoading(false);
-                this.showError('Failed to add item');
-            }
+    addItemToCart: function(itemName, options = {}) {
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
+            ? toolkit.applyOptionsToLine
+            : null;
+
+        if (!resolver) {
+            this.showError('Option resolver unavailable. Please refresh the page.');
+            return;
+        }
+
+        const itemDetails = this.getCatalogItemDetails(itemName) || {};
+        const qty = 1;
+        const line = {
+            item: itemName,
+            item_code: itemName,
+            template_item: itemName,
+            item_name: itemDetails.item_name || itemName,
+            qty: qty,
+            rate: 0,
+            amount: 0,
+            notes: '',
+            item_options: options || {},
+            options: options || {},
+            requires_variant: Number(itemDetails.has_variants) === 1,
+        };
+
+        const context = this.buildPricingContext({
+            itemCode: itemName,
+            qty,
+            itemDetails,
         });
+
+        this.showLoading(true, 'Adding item...');
+
+        resolver(line, options, context)
+            .then(() => {
+                const signature = this.getOptionsSignature(line.item_options);
+                const existingItemIndex = this.state.cart.findIndex(cartItem => {
+                    if (!cartItem || (cartItem.notes && cartItem.notes.trim())) {
+                        return false;
+                    }
+                    const existingSignature = this.getOptionsSignature(cartItem.item_options || cartItem.options);
+                    return cartItem.item === line.item && existingSignature === signature;
+                });
+
+                if (existingItemIndex !== -1) {
+                    const existingItem = this.state.cart[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+                    const rate = Number(existingItem.rate) || 0;
+
+                    existingItem.qty = updatedQty;
+                    existingItem.amount = updatedQty * rate;
+                } else {
+                    this.state.cart.push(line);
+                }
+
+                this.saveCartToSession();
+                this.updateCartCount();
+
+                const promptIndex = existingItemIndex !== -1
+                    ? existingItemIndex
+                    : this.state.cart.length - 1;
+                this.promptForNotes(promptIndex);
+                this.rememberItemSelection(itemName, line.item_options, line.notes);
+            })
+            .catch((error) => {
+                console.error('Failed to add item to cart', error);
+                const message = (error && error.message) ? error.message : 'Failed to add item';
+                this.showError(message);
+            })
+            .finally(() => {
+                this.showLoading(false);
+            });
+    },
+
+    cloneSelectionOptions: function(options) {
+        if (!options) {
+            return {};
+        }
+
+        if (typeof structuredClone === 'function') {
+            try {
+                return structuredClone(options);
+            } catch (error) {
+                // Fallback to JSON cloning below
+            }
+        }
+
+        try {
+            return JSON.parse(JSON.stringify(options));
+        } catch (error) {
+            if (Array.isArray(options)) {
+                return options.slice();
+            }
+            if (typeof options === 'object') {
+                return Object.assign({}, options);
+            }
+            return {};
+        }
+    },
+
+    ensureSelectionMemory: function() {
+        if (!this.selectionMemory || typeof this.selectionMemory !== 'object') {
+            this.selectionMemory = Object.create(null);
+        }
+        return this.selectionMemory;
+    },
+
+    rememberItemSelection: function(itemName, options = {}, notes = '') {
+        if (!itemName) {
+            return;
+        }
+        const store = this.ensureSelectionMemory();
+        store[itemName] = {
+            options: this.cloneSelectionOptions(options),
+            notes: notes || ''
+        };
+    },
+
+    getRememberedSelection: function(itemName) {
+        if (!itemName) {
+            return null;
+        }
+        const store = this.ensureSelectionMemory();
+        return store[itemName] || null;
     },
     
     /**
@@ -1124,14 +1595,22 @@ imogi_pos.self_order = {
                 const notesInput = modalContainer.querySelector('#item-notes');
                 if (notesInput) {
                     const notes = notesInput.value.trim();
-                    
+
                     // Update item notes
-                    this.state.cart[itemIndex].notes = notes;
-                    
+                    const cartItem = this.state.cart[itemIndex];
+                    if (cartItem) {
+                        cartItem.notes = notes;
+                        this.rememberItemSelection(
+                            cartItem.item || cartItem.item_code,
+                            cartItem.item_options || cartItem.options,
+                            notes
+                        );
+                    }
+
                     // Save cart to session
                     this.saveCartToSession();
                 }
-                
+
                 // Close modal
                 modalContainer.classList.remove('active');
             });
@@ -1165,7 +1644,10 @@ imogi_pos.self_order = {
             method: 'imogi_pos.api.self_order.update_session_cart',
             args: {
                 session_id: this.state.session.name,
-                cart: this.state.cart
+                cart: this.state.cart.map(item => {
+                    const itemOptions = item.item_options || item.options || {};
+                    return Object.assign({}, item, { item_options: itemOptions });
+                })
             },
             callback: (response) => {
                 if (!response.message || !response.message.success) {
@@ -1249,6 +1731,11 @@ imogi_pos.self_order = {
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
+                    ${item.options ? `
+                        <div class="item-option">
+                            ${this.formatSelectedOptions(item.options)} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
+                        </div>
+                    ` : ''}
                     <div class="item-details">
                         <div class="item-price">${this.formatCurrency(item.rate)}</div>
                         <div class="item-qty-controls">
@@ -1363,13 +1850,19 @@ imogi_pos.self_order = {
      */
     decreaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            if (this.state.cart[index].qty > 1) {
-                this.state.cart[index].qty -= 1;
-                this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
-                
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
+
                 // Save cart to session
                 this.saveCartToSession();
-                
+
                 // Update UI
                 this.renderCart();
                 this.updateCartCount();
@@ -1386,12 +1879,17 @@ imogi_pos.self_order = {
      */
     increaseCartItemQty: function(index) {
         if (index >= 0 && index < this.state.cart.length) {
-            this.state.cart[index].qty += 1;
-            this.state.cart[index].amount = this.state.cart[index].qty * this.state.cart[index].rate;
-            
+            const item = this.state.cart[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
+
             // Save cart to session
             this.saveCartToSession();
-            
+
             // Update UI
             this.renderCart();
             this.updateCartCount();
@@ -1506,7 +2004,15 @@ imogi_pos.self_order = {
             this.showError('Your cart is empty');
             return;
         }
-        
+
+        try {
+            this.ensureAllSkusResolved(this.state.cart);
+        } catch (error) {
+            const message = (error && error.message) ? error.message : error;
+            this.showError(message);
+            return;
+        }
+
         // Check if table is set
         if (!this.settings.table) {
             this.showError('No table specified. Please scan the table QR code again.');
@@ -1520,7 +2026,10 @@ imogi_pos.self_order = {
             method: 'imogi_pos.api.self_order.submit_table_order',
             args: {
                 session_id: this.state.session.name,
-                cart: this.state.cart
+                cart: this.state.cart.map(item => {
+                    const itemOptions = item.item_options || item.options || {};
+                    return Object.assign({}, item, { item_options: itemOptions });
+                })
             },
             callback: (response) => {
                 this.showLoading(false);
@@ -1593,15 +2102,26 @@ imogi_pos.self_order = {
             this.showError('Your cart is empty');
             return;
         }
-        
+
+        try {
+            this.ensureAllSkusResolved(this.state.cart);
+        } catch (error) {
+            const message = (error && error.message) ? error.message : error;
+            this.showError(message);
+            return;
+        }
+
         // Show loading indicator
         this.showLoading(true, 'Processing order...');
-        
+
         frappe.call({
             method: 'imogi_pos.api.self_order.checkout_takeaway',
             args: {
                 session_id: this.state.session.name,
-                cart: this.state.cart
+                cart: this.state.cart.map(item => {
+                    const itemOptions = item.item_options || item.options || {};
+                    return Object.assign({}, item, { item_options: itemOptions });
+                })
             },
             callback: (response) => {
                 this.showLoading(false);

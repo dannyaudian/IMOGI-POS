@@ -9,6 +9,7 @@ from frappe.utils import cint, now_datetime, get_url
 from imogi_pos.utils.permissions import validate_branch_access
 import json
 import os
+import base64
 
 
 def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, kitchen_station=None):
@@ -89,10 +90,10 @@ def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, 
     if not settings["adapter_config"] or not settings["interface"]:
         try:
             restaurant_settings = frappe.get_single("Restaurant Settings")
-            
+
             if not settings["interface"]:
                 settings["interface"] = restaurant_settings.get("imogi_default_printer_interface") or "OS"
-            
+
             # Add default settings from Restaurant Settings if needed
             if settings["interface"] == "LAN" and not settings["adapter_config"].get("host"):
                 settings["adapter_config"].update({
@@ -110,8 +111,46 @@ def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, 
             # Fallback to OS if no Restaurant Settings
             if not settings["interface"]:
                 settings["interface"] = "OS"
-    
+
+    validate_adapter_settings(settings)
+
     return settings
+
+
+def validate_adapter_settings(settings):
+    """Validate that required printer settings are provided based on interface"""
+    interface = settings.get("interface")
+    config = settings.get("adapter_config") or {}
+
+    if not interface:
+        frappe.throw(_("Printer interface is not configured"))
+
+    if interface == "LAN" and not config.get("host"):
+        frappe.throw(_("LAN printer host/IP is required for LAN interface"))
+
+    if interface == "Bluetooth" and not config.get("device_name"):
+        frappe.throw(_("Bluetooth device name is required for Bluetooth interface"))
+
+
+@frappe.whitelist()
+def get_printer_config(pos_profile=None, job_type="receipt"):
+    """Return printer configuration for a POS profile and job type."""
+
+    adapter_map = {
+        "kot": "kitchen",
+        "receipt": "cashier",
+        "customer_bill": "cashier",
+        "queue_ticket": "cashier",
+        "test": "cashier",
+    }
+    adapter_type = adapter_map.get(job_type, "cashier")
+
+    if pos_profile:
+        profile_doc = frappe.get_doc("POS Profile", pos_profile)
+        if profile_doc.get("imogi_branch"):
+            validate_branch_access(profile_doc.imogi_branch)
+
+    return get_print_adapter_settings(adapter_type, pos_profile=pos_profile)
 
 def get_print_format_html(doc, print_format_name=None):
     """
@@ -136,14 +175,11 @@ def get_print_format_html(doc, print_format_name=None):
     # Get the Print Format
     print_format = frappe.get_doc("Print Format", print_format_name)
     
-    if print_format.format_data:
-        # Generate HTML from the Print Format
-        html_content = frappe.render_template(print_format.format_data, {"doc": doc})
-    else:
-        # Use standard print format
-        html_content = frappe.get_print(doc.doctype, doc.name, print_format=print_format_name)
-    
-    return html_content
+    # Always use frappe.get_print to let Frappe handle both classic and builder
+    # print formats correctly. Directly rendering ``format_data`` would fail for
+    # JSON-based print formats (builder templates) resulting in ``Can't compile
+    # non template nodes`` errors.
+    return frappe.get_print(doc.doctype, doc.name, print_format=print_format_name)
 
 @frappe.whitelist()
 def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_format=None):
@@ -235,62 +271,108 @@ def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_f
         }
 
 @frappe.whitelist()
+def get_customer_bill_html(pos_order, pos_profile=None):
+    """Get rendered HTML and format for a customer bill."""
+
+    try:
+        order_doc = frappe.get_doc("POS Order", pos_order)
+        validate_branch_access(order_doc.branch)
+
+        if not pos_profile:
+            pos_profile = order_doc.pos_profile
+
+        print_format = None
+        hide_notes = False
+
+        if pos_profile:
+            profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            if profile_doc.get("imogi_branch"):
+                validate_branch_access(profile_doc.imogi_branch)
+            print_format = profile_doc.get("imogi_customer_bill_format")
+            if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
+                hide_notes = True
+
+        if not print_format:
+            print_format = frappe.db.get_single_value(
+                "Restaurant Settings", "imogi_default_customer_bill_format"
+            )
+
+        html_content = get_print_format_html(order_doc, print_format)
+
+        if hide_notes:
+            html_content = html_content.replace("<!-- ITEM_NOTES_START -->", "<!-- ")
+            html_content = html_content.replace("<!-- ITEM_NOTES_END -->", " -->")
+
+        return {
+            "html": html_content,
+            "print_format": print_format,
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error generating customer bill HTML: {str(e)}")
+        return {"error": str(e)}
+
+
+@frappe.whitelist()
 def print_customer_bill(pos_order, print_format=None):
     """
     Prints a customer bill (pro-forma invoice) for a POS Order.
-    
+
     Args:
         pos_order (str): POS Order name
         print_format (str, optional): Print Format to use. Defaults to None.
-    
+
     Returns:
         dict: Print status
     """
+    if not pos_order:
+        frappe.throw(_("POS Order is required"), frappe.ValidationError)
+
     try:
         # Get POS Order details
         order_doc = frappe.get_doc("POS Order", pos_order)
         validate_branch_access(order_doc.branch)
-        
+
         # Get print format name if not provided
         if not print_format and order_doc.pos_profile:
             profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
             print_format = profile_doc.get("imogi_customer_bill_format")
-        
+
         if not print_format:
             print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_customer_bill_format")
-        
+
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(
-            "cashier", 
+            "cashier",
             source_doc=order_doc
         )
-        
+
         # For table service, we might want to hide line notes from the customer bill
         hide_notes = False
         if order_doc.pos_profile:
             profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
             if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
                 hide_notes = True
-        
+
         # Get the HTML content
         html_content = get_print_format_html(order_doc, print_format)
-        
+
         # If hiding notes, modify the HTML (simplified approach - in production you'd use DOM parsing)
         if hide_notes:
-            # This is a simplified approach - in real implementation you would use 
+            # This is a simplified approach - in real implementation you would use
             # proper DOM parsing to remove note elements based on their class/id
             html_content = html_content.replace("<!-- ITEM_NOTES_START -->", "<!-- ")
             html_content = html_content.replace("<!-- ITEM_NOTES_END -->", " -->")
-        
+
         # Print using the appropriate adapter
         from imogi_pos.utils.printing import print_document
-        
+
         print_result = print_document(
             html_content,
             adapter_settings["interface"],
             adapter_settings["adapter_config"]
         )
-        
+
         return {
             "success": print_result.get("success", False),
             "pos_order": pos_order,
@@ -298,7 +380,7 @@ def print_customer_bill(pos_order, print_format=None):
             "timestamp": now_datetime().isoformat(),
             "error": print_result.get("error")
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error printing customer bill: {str(e)}")
         return {
@@ -358,7 +440,7 @@ def print_receipt(sales_invoice, print_format=None):
             "timestamp": now_datetime().isoformat(),
             "error": print_result.get("error")
         }
-        
+
     except Exception as e:
         frappe.log_error(f"Error printing receipt: {str(e)}")
         return {
@@ -367,6 +449,66 @@ def print_receipt(sales_invoice, print_format=None):
             "error": str(e),
             "timestamp": now_datetime().isoformat()
         }
+
+@frappe.whitelist()
+def get_queue_ticket_html(sales_invoice, pos_profile=None):
+    """Get rendered HTML and format for a queue ticket."""
+
+    try:
+        invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
+        validate_branch_access(invoice_doc.branch)
+
+        if not pos_profile:
+            pos_profile = invoice_doc.pos_profile
+
+        print_format = None
+        if pos_profile:
+            profile_doc = frappe.get_doc("POS Profile", pos_profile)
+            if profile_doc.get("imogi_branch"):
+                validate_branch_access(profile_doc.imogi_branch)
+            print_format = profile_doc.get("imogi_queue_format")
+
+        if not print_format:
+            print_format = frappe.db.get_single_value(
+                "Restaurant Settings", "imogi_default_queue_format"
+            )
+
+        queue_no = (
+            invoice_doc.get("queue_no")
+            or invoice_doc.get("queue_number")
+            or sales_invoice
+        )
+
+        queue_data = {
+            "queue_no": queue_no,
+            "timestamp": now_datetime().isoformat(),
+            "branch": invoice_doc.branch,
+        }
+
+        template_path = os.path.join(
+            frappe.get_app_path("imogi_pos", "templates", "queue_ticket.html")
+        )
+
+        if os.path.exists(template_path):
+            with open(template_path, "r") as f:
+                template = f.read()
+            html_content = frappe.render_template(template, queue_data)
+        else:
+            html_content = f"""
+            <div style=\"text-align: center; padding: 20px;\">
+                <h1>Queue Ticket</h1>
+                <h2 style=\"font-size: 48px; margin: 20px 0;\">{queue_no}</h2>
+                <p>{now_datetime().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p>Thank you for your order!</p>
+            </div>
+            """
+
+        return {"html": html_content, "print_format": print_format}
+
+    except Exception as e:
+        frappe.log_error(f"Error generating queue ticket HTML: {str(e)}")
+        return {"error": str(e)}
+
 
 @frappe.whitelist()
 def print_queue_ticket(queue_no, pos_profile=None, print_format=None):
@@ -539,6 +681,81 @@ def test_print(adapter_type, target, config=None):
         }
 
 @frappe.whitelist()
+def submit_print_job(interface, job, adapter_config=None):
+    """Accept a print job from the client and dispatch it through the server."""
+
+    if isinstance(adapter_config, str):
+        try:
+            adapter_config = json.loads(adapter_config)
+        except ValueError:
+            adapter_config = {}
+
+    adapter_config = adapter_config or {}
+
+    if isinstance(job, str):
+        try:
+            job = json.loads(job)
+        except ValueError:
+            job = {"data": job}
+
+    job = job or {}
+
+    interface = interface or "LAN"
+
+    if interface != "LAN":
+        frappe.throw(_("Client initiated printing is only supported for LAN printers"))
+
+    job_format = (job.get("format") or "html").lower()
+    copies = cint(job.get("copies") or 1)
+    if copies < 1:
+        copies = 1
+
+    options = job.get("options") or {}
+    if options.get("paper_width_mm") and not adapter_config.get("paper_width_mm"):
+        adapter_config["paper_width_mm"] = options.get("paper_width_mm")
+
+    if job_format == "html":
+        from imogi_pos.utils.printing import print_document
+
+        html_content = _extract_html_from_job(job.get("data"))
+        if not html_content:
+            frappe.throw(_("No HTML content provided for print job"))
+
+        return print_document(html_content, interface, adapter_config, copies=copies)
+
+    if job_format in {"raw", "command"}:
+        from imogi_pos.utils.printing import print_via_lan
+
+        payload_bytes = _coerce_print_bytes(job.get("data"))
+
+        if not payload_bytes:
+            frappe.throw(_("No print data provided for raw print job"))
+
+        host = adapter_config.get("host")
+        port = cint(adapter_config.get("port") or 9100)
+
+        if not host:
+            frappe.throw(_("LAN printer host/IP is required for LAN interface"))
+
+        results = []
+        for _ in range(copies):
+            results.append(print_via_lan(host, port, payload_bytes))
+
+        success = all(result.get("success") for result in results)
+
+        return {
+            "success": success,
+            "copies": copies,
+            "details": results,
+            "host": host,
+            "port": port,
+            "error": None if success else _("Failed to print one or more copies")
+        }
+
+    frappe.throw(_("Unsupported print job format: {0}").format(job_format))
+
+
+@frappe.whitelist()
 def get_print_capabilities():
     """
     Gets information about available print capabilities.
@@ -610,6 +827,66 @@ def _detect_web_bluetooth_support():
         
         if is_https:
             return True
-    
+
     # If we can't determine, assume not supported for safety
     return False
+
+
+def _extract_html_from_job(data):
+    """Extract HTML string from job data."""
+
+    if not data:
+        return ""
+
+    if isinstance(data, str):
+        return data
+
+    if isinstance(data, dict):
+        for key in ["html", "data", "content", "body"]:
+            value = data.get(key)
+            if value:
+                return value
+
+    if isinstance(data, list):
+        return "".join(str(item) for item in data)
+
+    return str(data)
+
+
+def _coerce_print_bytes(data):
+    """Convert job data to bytes for raw LAN printing."""
+
+    if data is None:
+        return b""
+
+    if isinstance(data, bytes):
+        return data
+
+    if isinstance(data, bytearray):
+        return bytes(data)
+
+    if isinstance(data, str):
+        try:
+            return data.encode("latin-1")
+        except UnicodeEncodeError:
+            return data.encode("utf-8")
+
+    if isinstance(data, dict):
+        base64_value = data.get("base64")
+        if base64_value:
+            try:
+                return base64.b64decode(base64_value)
+            except Exception:
+                return b""
+        if data.get("raw"):
+            return _coerce_print_bytes(data.get("raw"))
+        if data.get("data"):
+            return _coerce_print_bytes(data.get("data"))
+
+    if isinstance(data, list):
+        try:
+            return bytes(data)
+        except Exception:
+            return "".join(str(item) for item in data).encode("utf-8")
+
+    return str(data).encode("utf-8")

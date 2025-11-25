@@ -1,6 +1,6 @@
 /**
  * IMOGI POS - Waiter Order
- * 
+ *
  * Main module for the Waiter Order interface
  * Handles:
  * - Table order management
@@ -10,6 +10,8 @@
  * - Customer selection and attachment
  * - Order status updates
  */
+
+import './utils/options';
 
 frappe.provide('imogi_pos.waiter_order');
 
@@ -38,6 +40,8 @@ imogi_pos.waiter_order = {
         customerPhone: null,
         kotSubmitted: false
     },
+
+    selectionMemory: Object.create(null),
     
     /**
      * Initialize the Waiter Order
@@ -178,13 +182,25 @@ imogi_pos.waiter_order = {
                     name: this.settings.posOrder
                 },
                 callback: (response) => {
-                    if (response.message) {
-                        this.state.order = response.message;
-                        
-                        // Set settings from order
-                        this.settings.table = this.state.order.table;
-                        this.settings.branch = this.state.order.branch;
-                        
+                if (response.message) {
+                    this.state.order = response.message;
+
+                    this.settings.sellingPriceList = this.state.order.selling_price_list || null;
+                    this.settings.basePriceList = (
+                        this.state.order.imogi_base_price_list ||
+                        this.state.order.base_price_list ||
+                        null
+                    );
+
+                    const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+                    const helperBag = (toolkit && toolkit.__helpers) || {};
+                    const sumAdditionalPrice = helperBag.sumAdditionalPrice || (() => 0);
+                    const hasAnyLinkedItem = helperBag.hasAnyLinkedItem || (() => false);
+
+                    // Set settings from order
+                    this.settings.table = this.state.order.table;
+                    this.settings.branch = this.state.order.branch;
+
                         // Set customer info
                         if (this.state.order.customer) {
                             this.state.customerId = this.state.order.customer;
@@ -192,24 +208,58 @@ imogi_pos.waiter_order = {
                             this.state.customerPhone = this.state.order.contact_mobile;
                         }
                         
-                        // Set KOT status
-                        this.state.kotSubmitted = this.state.order.workflow_state !== 'Draft';
-                        
-                        // Copy order items
-                        if (this.state.order.items && Array.isArray(this.state.order.items)) {
-                            this.state.orderItems = this.state.order.items.map(item => ({
+                    // Set KOT status
+                    this.state.kotSubmitted = this.state.order.workflow_state !== 'Draft';
+
+                    // Copy order items
+                    if (this.state.order.items && Array.isArray(this.state.order.items)) {
+                        this.state.orderItems = this.state.order.items.map(item => {
+                            const counters = this.normalizeCounters(item.counters);
+                            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
+                            let parsedOptions = {};
+                            if (item.item_options) {
+                                if (typeof item.item_options === 'string') {
+                                    try {
+                                        parsedOptions = JSON.parse(item.item_options);
+                                    } catch (error) {
+                                        console.warn('Failed to parse stored item options', error);
+                                        parsedOptions = {};
+                                    }
+                                } else if (typeof item.item_options === 'object') {
+                                    parsedOptions = item.item_options;
+                                }
+                            }
+
+                            const templateItem = item.template_item || item.item_template || null;
+                            const skuChanged = Boolean(templateItem && templateItem !== item.item);
+                            const expectedLinked = hasAnyLinkedItem(parsedOptions);
+
+                            return {
+                                name: item.name,
                                 item: item.item,
+                                item_code: item.item,
+                                template_item: templateItem,
                                 item_name: item.item_name,
                                 qty: item.qty,
                                 rate: item.rate,
                                 amount: item.amount,
-                                notes: item.notes || ''
-                            }));
-                        }
-                        
-                        resolve();
-                    } else {
-                        reject(new Error('Failed to load order'));
+                                notes: item.notes || '',
+                                item_options: parsedOptions,
+                                options: parsedOptions,
+                                base_rate: item.base_rate || item.rate,
+                                additional_price_total: sumAdditionalPrice(parsedOptions),
+                                sku_changed: skuChanged,
+                                expected_linked_item: expectedLinked,
+                                requires_variant: expectedLinked,
+                                counters,
+                                kitchen_status: kitchenStatus,
+                            };
+                        });
+                    }
+
+                    resolve();
+                } else {
+                    reject(new Error('Failed to load order'));
                     }
                 },
                 error: reject
@@ -368,14 +418,47 @@ imogi_pos.waiter_order = {
         
         let html = '';
         this.state.orderItems.forEach((item, index) => {
+            const counters = this.normalizeCounters(item.counters);
+            if (counters && counters !== item.counters) {
+                item.counters = counters;
+            }
+
+            const kitchenStatus = this.getKitchenStatusFromCounters(counters);
+            if (kitchenStatus) {
+                const existingStatus = item.kitchen_status || {};
+                if (
+                    existingStatus.className !== kitchenStatus.className ||
+                    existingStatus.timestamp !== kitchenStatus.timestamp
+                ) {
+                    item.kitchen_status = kitchenStatus;
+                }
+            } else if (item.kitchen_status) {
+                item.kitchen_status = null;
+            }
+
+            const displayStatus = item.kitchen_status || kitchenStatus;
+            const statusTime = displayStatus ? this.formatKitchenStatusTime(displayStatus.timestamp) : '';
             html += `
                 <div class="order-item">
                     <div class="item-header">
-                        <div class="item-name">${item.item_name}</div>
+                        <div class="item-title">
+                            <div class="item-name">${item.item_name}</div>
+                            ${displayStatus ? `
+                                <div class="item-status">
+                                    <span class="status-badge ${displayStatus.className}">${displayStatus.label}</span>
+                                    ${statusTime ? `<span class="status-time">${statusTime}</span>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
                         <button class="item-remove" data-index="${index}">
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
+                    ${item.options ? `
+                        <div class="item-option">
+                            ${this.formatSelectedOptions(item.options)} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
+                        </div>
+                    ` : ''}
                     <div class="item-details">
                         <div class="item-price">${this.formatCurrency(item.rate)}</div>
                         <div class="item-qty-controls">
@@ -1166,11 +1249,11 @@ imogi_pos.waiter_order = {
             card.addEventListener('click', () => {
                 const itemName = card.dataset.item;
                 const hasVariants = card.dataset.hasVariants === '1';
-                
+
                 if (hasVariants) {
                     this.showVariantPicker(itemName);
                 } else {
-                    this.addItemToOrder(itemName);
+                    this.handleItemSelection(itemName);
                 }
             });
         });
@@ -1218,7 +1301,7 @@ imogi_pos.waiter_order = {
         frappe.call({
             method: 'imogi_pos.api.variants.get_item_variants',
             args: {
-                template: templateName
+                item_template: templateName
             },
             callback: (response) => {
                 if (response.message && Array.isArray(response.message.variants)) {
@@ -1258,7 +1341,9 @@ imogi_pos.waiter_order = {
         
         const variants = data.variants || [];
         const attributes = data.attributes || [];
-        
+        const attributeLabelMap = {};
+        const attributeValueLabelMap = {};
+
         if (variants.length === 0) {
             modalBody.innerHTML = `
                 <div class="empty-state">
@@ -1275,33 +1360,94 @@ imogi_pos.waiter_order = {
                 <div class="variant-filters">
                     ${attributes.map(attr => `
                         <div class="variant-filter">
-                            <label>${attr.attribute}</label>
-                            <select class="variant-attribute-select" data-attribute="${attr.attribute}">
-                                <option value="">All</option>
-                                ${attr.values.map(val => `
-                                    <option value="${val}">${val}</option>
-                                `).join('')}
-                            </select>
+                            ${(() => {
+                                const attributeKey = attr.name || attr.fieldname || attr.attribute;
+                                if (!attributeKey) {
+                                    return '';
+                                }
+                                const attributeLabel = attr.label || attr.name || attr.attribute || attributeKey;
+                                const attributeValues = (attr.values || []).map(val => {
+                                    if (val && typeof val === 'object') {
+                                        return {
+                                            value: val.value ?? val.name ?? '',
+                                            label: val.label ?? val.value ?? val.name ?? ''
+                                        };
+                                    }
+                                    return { value: val, label: val };
+                                }).filter(option => option.value !== undefined && option.value !== null && option.value !== '');
+
+                                attributeLabelMap[attributeKey] = attributeLabel;
+                                if (!attributeValueLabelMap[attributeKey]) {
+                                    attributeValueLabelMap[attributeKey] = {};
+                                }
+
+                                const optionsHtml = attributeValues.map(option => {
+                                    const optionValue = String(option.value);
+                                    const optionLabel = option.label || optionValue;
+                                    attributeValueLabelMap[attributeKey][optionValue] = optionLabel;
+                                    return `<option value="${optionValue}">${optionLabel}</option>`;
+                                }).join('');
+
+                                return `
+                                    <label>${attributeLabel}</label>
+                                    <select class="variant-attribute-select" data-attribute="${attributeKey}">
+                                        <option value="">All</option>
+                                        ${optionsHtml}
+                                    </select>
+                                `;
+                            })()}
                         </div>
                     `).join('')}
                 </div>
             `;
         }
-        
+
         // Create variant list
         let variantsHtml = `
             <div class="variant-list" id="variant-list">
-                ${variants.map(variant => `
-                    <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(variant.attributes || {})}'>
-                        <div class="variant-name">${variant.item_name}</div>
-                        <div class="variant-attrs">
-                            ${Object.entries(variant.attributes || {}).map(([attr, val]) => `
-                                <span class="variant-attr">${attr}: ${val}</span>
-                            `).join('')}
+                ${variants.map(variant => {
+                    const normalizedAttributes = {};
+                    const variantAttributesHtml = Object.entries(variant.attributes || {}).map(([attrKey, attrValue]) => {
+                        const attributeLabel = attributeLabelMap[attrKey] || attrKey;
+                        let normalizedValue = attrValue;
+                        let displayValue = attrValue;
+
+                        if (attrValue && typeof attrValue === 'object') {
+                            normalizedValue = attrValue.value ?? attrValue.name ?? '';
+                            displayValue = attrValue.label ?? attrValue.value ?? attrValue.name ?? '';
+                        }
+
+                        const normalizedString = normalizedValue !== undefined && normalizedValue !== null ? String(normalizedValue) : '';
+
+                        if (normalizedString) {
+                            normalizedAttributes[attrKey] = normalizedString;
+                        }
+
+                        const valueLabelMap = attributeValueLabelMap[attrKey] || {};
+                        const lookupLabel = normalizedString ? valueLabelMap[normalizedString] : undefined;
+                        const finalDisplayValue = lookupLabel || displayValue || normalizedString;
+
+                        return `<span class="variant-attr">${attributeLabel}: ${finalDisplayValue}</span>`;
+                    }).join('');
+
+                    const displayRate = (
+                        variant.rate !== undefined && variant.rate !== null && variant.rate !== ''
+                    )
+                        ? variant.rate
+                        : (
+                            variant.standard_rate !== undefined && variant.standard_rate !== null
+                                ? variant.standard_rate
+                                : 0
+                        );
+
+                    return `
+                        <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(normalizedAttributes)}'>
+                            <div class="variant-name">${variant.item_name}</div>
+                            <div class="variant-attrs">${variantAttributesHtml}</div>
+                            <div class="variant-price">${this.formatCurrency(displayRate)}</div>
                         </div>
-                        <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
         
@@ -1327,13 +1473,11 @@ imogi_pos.waiter_order = {
             variantCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
-                    this.addItemToOrder(itemName);
-                    
-                    // Close modal
                     const modalContainer = this.container.querySelector('#modal-container');
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
+                    this.handleItemSelection(itemName);
                 });
             });
         }
@@ -1353,89 +1497,482 @@ imogi_pos.waiter_order = {
         attributeSelects.forEach(select => {
             const attribute = select.dataset.attribute;
             const value = select.value;
-            
-            if (value) {
+
+            if (attribute && value !== '') {
                 selectedAttributes[attribute] = value;
             }
         });
-        
+
         // Filter variant cards
         const variantCards = variantList.querySelectorAll('.variant-card');
         variantCards.forEach(card => {
             const attributes = JSON.parse(card.dataset.attributes || '{}');
             let show = true;
-            
+
             // Check if variant matches all selected attributes
             Object.entries(selectedAttributes).forEach(([attr, value]) => {
-                if (attributes[attr] !== value) {
+                const variantValue = attributes[attr];
+                if (variantValue === undefined || String(variantValue) !== String(value)) {
                     show = false;
                 }
             });
-            
+
             // Show/hide variant
             card.style.display = show ? '' : 'none';
         });
     },
-    
+
+    /**
+     * Handle item selection and fetch option details
+     * @param {string} itemName - Selected item name
+     */
+    handleItemSelection: function(itemName) {
+        const remembered = this.getRememberedSelection(itemName);
+        if (remembered) {
+            const clonedOptions = this.cloneSelectionOptions(remembered.options);
+            const notes = remembered.notes || '';
+            this.addItemToOrder(itemName, clonedOptions, 1, notes);
+            return;
+        }
+
+        frappe.call({
+            method: 'imogi_pos.api.items.get_item_options',
+            args: { item: itemName },
+            callback: (r) => {
+                const data = r.message || {};
+                if (Object.keys(data).length === 0) {
+                    this.addItemToOrder(itemName);
+                } else {
+                    this.showItemOptionsModal(itemName, data);
+                }
+            },
+            error: () => {
+                this.addItemToOrder(itemName);
+            }
+        });
+    },
+
+    /**
+     * Show dynamic item options modal
+     * @param {string} itemName - Item to add
+     * @param {Object} optionsData - Options returned from server
+     */
+    showItemOptionsModal: function(itemName, optionsData) {
+        const modalContainer = this.container.querySelector('#modal-container');
+        if (!modalContainer) return;
+
+        const escapeAttr = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+
+        let fieldsHtml = '';
+        Object.entries(optionsData).forEach(([field, choices]) => {
+            if (!['size', 'spice', 'topping', 'variant'].includes(field)) return;
+            const title = this.toTitleCase(field);
+            if (field === 'topping') {
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label>` +
+                    choices.map(opt => {
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label><input type="checkbox" class="option-checkbox" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr}> ${label}</label>`;
+                    }).join('') + '</div>';
+            } else if (field === 'variant') {
+                fieldsHtml += `<div class="option-group" data-option="${field}" data-required="1"><label>${title}</label>` +
+                    choices.map((opt, index) => {
+                        const { label, value, price = 0, default: isDefault, linked_item: linkedItem } = opt;
+                        const checked = isDefault ? 'checked' : '';
+                        const optionId = `option-${field}-${index}`;
+                        const priceText = price ? ` (+${this.formatCurrency(price)})` : '';
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<label for="${optionId}"><input type="radio" id="${optionId}" class="option-radio" name="option-${field}" data-option="${field}" value="${value}" data-price="${price}"${linkedAttr}${labelAttr} ${checked}> ${label}${priceText}</label>`;
+                    }).join('') + '</div>';
+            } else {
+                fieldsHtml += `<div class="option-group" data-option="${field}"><label>${title}</label><select class="option-select" data-option="${field}">` +
+                    `<option value="" data-price="0">Select ${title}</option>` +
+                    choices.map(opt => {
+                        const { label, value, price = 0, linked_item: linkedItem } = opt;
+                        const linkedAttr = linkedItem ? ` data-linked-item="${escapeAttr(linkedItem)}"` : '';
+                        const labelAttr = label ? ` data-label="${escapeAttr(label)}"` : '';
+                        return `<option value="${value}" data-price="${price}"${linkedAttr}${labelAttr}>${label}</option>`;
+                    }).join('') + '</select></div>';
+            }
+        });
+
+        modalContainer.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Select Options</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">${fieldsHtml}</div>
+                    <div class="modal-footer">
+                        <button class="modal-cancel">Cancel</button>
+                        <button class="modal-confirm">Add</button>
+                    </div>
+                </div>
+            </div>`;
+
+        modalContainer.classList.add('active');
+
+        const close = () => modalContainer.classList.remove('active');
+        const closeBtn = modalContainer.querySelector('.modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        const cancelBtn = modalContainer.querySelector('.modal-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+
+        const confirmBtn = modalContainer.querySelector('.modal-confirm');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                const selectedOptions = {};
+                let optionPrice = 0;
+                const missing = [];
+
+                const buildOptionPayload = (value, label, linkedItem, priceValue) => {
+                    if (!value) {
+                        return null;
+                    }
+                    const payload = {
+                        value: value,
+                        name: label && label !== '' ? label : value,
+                    };
+                    if (linkedItem && linkedItem !== '') {
+                        payload.linked_item = linkedItem;
+                    }
+                    const numericPrice = Number(priceValue || 0) || 0;
+                    if (numericPrice) {
+                        payload.additional_price = numericPrice;
+                    } else {
+                        payload.additional_price = 0;
+                    }
+                    return payload;
+                };
+
+                modalContainer.querySelectorAll('.option-group[data-option]').forEach(group => {
+                    const key = group.dataset.option;
+                    const required = group.dataset.required === '1';
+
+                    const select = group.querySelector('.option-select');
+                    if (select) {
+                        const opt = select.options[select.selectedIndex];
+                        const value = select.value;
+                        const price = parseFloat((opt && opt.dataset.price) || 0);
+                        if (value) {
+                            const linkedItem = (opt && opt.dataset.linkedItem) || '';
+                            const label = (opt && (opt.dataset.label || opt.textContent)) || value;
+                            selectedOptions[key] = buildOptionPayload(value, label, linkedItem, price) || value;
+                            optionPrice += price;
+                        } else if (required) {
+                            missing.push(this.toTitleCase(key));
+                        }
+                        return;
+                    }
+
+                    const radio = group.querySelector('.option-radio:checked');
+                    if (radio) {
+                        const linkedItem = radio.dataset.linkedItem || '';
+                        const price = parseFloat(radio.dataset.price || 0);
+                        const label = radio.dataset.label || radio.value;
+                        selectedOptions[key] = buildOptionPayload(radio.value, label, linkedItem, price) || radio.value;
+                        optionPrice += price;
+                        return;
+                    } else if (group.querySelector('.option-radio') && required) {
+                        missing.push(this.toTitleCase(key));
+                        return;
+                    }
+
+                    const checkboxes = group.querySelectorAll('.option-checkbox:checked');
+                    if (checkboxes.length) {
+                        const values = [];
+                        checkboxes.forEach(cb => {
+                            const price = parseFloat(cb.dataset.price || 0);
+                            optionPrice += price;
+                            const linkedItem = cb.dataset.linkedItem || '';
+                            const label = cb.dataset.label || cb.value;
+                            const payload = buildOptionPayload(cb.value, label, linkedItem, price) || cb.value;
+                            if (payload) {
+                                values.push(payload);
+                            }
+                        });
+                        if (values.length) {
+                            selectedOptions[key] = values;
+                        }
+                    } else if (group.querySelector('.option-checkbox') && required) {
+                        missing.push(this.toTitleCase(key));
+                    }
+                });
+
+                if (missing.length) {
+                    this.showError('Please select: ' + missing.join(', '));
+                    return;
+                }
+
+                selectedOptions.price = optionPrice;
+                this.addItemToOrder(itemName, selectedOptions);
+                close();
+            });
+        }
+    },
+
+    /**
+     * Convert string to title case
+     */
+    toTitleCase: function(str) {
+        return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    },
+
+    /**
+     * Format selected options for display
+     */
+    formatSelectedOptions: function(options) {
+        if (!options) return '';
+        const extractValue = (value) => {
+            if (Array.isArray(value)) {
+                return value
+                    .map(item => extractValue(item))
+                    .filter(part => part !== '')
+                    .join(', ');
+            }
+
+            if (value === undefined || value === null) {
+                return '';
+            }
+
+            if (typeof value === 'object') {
+                const nested = value.name || value.label || value.value;
+                if (nested !== undefined && nested !== null && nested !== '') {
+                    return String(nested);
+                }
+                return '';
+            }
+
+            return String(value);
+        };
+
+        return Object.entries(options)
+            .filter(([k]) => !['price', 'extra_price'].includes(k))
+            .map(([k, v]) => {
+                const val = extractValue(v);
+                if (!val) return null;
+                return `${this.toTitleCase(k)}: ${val}`;
+            })
+            .filter(Boolean)
+            .join(', ');
+    },
+
+    getCatalogItemDetails: function(itemCode) {
+        if (!itemCode) return null;
+        const collections = [
+            this.state.catalogItems || [],
+            this.state.searchResults || [],
+        ];
+        for (const items of collections) {
+            const match = items.find(item => item && item.name === itemCode);
+            if (match) {
+                return match;
+            }
+        }
+        return null;
+    },
+
+    getOptionsSignature: function(options) {
+        try {
+            return JSON.stringify(options || {});
+        } catch (error) {
+            console.warn('Failed to serialise options payload', error);
+            return '';
+        }
+    },
+
+    buildPricingContext: function({ itemCode, qty = 1, itemDetails = null } = {}) {
+        const order = this.state.order || {};
+        const priceList = order.selling_price_list || this.settings.sellingPriceList || null;
+        const basePriceList = (
+            order.imogi_base_price_list ||
+            order.base_price_list ||
+            this.settings.basePriceList ||
+            null
+        );
+
+        return {
+            qty,
+            priceList,
+            basePriceList,
+            posProfile: this.settings.posProfile || null,
+            itemName: (itemDetails && itemDetails.item_name) || itemCode,
+        };
+    },
+
+    hasUnresolvedSku: function(line) {
+        if (!line) return false;
+        if (!line.expected_linked_item) return false;
+        if (!line.template_item) return false;
+        if (line.sku_changed) return false;
+        if (line.item && line.template_item && line.item !== line.template_item) {
+            return false;
+        }
+        return true;
+    },
+
+    ensureAllSkusResolved: function(lines) {
+        const unresolved = (lines || []).filter(item => this.hasUnresolvedSku(item));
+        if (unresolved.length) {
+            const names = unresolved
+                .map(item => item.item_name || item.item || 'Unknown Item')
+                .join(', ');
+            throw new Error(`Please select a specific variant for: ${names}`);
+        }
+    },
+
     /**
      * Add item to order
      * @param {string} itemName - Item name to add
      */
-    addItemToOrder: function(itemName) {
-        // Show loading indicator
-        this.showLoading(true, 'Adding item...');
-        
-        // Get item details
-        frappe.call({
-            method: 'frappe.client.get',
-            args: {
-                doctype: 'Item',
-                name: itemName
-            },
-            callback: (response) => {
-                if (response.message) {
-                    const item = response.message;
-                    
-                    // Check if item is already in order
-                    const existingItemIndex = this.state.orderItems.findIndex(orderItem => 
-                        orderItem.item === itemName && !orderItem.notes
-                    );
-                    
-                    if (existingItemIndex !== -1) {
-                        // Increment quantity
-                        this.state.orderItems[existingItemIndex].qty += 1;
-                        this.state.orderItems[existingItemIndex].amount = 
-                            this.state.orderItems[existingItemIndex].qty * this.state.orderItems[existingItemIndex].rate;
-                    } else {
-                        // Add new item
-                        this.state.orderItems.push({
-                            item: itemName,
-                            item_name: item.item_name,
-                            qty: 1,
-                            rate: item.standard_rate || 0,
-                            amount: item.standard_rate || 0,
-                            notes: ''
-                        });
-                    }
-                    
-                    // Update UI
-                    this.updateOrderPanel();
-                    
-                    // Hide loading indicator
-                    this.showLoading(false);
-                    
-                    // Show prompt for notes
-                    this.promptForNotes(existingItemIndex !== -1 ? existingItemIndex : this.state.orderItems.length - 1);
-                } else {
-                    this.showLoading(false);
-                    this.showError('Failed to add item');
-                }
-            },
-            error: () => {
-                this.showLoading(false);
-                this.showError('Failed to add item');
-            }
+    addItemToOrder: function(itemName, options = {}, quantity = 1, notes = '') {
+        const toolkit = imogi_pos.utils && imogi_pos.utils.options;
+        const resolver = toolkit && typeof toolkit.applyOptionsToLine === 'function'
+            ? toolkit.applyOptionsToLine
+            : null;
+
+        if (!resolver) {
+            this.showError('Option resolver unavailable. Please refresh the page.');
+            return;
+        }
+
+        const itemDetails = this.getCatalogItemDetails(itemName) || {};
+        const qty = Math.max(1, parseInt(quantity, 10) || 1);
+        const itemNotes = notes || '';
+        const line = {
+            item: itemName,
+            item_code: itemName,
+            template_item: itemName,
+            item_name: itemDetails.item_name || itemName,
+            qty: qty,
+            rate: 0,
+            amount: 0,
+            notes: itemNotes,
+            item_options: options || {},
+            options: options || {},
+            requires_variant: Number(itemDetails.has_variants) === 1,
+            counters: this.normalizeCounters({}),
+            kitchen_status: null,
+        };
+
+        const context = this.buildPricingContext({
+            itemCode: itemName,
+            qty,
+            itemDetails,
         });
+
+        this.showLoading(true, 'Adding item...');
+
+        resolver(line, options, context)
+            .then(() => {
+                const signature = this.getOptionsSignature(line.item_options);
+                const existingItemIndex = this.state.orderItems.findIndex(orderItem => {
+                    if (!orderItem || (orderItem.notes && orderItem.notes.trim())) {
+                        return false;
+                    }
+                    const existingSignature = this.getOptionsSignature(orderItem.item_options || orderItem.options);
+                    return orderItem.item === line.item && existingSignature === signature;
+                });
+
+                if (existingItemIndex !== -1) {
+                    const existingItem = this.state.orderItems[existingItemIndex];
+                    const currentQty = Number(existingItem && existingItem.qty) || 0;
+                    const incomingQty = Number(line.qty) || 0;
+                    const updatedQty = currentQty + incomingQty;
+                    const rate = Number(existingItem.rate) || 0;
+
+                    existingItem.qty = updatedQty;
+                    existingItem.amount = updatedQty * rate;
+                } else {
+                    this.state.orderItems.push(line);
+                }
+
+                this.updateOrderPanel();
+
+                const promptIndex = existingItemIndex !== -1
+                    ? existingItemIndex
+                    : this.state.orderItems.length - 1;
+
+                this.rememberItemSelection(itemName, line.item_options, line.notes);
+
+                const targetItem = this.state.orderItems[promptIndex];
+                const needsNotesPrompt = !(targetItem && targetItem.notes && targetItem.notes.trim());
+                if (needsNotesPrompt) {
+                    this.promptForNotes(promptIndex);
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to add item to order', error);
+                const message = (error && error.message) ? error.message : 'Failed to add item';
+                this.showError(message);
+            })
+            .finally(() => {
+                this.showLoading(false);
+            });
+    },
+
+    cloneSelectionOptions: function(options) {
+        if (!options) {
+            return {};
+        }
+
+        if (typeof structuredClone === 'function') {
+            try {
+                return structuredClone(options);
+            } catch (error) {
+                // Fallback to JSON cloning below
+            }
+        }
+
+        try {
+            return JSON.parse(JSON.stringify(options));
+        } catch (error) {
+            if (Array.isArray(options)) {
+                return options.slice();
+            }
+            if (typeof options === 'object') {
+                return Object.assign({}, options);
+            }
+            return {};
+        }
+    },
+
+    ensureSelectionMemory: function() {
+        if (!this.selectionMemory || typeof this.selectionMemory !== 'object') {
+            this.selectionMemory = Object.create(null);
+        }
+        return this.selectionMemory;
+    },
+
+    rememberItemSelection: function(itemName, options = {}, notes = '') {
+        if (!itemName) {
+            return;
+        }
+        const store = this.ensureSelectionMemory();
+        store[itemName] = {
+            options: this.cloneSelectionOptions(options),
+            notes: notes || ''
+        };
+    },
+
+    getRememberedSelection: function(itemName) {
+        if (!itemName) {
+            return null;
+        }
+        const store = this.ensureSelectionMemory();
+        return store[itemName] || null;
     },
     
     /**
@@ -1515,14 +2052,22 @@ imogi_pos.waiter_order = {
                 const notesInput = modalContainer.querySelector('#item-notes');
                 if (notesInput) {
                     const notes = notesInput.value.trim();
-                    
+
                     // Update item notes
-                    this.state.orderItems[itemIndex].notes = notes;
-                    
+                    const cartItem = this.state.orderItems[itemIndex];
+                    if (cartItem) {
+                        cartItem.notes = notes;
+                        this.rememberItemSelection(
+                            cartItem.item || cartItem.item_code,
+                            cartItem.item_options || cartItem.options,
+                            notes
+                        );
+                    }
+
                     // Update UI
                     this.updateOrderPanel();
                 }
-                
+
                 // Close modal
                 modalContainer.classList.remove('active');
             });
@@ -1548,10 +2093,16 @@ imogi_pos.waiter_order = {
      */
     decreaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            if (this.state.orderItems[index].qty > 1) {
-                this.state.orderItems[index].qty -= 1;
-                this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-                
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+
+            if (currentQty > 1) {
+                const nextQty = currentQty - 1;
+                const rate = Number(item.rate) || 0;
+
+                item.qty = nextQty;
+                item.amount = nextQty * rate;
+
                 // Update UI
                 this.updateOrderPanel();
             } else {
@@ -1567,9 +2118,14 @@ imogi_pos.waiter_order = {
      */
     increaseOrderItemQty: function(index) {
         if (index >= 0 && index < this.state.orderItems.length) {
-            this.state.orderItems[index].qty += 1;
-            this.state.orderItems[index].amount = this.state.orderItems[index].qty * this.state.orderItems[index].rate;
-            
+            const item = this.state.orderItems[index];
+            const currentQty = Number(item && item.qty) || 0;
+            const rate = Number(item.rate) || 0;
+            const nextQty = currentQty + 1;
+
+            item.qty = nextQty;
+            item.amount = nextQty * rate;
+
             // Update UI
             this.updateOrderPanel();
         }
@@ -1586,40 +2142,41 @@ imogi_pos.waiter_order = {
         
         // Save order first
         this.saveOrder(true)
-            .then(() => {
+            .then((itemRows) => {
                 // Show loading indicator
                 this.showLoading(true, 'Sending to kitchen...');
-                
+
                 // Send to kitchen
                 frappe.call({
                     method: 'imogi_pos.api.kot.send_items_to_kitchen',
                     args: {
-                        pos_order: this.settings.posOrder
+                        pos_order: this.settings.posOrder,
+                        item_rows: itemRows
                     },
                     callback: (response) => {
                         this.showLoading(false);
-                        
+
                         if (response.message && response.message.success) {
                             this.showToast('Order sent to kitchen');
-                            
+
                             // Update KOT status
                             this.state.kotSubmitted = true;
-                            
+
                             // Update UI
                             const sendToKitchenBtn = this.container.querySelector('#send-to-kitchen-btn');
                             if (sendToKitchenBtn) {
                                 sendToKitchenBtn.disabled = true;
                             }
-                            
+
                             const printKotBtn = this.container.querySelector('#print-kot-btn');
                             if (printKotBtn) {
                                 printKotBtn.disabled = false;
                             }
-                            
+
                             // Update order status if needed
                             if (this.state.order) {
                                 this.state.order.workflow_state = 'Sent to Kitchen';
-                                
+
                                 // Update order status display
                                 const orderStatus = this.container.querySelector('.order-status');
                                 if (orderStatus) {
@@ -1627,7 +2184,7 @@ imogi_pos.waiter_order = {
                                     orderStatus.className = 'order-status sent-to-kitchen';
                                 }
                             }
-                            
+
                             // Ask if user wants to go back to table display
                             this.showConfirmDialog(
                                 'Order Sent',
@@ -1697,21 +2254,35 @@ imogi_pos.waiter_order = {
                 reject('No items in order');
                 return;
             }
-            
+
+            try {
+                this.ensureAllSkusResolved(this.state.orderItems);
+            } catch (error) {
+                const message = (error && error.message) ? error.message : error;
+                if (!silent) {
+                    this.showError(message);
+                }
+                reject(message);
+                return;
+            }
+
             // Show loading indicator
             if (!silent) {
                 this.showLoading(true, 'Saving order...');
             }
-            
+
             // Prepare order data
             const orderData = {
                 pos_order: this.settings.posOrder,
                 table: this.settings.table,
                 items: this.state.orderItems.map(item => ({
                     item: item.item,
+                    item_code: item.item,
+                    template_item: item.template_item || null,
                     qty: item.qty,
                     rate: item.rate,
-                    notes: item.notes
+                    notes: item.notes,
+                    item_options: item.item_options || item.options || {}
                 })),
                 customer: this.state.customerId
             };
@@ -1735,24 +2306,25 @@ imogi_pos.waiter_order = {
                         if (!silent) {
                             this.showToast('Order saved successfully');
                         }
-                        
+
                         // Update order name if needed
                         if (!this.settings.posOrder) {
                             this.settings.posOrder = response.message.name;
-                            
+
                             // Update URL without reloading
                             const url = new URL(window.location);
                             url.searchParams.set('pos_order', this.settings.posOrder);
                             window.history.pushState({}, '', url);
-                            
+
                             // Update order header
                             const orderHeader = this.container.querySelector('.order-header h3');
                             if (orderHeader) {
                                 orderHeader.textContent = `Order: ${this.settings.posOrder}`;
                             }
                         }
-                        
-                        resolve();
+
+                        const itemRows = (response.message.items || []).map(item => item.name);
+                        resolve(itemRows);
                     } else {
                         if (!silent) {
                             this.showError('Failed to save order');
@@ -1940,6 +2512,172 @@ imogi_pos.waiter_order = {
     },
     
     /**
+     * Parse counters field from POS Order Item
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Parsed counters object
+     */
+    parseCounters: function(rawCounters) {
+        if (!rawCounters) {
+            return {};
+        }
+
+        if (typeof rawCounters === 'object' && !Array.isArray(rawCounters)) {
+            return { ...rawCounters };
+        }
+
+        if (typeof rawCounters === 'string') {
+            try {
+                const parsed = JSON.parse(rawCounters);
+                if (parsed && typeof parsed === 'object') {
+                    return parsed;
+                }
+            } catch (error) {
+                console.warn('Failed to parse counters for POS Order Item', error);
+            }
+        }
+
+        return {};
+    },
+
+    /**
+     * Normalize counters into a predictable lowercase-keyed object
+     * @param {Object|string|null} rawCounters - Raw counters value
+     * @returns {Object} Normalized counters
+     */
+    normalizeCounters: function(rawCounters) {
+        if (rawCounters && typeof rawCounters === 'object' && rawCounters.__normalized) {
+            return rawCounters;
+        }
+
+        const parsed = this.parseCounters(rawCounters);
+        const normalized = {};
+
+        if (Array.isArray(parsed)) {
+            parsed.forEach(entry => {
+                if (!entry) {
+                    return;
+                }
+
+                const keySource = entry.key || entry.name || entry.state || entry.status;
+                const value = this.getTimestampValue(entry.value || entry.timestamp || entry.time || entry.datetime || entry);
+                if (!keySource || !value) {
+                    return;
+                }
+
+                const normalizedKey = String(keySource).toLowerCase();
+                normalized[normalizedKey] = value;
+            });
+        } else {
+            Object.keys(parsed || {}).forEach(key => {
+                if (!key) {
+                    return;
+                }
+
+                const normalizedKey = String(key).toLowerCase();
+                const value = this.getTimestampValue(parsed[key]);
+
+                if (value) {
+                    normalized[normalizedKey] = value;
+                }
+            });
+        }
+
+        Object.defineProperty(normalized, '__normalized', {
+            value: true,
+            enumerable: false,
+            configurable: false,
+        });
+
+        return normalized;
+    },
+
+    /**
+     * Extract a usable timestamp string from a counter value
+     * @param {*} rawValue - Raw counter value
+     * @returns {string|null} Timestamp string if available
+     */
+    getTimestampValue: function(rawValue) {
+        if (!rawValue) {
+            return null;
+        }
+
+        if (typeof rawValue === 'string' || typeof rawValue === 'number') {
+            return String(rawValue);
+        }
+
+        if (typeof rawValue === 'object') {
+            const possibleKeys = ['timestamp', 'time', 'datetime', 'date', 'value'];
+            for (const key of possibleKeys) {
+                if (rawValue[key]) {
+                    return String(rawValue[key]);
+                }
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Determine kitchen status information from counters
+     * @param {Object} counters - Parsed counters object
+     * @returns {Object|null} Kitchen status data
+     */
+    getKitchenStatusFromCounters: function(counters) {
+        if (!counters || typeof counters !== 'object') {
+            return null;
+        }
+
+        const statusPriority = [
+            { key: 'served', label: 'Served', className: 'served' },
+            { key: 'ready', label: 'Ready', className: 'ready' },
+            { key: 'preparing', label: 'In Progress', className: 'in-progress' },
+            { key: 'sent', label: 'Queued', className: 'queued' },
+            { key: 'cancelled', label: 'Cancelled', className: 'cancelled' }
+        ];
+
+        for (const status of statusPriority) {
+            const value = counters[status.key] || counters[status.key.toUpperCase()];
+            const timestamp = this.getTimestampValue(value);
+            if (timestamp) {
+                return {
+                    label: status.label,
+                    className: status.className,
+                    timestamp,
+                };
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Format kitchen status timestamp into human readable time
+     * @param {string|Object} timestamp - ISO timestamp or object containing timestamp
+     * @returns {string} Formatted time string
+     */
+    formatKitchenStatusTime: function(timestamp) {
+        const rawValue = this.getTimestampValue(timestamp);
+        if (!rawValue) {
+            return '';
+        }
+
+        try {
+            const date = new Date(rawValue);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            console.warn('Failed to format kitchen status time', error);
+            return '';
+        }
+    },
+
+    /**
      * Format currency
      * @param {number} amount - Amount to format
      * @returns {string} Formatted amount
@@ -1948,7 +2686,7 @@ imogi_pos.waiter_order = {
         if (typeof amount !== 'number') {
             amount = parseFloat(amount) || 0;
         }
-        
+
         return frappe.format(amount, { fieldtype: 'Currency' });
     }
 };

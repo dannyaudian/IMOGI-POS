@@ -63,38 +63,47 @@ class RestaurantTable(Document):
             floor.update_tables_list()
         except Exception as e:
             frappe.log_error(
-                f"Error updating floor tables: {str(e)}",
-                "Restaurant Table Update Error"
+                title="Restaurant Table Update Error",
+                message=f"Error updating floor tables: {e}"
             )
     
     def set_status(self, status, pos_order=None):
         """Set table status and update current order"""
-        valid_statuses = ["Available", "Occupied", "Reserved", "Dirty", "Inactive"]
-        
-        if status not in valid_statuses:
-            frappe.throw(_("Invalid status: {0}").format(status))
-        
-        # If setting to Available, clear current order
-        if status == "Available":
-            self.current_pos_order = None
-        # If setting to Occupied, require a POS Order
-        elif status == "Occupied" and not pos_order and not self.current_pos_order:
-            frappe.throw(_("A POS Order is required when setting table to Occupied"))
-        
-        # Update status and order
+        self.reload()
         self.status = status
         if pos_order:
             self.current_pos_order = pos_order
-            
-        self.save()
-        
-        # Publish realtime update
+        elif status == "Available":
+            self.current_pos_order = None
+        self.save(ignore_version=True)
         self.publish_table_update()
-        
-        return {
-            "status": self.status,
-            "current_pos_order": self.current_pos_order
-        }
+        return {"status": self.status, "current_pos_order": self.current_pos_order}
+
+    def ensure_available_for_new_order(self):
+        """Ensure table has no active POS Order before creating a new one.
+
+        If the linked ``current_pos_order`` exists but its workflow state is in a
+        terminal state (Closed/Cancelled/Returned), clear it. Otherwise raise an
+        error to prevent multiple active orders for the same table.
+        """
+        if not self.current_pos_order:
+            return
+
+        state = frappe.db.get_value(
+            "POS Order", self.current_pos_order, "workflow_state"
+        )
+
+        closed_states = ("Closed", "Cancelled", "Returned")
+        if state in closed_states:
+            # Stale link – mark table as available again
+            self.set_status("Available")
+        else:
+            frappe.throw(
+                _(
+                    "POS Order {0} is still {1}. Close or reopen it before creating a new order."
+                ).format(self.current_pos_order, state),
+                frappe.ValidationError,
+            )
     
     def publish_table_update(self):
         """Publish realtime update for table status change"""

@@ -6,7 +6,12 @@
  * - Session validation
  * - Guest redirection to /imogi-login
  * - Token-based access for guest-allowed pages
- */
+*/
+
+// Remove any legacy session ID stored in localStorage.
+// Session IDs are now managed by secure, HTTP-only cookies and kept only in
+// memory via `frappe.sid` to mitigate XSS risks.
+localStorage.removeItem('imogi_sid');
 
 const IMOGIAuth = {
     /**
@@ -217,17 +222,37 @@ const IMOGIAuth = {
                     if (data.message === 'Logged In') {
                         // Update frappe session user
                         frappe.session.user = username;
-                        
+
+                        // Store session id only in memory; persistence is handled by
+                        // the server via HTTP-only cookies.
+                        let sid = (frappe.session && frappe.session.sid);
+                        if (!sid) {
+                            const match = document.cookie.match(/(^|;)\s*sid=([^;]+)/);
+                            sid = match ? decodeURIComponent(match[2]) : null;
+                        }
+                        if (sid) {
+                            frappe.sid = sid;
+                        }
+
                         // Call success callback
                         if (typeof this.options.onLogin === 'function') {
                             this.options.onLogin(username);
                         }
-                        
-                        // Redirect if specified
+
+                        // Redirect based on explicit target or role defaults
                         if (redirect) {
                             window.location.href = redirect;
+                        } else {
+                            this.getCurrentUser()
+                                .then((userInfo) => {
+                                    const defaultRedirect = userInfo.default_redirect || '/';
+                                    window.location.href = defaultRedirect;
+                                })
+                                .catch(() => {
+                                    window.location.href = '/';
+                                });
                         }
-                        
+
                         resolve(username);
                     } else {
                         reject(new Error('Login failed'));

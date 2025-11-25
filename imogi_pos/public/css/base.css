@@ -12,9 +12,9 @@
 /* ===== CSS VARIABLES (TOKENS) ===== */
 :root {
   /* Brand Colors - customizable via POS Profile */
-  --brand-primary: #1a73e8;
-  --brand-accent: #f5c518;
-  --brand-header-bg: #202124;
+  --brand-primary: #FF8800;
+  --brand-accent: #FFA500;
+  --brand-header-bg: #333333;
   --brand-text: #ffffff;
   
   /* Neutral Colors */
@@ -32,10 +32,10 @@
   --color-gray-900: #111827;
   
   /* Functional Colors */
-  --color-success: #10b981;
-  --color-success-light: #d1fae5;
-  --color-warning: #f59e0b;
-  --color-warning-light: #fef3c7;
+  --color-success: #00a65a;
+  --color-success-light: #ccffe6;
+  --color-warning: var(--color-gray-500);
+  --color-warning-light: var(--color-gray-200);
   --color-danger: #ef4444;
   --color-danger-light: #fee2e2;
   --color-info: #3b82f6;
@@ -158,6 +158,7 @@
 /* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   :root {
+    --brand-text: var(--color-white);
     --color-gray-50: #18191a;
     --color-gray-100: #242526;
     --color-gray-200: #3a3b3c;
@@ -167,14 +168,14 @@
     --color-gray-600: #a8a9aa;
     --color-gray-700: #c8c9ca;
     --color-gray-800: #e4e5e6;
-    --color-gray-900: #f5f6f7;
-    
-    --color-success-light: rgba(16, 185, 129, 0.2);
-    --color-warning-light: rgba(245, 158, 11, 0.2);
-    --color-danger-light: rgba(239, 68, 68, 0.2);
-    --color-info-light: rgba(59, 130, 246, 0.2);
+      --color-gray-900: #f5f6f7;
+
+      --color-success-light: rgba(16, 185, 129, 0.2);
+      --color-warning-light: rgba(107, 114, 128, 0.2);
+      --color-danger-light: rgba(239, 68, 68, 0.2);
+      --color-info-light: rgba(59, 130, 246, 0.2);
+    }
   }
-}
 
 /* ===== RESET ===== */
 *, *::before, *::after {
@@ -214,7 +215,7 @@ body {
   background-color: var(--color-gray-50);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -410,7 +411,7 @@ textarea:focus {
 }
 
 .min-h-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .max-w-xs { max-width: 20rem; }
@@ -819,6 +820,13 @@ textarea:focus {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+.required-indicator {
+  color: var(--color-danger, #ef4444);
+  margin-left: 0.25rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .not-sr-only {

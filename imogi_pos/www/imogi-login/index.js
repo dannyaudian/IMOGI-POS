@@ -2,12 +2,21 @@ frappe.ready(function() {
   const loginForm = document.getElementById('login-form');
   const errorMessage = document.getElementById('error-message');
   
+  // Clear legacy session storage. Session persistence now relies on
+  // secure, HTTP-only cookies set by the server.
+  localStorage.removeItem('imogi_sid');
+
   // Get redirect URL from query parameter or set default
   const urlParams = new URLSearchParams(window.location.search);
-  const redirect = urlParams.get('redirect') || '/cashier-console';
-  
-  // Save the redirect URL for after login
-  localStorage.setItem('login_redirect', redirect);
+  const redirectStorageKey = 'login_redirect';
+  const redirectSourceKey = 'login_redirect_source';
+  const redirectParam = urlParams.get('redirect');
+  const fallbackRedirect = '/cashier-console';
+
+  // Save the redirect URL for after login and remember if it was explicit
+  const initialRedirect = redirectParam || fallbackRedirect;
+  localStorage.setItem(redirectStorageKey, initialRedirect);
+  localStorage.setItem(redirectSourceKey, redirectParam ? 'explicit' : 'default');
   
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -41,15 +50,65 @@ frappe.ready(function() {
           // Show message from server if any
           showError(response.message.message);
           setFormDisabled(false);
-        } else {
-          // Login successful, redirect
+        } else if (
+          response.message === 'Logged In' ||
+          (frappe.session && frappe.session.user && frappe.session.user !== 'Guest')
+        ) {
+          // Login successful, fetch user info and redirect
           try {
-            const redirectTo = localStorage.getItem('login_redirect') || '/cashier-console';
-            window.location.href = redirectTo;
+            let sid = (frappe.session && frappe.session.sid);
+            if (!sid) {
+              const match = document.cookie.match(/(^|;)\s*sid=([^;]+)/);
+              sid = match ? decodeURIComponent(match[2]) : null;
+            }
+            if (sid) {
+              // Store session id only in memory; persistence is handled by
+              // server-managed HTTP-only cookies.
+              frappe.sid = sid;
+            }
+
+            const storedRedirect = localStorage.getItem(redirectStorageKey) || fallbackRedirect;
+            const redirectSource = localStorage.getItem(redirectSourceKey) || 'default';
+
+            frappe.call({
+              method: 'imogi_pos.api.public.get_current_user_info',
+              callback: function(r) {
+                let redirectTo = storedRedirect;
+                try {
+                  const userInfo = r.message || {};
+                  const defaultRedirect = userInfo.default_redirect;
+
+                  if (redirectSource !== 'explicit' && defaultRedirect) {
+                    redirectTo = defaultRedirect;
+                  }
+
+                  if (!redirectTo) {
+                    redirectTo = defaultRedirect || '/';
+                  }
+
+                  window.location.href = redirectTo;
+                } finally {
+                  localStorage.removeItem(redirectStorageKey);
+                  localStorage.removeItem(redirectSourceKey);
+                }
+              },
+              error: function() {
+                const redirectTo = storedRedirect || '/';
+                window.location.href = redirectTo;
+                localStorage.removeItem(redirectStorageKey);
+                localStorage.removeItem(redirectSourceKey);
+              }
+            });
           } catch (e) {
-            console.error("Redirect error:", e);
-            window.location.href = '/cashier-console';
+            console.error('Redirect error:', e);
+            window.location.href = fallbackRedirect;
+            localStorage.removeItem(redirectStorageKey);
+            localStorage.removeItem(redirectSourceKey);
           }
+        } else {
+          // Show error message if login did not succeed
+          showError('Login failed. Please check your credentials.');
+          setFormDisabled(false);
         }
       },
       error: function(xhr, textStatus) {

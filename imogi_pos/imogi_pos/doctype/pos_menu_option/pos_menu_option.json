@@ -1,0 +1,69 @@
+{
+  "actions": [],
+  "creation": "2024-01-01 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "label",
+    "price_delta",
+    "qty_factor",
+    "components",
+    "components_delta",
+    "default",
+    "kot_note"
+  ],
+  "fields": [
+    {
+      "fieldname": "label",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Label",
+      "reqd": 1
+    },
+    {
+      "fieldname": "price_delta",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Price Delta"
+    },
+    {
+      "fieldname": "qty_factor",
+      "fieldtype": "Float",
+      "label": "Quantity Factor"
+    },
+    {
+      "fieldname": "components",
+      "fieldtype": "Table",
+      "label": "Components",
+      "options": "Item Option Component"
+    },
+    {
+      "fieldname": "components_delta",
+      "fieldtype": "Table",
+      "label": "Component Delta",
+      "options": "Item Option Component Delta"
+    },
+    {
+      "fieldname": "default",
+      "fieldtype": "Check",
+      "label": "Default"
+    },
+    {
+      "fieldname": "kot_note",
+      "fieldtype": "Data",
+      "label": "KOT Note"
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "POS Menu Option",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

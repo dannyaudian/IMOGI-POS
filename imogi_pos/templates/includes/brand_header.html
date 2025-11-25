@@ -1,21 +1,17 @@
-{% set profile = frappe.get_doc("POS Profile", pos_profile) if pos_profile else None %}
-{% set brand_name = profile.imogi_brand_name if profile and profile.imogi_brand_name else frappe.defaults.get_global_default('company') %}
-{% set home_url = profile.imogi_brand_home_url if profile and profile.imogi_brand_home_url else "/" %}
-{% set logo_path = profile.imogi_brand_logo if profile and profile.imogi_brand_logo else frappe.db.get_value('Website Settings', 'Website Settings', 'brand_html') %}
-{% set logo_dark_path = profile.imogi_brand_logo_dark if profile and profile.imogi_brand_logo_dark else logo_path %}
-{% set primary_color = profile.imogi_brand_color_primary if profile and profile.imogi_brand_color_primary else frappe.get_attr('imogi_pos.utils.branding.PRIMARY_COLOR') %}
-{% set accent_color = profile.imogi_brand_color_accent if profile and profile.imogi_brand_color_accent else frappe.get_attr('imogi_pos.utils.branding.ACCENT_COLOR') %}
-{% set header_bg = profile.imogi_brand_header_bg if profile and profile.imogi_brand_header_bg else frappe.get_attr('imogi_pos.utils.branding.HEADER_BG_COLOR') %}
+{% set brand_name = branding.name or frappe.defaults.get_global_default('company') %}
+{% set home_url = branding.home_url or '/' %}
+{% set logo_path = branding.logo %}
+{% set logo_dark_path = branding.logo_dark or logo_path %}
 
 <style>
   :root {
-    --brand-primary: {{ primary_color }};
-    --brand-accent: {{ accent_color }};
-    --header-bg: {{ header_bg }};
-    --text-on-header: {{ header_bg|contrast_color }};
-    
-    {% if profile and profile.imogi_brand_css_vars %}
-    {{ profile.imogi_brand_css_vars }}
+    --brand-primary: {{ branding.primary_color }};
+    --brand-accent: {{ branding.accent_color }};
+    --header-bg: {{ branding.header_bg }};
+    --text-on-header: {{ branding.header_bg|contrast_color }};
+
+    {% if branding.css_vars %}
+    {{ branding.css_vars }}
     {% endif %}
   }
   

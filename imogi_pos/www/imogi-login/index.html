@@ -1,82 +1,120 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
-<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
-<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
+  :root {
+    color-scheme: light;
+    --ink: #111;
+    --ink-2: #3f3f46;
+    --muted: #6b7280;
+    --bg: #f5f6f7;
+    --surface: #fff;
+    --line: #e5e7eb;
+    --radius: 12px;
+    --shadow-md: 0 6px 18px rgba(0,0,0,.08);
+  }
+
+  body {
+    font-family: "Ubuntu", "Poppins", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
   .login-wrapper {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 80vh;
+    min-height: 90vh;
+    padding: 20px;
   }
-  
+
   .login-card {
-    background-color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
     padding: 2rem;
     width: 100%;
-    max-width: 400px;
+    max-width: 380px;
   }
-  
+
   .login-header {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 1.8rem;
   }
-  
   .brand-logo {
-    max-width: 180px;
-    max-height: 60px;
-    margin-bottom: 1rem;
+    max-width: 160px;
+    margin-bottom: 0.8rem;
   }
-  
-  .form-group {
-    margin-bottom: 1.5rem;
+  .login-header h2 {
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
   }
-  
+
+  .form-group { margin-bottom: 1.2rem; }
+  .form-group label {
+    display:block;
+    font-size: .9rem;
+    margin-bottom: .4rem;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
   .form-control {
-    display: block;
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.7rem 1rem;
     font-size: 1rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    outline: none;
+    transition: border .15s, box-shadow .15s;
   }
-  
+  .form-control:focus {
+    border-color: #cfd3d9;
+    box-shadow: 0 0 0 3px rgba(0,0,0,.06);
+  }
+
   .login-btn {
-    background-color: var(--primary-color, {{ frappe.get_attr('imogi_pos.utils.branding.PRIMARY_COLOR') }});
-    color: white;
+    display:block;
+    width:100%;
+    background: #111;
+    color: #fff;
     border: none;
-    border-radius: 4px;
-    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
     font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
-    width: 100%;
-    transition: background-color 0.2s;
+    transition: background .2s;
   }
-  
-  .login-btn:hover {
-    background-color: var(--primary-hover, #384149);
-  }
-  
+  .login-btn:hover { background:#000; }
+
   .error-message {
-    color: #e74c3c;
+    color: #b91c1c;
+    font-size:.9rem;
     margin-top: 1rem;
-    display: none;
+    text-align:center;
+    display:none;
   }
 </style>
 {% endblock %}
+
 
 {% block page_content %}
 <div class="login-wrapper">
   <div class="login-card">
     <div class="login-header">
-      {% if brand_info.logo %}
-      <img src="{{ brand_info.logo }}" alt="{{ brand_info.name }}" class="brand-logo">
+      {% if branding.logo %}
+      <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
       {% endif %}
-      <h2>{{ brand_info.name }}</h2>
+      <h2>{{ branding.name }}</h2>
     </div>
     
     <form id="login-form">
@@ -101,5 +139,5 @@
 {% block script %}
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/auth.js"></script>
-<script src="/assets/imogi_pos/www/imogi-login/index.js"></script>
+<script src="../imogi-login/index.js"></script>
 {% endblock %}

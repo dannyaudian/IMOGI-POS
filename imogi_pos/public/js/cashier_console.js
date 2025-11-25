@@ -229,12 +229,18 @@ imogi_pos.cashier_console = {
      */
     checkActivePOSSession: function() {
         frappe.call({
-            method: 'imogi_pos.api.billing.get_active_pos_session',
+            method: 'imogi_pos.api.billing.check_pos_session',
             args: {
                 pos_profile: this.settings.posProfile
             },
             callback: (response) => {
-                if (!response.message || !response.message.pos_session) {
+                const info = response.message || {};
+
+                if (!info.exists) {
+                    // POS Session feature not available
+                    this.hidePOSSessionUI();
+                    this.showError('POS Session feature is unavailable. Continuing without session.');
+                } else if (!info.active) {
                     // No active session
                     this.showError(
                         'No active POS Session found. Please open a POS Session first.',
@@ -245,6 +251,15 @@ imogi_pos.cashier_console = {
                     );
                 }
             }
+        });
+    },
+
+    /**
+     * Hide POS-session related UI elements
+     */
+    hidePOSSessionUI: function() {
+        document.querySelectorAll('.pos-session-required').forEach(el => {
+            el.classList.add('hidden');
         });
     },
     
@@ -307,7 +322,7 @@ imogi_pos.cashier_console = {
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
-                status: this.state.filterStatus
+                workflow_state: this.state.filterStatus
             },
             callback: (response) => {
                 this.showLoading(false);
@@ -336,7 +351,7 @@ imogi_pos.cashier_console = {
         
         this.state.filteredOrders = this.state.orderList.filter(order => {
             // Filter by status if set
-            if (this.state.filterStatus && order.status !== this.state.filterStatus) {
+            if (this.state.filterStatus && order.workflow_state !== this.state.filterStatus) {
                 return false;
             }
             
@@ -345,8 +360,9 @@ imogi_pos.cashier_console = {
                 const tableMatch = order.table_name && order.table_name.toLowerCase().includes(searchTerm);
                 const orderMatch = order.name.toLowerCase().includes(searchTerm);
                 const customerMatch = order.customer_name && order.customer_name.toLowerCase().includes(searchTerm);
-                
-                return tableMatch || orderMatch || customerMatch;
+                const queueMatch = order.queue_number && String(order.queue_number).includes(searchTerm);
+
+                return tableMatch || orderMatch || customerMatch || queueMatch;
             }
             
             return true;
@@ -598,13 +614,13 @@ imogi_pos.cashier_console = {
         let html = '';
         this.state.filteredOrders.forEach(order => {
             const isSelected = this.state.currentOrder && this.state.currentOrder.name === order.name;
-            const statusClass = order.status.toLowerCase().replace(' ', '-');
-            
+            const statusClass = (order.workflow_state || '').toLowerCase().replace(' ', '-');
+
             html += `
                 <div class="order-card ${isSelected ? 'selected' : ''} ${statusClass}" data-order="${order.name}">
                     <div class="order-header">
-                        <div class="order-name">${order.name}</div>
-                        <div class="order-status ${statusClass}">${order.status}</div>
+                        <div class="order-name">${order.queue_number ? `#${order.queue_number}` : order.name}</div>
+                        <div class="order-status ${statusClass}">${order.workflow_state}</div>
                     </div>
                     <div class="order-info">
                         ${order.table_name ? `<div class="order-table">Table: ${order.table_name}</div>` : ''}
@@ -612,7 +628,7 @@ imogi_pos.cashier_console = {
                         <div class="order-time">Created: ${this.formatTime(order.creation)}</div>
                     </div>
                     <div class="order-total">
-                        <div class="total-amount">${this.formatCurrency(order.grand_total || 0)}</div>
+                        <div class="total-amount">${this.formatCurrency(order.totals || 0)}</div>
                         <div class="items-count">${order.item_count || 0} items</div>
                     </div>
                 </div>
@@ -755,7 +771,7 @@ imogi_pos.cashier_console = {
                 <div class="order-info-main">
                     <h3>${order.name}</h3>
                     <div class="order-meta">
-                        <span class="order-status ${order.workflow_state ? order.workflow_state.toLowerCase().replace(' ', '-') : ''}">${order.workflow_state || order.status}</span>
+                        <span class="order-status ${order.workflow_state ? order.workflow_state.toLowerCase().replace(' ', '-') : ''}">${order.workflow_state}</span>
                         ${order.table ? `<span class="order-table">Table: ${order.table}</span>` : ''}
                         <span class="order-time">Created: ${this.formatDateTime(order.creation)}</span>
                     </div>
@@ -797,7 +813,7 @@ imogi_pos.cashier_console = {
                 `).join('') : ''}
                 <div class="total-row grand-total">
                     <div class="total-label">Grand Total</div>
-                    <div class="total-value">${this.formatCurrency(order.grand_total || 0)}</div>
+                    <div class="total-value">${this.formatCurrency(order.totals || 0)}</div>
                 </div>
             </div>
             
@@ -841,8 +857,16 @@ imogi_pos.cashier_console = {
         }
         
         const generateInvoiceBtn = this.container.querySelector('#generate-invoice-btn');
+        const paymentModeSelect = this.container.querySelector('#payment-mode');
         if (generateInvoiceBtn) {
-            generateInvoiceBtn.addEventListener('click', () => this.generateInvoice());
+            generateInvoiceBtn.addEventListener('click', () => {
+                const mop = paymentModeSelect ? paymentModeSelect.value : '';
+                if (!mop) {
+                    this.showError('Please select a payment mode');
+                    return;
+                }
+                this.generateInvoice(false, mop);
+            });
         }
     },
     
@@ -1217,7 +1241,7 @@ imogi_pos.cashier_console = {
      */
     createNewOrder: function() {
         frappe.call({
-            method: 'imogi_pos.api.orders.create_order',
+            method: 'imogi_pos.api.orders.create_staff_order',
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
@@ -1481,7 +1505,7 @@ imogi_pos.cashier_console = {
                 <div class="split-bill-card">
                     <div class="split-bill-header">
                         <h4>Bill ${index + 1}</h4>
-                        <div class="split-bill-total">${this.formatCurrency(bill.grand_total || 0)}</div>
+                        <div class="split-bill-total">${this.formatCurrency(bill.totals || 0)}</div>
                     </div>
                     <div class="split-bill-items">
             `;
@@ -1520,7 +1544,7 @@ imogi_pos.cashier_console = {
                         `).join('') : ''}
                         <div class="total-row grand-total">
                             <div class="total-label">Grand Total</div>
-                            <div class="total-value">${this.formatCurrency(bill.grand_total || 0)}</div>
+                            <div class="total-value">${this.formatCurrency(bill.totals || 0)}</div>
                         </div>
                     </div>
                 </div>
@@ -1610,7 +1634,7 @@ imogi_pos.cashier_console = {
         }
         
         // Generate invoice first
-        this.generateInvoice(true).then(invoice => {
+        this.generateInvoice(true, 'Online').then(invoice => {
             // Request payment
             frappe.call({
                 method: 'imogi_pos.api.billing.request_payment',
@@ -1780,7 +1804,7 @@ imogi_pos.cashier_console = {
             }
             
             // Need to generate invoice first
-            return this.generateInvoice(true).then(invoice => {
+            return this.generateInvoice(true, 'Cash').then(invoice => {
                 this.processCashPaymentForInvoice(invoice);
             }).catch(error => {
                 this.showError('Failed to generate invoice: ' + error.message);
@@ -1981,7 +2005,7 @@ imogi_pos.cashier_console = {
             }
             
             // Need to generate invoice first
-            return this.generateInvoice(true).then(invoice => {
+            return this.generateInvoice(true, 'Card').then(invoice => {
                 this.processCardPaymentForInvoice(invoice);
             }).catch(error => {
                 this.showError('Failed to generate invoice: ' + error.message);
@@ -2174,40 +2198,45 @@ imogi_pos.cashier_console = {
      * @param {boolean} [silent=false] - Whether to show success message
      * @returns {Promise<string>} Promise resolving to invoice name
      */
-    generateInvoice: function(silent = false) {
+    generateInvoice: function(silent = false, modeOfPayment) {
         return new Promise((resolve, reject) => {
             if (!this.state.currentOrder) {
                 reject(new Error('No order selected'));
                 return;
             }
-            
-            // Check if order already has an invoice
+
+            if (!modeOfPayment) {
+                reject(new Error('Mode of payment is required'));
+                return;
+            }
+
             if (this.state.currentOrder.sales_invoice) {
                 resolve(this.state.currentOrder.sales_invoice);
                 return;
             }
-            
-            // Show loading indicator
+
             this.showLoading(true, 'Generating invoice...');
-            
-            // Generate invoice
+
+            const amount = this.state.currentOrder.grand_total || this.state.currentOrder.rounded_total || this.state.currentOrder.total;
+
             frappe.call({
                 method: 'imogi_pos.api.billing.generate_invoice',
                 args: {
                     pos_order: this.state.currentOrder.name,
-                    pos_profile: this.settings.posProfile
+                    pos_profile: this.settings.posProfile,
+                    mode_of_payment: modeOfPayment,
+                    amount: amount
                 },
                 callback: (response) => {
                     this.showLoading(false);
-                    
+
                     if (response.message && response.message.name) {
                         if (!silent) {
                             this.showToast('Invoice generated successfully');
                         }
-                        
-                        // Update order
+
                         this.selectOrder(this.state.currentOrder.name);
-                        
+
                         resolve(response.message.name);
                     } else {
                         reject(new Error('Failed to generate invoice: ' + (response._server_messages || 'Unknown error')));
@@ -2546,7 +2575,9 @@ imogi_pos.cashier_console = {
         
         const variants = data.variants || [];
         const attributes = data.attributes || [];
-        
+        const attributeLabelMap = {};
+        const attributeValueLabelMap = {};
+
         if (variants.length === 0) {
             modalBody.innerHTML = `
                 <div class="empty-state">
@@ -2555,7 +2586,7 @@ imogi_pos.cashier_console = {
             `;
             return;
         }
-        
+
         // Create attribute filters if multiple attributes
         let attributeFiltersHtml = '';
         if (attributes.length > 0) {
@@ -2563,33 +2594,94 @@ imogi_pos.cashier_console = {
                 <div class="variant-filters">
                     ${attributes.map(attr => `
                         <div class="variant-filter">
-                            <label>${attr.attribute}</label>
-                            <select class="variant-attribute-select" data-attribute="${attr.attribute}">
-                                <option value="">All</option>
-                                ${attr.values.map(val => `
-                                    <option value="${val}">${val}</option>
-                                `).join('')}
-                            </select>
+                            ${(() => {
+                                const attributeKey = attr.name || attr.fieldname || attr.attribute;
+                                if (!attributeKey) {
+                                    return '';
+                                }
+                                const attributeLabel = attr.label || attr.name || attr.attribute || attributeKey;
+                                const attributeValues = (attr.values || []).map(val => {
+                                    if (val && typeof val === 'object') {
+                                        return {
+                                            value: val.value ?? val.name ?? '',
+                                            label: val.label ?? val.value ?? val.name ?? ''
+                                        };
+                                    }
+                                    return { value: val, label: val };
+                                }).filter(option => option.value !== undefined && option.value !== null && option.value !== '');
+
+                                attributeLabelMap[attributeKey] = attributeLabel;
+                                if (!attributeValueLabelMap[attributeKey]) {
+                                    attributeValueLabelMap[attributeKey] = {};
+                                }
+
+                                const optionsHtml = attributeValues.map(option => {
+                                    const optionValue = String(option.value);
+                                    const optionLabel = option.label || optionValue;
+                                    attributeValueLabelMap[attributeKey][optionValue] = optionLabel;
+                                    return `<option value="${optionValue}">${optionLabel}</option>`;
+                                }).join('');
+
+                                return `
+                                    <label>${attributeLabel}</label>
+                                    <select class="variant-attribute-select" data-attribute="${attributeKey}">
+                                        <option value="">All</option>
+                                        ${optionsHtml}
+                                    </select>
+                                `;
+                            })()}
                         </div>
                     `).join('')}
                 </div>
             `;
         }
-        
+
         // Create variant list
         let variantsHtml = `
             <div class="variant-list" id="variant-list">
-                ${variants.map(variant => `
-                    <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(variant.attributes || {})}'>
-                        <div class="variant-name">${variant.item_name}</div>
-                        <div class="variant-attrs">
-                            ${Object.entries(variant.attributes || {}).map(([attr, val]) => `
-                                <span class="variant-attr">${attr}: ${val}</span>
-                            `).join('')}
+                ${variants.map(variant => {
+                    const normalizedAttributes = {};
+                    const variantAttributesHtml = Object.entries(variant.attributes || {}).map(([attrKey, attrValue]) => {
+                        const attributeLabel = attributeLabelMap[attrKey] || attrKey;
+                        let normalizedValue = attrValue;
+                        let displayValue = attrValue;
+
+                        if (attrValue && typeof attrValue === 'object') {
+                            normalizedValue = attrValue.value ?? attrValue.name ?? '';
+                            displayValue = attrValue.label ?? attrValue.value ?? attrValue.name ?? '';
+                        }
+
+                        const normalizedString = normalizedValue !== undefined && normalizedValue !== null ? String(normalizedValue) : '';
+
+                        if (normalizedString) {
+                            normalizedAttributes[attrKey] = normalizedString;
+                        }
+
+                        const valueLabelMap = attributeValueLabelMap[attrKey] || {};
+                        const lookupLabel = normalizedString ? valueLabelMap[normalizedString] : undefined;
+                        const finalDisplayValue = lookupLabel || displayValue || normalizedString;
+
+                        return `<span class="variant-attr">${attributeLabel}: ${finalDisplayValue}</span>`;
+                    }).join('');
+
+                    const displayRate = (
+                        variant.rate !== undefined && variant.rate !== null && variant.rate !== ''
+                    )
+                        ? variant.rate
+                        : (
+                            variant.standard_rate !== undefined && variant.standard_rate !== null
+                                ? variant.standard_rate
+                                : 0
+                        );
+
+                    return `
+                        <div class="variant-card" data-item="${variant.name}" data-attributes='${JSON.stringify(normalizedAttributes)}'>
+                            <div class="variant-name">${variant.item_name}</div>
+                            <div class="variant-attrs">${variantAttributesHtml}</div>
+                            <div class="variant-price">${this.formatCurrency(displayRate)}</div>
                         </div>
-                        <div class="variant-price">${this.formatCurrency(variant.rate || 0)}</div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
         
@@ -2641,21 +2733,22 @@ imogi_pos.cashier_console = {
         attributeSelects.forEach(select => {
             const attribute = select.dataset.attribute;
             const value = select.value;
-            
-            if (value) {
+
+            if (attribute && value !== '') {
                 selectedAttributes[attribute] = value;
             }
         });
-        
+
         // Filter variant cards
         const variantCards = variantList.querySelectorAll('.variant-card');
         variantCards.forEach(card => {
             const attributes = JSON.parse(card.dataset.attributes || '{}');
             let show = true;
-            
+
             // Check if variant matches all selected attributes
             Object.entries(selectedAttributes).forEach(([attr, value]) => {
-                if (attributes[attr] !== value) {
+                const variantValue = attributes[attr];
+                if (variantValue === undefined || String(variantValue) !== String(value)) {
                     show = false;
                 }
             });

@@ -1,0 +1,75 @@
+{
+  "actions": [],
+  "creation": "2024-01-01 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "option_name",
+    "linked_item",
+    "additional_price",
+    "menu_channel",
+    "qty_factor",
+    "components",
+    "components_delta"
+  ],
+  "fields": [
+    {
+      "fieldname": "option_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Option Name",
+      "reqd": 1
+    },
+    {
+      "fieldname": "linked_item",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Linked Item",
+      "options": "Item"
+    },
+    {
+      "fieldname": "additional_price",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Additional Price"
+    },
+    {
+      "default": "Universal",
+      "fieldname": "menu_channel",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Menu Channel",
+      "options": "Universal\nPOS\nRestaurant"
+    },
+    {
+      "fieldname": "qty_factor",
+      "fieldtype": "Float",
+      "label": "Quantity Factor"
+    },
+    {
+      "fieldname": "components",
+      "fieldtype": "Table",
+      "label": "Components",
+      "options": "Item Option Component"
+    },
+    {
+      "fieldname": "components_delta",
+      "fieldtype": "Table",
+      "label": "Component Delta",
+      "options": "Item Option Component Delta"
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2024-01-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Item Topping Option",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}
+

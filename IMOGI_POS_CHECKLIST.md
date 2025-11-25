@@ -27,3 +27,12 @@ bench build
 
 # Restart the server
 bench restart
+
+## Manual QA
+
+### Kitchen Display item fallback
+
+1. Open the Kitchen Display in the browser and ensure it loads KOT tickets.
+2. Add or update a ticket so that at least one item lacks an `item_name` but retains an item code (or leave both empty to trigger the placeholder).
+3. Confirm the item appears in the list with either the item code or the "Unnamed Item" fallback instead of a blank name in both the card view and detail modal.
+4. Use the search bar to look for the fallback label (item code or "Unnamed Item") and verify the KOT remains visible in the filtered results.

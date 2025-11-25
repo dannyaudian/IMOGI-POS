@@ -687,7 +687,7 @@ imogi_pos.table_display = {
      */
     updateTableNode: function(tableNode, status) {
         // Reset classes first
-        tableNode.classList.remove('table-occupied', 'table-ordered', 'table-preparing', 'table-ready', 'table-served');
+        tableNode.classList.remove('table-occupied', 'table-ordered', 'table-in-progress', 'table-ready', 'table-served');
         
         // Add appropriate classes based on status
         if (status.occupied) {
@@ -701,7 +701,7 @@ imogi_pos.table_display = {
                         tableNode.classList.add('table-ordered');
                         break;
                     case 'In Progress':
-                        tableNode.classList.add('table-preparing');
+                        tableNode.classList.add('table-in-progress');
                         break;
                     case 'Ready':
                         tableNode.classList.add('table-ready');
@@ -873,7 +873,7 @@ imogi_pos.table_display = {
                     `).join('') : ''}
                     <div class="total-row grand-total">
                         <div class="total-label">Grand Total</div>
-                        <div class="total-value">${this.formatCurrency(order.grand_total || 0)}</div>
+                        <div class="total-value">${this.formatCurrency(order.totals || 0)}</div>
                     </div>
                 </div>
             </div>
@@ -1032,7 +1032,8 @@ imogi_pos.table_display = {
         frappe.call({
             method: 'imogi_pos.api.kot.send_items_to_kitchen',
             args: {
-                pos_order: this.state.selectedOrder.name
+                pos_order: this.state.selectedOrder.name,
+                item_rows: (this.state.selectedOrder.items || []).map(item => item.name)
             },
             callback: (response) => {
                 this.showLoading(false);

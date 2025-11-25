@@ -53,15 +53,16 @@ class RestaurantFloor(Document):
                 "status": table.status,
                 "current_pos_order": table.current_pos_order
             })
-        
+
         # Save without triggering on_update again
         if tables:
+            table_data = [row.as_dict() for row in self.tables]
             frappe.db.set_value(
-                "Restaurant Floor", 
-                self.name, 
-                "tables", 
-                self.tables, 
-                update_modified=False
+                "Restaurant Floor",
+                self.name,
+                "tables",
+                table_data,
+                update_modified=False,
             )
     
     def get_active_tables(self):

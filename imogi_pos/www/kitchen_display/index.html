@@ -1,19 +1,629 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
-<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
-<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
 <style>
+  /* ===== VARIABLES ===== */
   :root {
-    --primary-color: {{ branding.primary_color }};
-    --accent-color: {{ branding.accent_color }};
-    --header-bg: {{ branding.header_bg }};
+    --orange: #FF9800;
+    --orange-light: #FFE0B2;
+    --blue: #2196F3;
+    --blue-light: #BBDEFB;
+    --green: #4CAF50;
+    --green-light: #C8E6C9;
+    --grey-50: #FAFAFA;
+    --grey-100: #F5F5F5;
+    --grey-200: #EEEEEE;
+    --grey-300: #E0E0E0;
+    --grey-700: #616161;
+    --grey-900: #212121;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+  
+  .hidden { 
+    display: none !important; 
+  }
+  
+  /* ===== KITCHEN DISPLAY CONTAINER ===== */
+  #kitchen-display {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--grey-100);
+  }
+
+  /* ===== HEADER/NAVBAR ===== */
+  #kitchen-display > div:first-child:not(.kitchen-header),
+  .kitchen-header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+    padding: 20px 32px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  #kitchen-display > div:first-child h1,
+  #kitchen-display > div:first-child h2,
+  #kitchen-display > div:first-child h3,
+  .kitchen-header h1,
+  .kitchen-header .kitchen-title {
+    font-size: 28px !important;
+    font-weight: 700 !important;
+    color: white !important;
+    margin: 0 !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  /* Header Left Section */
+  #kitchen-display > div:first-child > div:first-child,
+  .kitchen-header-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  /* Selector Styling */
+  #kitchen-display select,
+  .kitchen-header select,
+  .station-selector select {
+    padding: 10px 16px !important;
+    border: 2px solid rgba(255,255,255,0.2) !important;
+    border-radius: 8px !important;
+    background: rgba(255,255,255,0.1) !important;
+    color: white !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    min-width: 150px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+  }
+
+  #kitchen-display select:hover,
+  .kitchen-header select:hover {
+    background: rgba(255,255,255,0.15) !important;
+    border-color: rgba(255,255,255,0.4) !important;
+  }
+
+  #kitchen-display select option {
+    background: var(--grey-900) !important;
+    color: white !important;
+  }
+
+  /* Label Styling */
+  #kitchen-display > div:first-child label,
+  .kitchen-header label,
+  .station-label {
+    color: rgba(255,255,255,0.8) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  /* Header Right Section */
+  #kitchen-display > div:first-child > div:last-child,
+  .kitchen-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Search Box */
+  #kitchen-display input[type="text"],
+  .search-input {
+    padding: 10px 16px !important;
+    border: 2px solid rgba(255,255,255,0.2) !important;
+    border-radius: 8px !important;
+    background: rgba(255,255,255,0.1) !important;
+    color: white !important;
+    font-size: 14px !important;
+    min-width: 250px !important;
+  }
+
+  #kitchen-display input[type="text"]::placeholder {
+    color: rgba(255,255,255,0.6) !important;
+  }
+
+  /* Header Buttons */
+  #kitchen-display > div:first-child button,
+  .kitchen-header button,
+  .icon-button,
+  .refresh-button {
+    padding: 10px 16px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    background: white !important;
+    color: var(--grey-900) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+  }
+
+  #kitchen-display > div:first-child button:hover,
+  .kitchen-header button:hover {
+    background: var(--grey-200) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+  }
+
+  /* ===== COLUMNS LAYOUT ===== */
+  .kitchen-columns {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 24px !important;
+    padding: 24px !important;
+    min-height: calc(100vh - 120px) !important;
+  }
+
+  /* ===== EACH COLUMN ===== */
+  .kitchen-column {
+    display: flex !important;
+    flex-direction: column !important;
+    background: white !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    transition: all 0.3s ease !important;
+  }
+
+  /* ===== COLUMN HEADERS ===== */
+  .kitchen-column > div:first-child,
+  .column-header {
+    padding: 24px 28px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-bottom: 4px solid !important;
+    font-weight: 700 !important;
+    background: white !important;
+  }
+
+  /* Queued Column */
+  .kitchen-column:nth-child(1) > div:first-child {
+    border-bottom-color: var(--orange) !important;
+  }
+
+  .kitchen-column:nth-child(1) > div:first-child > div:first-child,
+  .kitchen-column:nth-child(1) .column-title {
+    color: var(--orange) !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+  }
+
+  /* In Progress Column */
+  .kitchen-column:nth-child(2) > div:first-child {
+    border-bottom-color: var(--blue) !important;
+  }
+
+  .kitchen-column:nth-child(2) > div:first-child > div:first-child,
+  .kitchen-column:nth-child(2) .column-title {
+    color: var(--blue) !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+  }
+
+  /* Ready Column */
+  .kitchen-column:nth-child(3) > div:first-child {
+    border-bottom-color: var(--green) !important;
+  }
+
+  .kitchen-column:nth-child(3) > div:first-child > div:first-child,
+  .kitchen-column:nth-child(3) .column-title {
+    color: var(--green) !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+  }
+
+  /* Count Badge */
+  .kitchen-column > div:first-child > div:last-child,
+  .column-count {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    padding: 0 14px !important;
+    border-radius: 20px !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    color: white !important;
+  }
+
+  /* Queued Count Badge */
+  .kitchen-column:nth-child(1) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(1) .column-count {
+    background: var(--orange) !important;
+  }
+
+  /* In Progress Count Badge */
+  .kitchen-column:nth-child(2) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(2) .column-count {
+    background: var(--blue) !important;
+  }
+
+  /* Ready Count Badge */
+  .kitchen-column:nth-child(3) > div:first-child > div:last-child,
+  .kitchen-column:nth-child(3) .column-count {
+    background: var(--green) !important;
+  }
+
+  /* ===== COLUMN BODY ===== */
+  .kitchen-column > div:last-child,
+  .column-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 20px !important;
+    background: var(--grey-50) !important;
+  }
+
+  .kitchen-column > div:last-child::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .kitchen-column > div:last-child::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .kitchen-column > div:last-child::-webkit-scrollbar-thumb {
+    background: var(--grey-300);
+    border-radius: 6px;
+    border: 2px solid var(--grey-50);
+  }
+
+  .kitchen-column > div:last-child::-webkit-scrollbar-thumb:hover {
+    background: var(--grey-700);
+  }
+
+  /* ===== KOT CARDS ===== */
+  .kot-card {
+    background: white !important;
+    border-radius: 14px !important;
+    margin-bottom: 20px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+    overflow: hidden !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-left: 6px solid !important;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 500px !important;
+  }
+
+  .kot-card:hover {
+    box-shadow: 0 12px 32px rgba(0,0,0,0.18) !important;
+    transform: translateY(-6px) !important;
+  }
+
+  /* Card Border by Column */
+  .kitchen-column:nth-child(1) .kot-card {
+    border-left-color: var(--orange) !important;
+  }
+
+  .kitchen-column:nth-child(2) .kot-card {
+    border-left-color: var(--blue) !important;
+  }
+
+  .kitchen-column:nth-child(3) .kot-card {
+    border-left-color: var(--green) !important;
+  }
+
+  /* ===== CARD HEADER ===== */
+  .kot-card > div:first-child,
+  .kot-header {
+    padding: 16px 20px !important;
+    background: linear-gradient(to bottom, white, var(--grey-50)) !important;
+    border-bottom: 2px solid var(--grey-200) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* KOT Number */
+  .kot-card > div:first-child > div:first-child,
+  .kot-card h5,
+  .kot-id {
+    font-size: 22px !important;
+    font-weight: 900 !important;
+    color: var(--grey-900) !important;
+    margin: 0 0 10px 0 !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  /* Time Badge */
+  .kot-card > div:first-child > span:first-of-type,
+  .kot-time {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 6px 12px !important;
+    background: var(--orange) !important;
+    color: white !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border: none !important;
+    margin-bottom: 8px !important;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
+  }
+
+  /* Meta Info */
+  .kot-card > div:first-child > div:not(:first-child),
+  .kot-meta {
+    font-size: 12px !important;
+    line-height: 1.6 !important;
+    color: var(--grey-700) !important;
+  }
+
+  /* ===== CARD BODY - ITEMS ===== */
+  .kot-card > div:nth-child(2),
+  .kot-items {
+    padding: 12px 16px !important;
+    background: white !important;
+    overflow-y: auto !important;
+    max-height: 240px !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+  }
+
+  /* Custom Scrollbar for Items */
+  .kot-card > div:nth-child(2)::-webkit-scrollbar,
+  .kot-items::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .kot-card > div:nth-child(2)::-webkit-scrollbar-track,
+  .kot-items::-webkit-scrollbar-track {
+    background: var(--grey-100);
+    border-radius: 3px;
+  }
+
+  .kot-card > div:nth-child(2)::-webkit-scrollbar-thumb,
+  .kot-items::-webkit-scrollbar-thumb {
+    background: var(--grey-300);
+    border-radius: 3px;
+  }
+
+  .kot-card > div:nth-child(2)::-webkit-scrollbar-thumb:hover,
+  .kot-items::-webkit-scrollbar-thumb:hover {
+    background: var(--grey-700);
+  }
+
+  /* Item Row */
+  .kot-card > div:nth-child(2) > div,
+  .kot-item {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 12px 0 !important;
+    border-bottom: 1px dashed var(--grey-200) !important;
+  }
+
+  .kot-card > div:nth-child(2) > div:first-child {
+    padding-top: 0 !important;
+  }
+
+  .kot-card > div:nth-child(2) > div:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Quantity Badge */
+  .kot-card > div:nth-child(2) > div > div:first-child,
+  .kot-item-qty {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    background: linear-gradient(135deg, #1a1a1a 0%, var(--grey-700) 100%) !important;
+    color: white !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    flex-shrink: 0 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25) !important;
+  }
+
+  /* Item Details */
+  .kot-card > div:nth-child(2) > div > div:last-child,
+  .kot-item-details {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  /* Item Name */
+  .kot-card > div:nth-child(2) > div > div:last-child > div:first-child,
+  .kot-item-name {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: var(--grey-900) !important;
+    line-height: 1.4 !important;
+    margin-bottom: 4px !important;
+    word-wrap: break-word !important;
+  }
+
+  /* Item Notes */
+  .kot-card > div:nth-child(2) > div > div:last-child > div:not(:first-child),
+  .kot-item-note {
+    font-size: 12px !important;
+    color: var(--grey-700) !important;
+    margin-top: 4px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* ===== CARD FOOTER - ACTIONS ===== */
+  .kot-card > div:last-child,
+  .kot-actions {
+    padding: 12px 16px !important;
+    background: var(--grey-50) !important;
+    border-top: 2px solid var(--grey-200) !important;
+    display: flex !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Action Buttons */
+  .kot-card > div:last-child button,
+  .kot-action-btn {
+    flex: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 10px 16px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    cursor: pointer !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+  }
+
+  .kot-card > div:last-child button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  }
+
+  /* Primary Button (usually first button) */
+  .kot-card > div:last-child button:first-child {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+  }
+
+  /* Green button for Ready column */
+  .kitchen-column:nth-child(3) .kot-card > div:last-child button:first-child {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    color: white !important;
+  }
+
+  /* Icon Buttons (Print, Info) */
+  .kot-card > div:last-child button:not(:first-child) {
+    flex: 0 0 auto !important;
+    min-width: 44px !important;
+    padding: 10px !important;
+    background: white !important;
+    color: var(--grey-700) !important;
+    border: 2px solid var(--grey-300) !important;
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .column-empty,
+  .empty-column {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 60px 20px !important;
+    text-align: center !important;
+    color: var(--grey-300) !important;
+  }
+
+  .column-empty p {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-top: 12px !important;
+  }
+
+  /* ===== LOADING ===== */
+  .loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 60px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  }
+
+  .spinner {
+    width: 80px;
+    height: 80px;
+    border: 8px solid rgba(255,255,255,0.2);
+    border-top: 8px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 32px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-indicator p {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1200px) {
+    .kitchen-columns {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .kitchen-column:nth-child(3) {
+      grid-column: 1 / -1 !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .kitchen-columns {
+      grid-template-columns: 1fr !important;
+      padding: 16px !important;
+      gap: 16px !important;
+    }
+    
+    .kitchen-column:nth-child(3) {
+      grid-column: auto !important;
+    }
+
+    #kitchen-display > div:first-child,
+    .kitchen-header {
+      padding: 16px !important;
+    }
+
+    #kitchen-display > div:first-child h1,
+    .kitchen-header h1 {
+      font-size: 22px !important;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div id="kitchen-display"></div>
+<div id="kitchen-display">
+  <div class="loading-indicator">
+    <div class="spinner"></div>
+    <p>Memuat Kitchen Display...</p>
+  </div>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -23,7 +633,40 @@
   const DOMAIN = '{{ domain }}';
   const BRANDING = {{ branding | tojson }};
 </script>
+
 <script src="/assets/imogi_pos/js/nav.js"></script>
 <script src="/assets/imogi_pos/js/branch.js"></script>
-<script src="/assets/imogi_pos/www/kitchen_display/index.js"></script>
+<script src="/assets/imogi_pos/js/kitchen_display.js"></script>
+<script src="/assets/imogi_pos/js/fix_kitchen_display.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Kitchen Display: Starting...');
+    
+    setTimeout(function() {
+      if (typeof imogi_pos === 'undefined') {
+        console.error('❌ imogi_pos not found');
+        return;
+      }
+      
+      if (typeof imogi_pos.kitchen_display === 'undefined') {
+        console.error('❌ kitchen_display not found');
+        return;
+      }
+      
+      try {
+        imogi_pos.kitchen_display.init({
+          container: '#kitchen-display',
+          kitchenSelector: '#kitchen-selector',
+          stationSelector: '#station-selector',
+          refreshInterval: 30000
+        });
+        
+        console.log('✅ Kitchen Display initialized!');
+      } catch (err) {
+        console.error('❌ Init error:', err);
+      }
+    }, 300);
+  });
+</script>
 {% endblock %}

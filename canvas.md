@@ -148,7 +148,7 @@ Variant. Item tanpa variant dapat dipilih langsung.
 KOT Ticket / KOT Item
 •
 •
-Workflow: [Queued → Preparing → Ready → Served → Cancelled].
+Workflow: [Queued → In Progress → Ready → Served → Cancelled].
 Reprint audit: printer, copies, user, timestamp.
 Kitchen / Kitchen Station
 •
@@ -209,7 +209,7 @@ Line Notes: dapat diedit; tidak tampil di Table Bill.
 Kitchen Display (Desk Page) (Restaurant only)
 •
 •
-Kolom Queued/Preparing/Ready, aksi besar, SLA badge, Print/Reprint KOT per station.
+Kolom Queued/In Progress/Ready, aksi besar, SLA badge, Print/Reprint KOT per station.
 Line Notes tampil jelas di kartu item.
 5
 Waiter Order (Desk Page) (Restaurant only)
@@ -293,7 +293,7 @@ Attach Session: buat/ambil Self Order Session; attach ke POS Order yang open ata
 Add Items: Template → picker → replace; isi notes.
 Submit: Table mode → KOT; Takeaway → SI + Payment (gateway) → KOT → (optional) Receipt/
 Queue.
-Track: realtime status item Queued/Preparing/Ready ; token expiry menutup aksi.
+Track: realtime status item Queued/In Progress/Ready ; token expiry menutup aksi.
 Order QR (buka /so/) berbeda dari Payment QR (Xendit, dibawa via realtime).
 7) Printing (LAN + Bluetooth + OS)
 •
