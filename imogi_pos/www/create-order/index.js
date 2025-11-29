@@ -129,12 +129,20 @@ frappe.ready(async function () {
       "customer_phone",
       source.customer_phone || source.phone || source.mobile_no || source.mobile,
     );
+    maybeAssign(
+      "customer_identification",
+      source.customer_identification || source.identification_status,
+    );
 
-    const ageValue = source.customer_age ?? source.age;
-    if (ageValue !== undefined && ageValue !== null && ageValue !== "") {
-      const numeric = Number(ageValue);
-      if (Number.isFinite(numeric) && numeric >= 0) {
+    const ageValue =
+      source.customer_age ?? source.age ?? source.age_range ?? source.ageRange;
+    const ageText = toText(ageValue);
+    if (ageText) {
+      const numeric = Number(ageText);
+      if (Number.isFinite(numeric) && ageText === String(numeric) && numeric >= 0) {
         payload.customer_age = Math.round(numeric);
+      } else {
+        payload.customer_age = ageText;
       }
     }
 
@@ -185,6 +193,7 @@ frappe.ready(async function () {
       "customer_gender",
       "customer_phone",
       "customer_age",
+      "customer_identification",
     ];
     const fieldSource = {};
     fields.forEach((field) => {
@@ -505,6 +514,9 @@ frappe.ready(async function () {
       customerForm: document.getElementById("customer-info-form"),
       customerNameInput: document.getElementById("customer-name"),
       customerGenderSelect: document.getElementById("customer-gender"),
+      customerIdentificationSelect: document.getElementById(
+        "customer-identification",
+      ),
       customerPhoneInput: document.getElementById("customer-phone"),
       customerAgeInput: document.getElementById("customer-age"),
       customerSaveBtn: document.getElementById("btn-customer-save"),
@@ -941,13 +953,16 @@ frappe.ready(async function () {
       const customerInputs = [
         this.elements.customerNameInput,
         this.elements.customerPhoneInput,
-        this.elements.customerAgeInput,
       ];
       customerInputs.forEach((input) =>
         input?.addEventListener("input", () => this.clearCustomerInfoError())
       );
-      this.elements.customerGenderSelect?.addEventListener("change", () =>
-        this.clearCustomerInfoError()
+      [
+        this.elements.customerGenderSelect,
+        this.elements.customerAgeInput,
+        this.elements.customerIdentificationSelect,
+      ].forEach((select) =>
+        select?.addEventListener("change", () => this.clearCustomerInfoError())
       );
 
       // Payment modal
@@ -3242,6 +3257,9 @@ frappe.ready(async function () {
         this.elements.customerNameInput.value = info.name || "";
       if (this.elements.customerGenderSelect)
         this.elements.customerGenderSelect.value = info.gender || "";
+      if (this.elements.customerIdentificationSelect)
+        this.elements.customerIdentificationSelect.value =
+          info.customer_identification || "";
       if (this.elements.customerPhoneInput)
         this.elements.customerPhoneInput.value = info.phone || "";
       if (this.elements.customerAgeInput) {
@@ -3271,6 +3289,8 @@ frappe.ready(async function () {
         this.elements.customerAgeInput.value = "";
       if (this.elements.customerGenderSelect)
         this.elements.customerGenderSelect.value = "";
+      if (this.elements.customerIdentificationSelect)
+        this.elements.customerIdentificationSelect.value = "";
       this.renderCustomerSearchResults([]);
       this.setCustomerSearchStatus("");
       this.clearCustomerInfoError();
@@ -3403,6 +3423,9 @@ frappe.ready(async function () {
       if (this.customerInfo?.customerId) return this.customerInfo.customerId;
       if (!phone) return null;
 
+      const customerName =
+        (typeof name === "string" && name.trim()) || __("Guest Customer");
+
       try {
         const { message: results } = await frappe.call({
           method: "imogi_pos.api.customers.find_customer_by_phone",
@@ -3420,7 +3443,7 @@ frappe.ready(async function () {
         const { message: created } = await frappe.call({
           method: "imogi_pos.api.customers.quick_create_customer_with_contact",
           args: {
-            customer_name: name,
+            customer_name: customerName,
             mobile_no: phone,
           },
         });
@@ -3447,53 +3470,42 @@ frappe.ready(async function () {
       const name = (this.elements.customerNameInput?.value || "").trim();
       const gender = (this.elements.customerGenderSelect?.value || "").trim();
       const phone = (this.elements.customerPhoneInput?.value || "").trim();
-      const ageRaw = (this.elements.customerAgeInput?.value || "").trim();
-      const ageNumber = Number(ageRaw);
+      const ageRange = (this.elements.customerAgeInput?.value || "").trim();
+      const identification =
+        (this.elements.customerIdentificationSelect?.value || "").trim();
 
       this.clearCustomerInfoError();
 
-      if (!name) {
-        this.showCustomerInfoError(
-          __("Please enter the customer's name before continuing.")
-        );
-        this.elements.customerNameInput?.focus();
-        return;
-      }
-
       if (!gender) {
         this.showCustomerInfoError(
-          __("Please select the customer's gender before continuing.")
+          __("Please select the customer's gender before continuing."),
         );
         this.elements.customerGenderSelect?.focus();
         return;
       }
 
-      if (ageRaw === "") {
+      if (ageRange === "") {
         this.showCustomerInfoError(
-          __("Please enter the customer's age before continuing.")
+          __("Please select the customer's age range before continuing."),
         );
         this.elements.customerAgeInput?.focus();
         return;
       }
-
-      if (!Number.isFinite(ageNumber) || ageNumber < 0) {
-        this.showCustomerInfoError(
-          __("Please enter a valid age (0 or higher).")
-        );
-        this.elements.customerAgeInput?.focus();
-        this.elements.customerAgeInput?.select?.();
-        return;
-      }
-
-      const normalizedAge = Math.floor(ageNumber);
 
       this.customerInfo = {
-        name,
         gender,
         phone,
-        age: normalizedAge,
+        age: ageRange,
         customerId: this.customerInfo?.customerId || null,
       };
+
+      if (name) {
+        this.customerInfo.name = name;
+      }
+
+      if (identification) {
+        this.customerInfo.customer_identification = identification;
+      }
 
       try {
         const customerId = await this.ensureCustomerRecord({ name, phone });
