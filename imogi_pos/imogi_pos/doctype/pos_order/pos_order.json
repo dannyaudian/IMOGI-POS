@@ -13,7 +13,7 @@
         "order_type",
         "pos_profile",
         "customer",
-        "customer_full_name",
+        "customer_name",
         "customer_gender",
         "customer_phone",
         "customer_age",
@@ -82,10 +82,10 @@
             "options": "Customer"
         },
         {
-            "fieldname": "customer_full_name",
+            "fieldname": "customer_name",
             "fieldtype": "Data",
-            "label": "Customer Full Name",
-            "fetch_from": "customer.customer_full_name"
+            "label": "Customer Name",
+            "fetch_from": "customer.customer_name"
         },
         {
             "fieldname": "customer_gender",
