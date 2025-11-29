@@ -10,3 +10,4 @@ imogi_pos.patches.v1_1.create_cash_accounts
 imogi_pos.patches.add_cashier_session_ref
 
 imogi_pos.patches.v1_1.reload_restaurant_settings_discounts
+imogi_pos.patches.add_pos_order_customer_gender_column
