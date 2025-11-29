@@ -13,7 +13,7 @@
         "order_type",
         "pos_profile",
         "customer",
-        "customer_name",
+        "customer_full_name",
         "customer_gender",
         "customer_phone",
         "customer_age",
@@ -82,29 +82,25 @@
             "options": "Customer"
         },
         {
-            "fieldname": "customer_name",
+            "fieldname": "customer_full_name",
             "fieldtype": "Data",
-            "label": "Customer Name",
-            "fetch_from": "customer.customer_name"
+            "label": "Customer Full Name"
         },
         {
             "fieldname": "customer_gender",
             "fieldtype": "Select",
             "label": "Customer Gender",
-            "options": "Male\nFemale\nOther",
-            "fetch_from": "customer.customer_gender"
+            "options": "Male\nFemale\nOther"
         },
         {
             "fieldname": "customer_phone",
             "fieldtype": "Data",
-            "label": "Customer Phone",
-            "fetch_from": "customer.customer_phone"
+            "label": "Customer Phone"
         },
         {
             "fieldname": "customer_age",
             "fieldtype": "Int",
-            "label": "Customer Age",
-            "fetch_from": "customer.customer_age"
+            "label": "Customer Age"
         },
         {
             "fieldname": "column_break_7",
