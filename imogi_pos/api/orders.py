@@ -508,14 +508,11 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             if phone_value:
                 customer_details["customer_phone"] = phone_value
 
-            age_value = _coalesce(payload, ("customer_age", "age"))
-            if age_value not in (None, ""):
-                try:
-                    age_int = cint(age_value)
-                except Exception:
-                    age_int = None
-                if age_int is not None and age_int >= 0:
-                    customer_details["customer_age"] = age_int
+            age_value = _clean_text(
+                _coalesce(payload, ("customer_age", "age"))
+            )
+            if age_value:
+                customer_details["customer_age"] = age_value
 
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")
