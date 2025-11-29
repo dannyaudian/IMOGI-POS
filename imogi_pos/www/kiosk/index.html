@@ -372,6 +372,52 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   border-radius: 10px;
 }
 
+.customer-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.customer-search-row .btn-search {
+  padding: .65rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #f3f4f6;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.customer-search-status {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+}
+
+.customer-search-status.error {
+  color: var(--danger);
+}
+
+.customer-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-result {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  background: #fff;
+  cursor: pointer;
+  transition: .12s ease;
+}
+
+.customer-result:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-1);
+}
+
 .payment-modal .modal-container { width: min(680px, 92vw); }
 .payment-options { display: flex; gap: 10px; margin-bottom: 10px; }
 .payment-option {
@@ -885,6 +931,11 @@ button:disabled { opacity: .6; cursor: not-allowed; }
           <label for="customer-phone">{{ _("Phone Number") }}</label>
           <input type="tel" id="customer-phone" name="customer-phone" placeholder="{{ _("08XXXXXXXXXX") }}">
         </div>
+        <div class="customer-search-row">
+          <button type="button" class="btn-search" id="btn-customer-search">{{ _("Search by Phone") }}</button>
+          <div class="customer-search-status hidden" id="customer-search-status"></div>
+        </div>
+        <div class="customer-search-results hidden" id="customer-search-results"></div>
         <div class="form-field">
           <label for="customer-age">{{ _("Age") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
           <input
