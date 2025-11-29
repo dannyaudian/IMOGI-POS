@@ -50,6 +50,33 @@ def _set_flag(name, value):
             setattr(flags, name, value)
 
 
+def _apply_customer_metadata(customer, details):
+    """Persist provided customer demographics onto the Customer document when available."""
+
+    if not customer or not details or not isinstance(details, dict):
+        return
+
+    if not frappe.db.exists("Customer", customer):
+        return
+
+    allowed_fields = (
+        "customer_full_name",
+        "customer_gender",
+        "customer_phone",
+        "customer_age",
+        "customer_identification",
+    )
+
+    updates = {}
+    for field in allowed_fields:
+        value = details.get(field)
+        if value and frappe.db.has_column("Customer", field):
+            updates[field] = value
+
+    if updates:
+        frappe.db.set_value("Customer", customer, updates, update_modified=False)
+
+
 def user_can_apply_order_discounts(user=None):
     """Return True when the current session is allowed to apply manual discounts."""
 
@@ -582,6 +609,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 )
 
     order_doc.insert()
+    if customer_details:
+        _apply_customer_metadata(customer, customer_details)
     # Allow downstream apps to reserve or deduct stock before invoicing
     call_hook = getattr(frappe, "call_hook", None)
     if call_hook:
