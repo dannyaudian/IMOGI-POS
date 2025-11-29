@@ -514,6 +514,19 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             if age_value:
                 customer_details["customer_age"] = age_value
 
+            identification_value = _clean_text(
+                _coalesce(
+                    payload,
+                    (
+                        "customer_identification",
+                        "identification_status",
+                        "identification",
+                    ),
+                )
+            )
+            if identification_value:
+                customer_details["customer_identification"] = identification_value
+
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")
     order_doc.update(
