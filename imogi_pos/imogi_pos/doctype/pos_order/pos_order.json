@@ -99,8 +99,8 @@
         },
         {
             "fieldname": "customer_age",
-            "fieldtype": "Int",
-            "label": "Customer Age"
+            "fieldtype": "Data",
+            "label": "Age Range"
         },
         {
             "fieldname": "column_break_7",

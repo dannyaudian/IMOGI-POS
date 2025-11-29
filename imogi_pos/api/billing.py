@@ -876,14 +876,11 @@ def generate_invoice(
             if phone_value:
                 customer_details["customer_phone"] = phone_value
 
-            age_value = _coalesce(payload, ("customer_age", "age"))
-            if age_value not in (None, ""):
-                try:
-                    age_int = cint(age_value)
-                except Exception:
-                    age_int = None
-                if age_int is not None and age_int >= 0:
-                    customer_details["customer_age"] = age_int
+            age_value = _clean_text(
+                _coalesce(payload, ("customer_age", "age"))
+            )
+            if age_value:
+                customer_details["customer_age"] = age_value
 
     if customer_details:
         if hasattr(order_doc, "update") and callable(order_doc.update):

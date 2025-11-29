@@ -1202,8 +1202,8 @@
   },
   {
     "fieldname": "customer_age",
-    "fieldtype": "Int",
-    "label": "Customer Age",
+    "fieldtype": "Data",
+    "label": "Age Range",
     "insert_after": "customer_phone",
     "is_system_generated": 0,
     "module": "IMOGI POS",

@@ -272,7 +272,7 @@ def test_generate_invoice_copies_customer_metadata(billing_module):
         customer_full_name='Jane Doe',
         customer_gender='Female',
         customer_phone='08123',
-        customer_age=30,
+        customer_age='30 >',
     )
 
     class Profile:
@@ -315,7 +315,7 @@ def test_generate_invoice_copies_customer_metadata(billing_module):
         'customer_full_name': '  Jane Doe  ',
         'customer_gender': 'Female',
         'customer_phone': '08123',
-        'customer_age': '30'
+        'customer_age': '30 >'
     }
 
     result = billing.generate_invoice(
@@ -325,7 +325,7 @@ def test_generate_invoice_copies_customer_metadata(billing_module):
     assert result['customer_full_name'] == 'Jane Doe'
     assert result['customer_gender'] == 'Female'
     assert result['customer_phone'] == '08123'
-    assert result['customer_age'] == 30
+    assert result['customer_age'] == '30 >'
 
 
 def test_generate_invoice_populates_bom_components(billing_module):
