@@ -1222,5 +1222,29 @@
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
     "name": "Sales Invoice-customer_identification"
+  },
+  {
+    "fieldname": "customer_identification",
+    "fieldtype": "Select",
+    "label": "Customer Identification",
+    "options": "Berkeluarga\nTidak Berkeluarga",
+    "insert_after": "customer_name",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Customer",
+    "doctype": "Custom Field",
+    "name": "Customer-customer_identification"
+  },
+  {
+    "fieldname": "customer_age",
+    "fieldtype": "Select",
+    "label": "Age Range",
+    "options": "< 10\n11 - 19\n20 - 29\n30 >",
+    "insert_after": "customer_identification",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Customer",
+    "doctype": "Custom Field",
+    "name": "Customer-customer_age"
   }
 ]

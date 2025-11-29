@@ -99,8 +99,9 @@
         },
         {
             "fieldname": "customer_age",
-            "fieldtype": "Data",
-            "label": "Age Range"
+            "fieldtype": "Select",
+            "label": "Age Range",
+            "options": "< 10\n11 - 19\n20 - 29\n30 >"
         },
         {
             "fieldname": "customer_identification",
