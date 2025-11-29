@@ -370,8 +370,11 @@ frappe.ready(async function() {
             gender: '',
             phone: '',
             age: '',
+            customerId: null,
         },
         needsCustomerInfo: true,
+        customerSearchResults: [],
+        customerSearchLoading: false,
 
         // Element references
         elements: {
@@ -434,6 +437,9 @@ frappe.ready(async function() {
             customerSaveBtn: document.getElementById('btn-customer-save'),
             customerSkipBtn: document.getElementById('btn-customer-skip'),
             customerError: document.getElementById('customer-info-error'),
+            customerSearchBtn: document.getElementById('btn-customer-search'),
+            customerSearchStatus: document.getElementById('customer-search-status'),
+            customerSearchResults: document.getElementById('customer-search-results'),
             
             // Success modal
             successModal: document.getElementById('success-modal'),
@@ -883,6 +889,11 @@ frappe.ready(async function() {
             if (this.elements.customerSaveBtn) {
                 this.elements.customerSaveBtn.addEventListener('click', () => {
                     this.submitCustomerInfo();
+                });
+            }
+            if (this.elements.customerSearchBtn) {
+                this.elements.customerSearchBtn.addEventListener('click', () => {
+                    this.searchCustomerByPhone();
                 });
             }
             if (this.elements.customerSkipBtn) {
@@ -2957,9 +2968,12 @@ n
                     gender: '',
                     phone: '',
                     age: '',
+                    customerId: null,
                 };
                 this.needsCustomerInfo = true;
                 this.resetCustomerForm();
+                this.renderCustomerSearchResults([]);
+                this.setCustomerSearchStatus('');
             }
         },
 
@@ -3025,7 +3039,114 @@ n
             if (this.elements.customerGenderSelect) {
                 this.elements.customerGenderSelect.value = '';
             }
+            this.renderCustomerSearchResults([]);
+            this.setCustomerSearchStatus('');
             this.clearCustomerInfoError();
+        },
+
+        setCustomerSearchStatus: function(message, isError = false) {
+            const el = this.elements.customerSearchStatus;
+            if (!el) return;
+
+            el.textContent = message || '';
+            el.classList.toggle('error', Boolean(isError && message));
+            el.classList.toggle('hidden', !message);
+        },
+
+        renderCustomerSearchResults: function(results) {
+            const container = this.elements.customerSearchResults;
+            if (!container) return;
+
+            container.innerHTML = '';
+            const hasResults = Array.isArray(results) && results.length > 0;
+            container.classList.toggle('hidden', !hasResults);
+
+            if (!hasResults) return;
+
+            results.forEach((customer) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'customer-result';
+                button.dataset.customerId = customer.customer;
+                button.textContent = `${customer.customer_name || customer.customer} — ${
+                    customer.phone || customer.mobile_no || customer.mobile || ''
+                }`;
+                button.addEventListener('click', () => this.applyCustomerSelection(customer));
+                container.appendChild(button);
+            });
+        },
+
+        applyCustomerSelection: function(customerPayload) {
+            if (!customerPayload) return;
+
+            const currentInfo = this.customerInfo || {};
+            this.customerInfo = {
+                ...currentInfo,
+                name:
+                    customerPayload.customer_name ||
+                    customerPayload.name ||
+                    currentInfo.name ||
+                    '',
+                phone:
+                    customerPayload.phone ||
+                    customerPayload.mobile_no ||
+                    this.elements.customerPhoneInput?.value ||
+                    currentInfo.phone ||
+                    '',
+                customerId: customerPayload.customer || customerPayload.name || null,
+            };
+
+            this.populateCustomerForm();
+            this.setCustomerSearchStatus(
+                __('Using existing customer: {0}', [this.customerInfo.name || '-'])
+            );
+        },
+
+        searchCustomerByPhone: async function() {
+            if (this.customerSearchLoading) return;
+
+            const phone = (this.elements.customerPhoneInput?.value || '').trim();
+            if (!phone) {
+                this.showCustomerInfoError(__('Please enter a phone number to search for a customer.'));
+                this.elements.customerPhoneInput?.focus();
+                return;
+            }
+
+            this.customerSearchLoading = true;
+            this.elements.customerSearchBtn?.setAttribute('disabled', 'disabled');
+            this.setCustomerSearchStatus(__('Searching for customer...'));
+            this.clearCustomerInfoError();
+
+            try {
+                const { message: results } = await frappe.call({
+                    method: 'imogi_pos.api.customers.find_customer_by_phone',
+                    args: { phone },
+                });
+
+                const matches = Array.isArray(results) ? results : [];
+                this.customerSearchResults = matches;
+                this.renderCustomerSearchResults(matches);
+
+                if (!matches.length) {
+                    this.setCustomerSearchStatus(
+                        __('No matching customer found. A new customer will be created when you save.'),
+                    );
+                    return;
+                }
+
+                this.setCustomerSearchStatus(
+                    __('Found {0} matching customer(s).', [matches.length]),
+                );
+            } catch (error) {
+                console.error('Failed to search customer', error);
+                this.setCustomerSearchStatus('', false);
+                this.showCustomerInfoError(
+                    __('Unable to search customer. Please try again.'),
+                );
+            } finally {
+                this.customerSearchLoading = false;
+                this.elements.customerSearchBtn?.removeAttribute('disabled');
+            }
         },
 
         openCustomerModal: function() {
@@ -3046,7 +3167,51 @@ n
             }
         },
 
-        submitCustomerInfo: function() {
+        ensureCustomerRecord: async function({ name, phone }) {
+            if (this.customerInfo?.customerId) return this.customerInfo.customerId;
+            if (!phone) return null;
+
+            try {
+                const { message: results } = await frappe.call({
+                    method: 'imogi_pos.api.customers.find_customer_by_phone',
+                    args: { phone },
+                });
+
+                const matches = Array.isArray(results) ? results : [];
+                if (matches.length) {
+                    const selected = matches[0];
+                    this.applyCustomerSelection(selected);
+                    this.renderCustomerSearchResults(matches);
+                    return selected.customer;
+                }
+
+                const { message: created } = await frappe.call({
+                    method: 'imogi_pos.api.customers.quick_create_customer_with_contact',
+                    args: {
+                        customer_name: name,
+                        mobile_no: phone,
+                    },
+                });
+
+                if (created?.success && created.customer) {
+                    this.applyCustomerSelection(created.customer);
+                    this.renderCustomerSearchResults([]);
+                    return created.customer.customer;
+                }
+
+                if (created?.customer?.customer) {
+                    this.applyCustomerSelection(created.customer);
+                    return created.customer.customer;
+                }
+
+                throw new Error(created?.message || 'Unable to create customer');
+            } catch (error) {
+                console.error('Failed to resolve customer', error);
+                throw error;
+            }
+        },
+
+        submitCustomerInfo: async function() {
             const name = (this.elements.customerNameInput?.value || '').trim();
             const gender = (this.elements.customerGenderSelect?.value || '').trim();
             const phone = (this.elements.customerPhoneInput?.value || '').trim();
@@ -3087,7 +3252,19 @@ n
                 gender,
                 phone,
                 age: normalizedAge,
+                customerId: this.customerInfo?.customerId || null,
             };
+
+            try {
+                const customerId = await this.ensureCustomerRecord({ name, phone });
+                if (customerId) {
+                    this.customerInfo.customerId = customerId;
+                }
+            } catch (error) {
+                this.showCustomerInfoError(__('Failed to prepare customer record. Please try again.'));
+                return;
+            }
+
             this.needsCustomerInfo = false;
             this.closeCustomerModal();
             this.openPaymentModal();
@@ -3204,12 +3381,15 @@ n
             try {
                 // Create POS Order first
                 const totals = this.calculateTotals();
+                const resolvedCustomer =
+                    this.customerInfo?.customerId || 'Walk-in Customer';
+
                 const orderArgs = {
                     order_type: 'Kiosk',
                     service_type: this.orderType,
                     branch: CURRENT_BRANCH,
                     pos_profile: POS_PROFILE.name,
-                    customer: 'Walk-in Customer',
+                    customer: resolvedCustomer,
                     items: this.cart,
                     selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
                     discount_amount: totals.discountAmount,
@@ -3220,9 +3400,12 @@ n
                     orderArgs.table = this.tableNumber;
                 }
                 const collectedInfo = collectCustomerInfo();
-                this.customerInfo = collectedInfo || this.customerInfo;
-                const infoPayload = this.customerInfo;
-                if (infoPayload) {
+                if (collectedInfo) {
+                    this.customerInfo = { ...this.customerInfo, ...collectedInfo };
+                }
+                const infoPayload = { ...this.customerInfo };
+                delete infoPayload.customerId;
+                if (Object.keys(infoPayload).length) {
                     orderArgs.customer_info = { ...infoPayload };
                 }
                 const orderResponse = await frappe.call({
@@ -3521,12 +3704,15 @@ n
                 } else {
                     // Create POS Order and invoice
                     const totals = this.calculateTotals();
+                    const resolvedCustomer =
+                        this.customerInfo?.customerId || 'Walk-in Customer';
+
                     const orderArgs = {
                         order_type: 'Kiosk',
                         service_type: this.orderType,
                         branch: CURRENT_BRANCH,
                         pos_profile: POS_PROFILE.name,
-                        customer: 'Walk-in Customer',
+                        customer: resolvedCustomer,
                         items: this.cart,
                         selling_price_list: this.selectedPriceList || POS_PROFILE_DATA.selling_price_list || null,
                         discount_amount: totals.discountAmount,
@@ -3537,9 +3723,12 @@ n
                         orderArgs.table = this.tableNumber;
                     }
                     const collectedInfo = collectCustomerInfo();
-                    this.customerInfo = collectedInfo || this.customerInfo;
-                    const infoPayload = this.customerInfo;
-                    if (infoPayload) {
+                    if (collectedInfo) {
+                        this.customerInfo = { ...this.customerInfo, ...collectedInfo };
+                    }
+                    const infoPayload = { ...this.customerInfo };
+                    delete infoPayload.customerId;
+                    if (Object.keys(infoPayload).length) {
                         orderArgs.customer_info = { ...infoPayload };
                     }
                     const orderResponse = await frappe.call({
@@ -4057,9 +4246,12 @@ n
                 gender: '',
                 phone: '',
                 age: '',
+                customerId: null,
             };
             this.needsCustomerInfo = true;
             this.resetCustomerForm();
+            this.renderCustomerSearchResults([]);
+            this.setCustomerSearchStatus('');
 
             // Clear stored service type and redirect to selection page
             localStorage.removeItem('imogi_service_type');
