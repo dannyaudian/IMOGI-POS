@@ -81,6 +81,9 @@ def frappe_env(monkeypatch):
                 "customer_gender": getattr(self, "customer_gender", None),
                 "customer_phone": getattr(self, "customer_phone", None),
                 "customer_age": getattr(self, "customer_age", None),
+                "customer_identification": getattr(
+                    self, "customer_identification", None
+                ),
                 "discount_amount": getattr(self, "discount_amount", 0),
                 "discount_percent": getattr(self, "discount_percent", 0),
                 "promo_code": getattr(self, "promo_code", None),
@@ -346,6 +349,7 @@ def test_create_order_records_customer_info(frappe_env):
         "customer_gender": "Female",
         "customer_phone": "08123",
         "customer_age": "20 - 29",
+        "customer_identification": "Tidak Berkeluarga",
     }
 
     result = orders_module.create_order(
@@ -360,6 +364,7 @@ def test_create_order_records_customer_info(frappe_env):
     assert order.customer_gender == "Female"
     assert order.customer_phone == "08123"
     assert order.customer_age == "20 - 29"
+    assert order.customer_identification == "Tidak Berkeluarga"
     assert result["customer_full_name"] == "Jane Doe"
 
 def test_create_staff_order_accepts_string_discounts(frappe_env):

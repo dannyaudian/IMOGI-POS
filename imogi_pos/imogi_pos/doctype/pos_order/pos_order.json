@@ -103,6 +103,12 @@
             "label": "Age Range"
         },
         {
+            "fieldname": "customer_identification",
+            "fieldtype": "Select",
+            "label": "Customer Identification",
+            "options": "Berkeluarga\nTidak Berkeluarga"
+        },
+        {
             "fieldname": "column_break_7",
             "fieldtype": "Column Break"
         },

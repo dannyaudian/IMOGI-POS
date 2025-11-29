@@ -882,6 +882,19 @@ def generate_invoice(
             if age_value:
                 customer_details["customer_age"] = age_value
 
+            identification_value = _clean_text(
+                _coalesce(
+                    payload,
+                    (
+                        "customer_identification",
+                        "identification_status",
+                        "identification",
+                    ),
+                )
+            )
+            if identification_value:
+                customer_details["customer_identification"] = identification_value
+
     if customer_details:
         if hasattr(order_doc, "update") and callable(order_doc.update):
             order_doc.update(customer_details)
@@ -975,6 +988,7 @@ def generate_invoice(
             "customer_gender",
             "customer_phone",
             "customer_age",
+            "customer_identification",
         ):
             value = getattr(order_doc, fieldname, None)
             if value not in (None, ""):
