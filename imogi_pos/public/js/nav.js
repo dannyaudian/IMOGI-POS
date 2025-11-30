@@ -5,6 +5,33 @@
  * branch selection, and brand styling.
  */
 
+// Harmonise highlight.js usage across pages to avoid deprecated APIs
+// Frappe's website assets may still call `initHighlighting*`, which now logs
+// deprecation warnings. Alias these helpers to the modern `highlightAll`
+// when available so the browser console stays clean while keeping syntax
+// highlighting functional.
+(function patchHighlightJS() {
+    const applyPatch = () => {
+        if (!window.hljs || typeof window.hljs.highlightAll !== 'function') {
+            return;
+        }
+
+        if (window.hljs.__imogiPatched) {
+            return;
+        }
+
+        window.hljs.initHighlighting = () => window.hljs.highlightAll();
+        window.hljs.initHighlightingOnLoad = () => window.hljs.highlightAll();
+        window.hljs.__imogiPatched = true;
+    };
+
+    if (document.readyState === 'complete') {
+        applyPatch();
+    } else {
+        window.addEventListener('DOMContentLoaded', applyPatch, { once: true });
+    }
+})();
+
 const IMOGINav = {
     /**
      * Initialize navigation functionality
