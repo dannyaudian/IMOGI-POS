@@ -1860,7 +1860,7 @@ frappe.ready(async function() {
 
             let html = '';
             this.filteredItems.forEach(item => {
-                const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+                const imageUrl = item.photo || item.image || '/assets/imogi_pos/images/default-product-image.svg';
                 const isSoldOut = this.isItemSoldOut(item);
                 const cardClasses = ['item-card'];
                 if (isSoldOut) {
@@ -2534,7 +2534,7 @@ frappe.ready(async function() {
                 this.elements.itemDetailNotes.value = this.pendingNotes;
             }
 
-            const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+            const imageUrl = item.photo || item.image || '/assets/imogi_pos/images/default-product-image.svg';
             this.elements.itemDetailImage.style.backgroundImage = `url('${imageUrl}')`;
             this.elements.itemDetailModal.querySelector('.modal-title').textContent = item.item_name;
 
