@@ -50,6 +50,33 @@ def _set_flag(name, value):
             setattr(flags, name, value)
 
 
+def _apply_customer_metadata(customer, details):
+    """Persist provided customer demographics onto the Customer document when available."""
+
+    if not customer or not details or not isinstance(details, dict):
+        return
+
+    if not frappe.db.exists("Customer", customer):
+        return
+
+    allowed_fields = (
+        "customer_full_name",
+        "customer_gender",
+        "customer_phone",
+        "customer_age",
+        "customer_identification",
+    )
+
+    updates = {}
+    for field in allowed_fields:
+        value = details.get(field)
+        if value and frappe.db.has_column("Customer", field):
+            updates[field] = value
+
+    if updates:
+        frappe.db.set_value("Customer", customer, updates, update_modified=False)
+
+
 def user_can_apply_order_discounts(user=None):
     """Return True when the current session is allowed to apply manual discounts."""
 
@@ -508,14 +535,24 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             if phone_value:
                 customer_details["customer_phone"] = phone_value
 
-            age_value = _coalesce(payload, ("customer_age", "age"))
-            if age_value not in (None, ""):
-                try:
-                    age_int = cint(age_value)
-                except Exception:
-                    age_int = None
-                if age_int is not None and age_int >= 0:
-                    customer_details["customer_age"] = age_int
+            age_value = _clean_text(
+                _coalesce(payload, ("customer_age", "age"))
+            )
+            if age_value:
+                customer_details["customer_age"] = age_value
+
+            identification_value = _clean_text(
+                _coalesce(
+                    payload,
+                    (
+                        "customer_identification",
+                        "identification_status",
+                        "identification",
+                    ),
+                )
+            )
+            if identification_value:
+                customer_details["customer_identification"] = identification_value
 
     # Create POS Order document
     order_doc = frappe.new_doc("POS Order")
@@ -572,6 +609,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 )
 
     order_doc.insert()
+    if customer_details:
+        _apply_customer_metadata(customer, customer_details)
     # Allow downstream apps to reserve or deduct stock before invoicing
     call_hook = getattr(frappe, "call_hook", None)
     if call_hook:

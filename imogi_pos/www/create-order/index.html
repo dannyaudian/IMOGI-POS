@@ -1691,15 +1691,13 @@ button:disabled { opacity: .6; cursor: not-allowed; }
       <form class="customer-form" id="customer-info-form">
         <div class="customer-info-error hidden" id="customer-info-error"></div>
         <div class="form-field">
-          <label for="customer-name">{{ _("Name") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
+          <label for="customer-name">{{ _("Name") }}</label>
           <input
             type="text"
             id="customer-name"
             name="customer-name"
             placeholder="{{ _("Enter customer name") }}"
             autocomplete="name"
-            required
-            aria-required="true"
           >
         </div>
         <div class="form-field">
@@ -1718,6 +1716,18 @@ button:disabled { opacity: .6; cursor: not-allowed; }
           </select>
         </div>
         <div class="form-field">
+          <label for="customer-identification">{{ _("Customer Identification") }}</label>
+          <select
+            id="customer-identification"
+            name="customer-identification"
+            title="{{ _("Select the customer's identification status") }}"
+          >
+            <option value="">{{ _("Select identification") }}</option>
+            <option value="Berkeluarga">{{ _("Berkeluarga") }}</option>
+            <option value="Tidak Berkeluarga">{{ _("Tidak Berkeluarga") }}</option>
+          </select>
+        </div>
+        <div class="form-field">
           <label for="customer-phone">{{ _("Phone Number") }}</label>
           <input type="tel" id="customer-phone" name="customer-phone" placeholder="{{ _("08XXXXXXXXXX") }}">
         </div>
@@ -1727,19 +1737,20 @@ button:disabled { opacity: .6; cursor: not-allowed; }
         </div>
         <div class="customer-search-results hidden" id="customer-search-results"></div>
         <div class="form-field">
-          <label for="customer-age">{{ _("Age") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
-          <input
-            type="number"
+          <label for="customer-age">{{ _("Age Range") }}&nbsp;<span class="required-indicator" aria-hidden="true">*</span><span class="sr-only">{{ _("required") }}</span></label>
+          <select
             id="customer-age"
             name="customer-age"
-            min="0"
-            step="1"
-            inputmode="numeric"
-            placeholder="{{ _("Age in years") }}"
             required
             aria-required="true"
-            title="{{ _("Enter the customer's age in years (0 or higher)") }}"
+            title="{{ _("Select the customer's age range") }}"
           >
+            <option value="">{{ _("Select age range") }}</option>
+            <option value="< 10">{{ _("< 10") }}</option>
+            <option value="11 - 19">{{ _("11 - 19") }}</option>
+            <option value="20 - 29">{{ _("20 - 29") }}</option>
+            <option value="30 >">{{ _("30 >") }}</option>
+          </select>
         </div>
       </form>
     </div>
