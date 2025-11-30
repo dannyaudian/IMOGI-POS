@@ -958,7 +958,7 @@ frappe.ready(function() {
             let html = '';
             
             this.filteredItems.forEach(item => {
-                const imageUrl = item.photo || item.image || '/assets/erpnext/images/default-product-image.png';
+                const imageUrl = item.photo || item.image || '/assets/imogi_pos/images/default-product-image.svg';
                 const displayRate = this.getDisplayRateForItem(item);
                 const formattedPrice = `${CURRENCY_SYMBOL} ${formatNumber(Number.isFinite(displayRate) ? displayRate : 0)}`;
 

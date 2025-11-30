@@ -27,23 +27,25 @@ let BluetoothAdapter, BridgeAdapter, SpoolerAdapter, LANAdapter;
  *   script has not been detected yet. We only want to surface this when the
  *   adapters are actually required, not during initial page load.
  */
-function resolveBrowserAdapters(logMissing = false) {
+function resolveBrowserAdapters(logMissing = false, requiredInterfaces = null) {
     if (typeof window === 'undefined') {
         return;
     }
 
+    const requiredSet = requiredInterfaces ? new Set(requiredInterfaces) : null;
+
     const mappings = [
-        ['IMOGIPrintBluetoothAdapter', (Adapter) => { BluetoothAdapter = Adapter; }, 'Bluetooth adapter not detected. Include adapter_bluetooth.js'],
-        ['IMOGIPrintBridgeAdapter', (Adapter) => { BridgeAdapter = Adapter; }, 'Bridge adapter not detected. Include adapter_bridge.js'],
-        ['IMOGIPrintSpoolerAdapter', (Adapter) => { SpoolerAdapter = Adapter; }, 'Spooler adapter not detected. Include adapter_spool.js'],
-        ['IMOGIPrintLANAdapter', (Adapter) => { LANAdapter = Adapter; }, 'LAN adapter not detected. Include adapter_lan.js']
+        ['IMOGIPrintBluetoothAdapter', (Adapter) => { BluetoothAdapter = Adapter; }, 'Bluetooth adapter not detected. Include adapter_bluetooth.js', 'Bluetooth'],
+        ['IMOGIPrintBridgeAdapter', (Adapter) => { BridgeAdapter = Adapter; }, 'Bridge adapter not detected. Include adapter_bridge.js', 'Bridge'],
+        ['IMOGIPrintSpoolerAdapter', (Adapter) => { SpoolerAdapter = Adapter; }, 'Spooler adapter not detected. Include adapter_spool.js', 'OS'],
+        ['IMOGIPrintLANAdapter', (Adapter) => { LANAdapter = Adapter; }, 'LAN adapter not detected. Include adapter_lan.js', 'LAN']
     ];
 
-    mappings.forEach(([globalName, assign, missingMessage]) => {
+    mappings.forEach(([globalName, assign, missingMessage, interfaceType]) => {
         const AdapterClass = window[globalName];
         if (AdapterClass) {
             assign(AdapterClass);
-        } else if (logMissing) {
+        } else if (logMissing && (!requiredSet || requiredSet.has(interfaceType))) {
             console.warn(`IMOGI Print Service: ${missingMessage}`);
         }
     });
@@ -220,7 +222,7 @@ const IMOGIPrintService = {
      * @returns {string} Selected interface
      */
     selectAdapter: function(interfaceType, config = {}) {
-        resolveBrowserAdapters(true);
+        resolveBrowserAdapters(true, [interfaceType]);
 
         // Clear current adapter
         if (this.currentAdapter && typeof this.currentAdapter.disconnect === 'function') {

@@ -2126,7 +2126,7 @@ frappe.ready(async function () {
         const imageUrl =
           item.photo ||
           item.image ||
-          "/assets/erpnext/images/default-product-image.png";
+          "/assets/imogi_pos/images/default-product-image.svg";
         const isSoldOut = this.isItemSoldOut(item);
         const cardClasses = ["item-card"];
         if (isSoldOut) cardClasses.push("sold-out");
@@ -2746,7 +2746,7 @@ frappe.ready(async function () {
         this.elements.itemDetailNotes.value = this.pendingNotes;
 
       const imageUrl =
-        item.photo || item.image || "/assets/erpnext/images/default-product-image.png";
+        item.photo || item.image || "/assets/imogi_pos/images/default-product-image.svg";
       if (this.elements.itemDetailImage) {
         this.elements.itemDetailImage.style.backgroundImage = `url('${imageUrl}')`;
       }
