@@ -213,23 +213,44 @@ imogi_pos.kiosk = {
                         }
                         
                         // Set printer settings
+                        const printerInterface = profile.imogi_printer_cashier_interface || 'OS';
+                        const interfaceConfig = {};
+
+                        if (printerInterface === 'LAN') {
+                            interfaceConfig.adapter_config = {
+                                host: profile.imogi_printer_cashier || '',
+                                port: profile.imogi_printer_port || 9100
+                            };
+                        } else if (printerInterface === 'Bluetooth') {
+                            interfaceConfig.deviceName = profile.imogi_bt_cashier_device_name || profile.imogi_printer_cashier || '';
+                            interfaceConfig.adapter_config = {
+                                device_name: profile.imogi_bt_cashier_device_name || '',
+                                vendor_profile: profile.imogi_bt_cashier_vendor_profile || 'ESC/POS',
+                                retry_count: profile.imogi_bt_retry || 2
+                            };
+
+                            if (profile.imogi_print_bridge_url) {
+                                interfaceConfig.adapter_config.bridge_url = profile.imogi_print_bridge_url;
+                                interfaceConfig.adapter_config.bridge_token = profile.imogi_print_bridge_token;
+                            }
+                        }
+
                         this.settings.printerSettings = {
-                            interface: profile.imogi_printer_cashier_interface || 'OS',
+                            interface: printerInterface,
                             printerName: profile.imogi_printer_cashier || '',
                             receiptFormat: profile.imogi_receipt_format || 'POS Receipt',
                             queueFormat: profile.imogi_queue_format || 'Queue Ticket',
                             printNotesOnReceipt: profile.imogi_print_notes_on_kiosk_receipt !== 0
                         };
-                        
+
                         // Load print service if available
                         if (window.IMOGIPrintService) {
                             IMOGIPrintService.init({
-                                defaultInterface: this.settings.printerSettings.interface,
+                                defaultInterface: printerInterface,
                                 interfaces: {
-                                    [this.settings.printerSettings.interface]: {
-                                        deviceName: this.settings.printerSettings.printerName
-                                    }
-                                }
+                                    [printerInterface]: interfaceConfig
+                                },
+                                autoDetect: false
                             });
                         }
                         
