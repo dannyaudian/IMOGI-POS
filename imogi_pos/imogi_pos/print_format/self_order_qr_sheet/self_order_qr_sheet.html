@@ -1,0 +1,39 @@
+<div class="qr-sheet">
+    <div class="qr-header">
+        {% set company = frappe.db.get_value("Company", frappe.defaults.get_user_default("company"), "company_name") %}
+        <h2>{{ company }}</h2>
+        <h3>SELF ORDER</h3>
+    </div>
+    <div class="qr-container">
+        {% if doc.qr_slug %}
+        {% set qr_url = frappe.utils.get_url() + '/so/' + doc.qr_slug %}
+        <div class="qr-code">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ qr_url | urlencode }}" alt="QR Code">
+        </div>
+        <div class="qr-info">
+            <h3>Table {{ doc.name }}</h3>
+            <p>Floor: {{ doc.floor }}</p>
+            <p>Scan to Order</p>
+            <p class="small-text">{{ qr_url }}</p>
+        </div>
+        {% else %}
+        <div class="error-message">
+            <p>No QR code available for this table.</p>
+            <p>Please generate a QR slug first.</p>
+        </div>
+        {% endif %}
+    </div>
+    <div class="qr-instructions">
+        <h4>How to Order:</h4>
+        <ol>
+            <li>Scan the QR code with your phone camera</li>
+            <li>Browse the menu and add items to your cart</li>
+            <li>Submit your order</li>
+            <li>Wait for your order to be served</li>
+        </ol>
+    </div>
+    <div class="qr-footer">
+        <p>For assistance, please ask our staff</p>
+        <p>{{ frappe.utils.now_datetime().strftime("%Y-%m-%d") }}</p>
+    </div>
+</div>

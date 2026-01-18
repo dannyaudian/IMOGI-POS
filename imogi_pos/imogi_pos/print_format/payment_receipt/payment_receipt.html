@@ -1,0 +1,148 @@
+<div class="payment-receipt">
+    {% set branch_address = "" %}
+    {% if doc.branch %}
+        {% set branch = frappe.get_cached_doc("Branch", doc.branch) %}
+        {% if branch %}
+            {% set branch_address_candidate = branch.get("branch_address") %}
+            {% if branch_address_candidate %}
+                {% if frappe.db.exists("Address", branch_address_candidate) %}
+                    {% set branch_address_doc = frappe.get_cached_doc("Address", branch_address_candidate).as_dict() %}
+                    {% set branch_address = frappe.utils.get_address_display(branch_address_doc) or branch_address_candidate %}
+                {% else %}
+                    {% set branch_address = branch_address_candidate %}
+                {% endif %}
+            {% endif %}
+            {% if not branch_address %}
+                {% set branch_address_candidate = branch.get("address") %}
+                {% if branch_address_candidate %}
+                    {% if frappe.db.exists("Address", branch_address_candidate) %}
+                        {% set branch_address_doc = frappe.get_cached_doc("Address", branch_address_candidate).as_dict() %}
+                        {% set branch_address = frappe.utils.get_address_display(branch_address_doc) or branch_address_candidate %}
+                    {% else %}
+                        {% set branch_address = branch_address_candidate %}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+            {% if not branch_address %}
+                {% set branch_address_candidate = branch.get("default_address") %}
+                {% if branch_address_candidate and frappe.db.exists("Address", branch_address_candidate) %}
+                    {% set branch_address_doc = frappe.get_cached_doc("Address", branch_address_candidate).as_dict() %}
+                    {% set branch_address = frappe.utils.get_address_display(branch_address_doc) or branch_address_candidate %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    {% if not branch_address %}
+        {% set company = frappe.get_cached_doc("Company", doc.company) %}
+        {% if company %}
+            {% set company_address_candidate = company.get("default_address") %}
+            {% if company_address_candidate and frappe.db.exists("Address", company_address_candidate) %}
+                {% set company_address_doc = frappe.get_cached_doc("Address", company_address_candidate).as_dict() %}
+                {% set branch_address = frappe.utils.get_address_display(company_address_doc) or company_address_candidate %}
+            {% endif %}
+            {% if not branch_address %}
+                {% set company_address_candidate = company.get("company_address") %}
+                {% if company_address_candidate %}
+                    {% if frappe.db.exists("Address", company_address_candidate) %}
+                        {% set company_address_doc = frappe.get_cached_doc("Address", company_address_candidate).as_dict() %}
+                        {% set branch_address = frappe.utils.get_address_display(company_address_doc) or company_address_candidate %}
+                    {% else %}
+                        {% set branch_address = company_address_candidate %}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+            {% if not branch_address %}
+                {% set company_address_candidate = company.get("address") %}
+                {% if company_address_candidate %}
+                    {% if frappe.db.exists("Address", company_address_candidate) %}
+                        {% set company_address_doc = frappe.get_cached_doc("Address", company_address_candidate).as_dict() %}
+                        {% set branch_address = frappe.utils.get_address_display(company_address_doc) or company_address_candidate %}
+                    {% else %}
+                        {% set branch_address = company_address_candidate %}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+    <div class="receipt-header">
+        <h2>{{ doc.company }}</h2>
+        <p>{{ branch_address }}</p>
+        <h3>PAYMENT RECEIPT</h3>
+        <p>Receipt #: {{ doc.name }}</p>
+        <p>Date: {{ frappe.utils.formatdate(doc.posting_date) }}</p>
+        <p>Time: {{ frappe.utils.formatdate(doc.posting_time, "hh:mm:ss") }}</p>
+        {% if doc.customer_name %}
+        <p>Customer: {{ doc.customer_name }}</p>
+        {% endif %}
+    </div>
+    <div class="receipt-items">
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in doc.items %}
+                <tr>
+                    <td>{{ item.item_name }}
+                    {% if item.description and "Counter" in doc.pos_profile or "Kiosk" in doc.pos_profile %}
+                    <br><small>{{ item.description }}</small>
+                    {% endif %}
+                    </td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="receipt-summary">
+        <table class="table table-condensed">
+            <tr>
+                <td>Subtotal</td>
+                <td>{{ frappe.utils.fmt_money(doc.total, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td>PB1</td>
+                <td>{{ frappe.utils.fmt_money(doc.total * 0.11, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td>Diskon</td>
+                <td>{{ frappe.utils.fmt_money(doc.discount_amount or 0, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Total</strong></td>
+                <td><strong>{{ frappe.utils.fmt_money(doc.total + (doc.total * 0.11) - (doc.discount_amount or 0), currency=doc.currency) }}</strong></td>
+            </tr>
+        </table>
+    </div>
+    <div class="payment-details">
+        <h4>Payment Details</h4>
+        <table class="table table-condensed">
+            {% for payment in doc.payments %}
+            <tr>
+                <td>{{ payment.mode_of_payment }}</td>
+                <td>{{ frappe.utils.fmt_money(payment.amount, currency=doc.currency) }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td><strong>Paid Amount</strong></td>
+                <td><strong>{{ frappe.utils.fmt_money(doc.paid_amount, currency=doc.currency) }}</strong></td>
+            </tr>
+            {% if doc.change_amount %}
+            <tr>
+                <td>Change</td>
+                <td>{{ frappe.utils.fmt_money(doc.change_amount, currency=doc.currency) }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+    <div class="receipt-footer">
+        <p>Thank you for your purchase!</p>
+        <p>POS Session: {{ doc.pos_session or "" }}</p>
+        <p>Cashier: {{ frappe.db.get_value("User", doc.owner, "full_name") }}</p>
+    </div>
+</div>

@@ -1,6 +1,72 @@
 """Installation helpers for IMOGI POS."""
 
+import os
+import json
 import frappe
+
+
+def after_install():
+    """Run all post-installation tasks."""
+    sync_pages()
+    create_cash_accounts()
+
+
+def after_migrate():
+    """Run all post-migration tasks."""
+    sync_pages()
+    create_cash_accounts()
+
+
+def sync_pages():
+    """Sync Page doctypes from the pages folder.
+
+    Pages require developer mode to be created normally, but we need them
+    in production. This function bypasses that check by using internal flags.
+    """
+    app_path = frappe.get_app_path("imogi_pos")
+    pages_path = os.path.join(app_path, "pages")
+
+    if not os.path.exists(pages_path):
+        return
+
+    for page_folder in os.listdir(pages_path):
+        # Skip non-page folders
+        if page_folder.startswith("_"):
+            continue
+
+        page_path = os.path.join(pages_path, page_folder)
+        if not os.path.isdir(page_path):
+            continue
+
+        json_file = os.path.join(page_path, f"{page_folder}.json")
+        if not os.path.exists(json_file):
+            continue
+
+        with open(json_file, "r") as f:
+            page_data = json.load(f)
+
+        page_name = page_data.get("name")
+        if not page_name:
+            continue
+
+        # Check if page already exists
+        if frappe.db.exists("Page", page_name):
+            # Update existing page
+            existing = frappe.get_doc("Page", page_name)
+            for key, value in page_data.items():
+                if key not in ("doctype", "name", "creation", "modified", "modified_by", "owner"):
+                    setattr(existing, key, value)
+            existing.flags.ignore_validate = True
+            existing.flags.ignore_permissions = True
+            existing.save()
+        else:
+            # Create new page with bypass flags
+            page_doc = frappe.get_doc(page_data)
+            page_doc.flags.ignore_validate = True
+            page_doc.flags.ignore_permissions = True
+            page_doc.insert()
+
+        frappe.db.commit()
 
 
 def create_cash_accounts():

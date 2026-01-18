@@ -1,0 +1,57 @@
+<div class="customer-bill">
+    <div class="bill-header">
+        <h2>{{ doc.company }}</h2>
+        <p>{{ frappe.db.get_value("Company", doc.company, "address") or "" }}</p>
+        <h3>CUSTOMER BILL</h3>
+        <p>Order #: {{ doc.imogi_pos_order or "" }}</p>
+        <p>Table: {{ doc.table or "Takeaway" }}</p>
+        <p>Date: {{ frappe.utils.formatdate(doc.posting_date) }}</p>
+        <p>Time: {{ frappe.utils.formatdate(doc.posting_time, "hh:mm:ss") }}</p>
+    </div>
+    <div class="bill-items">
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in doc.items %}
+                <tr>
+                    <td>{{ item.item_name }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ frappe.utils.fmt_money(item.rate, currency=doc.currency) }}</td>
+                    <td>{{ frappe.utils.fmt_money(item.amount, currency=doc.currency) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="bill-summary">
+        <table class="table table-condensed">
+            <tr>
+                <td>Subtotal</td>
+                <td>{{ frappe.utils.fmt_money(doc.total, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td>PB1</td>
+                <td>{{ frappe.utils.fmt_money(doc.total * 0.11, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td>Diskon</td>
+                <td>{{ frappe.utils.fmt_money(doc.discount_amount or 0, currency=doc.currency) }}</td>
+            </tr>
+            <tr>
+                <td><strong>Total</strong></td>
+                <td><strong>{{ frappe.utils.fmt_money(doc.total + (doc.total * 0.11) - (doc.discount_amount or 0), currency=doc.currency) }}</strong></td>
+            </tr>
+        </table>
+    </div>
+    <div class="bill-footer">
+        <p>This is not a tax invoice</p>
+        <p>Please ask for payment receipt at cashier</p>
+    </div>
+</div>

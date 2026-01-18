@@ -84,10 +84,8 @@ fixtures = [
     {"dt": "Workflow", "filters": [["name", "in", ["IMOGI POS Order Workflow", "IMOGI KOT Ticket Workflow"]]]},
     {"dt": "Workflow State", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Workflow Action Master", "filters": [["module", "=", "IMOGI POS"]]},
-    {"dt": "Print Format", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Item Attribute", "filters": [["name", "=", "Doneness"]]},
-    {"dt": "Workspace", "filters": [["name", "like", "IMOGI POS%"]]},
-    {"dt": "Page", "filters": [["module", "=", "IMOGI POS"]]}
+    {"dt": "Workspace", "filters": [["module", "=", "IMOGI POS"]]},
 ]
 
 scheduler_events = {
@@ -106,5 +104,5 @@ jinja = {
     ]
 }
 
-after_install = "imogi_pos.setup.install.create_cash_accounts"
-after_migrate = "imogi_pos.setup.install.create_cash_accounts"
+after_install = "imogi_pos.setup.install.after_install"
+after_migrate = "imogi_pos.setup.install.after_migrate"

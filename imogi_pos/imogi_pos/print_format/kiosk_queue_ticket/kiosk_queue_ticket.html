@@ -1,0 +1,24 @@
+<div class="queue-ticket">
+    <div class="ticket-header">
+        <h2>{{ frappe.db.get_value("Company", frappe.defaults.get_user_default("company"), "company_name") }}</h2>
+        <h1 class="queue-number">{{ doc.name.split("-")[-1] }}</h1>
+        <h3>ORDER NUMBER</h3>
+    </div>
+    <div class="ticket-info">
+        <p>Date: {{ frappe.utils.formatdate(doc.creation, "medium") }}</p>
+        <p>Time: {{ frappe.utils.formatdate(doc.creation, "hh:mm:ss") }}</p>
+        <p>Items: {{ doc.items|length }}</p>
+    </div>
+    <div class="ticket-items">
+        <ul>
+            {% for item in doc.items %}
+            <li>{{ item.qty }} x {{ item.item_name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="ticket-footer">
+        <p>Please wait for your number to be called</p>
+        <p>Order Status: {{ doc.workflow_state }}</p>
+        <p>Estimated Wait: {% if doc.items|length <= 3 %}5-10 min{% elif doc.items|length <= 6 %}10-15 min{% else %}15-20 min{% endif %}</p>
+    </div>
+</div>
