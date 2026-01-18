@@ -1,0 +1,314 @@
+[
+  {
+    "doctype": "Workflow",
+    "workflow_name": "IMOGI KOT Ticket",
+    "name": "IMOGI KOT Ticket",
+    "document_type": "KOT Ticket",
+    "is_active": 1,
+    "override_status": 0,
+    "send_email_alert": 0,
+    "workflow_state_field": "workflow_state",
+    "states": [
+      {
+        "state": "Queued",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Primary"
+      },
+      {
+        "state": "In Progress",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Warning"
+      },
+      {
+        "state": "Ready",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Success"
+      },
+      {
+        "state": "Served",
+        "doc_status": 1,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Default"
+      },
+      {
+        "state": "Cancelled",
+        "doc_status": 2,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Danger"
+      }
+    ],
+    "transitions": [
+      {
+        "state": "Queued",
+        "action": "Start Preparing",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Queued",
+        "action": "Start Preparing",
+        "next_state": "In Progress",
+        "allowed": "Kitchen Staff",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Ready",
+        "next_state": "Ready",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Ready",
+        "next_state": "Ready",
+        "allowed": "Kitchen Staff",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Waiter",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Waiter",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Queued",
+        "action": "Cancel",
+        "next_state": "Cancelled",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Cancel",
+        "next_state": "Cancelled",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Return to Queue",
+        "next_state": "Queued",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Return to Queue",
+        "next_state": "Queued",
+        "allowed": "Kitchen Staff",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Return to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Return to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Kitchen Staff",
+        "allow_self_approval": 1,
+        "condition": ""
+      }
+    ]
+  },
+  {
+    "doctype": "Workflow",
+    "workflow_name": "IMOGI POS Order",
+    "name": "IMOGI POS Order",
+    "document_type": "POS Order",
+    "is_active": 1,
+    "override_status": 0,
+    "send_email_alert": 0,
+    "workflow_state_field": "workflow_state",
+    "states": [
+      {
+        "state": "Draft",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Primary"
+      },
+      {
+        "state": "In Progress",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Warning"
+      },
+      {
+        "state": "Ready",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Success"
+      },
+      {
+        "state": "Served",
+        "doc_status": 0,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Success"
+      },
+      {
+        "state": "Closed",
+        "doc_status": 1,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Default"
+      },
+      {
+        "state": "Cancelled",
+        "doc_status": 2,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Danger"
+      },
+      {
+        "state": "Returned",
+        "doc_status": 2,
+        "allow_edit": "Restaurant Manager",
+        "is_optional_state": 0,
+        "update_field": "",
+        "update_value": "",
+        "style": "Danger"
+      }
+    ],
+    "transitions": [
+      {
+        "state": "Draft",
+        "action": "Send to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Ready",
+        "next_state": "Ready",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "In Progress",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Served",
+        "action": "Close Order",
+        "next_state": "Closed",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Draft",
+        "action": "Cancel",
+        "next_state": "Cancelled",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Ready",
+        "action": "Return to Kitchen",
+        "next_state": "In Progress",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      },
+      {
+        "state": "Served",
+        "action": "Return",
+        "next_state": "Returned",
+        "allowed": "Restaurant Manager",
+        "allow_self_approval": 1,
+        "condition": ""
+      }
+    ]
+  }
+]
