@@ -82,10 +82,15 @@ def get_display_device(device_id):
         if not device_id or device_id == "unregistered":
             return None
 
+        # Check if DocType exists before querying
+        if not frappe.db.exists("DocType", "Customer Display Device"):
+            return None
+
         display_device = frappe.get_all(
             "Customer Display Device",
             filters={"device_id": device_id, "status": "Active"},
             fields=["name", "device_id", "profile", "layout", "blocks", "last_heartbeat"],
+            ignore_permissions=True
         )
 
         if not display_device:
@@ -111,10 +116,15 @@ def get_display_device(device_id):
 def get_linked_order(device_id):
     """Get order linked to this display device."""
     try:
+        # Check if DocType exists before querying
+        if not frappe.db.exists("DocType", "Customer Display Link"):
+            return None
+            
         link = frappe.get_all(
             "Customer Display Link",
             filters={"device_id": device_id, "status": "Active"},
             fields=["pos_order", "creation"],
+            ignore_permissions=True
         )
 
         if not link:
@@ -208,11 +218,16 @@ def get_ticker_message():
 def get_promotional_content():
     """Get promotional content/ads for the display."""
     try:
+        # Check if DocType exists before querying
+        if not frappe.db.exists("DocType", "Customer Display Content"):
+            return []
+            
         promotions = frappe.get_all(
             "Customer Display Content",
             filters={"status": "Active", "content_type": "Promotion"},
             fields=["title", "content", "image", "sequence"],
             order_by="sequence",
+            ignore_permissions=True
         )
 
         return promotions

@@ -9,18 +9,24 @@ from imogi_pos.utils.branding import (
 
 def get_context(context):
     """Context builder for table layout editor page."""
-    if frappe.session.user == "Guest":
+    try:
+        if frappe.session.user == "Guest":
+            raise frappe.Redirect("/imogi-login?redirect=/table_layout_editor")
+
+        pos_profile = get_pos_profile()
+        context.pos_profile = pos_profile
+
+        context.branding = get_branding_info(pos_profile)
+        context.branch = get_current_branch(pos_profile)
+        context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
+        context.title = _("Table Layout Editor")
+
+        return context
+    except frappe.Redirect:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Error in table_layout_editor get_context: {str(e)}")
         raise frappe.Redirect("/imogi-login?redirect=/table_layout_editor")
-
-    pos_profile = get_pos_profile()
-    context.pos_profile = pos_profile
-
-    context.branding = get_branding_info(pos_profile)
-    context.branch = get_current_branch(pos_profile)
-    context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
-    context.title = _("Table Layout Editor")
-
-    return context
 
 
 def get_pos_profile():

@@ -10,22 +10,29 @@ from imogi_pos.utils.restaurant_settings import get_default_branch
 
 def get_context(context):
     """Context builder for kitchen display page."""
-    if frappe.session.user == "Guest":
+    try:
+        if frappe.session.user == "Guest":
+            raise frappe.Redirect("/imogi-login?redirect=/kitchen_display")
+
+        pos_profile = get_pos_profile()
+        context.pos_profile = pos_profile
+
+        context.branding = get_branding_info(pos_profile)
+
+        branch = get_current_branch(pos_profile)
+        if not branch:
+            branch = get_default_branch()
+        context.branch = branch
+        context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
+        context.title = _("Kitchen Display")
+
+        return context
+    except frappe.Redirect:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Error in kitchen_display get_context: {str(e)}")
+        # Redirect to login on any error
         raise frappe.Redirect("/imogi-login?redirect=/kitchen_display")
-
-    pos_profile = get_pos_profile()
-    context.pos_profile = pos_profile
-
-    context.branding = get_branding_info(pos_profile)
-
-    branch = get_current_branch(pos_profile)
-    if not branch:
-        branch = get_default_branch()
-    context.branch = branch
-    context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
-    context.title = _("Kitchen Display")
-
-    return context
 
 
 def get_pos_profile():

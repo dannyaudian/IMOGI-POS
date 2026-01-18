@@ -13,12 +13,13 @@ from imogi_pos.api.queue import get_next_queue_number
 
 def get_context(context):
     """Get context for kiosk page."""
-    context.title = _("IMOGI POS Kiosk")
-    
-    # Check if guest access is allowed or user is logged in
-    allow_guest = check_guest_access()
-    if frappe.session.user == "Guest" and not allow_guest:
-        raise frappe.Redirect("/imogi-login?redirect=/create-order")
+    try:
+        context.title = _("IMOGI POS Kiosk")
+        
+        # Check if guest access is allowed or user is logged in
+        allow_guest = check_guest_access()
+        if frappe.session.user == "Guest" and not allow_guest:
+            raise frappe.Redirect("/imogi-login?redirect=/create-order")
     
     # Get POS Profile for kiosk mode
     pos_profile = get_pos_profile()
@@ -102,7 +103,12 @@ def get_context(context):
         get_next_queue_number(context.branch) if context.branch else 1
     )
 
-    return context
+        return context
+    except frappe.Redirect:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Error in create-order get_context: {str(e)}")
+        raise frappe.Redirect("/imogi-login?redirect=/create-order")
 
 def get_pos_profile():
     """Get appropriate POS profile for kiosk mode."""
