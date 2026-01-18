@@ -24,8 +24,6 @@ class TableLayoutEditor {
 	init() {
 		this.setup_page_actions();
 		this.render();
-		this.load_profiles();
-		this.bind_events();
 	}
 
 	setup_page_actions() {
@@ -38,6 +36,8 @@ class TableLayoutEditor {
 		frappe.require('page/table_layout_editor/table_layout_editor.html', () => {
 			this.wrapper.html(frappe.render_template('table_layout_editor'));
 			this.setup_components();
+			this.load_profiles();
+			this.bind_events();
 		});
 	}
 

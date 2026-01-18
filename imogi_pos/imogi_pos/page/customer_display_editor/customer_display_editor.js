@@ -23,8 +23,6 @@ class CustomerDisplayEditor {
 	init() {
 		this.setup_page_actions();
 		this.render();
-		this.load_profiles();
-		this.bind_events();
 	}
 
 	setup_page_actions() {
@@ -37,6 +35,8 @@ class CustomerDisplayEditor {
 		frappe.require('page/customer_display_editor/customer_display_editor.html', () => {
 			this.wrapper.html(frappe.render_template('customer_display_editor'));
 			this.setup_components();
+			this.load_profiles();
+			this.bind_events();
 		});
 	}
 

@@ -23,8 +23,6 @@ class WaiterOrder {
 	init() {
 		this.parse_route_params();
 		this.render();
-		this.load_categories();
-		this.bind_events();
 	}
 
 	parse_route_params() {
@@ -45,6 +43,8 @@ class WaiterOrder {
 			if (this.order) {
 				this.load_existing_order();
 			}
+			this.load_categories();
+			this.bind_events();
 		});
 	}
 

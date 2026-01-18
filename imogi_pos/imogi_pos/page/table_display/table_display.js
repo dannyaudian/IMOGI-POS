@@ -22,8 +22,6 @@ class TableDisplay {
 	init() {
 		this.setup_page_actions();
 		this.render();
-		this.load_floors();
-		this.bind_events();
 	}
 
 	setup_page_actions() {
@@ -36,6 +34,8 @@ class TableDisplay {
 		frappe.require('page/table_display/table_display.html', () => {
 			this.wrapper.html(frappe.render_template('table_display'));
 			this.setup_components();
+			this.load_floors();
+			this.bind_events();
 		});
 	}
 

@@ -20,15 +20,15 @@ class CustomerDisplayManager {
 
 	init() {
 		this.render();
-		this.load_devices();
-		this.bind_events();
-		this.setup_realtime();
 	}
 
 	render() {
 		frappe.require('page/customer_display/customer_display.html', () => {
 			this.wrapper.html(frappe.render_template('customer_display'));
 			this.setup_components();
+			this.load_devices();
+			this.bind_events();
+			this.setup_realtime();
 		});
 	}
 

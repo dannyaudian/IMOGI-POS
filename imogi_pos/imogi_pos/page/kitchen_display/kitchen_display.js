@@ -21,10 +21,6 @@ class KitchenDisplay {
 	init() {
 		this.setup_page_actions();
 		this.render();
-		this.load_stations();
-		this.bind_events();
-		this.start_auto_refresh();
-		this.setup_realtime();
 	}
 
 	setup_page_actions() {
@@ -37,6 +33,10 @@ class KitchenDisplay {
 		frappe.require('page/kitchen_display/kitchen_display.html', () => {
 			this.wrapper.html(frappe.render_template('kitchen_display'));
 			this.setup_components();
+			this.load_stations();
+			this.bind_events();
+			this.start_auto_refresh();
+			this.setup_realtime();
 		});
 	}
 
