@@ -1,0 +1,21 @@
+# IMOGI POS Print Bridge Requirements
+# Install di setiap kasir PC
+
+# Flask framework
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Bluetooth support (optional, for Bluetooth printers)
+# Linux: apt-get install libbluetooth-dev
+# Mac: brew install bluez
+pybluez>=0.23; sys_platform != 'win32'
+
+# Serial port support (optional, for USB/Serial printers)
+pyserial>=3.5
+
+# System requirements based on OS
+# Windows specific
+pywin32>=305; sys_platform == 'win32'
+
+# USB printer support (optional)
+python-escpos>=3.0; sys_platform == 'linux'

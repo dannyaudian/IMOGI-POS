@@ -147,7 +147,57 @@ def get_printer_config(pos_profile=None, job_type="receipt"):
 
     if pos_profile:
         profile_doc = frappe.get_doc("POS Profile", pos_profile)
-        if profile_doc.get("imogi_branch"):
+        
+        # Get printer settings from POS Profile
+        config = {
+            "pos_profile": pos_profile,
+            "job_type": job_type
+        }
+        
+        # Determine interface type
+        if adapter_type == "kitchen":
+            interface = profile_doc.get("imogi_printer_kitchen_interface") or "OS"
+        else:
+            interface = profile_doc.get("imogi_printer_cashier_interface") or "OS"
+        
+        config["printer_type"] = interface.lower()  # LAN -> network, USB -> usb, Bluetooth -> bluetooth
+        
+        # Printer width for ESC/POS
+        config["printer_width"] = int(profile_doc.get("imogi_printer_width") or 32)
+        
+        # Network (LAN) settings
+        if interface == "LAN":
+            if adapter_type == "kitchen":
+                config["printer_ip"] = profile_doc.get("imogi_printer_kitchen")
+            else:
+                config["printer_ip"] = profile_doc.get("imogi_printer_cashier")
+            config["printer_port"] = profile_doc.get("imogi_printer_port") or 9100
+        
+        # USB settings
+        elif interface == "USB":
+            if adapter_type == "kitchen":
+                config["device_path"] = profile_doc.get("imogi_usb_kitchen_device")
+            else:
+                config["device_path"] = profile_doc.get("imogi_usb_cashier_device")
+        
+        # Bluetooth settings
+        elif interface == "Bluetooth":
+            if adapter_type == "kitchen":
+                config["bluetooth_name"] = profile_doc.get("imogi_bt_kitchen_device_name")
+                config["bluetooth_profile"] = profile_doc.get("imogi_bt_kitchen_vendor_profile") or "ESC/POS"
+            else:
+                config["bluetooth_name"] = profile_doc.get("imogi_bt_cashier_device_name")
+                config["bluetooth_profile"] = profile_doc.get("imogi_bt_cashier_vendor_profile") or "ESC/POS"
+            config["bluetooth_retry"] = profile_doc.get("imogi_bt_retry") or 3
+        
+        # Print Bridge settings (for Bluetooth)
+        if interface == "Bluetooth" or interface == "USB":
+            config["bridge_url"] = profile_doc.get("imogi_print_bridge_url") or "http://localhost:5555"
+            config["bridge_token"] = profile_doc.get("imogi_print_bridge_token")
+        
+        return config
+    
+    return {}
             validate_branch_access(profile_doc.imogi_branch)
 
     return get_print_adapter_settings(adapter_type, pos_profile=pos_profile)
@@ -890,3 +940,456 @@ def _coerce_print_bytes(data):
             return "".join(str(item) for item in data).encode("utf-8")
 
     return str(data).encode("utf-8")
+
+
+# ===== ESC/POS Direct Mode Support =====
+# Control Characters
+ESC = b'\x1b'
+GS = b'\x1d'
+LF = b'\x0a'
+
+# Printer initialization
+INIT = ESC + b'@'
+
+# Text alignment
+ALIGN_LEFT = ESC + b'a\x00'
+ALIGN_CENTER = ESC + b'a\x01'
+ALIGN_RIGHT = ESC + b'a\x02'
+
+# Text formatting
+BOLD_ON = ESC + b'E\x01'
+BOLD_OFF = ESC + b'E\x00'
+UNDERLINE_ON = ESC + b'-\x01'
+UNDERLINE_OFF = ESC + b'-\x00'
+
+# Font sizes
+FONT_NORMAL = GS + b'!\x00'
+FONT_DOUBLE_HEIGHT = GS + b'!\x01'
+FONT_DOUBLE_WIDTH = GS + b'!\x10'
+FONT_DOUBLE = GS + b'!\x11'
+FONT_TRIPLE = GS + b'!\x22'
+
+# Paper cutting
+CUT_FULL = GS + b'V\x00'
+CUT_PARTIAL = GS + b'V\x01'
+
+# Line feed
+FEED_LINE = LF
+
+
+@frappe.whitelist()
+def generate_receipt_escpos(invoice_name, printer_width=32):
+	"""
+	Generate ESC/POS commands for POS Invoice receipt
+	Supports Network, USB, and Bluetooth thermal printers
+	
+	Args:
+		invoice_name: Name of POS Invoice
+		printer_width: Character width of printer (32 or 48)
+	
+	Returns:
+		dict with base64 encoded ESC/POS commands
+	"""
+	try:
+		doc = frappe.get_doc('POS Invoice', invoice_name)
+		
+		# Build receipt
+		receipt = build_pos_receipt_escpos(doc, int(printer_width))
+		
+		# Encode to base64 for transmission
+		receipt_base64 = base64.b64encode(receipt).decode('utf-8')
+		
+		return {
+			'success': True,
+			'data': receipt_base64,
+			'invoice': invoice_name,
+			'format': 'escpos'
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"ESC/POS Generation Error: {str(e)}", "Printing Error")
+		return {
+			'success': False,
+			'error': str(e)
+		}
+
+
+def build_pos_receipt_escpos(doc, printer_width=32):
+	"""Build complete ESC/POS receipt from POS Invoice"""
+	from datetime import datetime
+	
+	receipt = bytearray()
+	
+	# Initialize printer
+	receipt.extend(INIT)
+	
+	# Header - Company/Store Name
+	receipt.extend(ALIGN_CENTER)
+	receipt.extend(FONT_DOUBLE)
+	receipt.extend(_encode_text(doc.company or "IMOGI POS"))
+	receipt.extend(FEED_LINE)
+	
+	# Company details
+	receipt.extend(FONT_NORMAL)
+	company_details = get_company_details(doc.company)
+	if company_details:
+		if company_details.get('address'):
+			receipt.extend(_encode_text(company_details['address']))
+			receipt.extend(FEED_LINE)
+		if company_details.get('phone'):
+			receipt.extend(_encode_text(f"Tel: {company_details['phone']}"))
+			receipt.extend(FEED_LINE)
+	
+	# Divider
+	receipt.extend(_encode_text('=' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Invoice info
+	receipt.extend(ALIGN_LEFT)
+	receipt.extend(FONT_NORMAL)
+	receipt.extend(_encode_text(f"Invoice: {doc.name}"))
+	receipt.extend(FEED_LINE)
+	
+	# Date & Time
+	posting_datetime = str(doc.posting_date)
+	if hasattr(doc, 'posting_time') and doc.posting_time:
+		posting_datetime = f"{doc.posting_date} {doc.posting_time}"
+	receipt.extend(_encode_text(f"Date: {posting_datetime}"))
+	receipt.extend(FEED_LINE)
+	
+	# Cashier
+	receipt.extend(_encode_text(f"Cashier: {doc.owner}"))
+	receipt.extend(FEED_LINE)
+	
+	# Customer
+	if doc.customer and doc.customer != "Guest":
+		receipt.extend(_encode_text(f"Customer: {doc.customer}"))
+		receipt.extend(FEED_LINE)
+	
+	# Table number (if restaurant)
+	if hasattr(doc, 'table_number') and doc.table_number:
+		receipt.extend(_encode_text(f"Table: {doc.table_number}"))
+		receipt.extend(FEED_LINE)
+	
+	receipt.extend(_encode_text('=' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Items header
+	receipt.extend(BOLD_ON)
+	receipt.extend(_encode_text("Item                 Qty   Amount"))
+	receipt.extend(FEED_LINE)
+	receipt.extend(BOLD_OFF)
+	receipt.extend(_encode_text('-' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Items
+	for item in doc.items:
+		# Item name (truncate if too long)
+		item_name = (item.item_name or item.item_code)[:printer_width]
+		receipt.extend(_encode_text(item_name))
+		receipt.extend(FEED_LINE)
+		
+		# Quantity and price
+		qty_str = f"{item.qty:.0f}x"
+		price_str = f"{item.rate:,.0f}"
+		amount_str = f"{item.amount:,.0f}"
+		
+		# Format: "  2x @ 25,000        50,000"
+		detail_line = f"  {qty_str} @ {price_str}".ljust(printer_width - len(amount_str)) + amount_str
+		receipt.extend(_encode_text(detail_line))
+		receipt.extend(FEED_LINE)
+		
+		# Item discount if any
+		if hasattr(item, 'discount_amount') and item.discount_amount and item.discount_amount > 0:
+			discount_line = f"  Discount".ljust(printer_width - len(f"{item.discount_amount:,.0f}")) + f"-{item.discount_amount:,.0f}"
+			receipt.extend(_encode_text(discount_line))
+			receipt.extend(FEED_LINE)
+	
+	receipt.extend(_encode_text('=' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Subtotal
+	subtotal_line = _format_total_line("Subtotal:", doc.net_total, printer_width)
+	receipt.extend(_encode_text(subtotal_line))
+	receipt.extend(FEED_LINE)
+	
+	# Discount
+	if hasattr(doc, 'discount_amount') and doc.discount_amount and doc.discount_amount > 0:
+		discount_line = _format_total_line("Discount:", -doc.discount_amount, printer_width)
+		receipt.extend(_encode_text(discount_line))
+		receipt.extend(FEED_LINE)
+	
+	# Tax
+	if hasattr(doc, 'total_taxes_and_charges') and doc.total_taxes_and_charges and doc.total_taxes_and_charges > 0:
+		tax_line = _format_total_line("Tax:", doc.total_taxes_and_charges, printer_width)
+		receipt.extend(_encode_text(tax_line))
+		receipt.extend(FEED_LINE)
+	
+	receipt.extend(_encode_text('=' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Grand total
+	receipt.extend(BOLD_ON)
+	receipt.extend(FONT_DOUBLE_HEIGHT)
+	total_line = _format_total_line("TOTAL:", doc.grand_total, printer_width)
+	receipt.extend(_encode_text(total_line))
+	receipt.extend(FEED_LINE)
+	receipt.extend(BOLD_OFF)
+	receipt.extend(FONT_NORMAL)
+	
+	receipt.extend(_encode_text('=' * printer_width))
+	receipt.extend(FEED_LINE)
+	
+	# Payment details
+	if hasattr(doc, 'payments') and doc.payments:
+		receipt.extend(BOLD_ON)
+		receipt.extend(_encode_text("PAYMENT"))
+		receipt.extend(FEED_LINE)
+		receipt.extend(BOLD_OFF)
+		
+		for payment in doc.payments:
+			payment_line = _format_total_line(f"{payment.mode_of_payment}:", payment.amount, printer_width)
+			receipt.extend(_encode_text(payment_line))
+			receipt.extend(FEED_LINE)
+		
+		# Change
+		if hasattr(doc, 'change_amount') and doc.change_amount and doc.change_amount > 0:
+			receipt.extend(BOLD_ON)
+			change_line = _format_total_line("CHANGE:", doc.change_amount, printer_width)
+			receipt.extend(_encode_text(change_line))
+			receipt.extend(FEED_LINE)
+			receipt.extend(BOLD_OFF)
+	
+	receipt.extend(FEED_LINE)
+	
+	# Footer
+	receipt.extend(ALIGN_CENTER)
+	receipt.extend(_encode_text("Thank You!"))
+	receipt.extend(FEED_LINE)
+	receipt.extend(_encode_text("Please Come Again"))
+	receipt.extend(FEED_LINE)
+	receipt.extend(FEED_LINE)
+	
+	# Extra line feeds before cut
+	receipt.extend(FEED_LINE)
+	receipt.extend(FEED_LINE)
+	receipt.extend(FEED_LINE)
+	
+	# Cut paper
+	receipt.extend(CUT_PARTIAL)
+	
+	return bytes(receipt)
+
+
+@frappe.whitelist()
+def generate_kot_escpos(order_name, printer_width=32):
+	"""
+	Generate ESC/POS commands for Kitchen Order Ticket (KOT)
+	
+	Args:
+		order_name: Name of order/invoice
+		printer_width: Character width of printer
+	
+	Returns:
+		dict with base64 encoded ESC/POS commands
+	"""
+	from datetime import datetime
+	
+	try:
+		# Try to get POS Invoice first
+		doc = frappe.get_doc('POS Invoice', order_name)
+		
+		kot = bytearray()
+		
+		# Initialize
+		kot.extend(INIT)
+		
+		# Header
+		kot.extend(ALIGN_CENTER)
+		kot.extend(FONT_TRIPLE)
+		kot.extend(BOLD_ON)
+		kot.extend(_encode_text("KITCHEN ORDER"))
+		kot.extend(FEED_LINE)
+		kot.extend(BOLD_OFF)
+		kot.extend(FONT_NORMAL)
+		
+		kot.extend(_encode_text('=' * printer_width))
+		kot.extend(FEED_LINE)
+		
+		# Order info
+		kot.extend(ALIGN_LEFT)
+		kot.extend(FONT_DOUBLE_HEIGHT)
+		kot.extend(BOLD_ON)
+		
+		# Order number
+		kot.extend(_encode_text(f"Order: {doc.name}"))
+		kot.extend(FEED_LINE)
+		
+		# Table
+		if hasattr(doc, 'table_number') and doc.table_number:
+			kot.extend(_encode_text(f"Table: {doc.table_number}"))
+			kot.extend(FEED_LINE)
+		
+		kot.extend(BOLD_OFF)
+		kot.extend(FONT_NORMAL)
+		
+		# Time
+		kot.extend(_encode_text(f"Time: {datetime.now().strftime('%H:%M:%S')}"))
+		kot.extend(FEED_LINE)
+		
+		kot.extend(_encode_text('=' * printer_width))
+		kot.extend(FEED_LINE)
+		kot.extend(FEED_LINE)
+		
+		# Items
+		for item in doc.items:
+			# Quantity with large font
+			kot.extend(FONT_TRIPLE)
+			kot.extend(BOLD_ON)
+			kot.extend(_encode_text(f"{item.qty:.0f}x"))
+			kot.extend(FEED_LINE)
+			kot.extend(BOLD_OFF)
+			
+			# Item name
+			kot.extend(FONT_DOUBLE)
+			item_name = item.item_name or item.item_code
+			kot.extend(_encode_text(item_name))
+			kot.extend(FEED_LINE)
+			kot.extend(FONT_NORMAL)
+			
+			# Notes/customizations
+			if hasattr(item, 'notes') and item.notes:
+				kot.extend(_encode_text(f"  ** {item.notes} **"))
+				kot.extend(FEED_LINE)
+			
+			kot.extend(FEED_LINE)
+		
+		kot.extend(_encode_text('=' * printer_width))
+		kot.extend(FEED_LINE)
+		
+		# Footer
+		kot.extend(ALIGN_CENTER)
+		kot.extend(FONT_NORMAL)
+		kot.extend(_encode_text(f"Printed: {datetime.now().strftime('%H:%M:%S')}"))
+		kot.extend(FEED_LINE)
+		kot.extend(FEED_LINE)
+		kot.extend(FEED_LINE)
+		
+		# Cut
+		kot.extend(CUT_PARTIAL)
+		
+		# Encode to base64
+		kot_base64 = base64.b64encode(bytes(kot)).decode('utf-8')
+		
+		return {
+			'success': True,
+			'data': kot_base64,
+			'order': order_name,
+			'format': 'escpos'
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"KOT ESC/POS Generation Error: {str(e)}", "Printing Error")
+		return {
+			'success': False,
+			'error': str(e)
+		}
+
+
+def get_company_details(company_name):
+	"""Get company address and phone for receipt header"""
+	try:
+		company = frappe.get_doc('Company', company_name)
+		details = {}
+		
+		# Get default address
+		if hasattr(company, 'company_address') and company.company_address:
+			address = frappe.get_doc('Address', company.company_address)
+			address_lines = []
+			if hasattr(address, 'address_line1') and address.address_line1:
+				address_lines.append(address.address_line1)
+			if hasattr(address, 'city') and address.city:
+				address_lines.append(address.city)
+			if address_lines:
+				details['address'] = ', '.join(address_lines)
+		
+		# Phone
+		if hasattr(company, 'phone_no') and company.phone_no:
+			details['phone'] = company.phone_no
+		
+		return details
+	except:
+		return {}
+
+
+def _encode_text(text):
+	"""Encode text to bytes with proper character handling"""
+	try:
+		return text.encode('utf-8')
+	except:
+		return text.encode('ascii', errors='ignore')
+
+
+def _format_total_line(label, amount, width=32):
+	"""Format total line with right-aligned amount"""
+	amount_str = f"{amount:,.0f}"
+	label_width = width - len(amount_str)
+	return f"{label:<{label_width}}{amount_str}"
+
+
+@frappe.whitelist()
+def test_printer_escpos(printer_width=32):
+	"""
+	Generate test receipt for ESC/POS printer testing
+	
+	Args:
+		printer_width: Character width of printer
+	
+	Returns:
+		dict with base64 encoded test receipt
+	"""
+	from datetime import datetime
+	
+	try:
+		receipt = bytearray()
+		receipt.extend(INIT)
+		receipt.extend(ALIGN_CENTER)
+		receipt.extend(FONT_DOUBLE)
+		receipt.extend(BOLD_ON)
+		receipt.extend(_encode_text("PRINTER TEST"))
+		receipt.extend(FEED_LINE)
+		receipt.extend(BOLD_OFF)
+		receipt.extend(FONT_NORMAL)
+		receipt.extend(_encode_text('=' * printer_width))
+		receipt.extend(FEED_LINE)
+		receipt.extend(ALIGN_LEFT)
+		receipt.extend(_encode_text(f"IMOGI POS - ESC/POS Direct"))
+		receipt.extend(FEED_LINE)
+		receipt.extend(_encode_text(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"))
+		receipt.extend(FEED_LINE)
+		receipt.extend(_encode_text('=' * printer_width))
+		receipt.extend(FEED_LINE)
+		receipt.extend(ALIGN_CENTER)
+		receipt.extend(BOLD_ON)
+		receipt.extend(_encode_text("Test Successful!"))
+		receipt.extend(FEED_LINE)
+		receipt.extend(BOLD_OFF)
+		receipt.extend(FEED_LINE)
+		receipt.extend(FEED_LINE)
+		receipt.extend(FEED_LINE)
+		receipt.extend(CUT_PARTIAL)
+		
+		receipt_base64 = base64.b64encode(bytes(receipt)).decode('utf-8')
+		
+		return {
+			'success': True,
+			'data': receipt_base64,
+			'format': 'escpos'
+		}
+		
+	except Exception as e:
+		frappe.log_error(f"Test Printer Error: {str(e)}", "Printing Error")
+		return {
+			'success': False,
+			'error': str(e)
+		}

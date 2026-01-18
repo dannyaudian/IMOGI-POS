@@ -11,14 +11,9 @@ app_color = "#4287f5"
 app_email = "support@imogi.com"
 app_license = "MIT"
 
-# app_include_js = [
-#   'js/branch.js',
-#   'js/print/service.js',
-#   'js/print/adapter_bluetooth.js',
-#   'js/print/adapter_bridge.js',
-#   'js/print/adapter_spool.js',
-#   'js/print/adapter_lan.js'
-# ]
+app_include_js = [
+    '/assets/imogi_pos/js/escpos_printing.js'
+]
 app_include_css = []
 
 # web_include_js = [
