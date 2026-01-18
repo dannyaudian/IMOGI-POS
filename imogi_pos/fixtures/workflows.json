@@ -16,7 +16,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Primary"
+        "style": "Primary",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "In Progress",
@@ -25,7 +26,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Warning"
+        "style": "Warning",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Ready",
@@ -34,7 +36,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Success"
+        "style": "Success",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Served",
@@ -43,7 +46,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Default"
+        "style": "Default",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Cancelled",
@@ -52,7 +56,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Danger"
+        "style": "Danger",
+        "doctype": "Workflow Document State"
       }
     ],
     "transitions": [
@@ -62,7 +67,8 @@
         "next_state": "In Progress",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Queued",
@@ -70,7 +76,8 @@
         "next_state": "In Progress",
         "allowed": "Kitchen Staff",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -78,7 +85,8 @@
         "next_state": "Ready",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -86,7 +94,8 @@
         "next_state": "Ready",
         "allowed": "Kitchen Staff",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -94,7 +103,8 @@
         "next_state": "Served",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -102,7 +112,8 @@
         "next_state": "Served",
         "allowed": "Waiter",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -110,7 +121,8 @@
         "next_state": "Served",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -118,7 +130,8 @@
         "next_state": "Served",
         "allowed": "Waiter",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Queued",
@@ -126,7 +139,8 @@
         "next_state": "Cancelled",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -134,7 +148,8 @@
         "next_state": "Cancelled",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -142,7 +157,8 @@
         "next_state": "Queued",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -150,7 +166,8 @@
         "next_state": "Queued",
         "allowed": "Kitchen Staff",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -158,7 +175,8 @@
         "next_state": "In Progress",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -166,7 +184,8 @@
         "next_state": "In Progress",
         "allowed": "Kitchen Staff",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       }
     ]
   },
@@ -187,7 +206,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Primary"
+        "style": "Primary",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "In Progress",
@@ -196,7 +216,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Warning"
+        "style": "Warning",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Ready",
@@ -205,7 +226,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Success"
+        "style": "Success",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Served",
@@ -214,7 +236,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Success"
+        "style": "Success",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Closed",
@@ -223,7 +246,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Default"
+        "style": "Default",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Cancelled",
@@ -232,7 +256,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Danger"
+        "style": "Danger",
+        "doctype": "Workflow Document State"
       },
       {
         "state": "Returned",
@@ -241,7 +266,8 @@
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
-        "style": "Danger"
+        "style": "Danger",
+        "doctype": "Workflow Document State"
       }
     ],
     "transitions": [
@@ -251,7 +277,8 @@
         "next_state": "In Progress",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -259,7 +286,8 @@
         "next_state": "Ready",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "In Progress",
@@ -267,7 +295,8 @@
         "next_state": "Served",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -275,7 +304,8 @@
         "next_state": "Served",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Served",
@@ -283,7 +313,8 @@
         "next_state": "Closed",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Draft",
@@ -291,7 +322,8 @@
         "next_state": "Cancelled",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Ready",
@@ -299,7 +331,8 @@
         "next_state": "In Progress",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       },
       {
         "state": "Served",
@@ -307,7 +340,8 @@
         "next_state": "Returned",
         "allowed": "Restaurant Manager",
         "allow_self_approval": 1,
-        "condition": ""
+        "condition": "",
+        "doctype": "Workflow Transition"
       }
     ]
   }
