@@ -1,0 +1,17 @@
+{
+  "creation": "2023-09-01 00:00:00.000000",
+  "docstatus": 0,
+  "doctype": "Page",
+  "icon": "monitor",
+  "idx": 0,
+  "modified": "2023-09-01 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "customer-display",
+  "owner": "Administrator",
+  "page_name": "customer-display",
+  "roles": [],
+  "standard": "Yes",
+  "system_page": 0,
+  "title": "Customer Display"
+}
