@@ -42,6 +42,43 @@ def check_restaurant_domain(pos_profile=None):
 
 
 @frappe.whitelist()
+def get_floors():
+    """
+    Gets all floors accessible to the current user's branch.
+    
+    Returns:
+        list: List of floor documents with name and floor_name
+    
+    Raises:
+        frappe.ValidationError: If no POS Profile is found or domain is not Restaurant
+    """
+    # Check restaurant domain
+    check_restaurant_domain()
+    
+    # Get the user's branch from their POS Profile
+    pos_profile = frappe.db.get_value(
+        "POS Profile User", {"user": frappe.session.user}, "parent"
+    )
+    branch = frappe.db.get_value("POS Profile", pos_profile, "branch")
+    
+    if not branch:
+        frappe.throw(
+            _("No branch found for this POS Profile"),
+            frappe.ValidationError,
+        )
+    
+    # Get all floors for this branch
+    floors = frappe.get_all(
+        "Restaurant Floor",
+        filters={"branch": branch},
+        fields=["name", "floor_name", "branch"],
+        order_by="floor_name"
+    )
+    
+    return floors
+
+
+@frappe.whitelist()
 def get_table_layout(floor):
     """
     Gets the layout for tables on a specific floor.

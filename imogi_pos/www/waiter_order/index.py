@@ -10,8 +10,7 @@ from imogi_pos.utils.branding import (
 def get_context(context):
     """Context builder for waiter order page."""
     if frappe.session.user == "Guest":
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/waiter_order"
-        raise frappe.Redirect
+        raise frappe.Redirect("/imogi-login?redirect=/waiter_order")
 
     pos_profile = get_pos_profile()
     context.pos_profile = pos_profile

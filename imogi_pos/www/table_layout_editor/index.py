@@ -10,8 +10,7 @@ from imogi_pos.utils.branding import (
 def get_context(context):
     """Context builder for table layout editor page."""
     if frappe.session.user == "Guest":
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/table_layout_editor"
-        raise frappe.Redirect
+        raise frappe.Redirect("/imogi-login?redirect=/table_layout_editor")
 
     pos_profile = get_pos_profile()
     context.pos_profile = pos_profile

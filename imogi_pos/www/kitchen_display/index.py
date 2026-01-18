@@ -11,8 +11,7 @@ from imogi_pos.utils.restaurant_settings import get_default_branch
 def get_context(context):
     """Context builder for kitchen display page."""
     if frappe.session.user == "Guest":
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/kitchen_display"
-        raise frappe.Redirect
+        raise frappe.Redirect("/imogi-login?redirect=/kitchen_display")
 
     pos_profile = get_pos_profile()
     context.pos_profile = pos_profile

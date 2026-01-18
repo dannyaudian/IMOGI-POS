@@ -18,8 +18,7 @@ def get_context(context):
     # Check if guest access is allowed or user is logged in
     allow_guest = check_guest_access()
     if frappe.session.user == "Guest" and not allow_guest:
-        frappe.local.flags.redirect_location = "/imogi-login?redirect=/kiosk"
-        raise frappe.Redirect
+        raise frappe.Redirect("/imogi-login?redirect=/create-order")
     
     # Get POS Profile for kiosk mode
     pos_profile = get_pos_profile()

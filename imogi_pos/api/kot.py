@@ -17,6 +17,7 @@ from imogi_pos.kitchen.kot_service import (
 )
 from imogi_pos.utils.options import format_options_for_display
 from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
+from imogi_pos.api.printing import print_kot as api_print_kot
 
 def check_restaurant_domain(pos_profile):
     """
@@ -188,6 +189,35 @@ def get_kitchens_and_stations(branch=None):
         "kitchens": kitchens,
         "stations": stations,
     }
+
+
+@frappe.whitelist()
+def get_kitchen_stations(branch=None):
+    """Return active kitchen stations for the kitchen display.
+
+    Args:
+        branch (str, optional): Branch name to filter results by.
+
+    Returns:
+        list: A list of kitchen stations ready for the kitchen display frontend.
+    """
+    result = get_kitchens_and_stations(branch=branch)
+    return result.get("stations", [])
+
+
+@frappe.whitelist()
+def get_kot_tickets_by_status(station=None, kitchen=None, branch=None):
+    """Get KOT tickets organized by their status/workflow_state.
+
+    Args:
+        station (str, optional): Kitchen Station to filter by.
+        kitchen (str, optional): Kitchen to filter by.
+        branch (str, optional): Branch to filter by.
+
+    Returns:
+        list: List of KOT tickets with their items.
+    """
+    return get_kots_for_kitchen(kitchen=kitchen, station=station, branch=branch)
 
 
 @frappe.whitelist()
@@ -644,4 +674,67 @@ def update_kot_status(kot_ticket, state):
     """
 
     return _apply_ticket_state_change(kot_ticket, state)
+
+
+@frappe.whitelist()
+def print_kot(pos_order=None, kot_ticket=None, kitchen_station=None, copies=1, reprint=False, print_format=None):
+    """
+    Prints a KOT ticket using the configured print adapter.
+
+    Args:
+        pos_order (str, optional): POS Order name. If provided, will print the latest KOT for this order.
+        kot_ticket (str, optional): KOT Ticket name. Use this to print a specific ticket.
+        kitchen_station (str, optional): Kitchen Station to determine print settings.
+        copies (int, optional): Number of copies to print. Defaults to 1.
+        reprint (bool, optional): Whether this is a reprint. Defaults to False.
+        print_format (str, optional): Custom print format to use.
+
+    Returns:
+        dict: Print result with success status and message
+
+    Raises:
+        frappe.ValidationError: If no ticket is found or printing fails
+    """
+    
+    # Resolve KOT Ticket from POS Order if needed
+    if not kot_ticket and pos_order:
+        # Get the latest KOT ticket for this POS Order
+        tickets = frappe.get_all(
+            "KOT Ticket",
+            filters={"pos_order": pos_order},
+            fields=["name"],
+            order_by="creation desc",
+            limit_page_length=1
+        )
+        if tickets:
+            kot_ticket = tickets[0]["name"]
+    
+    if not kot_ticket:
+        frappe.throw(_("No KOT Ticket found to print"), frappe.ValidationError)
+    
+    # Get ticket details for validation
+    ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
+    pos_order_doc = frappe.get_doc("POS Order", ticket_doc.pos_order)
+    
+    # Validate permissions
+    check_restaurant_domain(pos_order_doc.pos_profile)
+    validate_branch_access(pos_order_doc.branch)
+    
+    # Determine kitchen station if not provided
+    if not kitchen_station:
+        kitchen_station = ticket_doc.kitchen_station
+    
+    # Delegate to the printing API
+    try:
+        result = api_print_kot(
+            kot_ticket=kot_ticket,
+            kitchen_station=kitchen_station,
+            copies=cint(copies),
+            reprint=reprint,
+            print_format=print_format
+        )
+        return {"success": True, "message": result}
+    except Exception as e:
+        frappe.throw(_("Failed to print KOT: {0}").format(str(e)), frappe.ValidationError)
+
 

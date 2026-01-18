@@ -10,8 +10,7 @@ def get_context(context):
     try:
         # Check if user is logged in and has required roles
         if frappe.session.user == "Guest":
-            frappe.local.flags.redirect_location = "/imogi-login?redirect=/cashier-console"
-            raise frappe.Redirect
+            raise frappe.Redirect("/imogi-login?redirect=/cashier-console")
         
         # Check for required roles (Cashier or Manager)
         user_roles = frappe.get_roles(frappe.session.user)
