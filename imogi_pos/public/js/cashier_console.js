@@ -761,12 +761,26 @@ imogi_pos.cashier_console = {
         let itemsHtml = '';
         if (order.items && order.items.length > 0) {
             order.items.forEach(item => {
+                // Check if item is a template (has_variants)
+                const isTemplate = item.has_variants === 1 || item.has_variants === true;
+                const templateClass = isTemplate ? 'template-item' : '';
+                
                 itemsHtml += `
-                    <div class="item-row">
-                        <div class="item-name">${item.item_name}</div>
+                    <div class="item-row ${templateClass}" data-item-row="${item.name || ''}" data-item-code="${item.item || ''}">
+                        <div class="item-name">
+                            ${item.item_name}
+                            ${isTemplate ? '<span class="template-badge"><i class="fa fa-list"></i> Template</span>' : ''}
+                        </div>
                         <div class="item-qty">${item.qty}</div>
                         <div class="item-rate">${this.formatCurrency(item.rate)}</div>
                         <div class="item-amount">${this.formatCurrency(item.amount)}</div>
+                        ${isTemplate ? `
+                            <div class="item-actions">
+                                <button class="select-variant-btn" data-item-row="${item.name}" data-item-code="${item.item}" title="Select Variant">
+                                    <i class="fa fa-edit"></i> Select Variant
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 
@@ -887,6 +901,19 @@ imogi_pos.cashier_console = {
                     return;
                 }
                 this.generateInvoice(false, mop);
+            });
+        }
+        
+        // Bind Select Variant buttons
+        const selectVariantBtns = this.container.querySelectorAll('.select-variant-btn');
+        if (selectVariantBtns.length > 0) {
+            selectVariantBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const itemRow = btn.dataset.itemRow;
+                    const itemCode = btn.dataset.itemCode;
+                    this.showVariantPickerForOrderItem(itemCode, itemRow);
+                });
             });
         }
     },
@@ -2519,18 +2546,28 @@ imogi_pos.cashier_console = {
     /**
      * Show variant picker for an item template
      * @param {string} templateName - Item template name
+     * @param {string} orderItemRow - Optional: Order item row name for conversion
      */
-    showVariantPicker: function(templateName) {
+    showVariantPicker: function(templateName, orderItemRow = null) {
         // Show modal for variant selection
         const modalContainer = this.container.querySelector('#modal-container');
         if (!modalContainer) return;
+        
+        // Store context for later use
+        this.variantPickerContext = {
+            templateName: templateName,
+            orderItemRow: orderItemRow,
+            mode: orderItemRow ? 'convert' : 'add'
+        };
+        
+        const modalTitle = orderItemRow ? 'Select Variant to Replace Template' : 'Select Variant';
         
         // Show loading state
         modalContainer.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3>Select Variant</h3>
+                        <h3>${modalTitle}</h3>
                         <button class="modal-close">&times;</button>
                     </div>
                     <div class="modal-body">
@@ -2548,6 +2585,7 @@ imogi_pos.cashier_console = {
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
                 modalContainer.classList.remove('active');
+                this.variantPickerContext = null;
             });
         }
         
@@ -2583,6 +2621,15 @@ imogi_pos.cashier_console = {
                 }
             }
         });
+    },
+    
+    /**
+     * Show variant picker for existing order item (convert template to variant)
+     * @param {string} templateName - Item template name
+     * @param {string} orderItemRow - Order item row name
+     */
+    showVariantPickerForOrderItem: function(templateName, orderItemRow) {
+        this.showVariantPicker(templateName, orderItemRow);
     },
     
     /**
@@ -2728,13 +2775,24 @@ imogi_pos.cashier_console = {
             variantCards.forEach(card => {
                 card.addEventListener('click', () => {
                     const itemName = card.dataset.item;
-                    this.addItemToOrder(itemName);
+                    
+                    // Check if we're in convert mode or add mode
+                    if (this.variantPickerContext && this.variantPickerContext.mode === 'convert') {
+                        // Convert existing template item to variant
+                        this.selectVariantForOrderItem(this.variantPickerContext.orderItemRow, itemName);
+                    } else {
+                        // Add new variant to order
+                        this.addItemToOrder(itemName);
+                    }
                     
                     // Close modal
                     const modalContainer = this.container.querySelector('#modal-container');
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
+                    
+                    // Clear context
+                    this.variantPickerContext = null;
                 });
             });
         }
@@ -2776,6 +2834,57 @@ imogi_pos.cashier_console = {
             
             // Show/hide variant
             card.style.display = show ? '' : 'none';
+        });
+    },
+    
+    /**
+     * Select variant for existing order item (convert template to variant)
+     * @param {string} orderItemRow - Order item row name
+     * @param {string} variantItem - Variant item code
+     */
+    selectVariantForOrderItem: function(orderItemRow, variantItem) {
+        if (!this.state.currentOrder) {
+            this.showError('No order selected');
+            return;
+        }
+        
+        if (!orderItemRow || !variantItem) {
+            this.showError('Invalid parameters');
+            return;
+        }
+        
+        // Show loading
+        this.showLoading(true, 'Converting to variant...');
+        
+        frappe.call({
+            method: 'imogi_pos.api.variants.choose_variant_for_order_item',
+            args: {
+                pos_order: this.state.currentOrder.name,
+                order_item_row: orderItemRow,
+                variant_item: variantItem
+            },
+            callback: (response) => {
+                this.showLoading(false);
+                
+                if (response.message && response.message.success) {
+                    this.showToast('Template converted to variant successfully');
+                    
+                    // Reload order to reflect changes
+                    this.selectOrder(this.state.currentOrder.name);
+                } else {
+                    const errorMsg = response.message && response.message.message 
+                        ? response.message.message 
+                        : 'Failed to convert template to variant';
+                    this.showError(errorMsg);
+                }
+            },
+            error: (error) => {
+                this.showLoading(false);
+                const errorMsg = error && error.message 
+                    ? error.message 
+                    : 'Failed to convert template to variant';
+                this.showError(errorMsg);
+            }
         });
     },
     

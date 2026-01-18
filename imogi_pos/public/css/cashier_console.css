@@ -690,3 +690,54 @@
     background-color: var(--color-gray-600);
   }
 }
+/* ===== TEMPLATE ITEM CONVERSION STYLES ===== */
+.item-row.template-item {
+  background-color: rgba(59, 130, 246, 0.05);
+  border-left: 3px solid var(--color-blue-500);
+}
+
+.template-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background-color: var(--color-blue-100);
+  color: var(--color-blue-700);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  margin-left: 0.5rem;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--spacing-2);
+}
+
+.select-variant-btn {
+  padding: 0.375rem 0.75rem;
+  background-color: var(--color-blue-500);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.select-variant-btn:hover {
+  background-color: var(--color-blue-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.select-variant-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}

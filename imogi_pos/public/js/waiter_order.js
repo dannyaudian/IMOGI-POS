@@ -438,11 +438,19 @@ imogi_pos.waiter_order = {
 
             const displayStatus = item.kitchen_status || kitchenStatus;
             const statusTime = displayStatus ? this.formatKitchenStatusTime(displayStatus.timestamp) : '';
+            
+            // Check if item is a template
+            const isTemplate = item.has_variants === 1 || item.has_variants === true;
+            const templateClass = isTemplate ? 'template-item' : '';
+            
             html += `
-                <div class="order-item">
+                <div class="order-item ${templateClass}">
                     <div class="item-header">
                         <div class="item-title">
-                            <div class="item-name">${item.item_name}</div>
+                            <div class="item-name">
+                                ${item.item_name}
+                                ${isTemplate ? '<span class="template-badge"><i class="fa fa-list"></i> Template</span>' : ''}
+                            </div>
                             ${displayStatus ? `
                                 <div class="item-status">
                                     <span class="status-badge ${displayStatus.className}">${displayStatus.label}</span>
@@ -454,6 +462,13 @@ imogi_pos.waiter_order = {
                             <i class="fa fa-times"></i>
                         </button>
                     </div>
+                    ${isTemplate ? `
+                        <div class="item-variant-action">
+                            <button class="select-variant-btn" data-index="${index}" data-item-row="${item.name || ''}" data-item-code="${item.item || ''}">
+                                <i class="fa fa-edit"></i> Select Variant
+                            </button>
+                        </div>
+                    ` : ''}
                     ${item.options ? `
                         <div class="item-option">
                             ${this.formatSelectedOptions(item.options)} ${item.options.price ? `(+${this.formatCurrency(item.options.price)})` : ''}
@@ -624,6 +639,15 @@ imogi_pos.waiter_order = {
             button.addEventListener('click', () => {
                 const index = parseInt(button.dataset.index);
                 this.promptForNotes(index);
+            });
+        });
+        
+        // Select variant buttons
+        this.container.querySelectorAll('.select-variant-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const itemRow = button.dataset.itemRow;
+                const itemCode = button.dataset.itemCode;
+                this.showVariantPickerForOrderItem(itemCode, itemRow);
             });
         });
     },
@@ -1262,21 +1286,29 @@ imogi_pos.waiter_order = {
     /**
      * Show variant picker for an item template
      * @param {string} templateName - Item template name
+     * @param {string} orderItemRow - Optional: Order item row name for conversion
      */
-    showVariantPicker: function(templateName) {
+    showVariantPicker: function(templateName, orderItemRow = null) {
         // Show modal for variant selection
         const modalContainer = this.container.querySelector('#modal-container');
         if (!modalContainer) return;
         
-        // Store current variant item
+        // Store current variant item and context
         this.state.currentVariantItem = templateName;
+        this.variantPickerContext = {
+            templateName: templateName,
+            orderItemRow: orderItemRow,
+            mode: orderItemRow ? 'convert' : 'add'
+        };
+        
+        const modalTitle = orderItemRow ? 'Select Variant to Replace Template' : 'Select Variant';
         
         // Show loading state
         modalContainer.innerHTML = `
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3>Select Variant</h3>
+                        <h3>${modalTitle}</h3>
                         <button class="modal-close">&times;</button>
                     </div>
                     <div class="modal-body">
@@ -1294,6 +1326,7 @@ imogi_pos.waiter_order = {
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
                 modalContainer.classList.remove('active');
+                this.variantPickerContext = null;
             });
         }
         
@@ -1329,6 +1362,15 @@ imogi_pos.waiter_order = {
                 }
             }
         });
+    },
+    
+    /**
+     * Show variant picker for existing order item (convert template to variant)
+     * @param {string} templateName - Item template name
+     * @param {string} orderItemRow - Order item row name
+     */
+    showVariantPickerForOrderItem: function(templateName, orderItemRow) {
+        this.showVariantPicker(templateName, orderItemRow);
     },
     
     /**
@@ -1477,7 +1519,18 @@ imogi_pos.waiter_order = {
                     if (modalContainer) {
                         modalContainer.classList.remove('active');
                     }
-                    this.handleItemSelection(itemName);
+                    
+                    // Check if we're in convert mode or add mode
+                    if (this.variantPickerContext && this.variantPickerContext.mode === 'convert') {
+                        // Convert existing template item to variant
+                        this.selectVariantForOrderItem(this.variantPickerContext.orderItemRow, itemName);
+                    } else {
+                        // Add new variant to order
+                        this.handleItemSelection(itemName);
+                    }
+                    
+                    // Clear context
+                    this.variantPickerContext = null;
                 });
             });
         }
@@ -1831,6 +1884,54 @@ imogi_pos.waiter_order = {
                 .join(', ');
             throw new Error(`Please select a specific variant for: ${names}`);
         }
+    },
+
+    /**
+     * Select variant for existing order item (convert template to variant)
+     * @param {string} orderItemRow - Order item row name
+     * @param {string} variantItem - Variant item code
+     */
+    selectVariantForOrderItem: function(orderItemRow, variantItem) {
+        if (!this.settings.posOrder) {
+            this.showError('No order selected');
+            return;
+        }
+        
+        if (!orderItemRow || !variantItem) {
+            this.showError('Invalid parameters');
+            return;
+        }
+        
+        // Show loading
+        this.showToast('Converting to variant...', 'info');
+        
+        frappe.call({
+            method: 'imogi_pos.api.variants.choose_variant_for_order_item',
+            args: {
+                pos_order: this.settings.posOrder,
+                order_item_row: orderItemRow,
+                variant_item: variantItem
+            },
+            callback: (response) => {
+                if (response.message && response.message.success) {
+                    this.showToast('Template converted to variant successfully', 'success');
+                    
+                    // Reload order to reflect changes
+                    this.loadOrder();
+                } else {
+                    const errorMsg = response.message && response.message.message 
+                        ? response.message.message 
+                        : 'Failed to convert template to variant';
+                    this.showError(errorMsg);
+                }
+            },
+            error: (error) => {
+                const errorMsg = error && error.message 
+                    ? error.message 
+                    : 'Failed to convert template to variant';
+                this.showError(errorMsg);
+            }
+        });
     },
 
     /**
