@@ -4,6 +4,8 @@ from frappe.utils import now_datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 from imogi_pos.utils.kitchen_routing import get_menu_category_kitchen_station
+from imogi_pos.utils.state_manager import StateManager
+from imogi_pos.utils.kot_publisher import KOTPublisher
 
 
 class KOTService:
@@ -17,46 +19,8 @@ class KOTService:
     - Validation and permissions
     """
     
-    # Workflow states
-    STATES = {
-        "QUEUED": "Queued",
-        "IN_PROGRESS": "In Progress",
-        "READY": "Ready",
-        "SERVED": "Served",
-        "CANCELLED": "Cancelled"
-    }
-
-    # Allowed forward transitions for KOT Items
-    ALLOWED_ITEM_TRANSITIONS = {
-        STATES["QUEUED"]: {STATES["IN_PROGRESS"], STATES["CANCELLED"]},
-        STATES["IN_PROGRESS"]: {STATES["READY"], STATES["CANCELLED"]},
-        STATES["READY"]: {STATES["SERVED"], STATES["CANCELLED"]},
-        STATES["SERVED"]: set(),
-        STATES["CANCELLED"]: set(),
-    }
-
-    # Allowed forward transitions for KOT Tickets
-    ALLOWED_TRANSITIONS = {
-        STATES["QUEUED"]: {
-            STATES["IN_PROGRESS"],
-            STATES["READY"],
-            STATES["SERVED"],
-            STATES["CANCELLED"],
-        },
-        STATES["IN_PROGRESS"]: {
-            STATES["READY"],
-            STATES["SERVED"],
-            STATES["CANCELLED"],
-            STATES["QUEUED"],
-        },
-        STATES["READY"]: {
-            STATES["SERVED"],
-            STATES["CANCELLED"],
-            STATES["IN_PROGRESS"],
-        },
-        STATES["SERVED"]: set(),
-        STATES["CANCELLED"]: set(),
-    }
+    # Reference StateManager for state constants
+    STATES = StateManager.STATES
     
     def __init__(self, pos_order=None):
         """
@@ -185,7 +149,7 @@ class KOTService:
         Returns:
             Dict with updated item and related info
         """
-        if new_state not in self.STATES.values():
+        if not StateManager.is_valid_state(new_state):
             frappe.throw(_("Invalid KOT state: {0}").format(new_state))
         
         user = user or frappe.session.user
@@ -193,10 +157,10 @@ class KOTService:
 
         # Get ticket and validate it's not cancelled
         ticket = frappe.get_doc("KOT Ticket", item.parent)
-        if ticket.workflow_state == self.STATES["CANCELLED"]:
+        if ticket.workflow_state == StateManager.STATES["CANCELLED"]:
             frappe.throw(_("Cannot update item state for a cancelled KOT"))
 
-        # Validate state transition
+        # Validate state transition using StateManager
         old_state = item.workflow_state
         if new_state == old_state:
             return {
@@ -206,11 +170,7 @@ class KOTService:
                 "new_state": new_state,
             }
 
-        allowed = self.ALLOWED_ITEM_TRANSITIONS.get(old_state, set())
-        if new_state not in allowed:
-            frappe.throw(
-                _(f"Invalid state transition from {old_state} to {new_state}")
-            )
+        StateManager.validate_item_transition(old_state, new_state)
 
         # Update item state
         item.workflow_state = new_state
@@ -224,8 +184,8 @@ class KOTService:
         # Update ticket state if all items are in the same state
         self._update_ticket_state_if_needed(ticket.name)
         
-        # Send realtime updates
-        self._publish_kot_item_update(item)
+        # Send realtime updates using KOTPublisher
+        KOTPublisher.publish_item_update(item, ticket)
         
         return {
             "kot_item": item.name,
@@ -251,21 +211,15 @@ class KOTService:
         Returns:
             Dict with updated ticket and items info
         """
-        if new_state not in self.STATES.values():
+        if not StateManager.is_valid_state(new_state):
             frappe.throw(_("Invalid KOT state: {0}").format(new_state))
         
         user = user or frappe.session.user
         ticket = frappe.get_doc("KOT Ticket", kot_ticket)
 
-        # Validate state transition
+        # Validate state transition using StateManager
         current_state = ticket.workflow_state
-        allowed_states = self.ALLOWED_TRANSITIONS.get(current_state, set())
-        if new_state not in allowed_states:
-            frappe.throw(
-                _("Cannot change ticket state from {0} to {1}").format(
-                    current_state, new_state
-                )
-            )
+        StateManager.validate_ticket_transition(current_state, new_state)
 
         # Update ticket state
         old_state = current_state
@@ -290,12 +244,12 @@ class KOTService:
         # Check if we need to update POS Order state
         self._update_pos_order_state_if_needed(ticket.pos_order)
         
-        # Send realtime updates
-        changed_map = {ticket.name: updated_items} if updated_items else None
-        self._publish_kot_updates(
-            [ticket],
+        # Send realtime updates using KOTPublisher
+        changed_items = [frappe.get_doc("KOT Item", name) for name in updated_items]
+        KOTPublisher.publish_ticket_update(
+            ticket,
             event_type="kot_updated",
-            changed_item_names=changed_map,
+            changed_items=changed_items,
         )
         
         return {
@@ -643,128 +597,18 @@ class KOTService:
         if not tickets:
             return
         
-        # Get all unique states
-        states = set(ticket.workflow_state for ticket in tickets)
+        # Get KOT states
+        kot_states = [ticket.workflow_state for ticket in tickets]
         
-        # Map KOT states to POS Order states
-        kot_to_pos_state = {
-            self.STATES["IN_PROGRESS"]: "In Progress",
-            self.STATES["READY"]: "Ready",
-            self.STATES["SERVED"]: "Served"
-        }
-        
-        # Determine the right POS Order state based on KOT states
-        new_pos_state = None
-        
-        # If all KOTs are cancelled, mark order as cancelled
-        if len(states) == 1 and list(states)[0] == self.STATES["CANCELLED"]:
-            new_pos_state = "Cancelled"
-        
-        # If all KOTs are served, mark order as served
-        elif len(states) == 1 and list(states)[0] == self.STATES["SERVED"]:
-            new_pos_state = "Served"
-        
-        # If any KOT is ready and none are queued/in progress, mark order as ready
-        elif self.STATES["READY"] in states and not any(s in states for s in [self.STATES["QUEUED"], self.STATES["IN_PROGRESS"]]):
-            new_pos_state = "Ready"
-        
-        # If any KOT is in progress, mark order as in progress
-        elif self.STATES["IN_PROGRESS"] in states:
-            new_pos_state = "In Progress"
+        # Use StateManager to determine new POS Order state
+        new_pos_state = StateManager.get_pos_order_state_from_kots(kot_states)
         
         # Update POS Order if needed
-        if new_pos_state:
-            current_state = frappe.db.get_value("POS Order", pos_order, "workflow_state")
-            if current_state != new_pos_state:
-                frappe.db.set_value("POS Order", pos_order, "workflow_state", new_pos_state)
-    
-    def _publish_kot_updates(
-        self,
-        tickets: List[Dict],
-        event_type: str = "kot_updated",
-        changed_item_names: Optional[Dict[str, List[str]]] = None,
-    ) -> None:
-        """
-        Publish realtime updates for KOT tickets
-
-        Args:
-            tickets: List of KOT Ticket documents
-            event_type: Type of update that occurred
-            changed_item_names: Mapping of ticket names to lists of updated KOT Item names
-        """
-        from imogi_pos.api.kot import publish_kitchen_update
-
-        changed_item_names = changed_item_names or {}
-
-        for ticket in tickets:
-            ticket_doc = ticket
-            if not hasattr(ticket_doc, "as_dict"):
-                ticket_doc = frappe.get_doc("KOT Ticket", ticket)
-
-            changed_items = []
-            item_names = changed_item_names.get(ticket_doc.name, [])
-            for item_name in item_names:
-                try:
-                    changed_items.append(frappe.get_doc("KOT Item", item_name))
-                except Exception:
-                    continue
-
-            publish_kitchen_update(
-                ticket_doc,
-                event_type=event_type,
-                changed_items=changed_items,
-            )
-
-            if ticket_doc.table:
-                payload = {
-                    "action": "kot_updated",
-                    "event_type": event_type,
-                    "ticket": ticket_doc.name,
-                    "state": ticket_doc.workflow_state,
-                }
-                frappe.publish_realtime(
-                    f"table:{ticket_doc.table}",
-                    payload,
-                )
-
-                if ticket_doc.floor:
-                    frappe.publish_realtime(
-                        f"table_display:floor:{ticket_doc.floor}",
-                        {
-                            "action": "table_updated",
-                            "table": ticket_doc.table,
-                            "has_kot_updates": True,
-                        },
-                    )
-    
-    def _publish_kot_item_update(self, item: Dict) -> None:
-        """
-        Publish realtime update for a single KOT Item
-
-        Args:
-            item: KOT Item document
-        """
-        ticket = frappe.get_doc("KOT Ticket", item.parent)
-
-        from imogi_pos.api.kot import publish_kitchen_update
-
-        publish_kitchen_update(
-            ticket,
-            event_type="kot_item_updated",
-            changed_items=[item],
-        )
-
-        if ticket.table:
-            frappe.publish_realtime(
-                f"table:{ticket.table}",
-                {
-                    "action": "kot_item_updated",
-                    "event_type": "kot_item_updated",
-                    "ticket": ticket.name,
-                    "item": item.name,
-                    "state": item.workflow_state,
-                },
-            )
+        if StateManager.should_update_pos_order_state(
+            frappe.db.get_value("POS Order", pos_order, "workflow_state"),
+            new_pos_state
+        ):
+            frappe.db.set_value("POS Order", pos_order, "workflow_state", new_pos_state)
     
     def _validate_restaurant_domain(self, pos_profile: str) -> None:
         """

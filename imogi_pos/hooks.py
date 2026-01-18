@@ -81,9 +81,10 @@ doc_events = {
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Property Setter", "filters": [["module", "=", "IMOGI POS"]]},
-    {"dt": "Workflow", "filters": [["name", "in", ["IMOGI POS Order Workflow", "IMOGI KOT Ticket Workflow"]]]},
+    # Workflow State dan Action Master harus dimuat sebelum Workflow
     {"dt": "Workflow State", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Workflow Action Master", "filters": [["module", "=", "IMOGI POS"]]},
+    {"dt": "Workflow", "filters": [["name", "in", ["IMOGI POS Order", "IMOGI KOT Ticket"]]]},
     {"dt": "Item Attribute", "filters": [["name", "=", "Doneness"]]},
     {"dt": "Workspace", "filters": [["module", "=", "IMOGI POS"]]},
 ]

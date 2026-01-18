@@ -1,0 +1,58 @@
+[
+  {
+    "doctype": "Workflow State",
+    "name": "Queued",
+    "workflow_state_name": "Queued",
+    "style": "Primary",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "In Progress",
+    "workflow_state_name": "In Progress",
+    "style": "Warning",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Ready",
+    "workflow_state_name": "Ready",
+    "style": "Success",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Served",
+    "workflow_state_name": "Served",
+    "style": "Success",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Cancelled",
+    "workflow_state_name": "Cancelled",
+    "style": "Danger",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Draft",
+    "workflow_state_name": "Draft",
+    "style": "Primary",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Closed",
+    "workflow_state_name": "Closed",
+    "style": "Default",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow State",
+    "name": "Returned",
+    "workflow_state_name": "Returned",
+    "style": "Danger",
+    "module": "IMOGI POS"
+  }
+]

@@ -9,6 +9,8 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.state_manager import StateManager
+from imogi_pos.utils.kot_publisher import KOTPublisher
 from imogi_pos.kitchen.kot_service import (
     KOTService,
     update_kot_item_state as service_update_kot_item_state,
@@ -65,6 +67,8 @@ def publish_kitchen_update(
 ):
     """
     Publishes realtime updates to kitchen display systems.
+    
+    Delegates to KOTPublisher for centralized handling.
 
     Args:
         kot_ticket (Union[dict, str, Document]): KOT ticket details or name
@@ -75,113 +79,16 @@ def publish_kitchen_update(
     """
     if not kot_ticket:
         return
-
-    ticket_doc = None
-
-    if isinstance(kot_ticket, str):
-        try:
-            ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
-            kot_ticket = ticket_doc.as_dict()
-        except Exception:
-            kot_ticket = {"name": kot_ticket}
-    elif callable(getattr(kot_ticket, "as_dict", None)):
-        ticket_doc = kot_ticket
-        kot_ticket = ticket_doc.as_dict()
-    elif isinstance(kot_ticket, dict):
-        kot_ticket = dict(kot_ticket)
-    else:
-        return
-
-    ticket_name = kot_ticket.get("name")
-    if not ticket_name:
-        return
-
-    if ticket_doc is None:
-        try:
-            ticket_doc = frappe.get_doc("KOT Ticket", ticket_name)
-        except Exception:
-            ticket_doc = None
-
-    items = kot_ticket.get("items") or []
-    if not isinstance(items, list):
-        items = []
-
-    if not items and ticket_doc is not None:
-        items = [
-            _normalise_kot_item(item)
-            for item in getattr(ticket_doc, "items", [])
-        ]
-    else:
-        items = [_normalise_kot_item(item) for item in items]
-
-    kot_ticket["items"] = items
-
-    branch = kot_ticket.get("branch") or frappe.db.get_value(
-        "KOT Ticket", ticket_name, "branch"
+    
+    # Use KOTPublisher for centralized handling
+    KOTPublisher.publish_ticket_update(
+        kot_ticket,
+        event_type=event_type,
+        changed_items=changed_items,
+        kitchen=kitchen,
+        station=station,
     )
 
-    kitchen = (
-        kitchen
-        or kot_ticket.get("kitchen")
-        or (ticket_doc and getattr(ticket_doc, "kitchen", None))
-        or frappe.db.get_value("KOT Ticket", ticket_name, "kitchen")
-    )
-
-    station = (
-        station
-        or kot_ticket.get("kitchen_station")
-        or (ticket_doc and getattr(ticket_doc, "kitchen_station", None))
-        or frappe.db.get_value("KOT Ticket", ticket_name, "kitchen_station")
-    )
-
-    changed_items_payload = []
-    for changed in changed_items or []:
-        if isinstance(changed, str):
-            try:
-                changed = frappe.get_doc("KOT Item", changed)
-            except Exception:
-                continue
-        changed_items_payload.append(_normalise_kot_item(changed))
-
-    event_id = None
-    generate_hash = getattr(frappe, "generate_hash", None)
-    if callable(generate_hash):
-        event_id = generate_hash(16)
-    else:
-        event_id = uuid.uuid4().hex
-
-    action_alias = {
-        "kot_created": "new_kot",
-        "kot_updated": "kot_updated",
-        "kot_item_updated": "kot_item_updated",
-        "kot_removed": "delete_kot",
-    }.get(event_type, event_type)
-
-    payload = {
-        "event_id": event_id,
-        "event_type": event_type,
-        "action": action_alias,
-        "kot_ticket": kot_ticket,
-        "kot": kot_ticket,
-        "kot_name": ticket_name,
-        "ticket": ticket_name,
-        "branch": branch,
-        "kitchen": kitchen,
-        "station": station,
-        "timestamp": now_datetime().isoformat(),
-    }
-
-    if changed_items_payload:
-        payload["changed_items"] = changed_items_payload
-        payload["updated_items"] = changed_items_payload
-
-    publish_realtime("kitchen:all", payload)
-
-    if kitchen:
-        publish_realtime(f"kitchen:{kitchen}", payload)
-
-    if station:
-        publish_realtime(f"kitchen:station:{station}", payload)
 
 def publish_table_update(pos_order, table, event_type="kot_update"):
     """

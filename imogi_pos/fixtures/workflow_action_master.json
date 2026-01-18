@@ -1,0 +1,56 @@
+[
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Start Preparing",
+    "workflow_action_name": "Start Preparing",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Mark as Ready",
+    "workflow_action_name": "Mark as Ready",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Mark as Served",
+    "workflow_action_name": "Mark as Served",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Cancel",
+    "workflow_action_name": "Cancel",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Return to Queue",
+    "workflow_action_name": "Return to Queue",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Return to Kitchen",
+    "workflow_action_name": "Return to Kitchen",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Send to Kitchen",
+    "workflow_action_name": "Send to Kitchen",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Close Order",
+    "workflow_action_name": "Close Order",
+    "module": "IMOGI POS"
+  },
+  {
+    "doctype": "Workflow Action Master",
+    "name": "Return",
+    "workflow_action_name": "Return",
+    "module": "IMOGI POS"
+  }
+]
