@@ -236,7 +236,12 @@
     "type": "Workspace",
     "icon": "money-cash",
     "module": "IMOGI POS",
-    "public": 1,8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Device Sessions\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr3\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opening Balance\", \"col\": 3}}]",
+    "public": 1,
+    "sequence": 2,
+    "is_hidden": 0,
+    "hide_custom": 0,
+    "content_type": "Blocks",
+    "content": "[{\"id\": \"hdr1\", \"type\": \"header\", \"data\": {\"text\": \"Orders\", \"col\": 12}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"spacer1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr2\", \"type\": \"header\", \"data\": {\"text\": \"Sessions\", \"col\": 12}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Sessions\", \"col\": 3}}, {\"id\": \"s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Sessions\", \"col\": 3}}, {\"id\": \"s8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Device Sessions\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr3\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opening Balance\", \"col\": 3}}]",
     "shortcuts": [
       {
         "label": "POS Orders (To Bill)",

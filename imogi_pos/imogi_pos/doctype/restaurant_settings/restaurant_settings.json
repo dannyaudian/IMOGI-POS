@@ -59,7 +59,12 @@
     "petty_cash_account",
     "show_prices_on_qr_menu",
     "show_out_of_stock_indicator",
-    "hide_inactive_items"
+    "hide_inactive_items",
+    "item_options_section",
+    "use_native_variants",
+    "enable_menu_channels",
+    "column_break_io",
+    "max_items_per_query"
   ],
   "fields": [
     {
@@ -373,6 +378,36 @@
       "fieldname": "hide_inactive_items",
       "fieldtype": "Check",
       "label": "Hide Inactive Items"
+    },
+    {
+      "fieldname": "item_options_section",
+      "fieldtype": "Section Break",
+      "label": "Item Options & Variants"
+    },
+    {
+      "default": "1",
+      "description": "Use ERPNext native Item Variants instead of legacy custom option tables",
+      "fieldname": "use_native_variants",
+      "fieldtype": "Check",
+      "label": "Use Native Item Variants"
+    },
+    {
+      "default": "0",
+      "description": "Enable channel-specific filtering (POS, Restaurant, Dine-in, Takeaway)",
+      "fieldname": "enable_menu_channels",
+      "fieldtype": "Check",
+      "label": "Enable Menu Channels"
+    },
+    {
+      "fieldname": "column_break_io",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "500",
+      "description": "Maximum number of items to return per API query",
+      "fieldname": "max_items_per_query",
+      "fieldtype": "Int",
+      "label": "Max Items Per Query"
     },
     {
       "depends_on": "eval:doc.enable_kot==1",

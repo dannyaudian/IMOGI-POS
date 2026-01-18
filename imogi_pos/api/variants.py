@@ -50,7 +50,7 @@ def get_order_branch(pos_order):
 @frappe.whitelist(allow_guest=True)
 def get_items_with_stock(
     warehouse=None,
-    limit=500,
+    limit=None,
     pos_menu_profile=None,
     price_list=None,
     base_price_list=None,
@@ -60,7 +60,8 @@ def get_items_with_stock(
 
     Args:
         warehouse (str, optional): Warehouse to fetch stock levels from.
-        limit (int, optional): Maximum number of items to return. Defaults to 500.
+        limit (int, optional): Maximum number of items to return. If not provided,
+            uses max_items_per_query from Restaurant Settings (default: 500).
         pos_menu_profile (str, optional): If provided, only items for this
             POS Menu Profile will be returned. Each item uses its own
             ``pos_menu_profile`` if set, falling back to its Item Group's
@@ -79,6 +80,14 @@ def get_items_with_stock(
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
     """
+    # Get limit from Restaurant Settings if not provided
+    if limit is None:
+        try:
+            settings = frappe.get_cached_doc("Restaurant Settings", "Restaurant Settings")
+            limit = settings.get("max_items_per_query", 500)
+        except Exception:
+            limit = 500
+    
     item_filters = [
         ["Item", "disabled", "=", 0],
         ["Item", "is_sales_item", "=", 1],

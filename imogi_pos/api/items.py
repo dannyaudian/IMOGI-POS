@@ -11,14 +11,30 @@ from imogi_pos.utils.kitchen_routing import (
 )
 
 
-# Feature flags for channel and menu option support.
-# LEGACY: Custom option tables are deprecated in favor of native Item Variants
-# Set ITEM_OPTIONS_FEATURE_ENABLED = False to use native variants only
-MENU_CHANNEL_FEATURE_ENABLED = False
-ITEM_OPTIONS_FEATURE_ENABLED = False  # Deprecated: Use native Item Variants
-USE_NATIVE_VARIANTS = True  # Enable native variant-first approach
-
+# Channel keywords that mean "all channels"
 CHANNEL_ALL = {"", "both", "all", "any", "universal"}
+
+
+def get_restaurant_settings():
+    """Get Restaurant Settings with caching.
+    
+    Returns:
+        dict: Restaurant settings values
+    """
+    try:
+        settings = frappe.get_cached_doc("Restaurant Settings", "Restaurant Settings")
+        return {
+            "use_native_variants": settings.get("use_native_variants", 1),
+            "enable_menu_channels": settings.get("enable_menu_channels", 0),
+            "max_items_per_query": settings.get("max_items_per_query", 500),
+        }
+    except Exception:
+        # Fallback to defaults if settings not found
+        return {
+            "use_native_variants": 1,
+            "enable_menu_channels": 0,
+            "max_items_per_query": 500,
+        }
 
 
 def _normalise_channel(value):
@@ -30,7 +46,17 @@ def _normalise_channel(value):
 
 
 def _channel_matches(entry_channel, requested_channel):
-    if not MENU_CHANNEL_FEATURE_ENABLED:
+    """Check if entry channel matches requested channel.
+    
+    Args:
+        entry_channel: Channel value from item/entry
+        requested_channel: Requested channel filter
+        
+    Returns:
+        bool: True if matches, False otherwise
+    """
+    settings = get_restaurant_settings()
+    if not settings.get("enable_menu_channels"):
         return True
 
     requested = _normalise_channel(requested_channel)
@@ -46,38 +72,32 @@ def _channel_matches(entry_channel, requested_channel):
 
 @frappe.whitelist(allow_guest=True)
 def get_item_options(item, menu_channel=None):
-    """Retrieve available options for a given item.
-    
-    For fresh deployments, use native Item Variants directly via get_item_options_native().
-    This function is kept for backward compatibility only.
+    """Get available options for an item using native Item Variants.
 
     Args:
-        item (str): Item code or name.
-        menu_channel (str, optional): Channel context for filtering
+        item: Item code or name
+        menu_channel: Channel context for filtering (optional)
 
     Returns:
-        dict: Item options - uses native variants when available
+        dict: Item options grouped by attribute
     """
-    # Use native variants for fresh deployments
-    if USE_NATIVE_VARIANTS:
+    settings = get_restaurant_settings()
+    
+    if settings.get("use_native_variants", 1):
         return get_item_options_native(item, menu_channel)
     
-    # Legacy support (not recommended for fresh deployments)
     return {}
 
 
 def get_item_options_native(item, menu_channel=None):
-    """Get item options using native Item Variants (recommended).
-    
-    This is the new native-first approach that uses ERPNext's built-in
-    Item Variant system instead of custom option tables.
+    """Get item options using native Item Variants.
     
     Args:
-        item (str): Item code or name
-        menu_channel (str, optional): Channel context for filtering
+        item: Item code or name
+        menu_channel: Channel context for filtering (optional)
         
     Returns:
-        dict: Options grouped by attribute with native variant details
+        dict: Options grouped by attribute with variant details
     """
     if not item:
         return {}
@@ -154,49 +174,25 @@ def get_item_options_native(item, menu_channel=None):
         return {}
 
 
-# Mapping of menu categories to default item option flags.
-#
-# Categories:
-# - ``dessert``: enables ``has_size`` and ``has_topping``
-# - ``beverage``: enables ``has_size``, ``has_sugar`` and ``has_ice``
-# - ``main course`` / ``appetizer``: enable ``has_spice``
-# - ``special``: enables ``has_size``, ``has_spice`` and ``has_topping``
-MENU_FLAG_MAP = {
-    "dessert": {"has_size": 1, "has_topping": 1},
-    "beverage": {"has_size": 1, "has_sugar": 1, "has_ice": 1},
-    "main course": {"has_spice": 1},
-    "appetizer": {"has_spice": 1},
-    "special": {"has_size": 1, "has_spice": 1, "has_topping": 1},
-    "allura": {"has_size": 1, "has_topping": 1},
-    "sugus": {"has_size": 1, "has_topping": 1},
-    "tea": {"has_size": 1, "has_topping": 1},
-    "coffee": {"has_size": 1, "has_topping": 1},  # Coffee usually has size and topping
-}
-
-
 def set_item_flags(doc, method=None):
-    """Set kitchen routing for items based on menu category.
+    """Set kitchen routing for items based on Restaurant Settings.
 
     Args:
-        doc (frappe.model.document.Document): The Item document being saved.
-        method (str, optional): The event method name (unused).
+        doc: The Item document being saved
+        method: The event method name (unused)
     """
-    # Set kitchen routing based on menu category
+    # Auto-set kitchen routing from Restaurant Settings menu category routes
     kitchen, kitchen_station = get_menu_category_kitchen_station_by_category(
         doc.get("menu_category")
     )
 
-    if kitchen and not (doc.get("default_kitchen")):
+    if kitchen and not doc.get("default_kitchen"):
         doc.set("default_kitchen", kitchen)
 
-    if kitchen_station and not (doc.get("default_kitchen_station")):
+    if kitchen_station and not doc.get("default_kitchen_station"):
         doc.set("default_kitchen_station", kitchen_station)
 
-    # For variant items, disable has_variants flag
+    # For variant items, ensure has_variants flag is disabled
     if doc.get("variant_of"):
         doc.set("has_variants", 0)
-
-        # When template items are saved, ERPNext updates their variants and runs
-        # validation. Marking the document tells ERPNext to skip stock validation,
-        # allowing benign updates that do not impact inventory quantities.
         doc.flags.ignore_validate_update_after_stock = True
