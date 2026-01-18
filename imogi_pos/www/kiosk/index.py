@@ -104,12 +104,7 @@ def get_context(context):
         get_next_queue_number(context.branch) if context.branch else 1
     )
 
-        return context
-    except frappe.Redirect:
-        raise
-    except Exception as e:
-        frappe.log_error(f"Error in kiosk get_context: {str(e)}")
-        raise frappe.Redirect("/imogi-login?redirect=/kiosk")
+    return context
 
 def get_pos_profile():
     """Get appropriate POS profile for kiosk mode."""
