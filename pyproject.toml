@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "imogi_pos"
-version = "dynamic"
+dynamic = ["version"]
 description = "Point of Sale system for ERPNext"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,9 @@ dev = []
 
 [tool.setuptools]
 packages = ["imogi_pos"]
+
+[tool.setuptools.dynamic]
+version = {attr = "imogi_pos.__version__"}
 
 [tool.setuptools.package-data]
 imogi_pos = ["**/*"]
