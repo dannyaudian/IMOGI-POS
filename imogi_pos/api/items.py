@@ -11,10 +11,12 @@ from imogi_pos.utils.kitchen_routing import (
 )
 
 
-# Feature flags for channel and menu option support. Both are disabled to honour
-# deployments that do not require granular item configuration.
+# Feature flags for channel and menu option support.
+# LEGACY: Custom option tables are deprecated in favor of native Item Variants
+# Set ITEM_OPTIONS_FEATURE_ENABLED = False to use native variants only
 MENU_CHANNEL_FEATURE_ENABLED = False
-ITEM_OPTIONS_FEATURE_ENABLED = False
+ITEM_OPTIONS_FEATURE_ENABLED = False  # Deprecated: Use native Item Variants
+USE_NATIVE_VARIANTS = True  # Enable native variant-first approach
 
 CHANNEL_ALL = {"", "both", "all", "any", "universal"}
 
@@ -44,147 +46,113 @@ def _channel_matches(entry_channel, requested_channel):
 
 @frappe.whitelist(allow_guest=True)
 def get_item_options(item, menu_channel=None):
-    """Retrieve available options for a given item using option flags.
-
-    The Item document may define flags ``has_size_option``, ``has_spice_option``,
-    ``has_topping_option``, ``has_sugar_option`` and ``has_ice_option``. When a
-    flag is enabled, the corresponding child table (``item_size_options``,
-    ``item_spice_options``, ``item_topping_options``, ``item_sugar_options`` or
-    ``item_ice_options``) is read and returned in the response.
+    """Retrieve available options for a given item.
+    
+    For fresh deployments, use native Item Variants directly via get_item_options_native().
+    This function is kept for backward compatibility only.
 
     Args:
         item (str): Item code or name.
-        menu_channel (str, optional): Channel context (e.g. ``POS`` or
-            ``Restaurant``) used to filter options that are specific to a
-            service channel. When omitted, all options are returned.
+        menu_channel (str, optional): Channel context for filtering
 
     Returns:
-        dict: Only contains keys for active categories with list of dictionaries
-        having ``label``, ``value`` and ``price``. Options may include an
-        optional ``linked_item`` when the selection should use another Item or
-        BOM.
+        dict: Item options - uses native variants when available
     """
+    # Use native variants for fresh deployments
+    if USE_NATIVE_VARIANTS:
+        return get_item_options_native(item, menu_channel)
+    
+    # Legacy support (not recommended for fresh deployments)
+    return {}
 
-    result = {}
-    if not ITEM_OPTIONS_FEATURE_ENABLED:
-        return result
 
+def get_item_options_native(item, menu_channel=None):
+    """Get item options using native Item Variants (recommended).
+    
+    This is the new native-first approach that uses ERPNext's built-in
+    Item Variant system instead of custom option tables.
+    
+    Args:
+        item (str): Item code or name
+        menu_channel (str, optional): Channel context for filtering
+        
+    Returns:
+        dict: Options grouped by attribute with native variant details
+    """
     if not item:
-        return result
-
+        return {}
+    
     try:
         item_doc = frappe.get_cached_doc("Item", item)
     except Exception:
+        return {}
+    
+    # Check if item has native variants
+    if not getattr(item_doc, "has_variants", 0):
+        return {}
+    
+    # Import here to avoid circular dependency
+    from imogi_pos.api.variants import get_item_variants
+    
+    try:
+        # Get all variants with their attributes
+        variant_data = get_item_variants(
+            item_template=item,
+            menu_channel=menu_channel
+        )
+        
+        if not variant_data or not isinstance(variant_data, dict):
+            return {}
+        
+        variants = variant_data.get("variants", [])
+        attributes = variant_data.get("attributes", [])
+        
+        if not variants:
+            return {}
+        
+        # Group variants by attribute for backward compatibility
+        result = {}
+        
+        for attr_info in attributes:
+            attr_name = attr_info.get("name") or attr_info.get("attribute")
+            attr_label = attr_info.get("label") or attr_name
+            
+            if not attr_name:
+                continue
+            
+            # Normalize attribute name for grouping
+            attr_key = attr_name.lower().replace(" ", "_")
+            
+            # Collect unique values for this attribute
+            attr_values = {}
+            
+            for variant in variants:
+                variant_attrs = variant.get("attributes", {})
+                
+                if attr_name in variant_attrs:
+                    attr_value = variant_attrs[attr_name]
+                    
+                    if attr_value not in attr_values:
+                        attr_values[attr_value] = {
+                            "label": attr_value,
+                            "value": variant.get("name"),
+                            "price": variant.get("standard_rate", 0) or variant.get("rate", 0),
+                            "linked_item": variant.get("name"),
+                            "variant_name": variant.get("item_name"),
+                        }
+            
+            if attr_values:
+                result[attr_key] = list(attr_values.values())
+        
         return result
+        
+    except Exception as e:
+        frappe.log_error(
+            message=f"Error getting native variants for {item}: {str(e)}",
+            title="Native Variant Option Error"
+        )
+        return {}
 
-    def normalise_component_value(value):
-        if not value:
-            return None
-
-        if isinstance(value, str):
-            value = value.strip()
-            if not value:
-                return None
-            try:
-                return json.loads(value)
-            except ValueError:
-                return value
-
-        if isinstance(value, dict):
-            return value
-
-        normalised = []
-        for component in value or []:
-            if component is None:
-                continue
-            if hasattr(component, "as_dict"):
-                component_dict = component.as_dict()
-            elif isinstance(component, dict):
-                component_dict = component
-            else:
-                component_dict = {
-                    key: val
-                    for key, val in getattr(component, "__dict__", {}).items()
-                    if not key.startswith("_")
-                }
-            if component_dict:
-                normalised.append(component_dict)
-
-        return normalised or None
-
-    def to_option(row):
-        name = getattr(row, "option_name", None)
-        if not name:
-            return None
-        price = getattr(row, "additional_price", 0) or 0
-        opt = {"label": name, "value": name, "price": price}
-
-        linked_item = getattr(row, "linked_item", None)
-        if linked_item:
-            opt["linked_item"] = linked_item
-
-        qty_factor = getattr(row, "qty_factor", None)
-        if qty_factor not in (None, ""):
-            try:
-                opt["qty_factor"] = float(qty_factor)
-            except (TypeError, ValueError):
-                opt["qty_factor"] = qty_factor
-
-        for field in ("components", "components_delta"):
-            payload = normalise_component_value(getattr(row, field, None))
-            if payload is not None:
-                opt[field] = payload
-
-        # Some child tables may provide a flag indicating a default option.
-        # The field name can vary (``default``/``is_default``), so we check
-        # both to keep the helper generic. When present, the option is marked
-        # so the frontend can auto-select it on load.
-        if getattr(row, "default", None) or getattr(row, "is_default", None):
-            opt["default"] = 1
-
-        return opt
-
-    def collect(child_rows):
-        collected = []
-        for row in child_rows or []:
-            if not _channel_matches(getattr(row, "menu_channel", None), menu_channel):
-                continue
-            option = to_option(row)
-            if option:
-                collected.append(option)
-        return collected
-
-    if getattr(item_doc, "has_size_option", 0):
-        size_opts = collect(getattr(item_doc, "item_size_options", []))
-        if size_opts:
-            result["size"] = size_opts
-
-    if getattr(item_doc, "has_spice_option", 0):
-        spice_opts = collect(getattr(item_doc, "item_spice_options", []))
-        if spice_opts:
-            result["spice"] = spice_opts
-
-    if getattr(item_doc, "has_topping_option", 0):
-        topping_opts = collect(getattr(item_doc, "item_topping_options", []))
-        if topping_opts:
-            result["topping"] = topping_opts
-
-    if getattr(item_doc, "has_variant_option", 0):
-        variant_opts = collect(getattr(item_doc, "item_variant_options", []))
-        if variant_opts:
-            result["variant"] = variant_opts
-
-    if getattr(item_doc, "has_sugar_option", 0):
-        sugar_opts = collect(getattr(item_doc, "item_sugar_options", []))
-        if sugar_opts:
-            result["sugar"] = sugar_opts
-
-    if getattr(item_doc, "has_ice_option", 0):
-        ice_opts = collect(getattr(item_doc, "item_ice_options", []))
-        if ice_opts:
-            result["ice"] = ice_opts
-
-    return result
 
 # Mapping of menu categories to default item option flags.
 #
@@ -207,34 +175,13 @@ MENU_FLAG_MAP = {
 
 
 def set_item_flags(doc, method=None):
-    """Set item option flags based on the menu category.
-
-    Categories are defined in :data:`MENU_FLAG_MAP`.
+    """Set kitchen routing for items based on menu category.
 
     Args:
         doc (frappe.model.document.Document): The Item document being saved.
         method (str, optional): The event method name (unused).
     """
-    category = (doc.get("menu_category") or "").lower()
-
-    if ITEM_OPTIONS_FEATURE_ENABLED:
-        flags = MENU_FLAG_MAP.get(category, {})
-    else:
-        flags = {}
-
-    option_fields = (
-        "has_size_option",
-        "has_spice_option",
-        "has_topping_option",
-        "has_variant_option",
-        "has_sugar_option",
-        "has_ice_option",
-    )
-
-    for fieldname in option_fields:
-        base = fieldname.replace("_option", "")
-        doc.set(fieldname, flags.get(base, 0))
-
+    # Set kitchen routing based on menu category
     kitchen, kitchen_station = get_menu_category_kitchen_station_by_category(
         doc.get("menu_category")
     )
@@ -245,14 +192,11 @@ def set_item_flags(doc, method=None):
     if kitchen_station and not (doc.get("default_kitchen_station")):
         doc.set("default_kitchen_station", kitchen_station)
 
+    # For variant items, disable has_variants flag
     if doc.get("variant_of"):
         doc.set("has_variants", 0)
 
         # When template items are saved, ERPNext updates their variants and runs
-        # :meth:`validate_stock_exists_for_template_item`. This validation throws
-        # ``StockExistsForTemplate`` if a variant with stock is being updated,
-        # even if the change only touches non-stock fields such as the item
-        # image. Marking the document with ``ignore_validate_update_after_stock``
-        # tells ERPNext to skip that check, allowing benign updates that do not
-        # impact inventory quantities to go through.
+        # validation. Marking the document tells ERPNext to skip stock validation,
+        # allowing benign updates that do not impact inventory quantities.
         doc.flags.ignore_validate_update_after_stock = True

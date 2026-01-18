@@ -150,7 +150,11 @@ def _get_option_price(item_doc, table_name, option_name):
 
 
 def compute_customizations(order_item):
-    """Compute customization details for a POS Order item."""
+    """Compute customization details for a POS Order item.
+    
+    For fresh deployments using native variants, this function provides
+    backward compatibility for customization processing.
+    """
     options = getattr(order_item, "item_options", None) or {}
     if isinstance(options, str):
         options = frappe.parse_json(options)
@@ -160,28 +164,19 @@ def compute_customizations(order_item):
     customizations = {}
     total_delta = 0
     summary_parts = []
-    item_doc = None
 
-    option_tables = {
-        "size": "item_size_options",
-        "spice": "item_spice_options",
-        "topping": "item_topping_options",
-        "toppings": "item_topping_options",
-        "variant": "item_variant_options",
-        "sugar": "item_sugar_options",
-        "ice": "item_ice_options",
-    }
-
+    # For native variants, customization data structure is simpler
+    # Just process the basic options without referencing deprecated tables
     for group, selection in options.items():
         if group == "extra_price" or selection in (None, "", []):
             continue
+        
         if isinstance(selection, list):
             entries = selection
         else:
             entries = [selection]
 
         names = []
-        linked_codes = set()
         for entry in entries:
             if not entry:
                 continue
@@ -189,9 +184,6 @@ def compute_customizations(order_item):
                 display = entry.get("name") or entry.get("label") or entry.get("value")
                 if display is not None and display != "":
                     names.append(str(display))
-                linked_code = entry.get("linked_item")
-                if linked_code:
-                    linked_codes.add(linked_code)
             else:
                 names.append(str(entry))
 
