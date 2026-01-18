@@ -171,6 +171,19 @@
     "name": "POS Profile-imogi_allow_out_of_stock_orders"
   },
   {
+    "fieldname": "imogi_allow_non_sales_items",
+    "fieldtype": "Check",
+    "label": "Allow Non Sales Items",
+    "default": 0,
+    "insert_after": "imogi_allow_out_of_stock_orders",
+    "description": "Allow items not marked as sales items to be included in orders. When disabled, only items with 'Is Sales Item' checked can be added.",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "POS Profile",
+    "doctype": "Custom Field",
+    "name": "POS Profile-imogi_allow_non_sales_items"
+  },
+  {
     "fieldname": "imogi_show_header_on_pages",
     "fieldtype": "Check",
     "label": "Show Header on Web Pages",
