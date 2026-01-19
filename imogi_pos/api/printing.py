@@ -147,6 +147,8 @@ def get_printer_config(pos_profile=None, job_type="receipt"):
 
     if pos_profile:
         profile_doc = frappe.get_doc("POS Profile", pos_profile)
+        if profile_doc.get("imogi_branch"):
+            validate_branch_access(profile_doc.imogi_branch)
         
         # Get printer settings from POS Profile
         config = {
@@ -198,9 +200,6 @@ def get_printer_config(pos_profile=None, job_type="receipt"):
         return config
     
     return {}
-            validate_branch_access(profile_doc.imogi_branch)
-
-    return get_print_adapter_settings(adapter_type, pos_profile=pos_profile)
 
 def get_print_format_html(doc, print_format_name=None):
     """
