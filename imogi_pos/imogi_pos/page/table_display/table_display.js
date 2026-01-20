@@ -31,12 +31,56 @@ class TableDisplay {
 	}
 
 	render() {
-		frappe.require('page/table_display/table_display.html', () => {
-			this.wrapper.html(frappe.render_template('table_display'));
-			this.setup_components();
-			this.load_floors();
-			this.bind_events();
-		});
+		this.ensure_template();
+		this.wrapper.html(frappe.render_template('table_display'));
+		this.setup_components();
+		this.load_floors();
+		this.bind_events();
+	}
+
+	ensure_template() {
+		if (!frappe.templates) {
+			frappe.templates = {};
+		}
+
+		if (!frappe.templates.table_display) {
+			frappe.templates.table_display = this.template();
+		}
+	}
+
+	template() {
+		return `
+			<div class="table-display-container">
+			  <div class="floor-selector-bar">
+				<select class="floor-selector"></select>
+				<div class="layout-controls">
+				  <button class="btn btn-sm btn-default layout-btn">Switch Layout</button>
+				</div>
+			  </div>
+
+			  <div class="table-display-main">
+				<div class="floor-layout-container"></div>
+
+				<div class="table-details-panel hidden">
+				  <div class="panel-header">
+					<h3 class="table-name"></h3>
+					<button class="btn btn-sm btn-default close-panel-btn">×</button>
+				  </div>
+
+				  <div class="table-status"></div>
+
+				  <div class="table-actions">
+					<button class="btn btn-primary open-table-btn">Take Order</button>
+					<button class="btn btn-default print-bill-btn">Print Bill</button>
+					<button class="btn btn-default reprint-kot-btn">Reprint KOT</button>
+					<button class="btn btn-default table-ops-btn">Table Operations</button>
+				  </div>
+
+				  <div class="order-summary"></div>
+				</div>
+			  </div>
+			</div>
+		`;
 	}
 
 	setup_components() {

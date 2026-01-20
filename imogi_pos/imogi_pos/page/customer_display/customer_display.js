@@ -23,13 +23,54 @@ class CustomerDisplayManager {
 	}
 
 	render() {
-		frappe.require('page/customer_display/customer_display.html', () => {
-			this.wrapper.html(frappe.render_template('customer_display'));
-			this.setup_components();
-			this.load_devices();
-			this.bind_events();
-			this.setup_realtime();
-		});
+		this.ensure_template();
+		this.wrapper.html(frappe.render_template('customer_display'));
+		this.setup_components();
+		this.load_devices();
+		this.bind_events();
+		this.setup_realtime();
+	}
+
+	ensure_template() {
+		if (!frappe.templates) {
+			frappe.templates = {};
+		}
+
+		if (!frappe.templates.customer_display) {
+			frappe.templates.customer_display = this.template();
+		}
+	}
+
+	template() {
+		return `
+			<div class="customer-display-container">
+			  <div class="display-controls">
+				<div class="device-selector">
+				  <select class="device-select"></select>
+				  <button class="btn btn-sm btn-default register-device-btn">Register New</button>
+				</div>
+
+				<div class="display-actions">
+				  <button class="btn btn-sm btn-primary link-to-order-btn">Link to Order</button>
+				  <button class="btn btn-sm btn-default test-display-btn">Test Display</button>
+				  <button class="btn btn-sm btn-default edit-layout-btn">Edit Layout</button>
+				</div>
+			  </div>
+
+			  <div class="display-main">
+				<div class="preview-container">
+				  <h4>Preview</h4>
+				  <div class="display-preview"></div>
+				</div>
+
+				<div class="linked-content">
+				  <h4>Linked Content</h4>
+				  <div class="linked-orders"></div>
+				  <div class="linked-payment"></div>
+				</div>
+			  </div>
+			</div>
+		`;
 	}
 
 	setup_components() {

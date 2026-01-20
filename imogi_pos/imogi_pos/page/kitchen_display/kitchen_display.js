@@ -30,14 +30,58 @@ class KitchenDisplay {
 	}
 
 	render() {
-		frappe.require('page/kitchen_display/kitchen_display.html', () => {
-			this.wrapper.html(frappe.render_template('kitchen_display'));
-			this.setup_components();
-			this.load_stations();
-			this.bind_events();
-			this.start_auto_refresh();
-			this.setup_realtime();
-		});
+		this.ensure_template();
+		this.wrapper.html(frappe.render_template('kitchen_display'));
+		this.setup_components();
+		this.load_stations();
+		this.bind_events();
+		this.start_auto_refresh();
+		this.setup_realtime();
+	}
+
+	ensure_template() {
+		if (!frappe.templates) {
+			frappe.templates = {};
+		}
+
+		if (!frappe.templates.kitchen_display) {
+			frappe.templates.kitchen_display = this.template();
+		}
+	}
+
+	template() {
+		return `
+			<div class="kitchen-display-container">
+			  <div class="kitchen-controls">
+				<div class="station-selector">
+				  <label>Station:</label>
+				  <select class="station-select"></select>
+				</div>
+
+				<div class="view-controls">
+				  <button class="btn btn-sm btn-default refresh-btn">Refresh</button>
+				  <button class="btn btn-sm btn-default toggle-view-btn">Toggle View</button>
+				</div>
+			  </div>
+
+			  <div class="orders-container">
+				<div class="column queued-column">
+				  <h3>Queued</h3>
+				  <div class="order-cards queued-orders"></div>
+				</div>
+
+				<div class="column preparing-column">
+				  <h3>In Progress</h3>
+				  <div class="order-cards preparing-orders"></div>
+				</div>
+
+				<div class="column ready-column">
+				  <h3>Ready</h3>
+				  <div class="order-cards ready-orders"></div>
+				</div>
+			  </div>
+			</div>
+		`;
 	}
 
 	setup_components() {
