@@ -36,16 +36,77 @@ class WaiterOrder {
 	}
 
 	render() {
-		frappe.require('page/waiter_order/waiter_order.html', () => {
-			this.wrapper.html(frappe.render_template('waiter_order'));
-			this.setup_components();
-			this.load_table_info();
-			if (this.order) {
-				this.load_existing_order();
-			}
-			this.load_categories();
-			this.bind_events();
-		});
+		this.ensure_template();
+		this.wrapper.html(frappe.render_template('waiter_order'));
+		this.setup_components();
+		this.load_table_info();
+		if (this.order) {
+			this.load_existing_order();
+		}
+		this.load_categories();
+		this.bind_events();
+	}
+
+	ensure_template() {
+		if (!frappe.templates) {
+			frappe.templates = {};
+		}
+
+		if (!frappe.templates.waiter_order) {
+			frappe.templates.waiter_order = this.template();
+		}
+	}
+
+	template() {
+		return `
+			<div class="waiter-order-container">
+			  <div class="order-header">
+				<div class="back-button">
+				  <button class="btn btn-sm btn-default">Back</button>
+				</div>
+
+				<div class="table-info">
+				  <h3 class="table-name"></h3>
+				  <div class="order-meta">
+					<span class="order-id"></span>
+					<span class="seated-time"></span>
+				  </div>
+				</div>
+
+				<div class="customer-selector">
+				  <div class="input-group">
+					<input type="text" class="form-control customer-search" placeholder="Search customer by phone...">
+					<div class="input-group-append">
+					  <button class="btn btn-default new-customer-btn">New</button>
+					</div>
+				  </div>
+				</div>
+			  </div>
+
+			  <div class="order-main">
+				<div class="catalog-container">
+				  <div class="category-filters"></div>
+				  <div class="search-bar">
+					<input type="text" class="form-control item-search" placeholder="Search items...">
+				  </div>
+				  <div class="item-grid"></div>
+				</div>
+
+				<div class="order-panel">
+				  <div class="order-items">
+					<div class="order-items-list"></div>
+				  </div>
+
+				  <div class="order-actions">
+					<button class="btn btn-lg btn-primary send-kot-btn">Send to Kitchen</button>
+					<button class="btn btn-default hold-btn">Hold</button>
+					<button class="btn btn-default serve-btn">Mark Served</button>
+					<button class="btn btn-default switch-table-btn">Switch Table</button>
+				  </div>
+				</div>
+			  </div>
+			</div>
+		`;
 	}
 
 	setup_components() {

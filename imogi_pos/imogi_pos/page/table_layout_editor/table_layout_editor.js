@@ -33,12 +33,63 @@ class TableLayoutEditor {
 	}
 
 	render() {
-		frappe.require('page/table_layout_editor/table_layout_editor.html', () => {
-			this.wrapper.html(frappe.render_template('table_layout_editor'));
-			this.setup_components();
-			this.load_profiles();
-			this.bind_events();
-		});
+		this.ensure_template();
+		this.wrapper.html(frappe.render_template('table_layout_editor'));
+		this.setup_components();
+		this.load_profiles();
+		this.bind_events();
+	}
+
+	ensure_template() {
+		if (!frappe.templates) {
+			frappe.templates = {};
+		}
+
+		if (!frappe.templates.table_layout_editor) {
+			frappe.templates.table_layout_editor = this.template();
+		}
+	}
+
+	template() {
+		return `
+			<div class="layout-editor-container">
+			  <div class="editor-controls">
+				<div class="profile-selector">
+				  <select class="layout-profile-select"></select>
+				  <button class="btn btn-sm btn-default new-profile-btn">New</button>
+				</div>
+
+				<div class="floor-selector">
+				  <select class="floor-select"></select>
+				</div>
+
+				<div class="action-buttons">
+				  <button class="btn btn-sm btn-primary save-layout-btn">Save Layout</button>
+				  <button class="btn btn-sm btn-default reset-layout-btn">Reset</button>
+				</div>
+			  </div>
+
+			  <div class="editor-main">
+				<div class="toolbox">
+				  <div class="table-shapes">
+					<h4>Add Tables</h4>
+					<div class="shape shape-rect" data-shape="rect">Rectangle</div>
+					<div class="shape shape-circle" data-shape="circle">Circle</div>
+					<div class="shape shape-custom" data-shape="custom">Custom</div>
+				  </div>
+
+				  <div class="object-properties">
+					<h4>Properties</h4>
+					<div class="property-form"></div>
+				  </div>
+				</div>
+
+				<div class="canvas-container">
+				  <div class="layout-canvas"></div>
+				</div>
+			  </div>
+			</div>
+		`;
 	}
 
 	setup_components() {
