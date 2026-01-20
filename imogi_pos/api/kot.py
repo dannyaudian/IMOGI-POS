@@ -355,7 +355,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         # POS Order Item uses "item" as the primary identifier. Fetch only this
         # field by default and include the legacy "item_code" field if it exists
         # in the table to maintain backwards compatibility.
-        fields = ["item"]
+        fields = ["item", "template_item"]
         if frappe.db.has_column("POS Order Item", "item_code"):
             fields.append("item_code")
 
@@ -369,9 +369,15 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         item_identifier = item_data.get("item")
         if not item_identifier and "item_code" in item_data:
             item_identifier = item_data.get("item_code")
+        
+        template_item = item_data.get("template_item")
 
+        # Check if this is a template item (has_variants = 1)
+        # AND item hasn't been converted to variant yet (item still equals template_item)
         is_template = frappe.db.get_value("Item", item_identifier, "has_variants")
-        if is_template:
+        is_unresolved = template_item and (item_identifier == template_item)
+        
+        if is_template and is_unresolved:
             frappe.throw(
                 _(
                     "Cannot send template item to kitchen. Please select a variant for: {0}"
@@ -484,17 +490,14 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
         )
 
     if not kot_doc.kitchen_station:
+        error_msg = _("Kitchen station not configured for selected items.")
         if missing_station_item:
-            frappe.throw(
-                _(
-                    "No kitchen station assigned for selected items. Missing for item: {0}"
-                ).format(missing_station_item),
-                frappe.ValidationError,
-            )
-        frappe.throw(
-            _("No kitchen station assigned for selected items"),
-            frappe.ValidationError,
-        )
+            error_msg += "\n" + _("Missing for item: {0}").format(missing_station_item)
+        error_msg += "\n\n" + _("Please configure one of the following:")
+        error_msg += "\n" + _("1. Set default kitchen/station on Item master")
+        error_msg += "\n" + _("2. Configure Menu Category Routes in Restaurant Settings")
+        error_msg += "\n" + _("3. Set Default Kitchen Station in Restaurant Settings")
+        frappe.throw(error_msg, frappe.ValidationError)
 
     kot_doc.insert()
     kot_ticket = kot_doc.as_dict()

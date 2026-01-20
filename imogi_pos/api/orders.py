@@ -851,6 +851,138 @@ def update_order_status(pos_order, status):
     return {"name": order_doc.name, "workflow_state": order_doc.workflow_state}
 
 @frappe.whitelist()
+def save_order(pos_order, items=None, customer=None, guests=None, table=None, **kwargs):
+    """
+    Save order changes without sending to kitchen.
+    Updates items, customer, guests, and other order details.
+    
+    Args:
+        pos_order (str): POS Order name
+        items (list): List of items with their details
+        customer (str): Customer ID (optional)
+        guests (int): Number of guests (optional)
+        table (str): Table name (optional)
+    
+    Returns:
+        dict: Updated order with item rows
+    """
+    if isinstance(items, str):
+        items = frappe.parse_json(items)
+    
+    order_doc = frappe.get_doc("POS Order", pos_order)
+    validate_branch_access(order_doc.branch)
+    
+    # Check if order is in a closed state
+    if order_doc.workflow_state in WORKFLOW_CLOSED_STATES:
+        frappe.throw(
+            _("Cannot modify order {0} in state {1}").format(order_doc.name, order_doc.workflow_state),
+            frappe.ValidationError
+        )
+    
+    # Update customer if provided
+    if customer:
+        order_doc.customer = customer
+    
+    # Update guests if provided
+    if guests is not None:
+        order_doc.guests = cint(guests)
+    
+    # Update table if provided
+    if table:
+        order_doc.table = table
+    
+    # Get existing items with counters (already sent to kitchen)
+    existing_sent_items = {}
+    for item in order_doc.items:
+        if item.get("counters"):
+            existing_sent_items[item.name] = item
+    
+    # Update items if provided
+    if items:
+        # Keep track of items to preserve
+        items_to_keep = []
+        
+        for item_data in items:
+            item_name = item_data.get('name')
+            
+            # If item has a name and exists in sent items, update it
+            if item_name and item_name in existing_sent_items:
+                existing_item = existing_sent_items[item_name]
+                # Only update notes for items already sent to kitchen
+                existing_item.notes = item_data.get('notes', existing_item.notes)
+                items_to_keep.append(existing_item)
+            else:
+                # This is a new item, add it
+                items_to_keep.append(item_data)
+        
+        # Clear items and re-add
+        order_doc.items = []
+        
+        for item_data in items_to_keep:
+            if hasattr(item_data, 'as_dict'):
+                # This is an existing item object
+                order_doc.append('items', item_data)
+            else:
+                # This is new item data
+                order_doc.append('items', {
+                    'item': item_data.get('item') or item_data.get('item_code'),
+                    'template_item': item_data.get('template_item'),
+                    'qty': flt(item_data.get('qty', 1)),
+                    'rate': flt(item_data.get('rate', 0)),
+                    'notes': item_data.get('notes', ''),
+                    'item_options': item_data.get('item_options', {})
+                })
+    
+    order_doc.save()
+    order_doc.reload()
+    
+    return order_doc.as_dict()
+
+
+@frappe.whitelist()
+def cancel_order(pos_order):
+    """
+    Cancel a POS Order and free its table.
+    
+    Args:
+        pos_order (str): POS Order name
+    
+    Returns:
+        dict: Success status and message
+    """
+    order_doc = frappe.get_doc("POS Order", pos_order)
+    validate_branch_access(order_doc.branch)
+    
+    # Check if order can be cancelled
+    if order_doc.workflow_state in ["Billed", "Completed"]:
+        frappe.throw(
+            _("Cannot cancel order {0} that has been billed").format(order_doc.name),
+            frappe.ValidationError
+        )
+    
+    # Update workflow state
+    order_doc.workflow_state = "Cancelled"
+    order_doc.save()
+    
+    # Free the table if assigned
+    if order_doc.table:
+        try:
+            table_doc = frappe.get_doc("Restaurant Table", order_doc.table)
+            table_doc.status = "Available"
+            table_doc.current_pos_order = None
+            table_doc.save()
+        except Exception as e:
+            frappe.log_error(f"Failed to free table {order_doc.table}: {str(e)}", "Cancel Order")
+    
+    return {
+        "success": True,
+        "message": _("Order {0} has been cancelled").format(order_doc.name),
+        "name": order_doc.name,
+        "workflow_state": order_doc.workflow_state
+    }
+
+
+@frappe.whitelist()
 def set_order_type(pos_order, order_type):
     """
     Updates the order type of an existing POS Order.

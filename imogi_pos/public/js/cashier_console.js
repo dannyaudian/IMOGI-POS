@@ -2513,12 +2513,20 @@ imogi_pos.cashier_console = {
             const itemClass = hasVariants ? 'has-variants' : '';
             const itemIcon = hasVariants ? '<i class="fa fa-list variant-icon"></i>' : '';
             
+            // For templates, show price display ("from X" or range)
+            let priceText;
+            if (hasVariants && item.price_display) {
+                priceText = item.price_display;
+            } else {
+                priceText = this.formatCurrency(item.standard_rate || 0);
+            }
+            
             html += `
                 <div class="catalog-item ${itemClass}" data-item="${item.name}" data-has-variants="${hasVariants ? 1 : 0}">
                     ${item.image ? `<div class="item-image"><img src="${item.image}" alt="${item.item_name}"></div>` : ''}
                     <div class="item-details">
                         <div class="item-name">${item.item_name}</div>
-                        <div class="item-price">${this.formatCurrency(item.rate || 0)}</div>
+                        <div class="item-price">${priceText}</div>
                     </div>
                     ${itemIcon}
                 </div>

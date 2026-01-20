@@ -1253,12 +1253,20 @@ imogi_pos.waiter_order = {
             const itemClass = hasVariants ? 'has-variants' : '';
             const itemIcon = hasVariants ? '<i class="fa fa-list variant-icon"></i>' : '';
             
+            // For templates, show price display ("from X" or range)
+            let priceText;
+            if (hasVariants && item.price_display) {
+                priceText = item.price_display;
+            } else {
+                priceText = this.formatCurrency(item.standard_rate || 0);
+            }
+            
             html += `
                 <div class="catalog-item ${itemClass}" data-item="${item.name}" data-has-variants="${hasVariants ? 1 : 0}">
                     ${item.image ? `<div class="item-image"><img src="${item.image}" alt="${item.item_name}"></div>` : ''}
                     <div class="item-details">
                         <div class="item-name">${item.item_name}</div>
-                        <div class="item-price">${this.formatCurrency(item.rate || 0)}</div>
+                        <div class="item-price">${priceText}</div>
                     </div>
                     ${itemIcon}
                 </div>
@@ -2241,6 +2249,22 @@ imogi_pos.waiter_order = {
             return;
         }
         
+        // Validate no template items (must be variants)
+        // Only block items that are templates AND haven't been converted to variants yet
+        const templateItems = this.state.orderItems.filter(item => {
+            // Check if item is a template (requires_variant = true)
+            // AND hasn't been converted to variant yet (item still equals template_item)
+            const isTemplate = item.requires_variant === true || item.requires_variant === 1;
+            const isUnresolved = item.item === item.template_item;
+            return isTemplate && isUnresolved;
+        });
+        
+        if (templateItems.length > 0) {
+            const itemNames = templateItems.map(item => item.item_name || item.item).join(', ');
+            this.showError(`Cannot send template items to kitchen. Please select variants first for: ${itemNames}`);
+            return;
+        }
+        
         // Save order first
         this.saveOrder(true)
             .then((itemRows) => {
@@ -2276,13 +2300,13 @@ imogi_pos.waiter_order = {
 
                             // Update order status if needed
                             if (this.state.order) {
-                                this.state.order.workflow_state = 'Sent to Kitchen';
+                                this.state.order.workflow_state = 'In Progress';
 
                                 // Update order status display
                                 const orderStatus = this.container.querySelector('.order-status');
                                 if (orderStatus) {
-                                    orderStatus.textContent = 'Sent to Kitchen';
-                                    orderStatus.className = 'order-status sent-to-kitchen';
+                                    orderStatus.textContent = 'In Progress';
+                                    orderStatus.className = 'order-status in-progress';
                                 }
                             }
 

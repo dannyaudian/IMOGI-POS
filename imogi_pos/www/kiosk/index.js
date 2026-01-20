@@ -1868,7 +1868,15 @@ frappe.ready(async function() {
                 }
 
                 const displayRate = this.getDisplayRateForItem(item);
-                const formattedPrice = formatRupiah(Number.isFinite(displayRate) ? displayRate : 0);
+                
+                // For templates, use price_display if available
+                let formattedPrice;
+                if (item.has_variants && item.price_display) {
+                    formattedPrice = item.price_display;
+                } else {
+                    formattedPrice = formatRupiah(Number.isFinite(displayRate) ? displayRate : 0);
+                }
+                
                 html += `
                     <div class="${cardClasses.join(' ')}" data-item="${item.name}" aria-disabled="${isSoldOut ? 'true' : 'false'}">
                         <span class="sold-out-badge" aria-hidden="${isSoldOut ? 'false' : 'true'}">Sold Out</span>

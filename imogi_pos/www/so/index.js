@@ -731,17 +731,11 @@ frappe.ready(function() {
             
             try {
                 const response = await frappe.call({
-                    method: 'frappe.client.get_list',
+                    method: 'imogi_pos.api.variants.get_template_items',
                     args: {
-                        doctype: 'Item',
-                        filters: {
-                            disabled: 0,
-                            is_sales_item: 1,
-                            menu_category: ['not in', ['', null]]
-                        },
-                        fields: ['name', 'item_name', 'item_code', 'description', 'image', 
-                                'standard_rate', 'has_variants', 'variant_of', 'item_group',
-                                'menu_category', 'photo', 'default_kitchen', 'default_kitchen_station'],
+                        pos_profile: null,
+                        item_group: null,
+                        menu_channel: null,
                         limit: 500
                     }
                 });
@@ -960,7 +954,14 @@ frappe.ready(function() {
             this.filteredItems.forEach(item => {
                 const imageUrl = item.photo || item.image || '/assets/imogi_pos/images/default-product-image.svg';
                 const displayRate = this.getDisplayRateForItem(item);
-                const formattedPrice = `${CURRENCY_SYMBOL} ${formatNumber(Number.isFinite(displayRate) ? displayRate : 0)}`;
+                
+                // For templates, use price_display if available
+                let formattedPrice;
+                if (item.has_variants && item.price_display) {
+                    formattedPrice = item.price_display;
+                } else {
+                    formattedPrice = `${CURRENCY_SYMBOL} ${formatNumber(Number.isFinite(displayRate) ? displayRate : 0)}`;
+                }
 
                 html += `
                     <div class="item-card" data-item="${item.name}">

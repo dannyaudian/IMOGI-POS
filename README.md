@@ -233,6 +233,173 @@ curl http://localhost:5555/health
 
 For detailed printing setup including auto-start configuration, multi-branch deployment, and advanced troubleshooting, refer to the printing documentation in the repository.
 
+## Quick Start Guide (After Configuration)
+
+Once all settings are configured, follow these steps to start using IMOGI POS:
+
+### 1. **Start POS Session** (Opsional)
+
+Jika POS Profile mengaktifkan **Require Session**, kasir harus membuka sesi terlebih dahulu:
+
+1. Login ke ERPNext sebagai kasir
+2. Buka **IMOGI POS → Session → POS Opening Entry**
+3. Klik **New**
+4. Pilih POS Profile dan Company
+5. Input **Opening Cash Amount** (saldo awal kas)
+6. **Submit** untuk membuka sesi
+
+### 2. **Akses Cashier Console**
+
+Ada beberapa cara untuk mengakses POS:
+
+#### Option A: Melalui Desk
+1. Login ke ERPNext
+2. Buka workspace **IMOGI POS**
+3. Klik **Cashier Console**
+
+#### Option B: Direct URL
+```
+https://your-site.local/cashier-console
+```
+
+### 3. **Pilih Mode Layanan**
+
+Bergantung pada POS Profile yang dipilih, Anda akan melihat interface yang sesuai:
+
+#### **Table Service Mode** (Restaurant)
+1. Pilih **Table** dari floor layout
+2. Sistem akan membuka order baru atau melanjutkan order existing
+3. Tambahkan items dari menu
+4. Klik **Send to Kitchen** untuk mengirim KOT
+5. Setelah customer siap bayar, klik **Checkout**
+
+#### **Counter/Takeaway Mode**
+1. Langsung tambahkan items ke cart
+2. Pilih **Dine In** atau **Takeaway**
+3. Klik **Checkout** untuk proses pembayaran
+
+#### **Kiosk Mode**
+Customer melakukan self-order melalui kiosk:
+```
+https://your-site.local/kiosk?profile=PROFILE_NAME
+```
+
+#### **Self-Order Mode**
+Customer scan QR code di meja untuk order:
+1. Customer scan QR code
+2. Pilih items dari menu
+3. Submit order
+4. Order akan muncul di Kitchen Display dan cashier dapat finalize
+
+### 4. **Proses Pembayaran**
+
+1. Review order summary
+2. Terapkan **Discount/Promo Code** jika ada
+3. Pilih **Payment Method**:
+   - Cash
+   - Card/Credit Card
+   - Digital Payment
+   - Split Payment (multiple payment methods)
+4. Input **Amount Paid**
+5. Sistem akan calculate **Change Amount**
+6. Klik **Complete Order**
+
+### 5. **Cetak Struk**
+
+Setelah order selesai:
+- **Auto Print** (jika diaktifkan): Struk otomatis tercetak
+- **Manual Print**: Klik tombol "Print Receipt"
+- **Email Receipt**: Input email customer untuk kirim via email
+- **ESC/POS Print**: Untuk thermal printer (perlu Print Bridge)
+
+### 6. **Kitchen Operations** (Restaurant Mode)
+
+#### Kitchen Display
+```
+https://your-site.local/kitchen-display?station=STATION_NAME
+```
+
+Kitchen staff dapat:
+1. Melihat incoming orders (KOT)
+2. **Start** order ketika mulai memasak
+3. **Complete** order ketika siap dihidangkan
+4. Monitor SLA time untuk setiap item
+
+#### KOT Printing
+- KOT otomatis tercetak di printer kitchen (jika dikonfigurasi)
+- Kitchen dapat reprint KOT jika diperlukan
+
+### 7. **Customer Display** (Opsional)
+
+Untuk menampilkan order ke customer:
+
+1. Akses Customer Display di device terpisah:
+```
+https://your-site.local/customer-display
+```
+2. Input **Pairing Code** dari POS Profile
+3. Display akan otomatis sync dengan cashier console
+4. Customer dapat melihat items, prices, dan total secara real-time
+
+### 8. **Waiter Operations** (Table Service)
+
+Untuk waiter yang mengambil order dari meja:
+
+1. Login sebagai waiter
+2. Akses Cashier Console
+3. Pilih table yang di-assign
+4. Tambahkan items dari menu
+5. Klik **Send to Kitchen**
+6. Order akan muncul di Kitchen Display
+7. Setelah customer siap bayar, informasikan ke kasir
+
+### 9. **Tutup Shift/Session**
+
+Pada akhir shift, jika menggunakan POS Session:
+
+1. Buka **IMOGI POS → Session → POS Closing Entry**
+2. Klik **New**
+3. Pilih **POS Opening Entry** yang aktif
+4. Sistem akan calculate total sales, payments, dan cash
+5. Input **Actual Closing Cash**
+6. Review **Difference** (jika ada)
+7. **Submit** untuk menutup session
+
+### 10. **Monitoring & Reports**
+
+Akses laporan melalui workspace **IMOGI POS**:
+- **Sales Summary**: Ringkasan penjualan per periode
+- **Item-wise Sales**: Penjualan per item
+- **Payment Summary**: Ringkasan pembayaran per method
+- **Cashier Performance**: Performa per kasir
+- **Kitchen Performance**: SLA dan completion time
+- **Table Turnover**: Analisis penggunaan meja
+
+### Tips Operasional
+
+✅ **Best Practices:**
+- Selalu buka POS Session di awal shift
+- Verifikasi printer connection sebelum mulai operasi
+- Backup cash drawer secara regular
+- Monitor Kitchen Display untuk order delays
+- Tutup session dengan reconcile cash di akhir shift
+
+⚠️ **Troubleshooting Cepat:**
+- **Printer tidak print**: Check Print Bridge status dan network connection
+- **Table locked**: Refresh browser atau contact supervisor untuk unlock
+- **Order stuck di kitchen**: Manual complete dari Kitchen Display
+- **Payment gagal**: Verify payment method configuration
+- **Stock habis**: Update stock atau enable negative stock
+
+### Support URLs
+
+- **Cashier Console**: `/cashier-console`
+- **Kitchen Display**: `/kitchen-display?station=STATION_NAME`
+- **Customer Display**: `/customer-display`
+- **Self-Order**: `/so?token=TABLE_TOKEN`
+- **Kiosk**: `/kiosk?profile=PROFILE_NAME`
+- **Table Layout**: Akses dari Desk → IMOGI POS → Table Layout
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

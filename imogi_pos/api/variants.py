@@ -94,10 +94,17 @@ def get_items_with_stock(
         ["Item", "menu_category", "is", "set"],
         ["Item", "menu_category", "!=", ""],
     ]
+    
+    # Filter to exclude variant children - only show templates and regular items
+    or_filters = [
+        ["Item", "variant_of", "is", "not set"],
+        ["Item", "variant_of", "=", ""],
+    ]
 
     items = frappe.get_all(
         "Item",
         filters=item_filters,
+        or_filters=or_filters,
         fields=[
             "name",
             "item_name",
@@ -672,3 +679,151 @@ def find_template_for_variant(variant_item):
         "attributes": variant_attrs,
         "image": variant_doc.image or template_doc.image
     }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_template_items(pos_profile=None, item_group=None, menu_channel=None, limit=500):
+    """
+    Get items for POS catalog - only templates and non-variant items.
+    Excludes variant children (they're selected via variant picker).
+    
+    Args:
+        pos_profile (str): POS Profile to filter items
+        item_group (str): Item Group to filter by
+        menu_channel (str): Menu channel to filter by
+        limit (int): Maximum items to return
+    
+    Returns:
+        list: Items that should appear in POS catalog (templates + regular items)
+    """
+    filters = [
+        ["Item", "disabled", "=", 0],
+        ["Item", "is_sales_item", "=", 1],
+        # Exclude variant children - only show templates (has_variants=1) or regular items (variant_of is null)
+        ["Item", "variant_of", "is", "not set"],
+    ]
+    
+    # Filter by item group if provided
+    if item_group:
+        filters.append(["Item", "item_group", "=", item_group])
+    
+    items = frappe.get_all(
+        "Item",
+        filters=filters,
+        fields=[
+            "name",
+            "item_name",
+            "item_code", 
+            "description",
+            "image",
+            "standard_rate",
+            "has_variants",
+            "variant_of",
+            "item_group",
+            "menu_category",
+            "stock_uom",
+        ],
+        order_by="item_name asc",
+        limit_page_length=cint(limit) or 500,
+    )
+    
+    # Filter by channel if provided
+    if menu_channel:
+        items = [
+            item for item in items
+            if _channel_matches(item.get("imogi_menu_channel"), menu_channel)
+        ]
+    
+    # Get price list rates if POS profile provided
+    price_list = None
+    if pos_profile and items:
+        price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+        if price_list:
+            item_codes = [item.name for item in items]
+            price_maps = get_price_list_rate_maps(
+                item_codes,
+                price_list=price_list
+            )
+            
+            # Update rates
+            for item in items:
+                item_rate = price_maps["price_list_rates"].get(item.name)
+                if item_rate:
+                    item.standard_rate = item_rate
+    
+    # For template items (has_variants=1), get price range from variants
+    templates = [item for item in items if item.has_variants]
+    if templates and price_list:
+        template_names = [t.name for t in templates]
+        
+        # Get variant prices
+        variant_prices = frappe.db.sql("""
+            SELECT 
+                i.variant_of,
+                MIN(COALESCE(ip.price_list_rate, i.standard_rate, 0)) as min_price,
+                MAX(COALESCE(ip.price_list_rate, i.standard_rate, 0)) as max_price
+            FROM `tabItem` i
+            LEFT JOIN `tabItem Price` ip ON ip.item_code = i.name AND ip.price_list = %s
+            WHERE i.variant_of IN %s
+                AND i.disabled = 0
+            GROUP BY i.variant_of
+        """, (price_list, template_names), as_dict=True)
+        
+        # Create price map
+        variant_price_map = {
+            vp.variant_of: {
+                "min_price": flt(vp.min_price),
+                "max_price": flt(vp.max_price)
+            }
+            for vp in variant_prices
+        }
+        
+        # Update template items with price info
+        for item in items:
+            if item.has_variants and item.name in variant_price_map:
+                prices = variant_price_map[item.name]
+                item.min_price = prices["min_price"]
+                item.max_price = prices["max_price"]
+                
+                # Set standard_rate to min_price for sorting/display
+                if prices["min_price"] > 0:
+                    item.standard_rate = prices["min_price"]
+                    
+                # Add price display text
+                if prices["min_price"] == prices["max_price"]:
+                    item.price_display = f"{prices['min_price']}"
+                else:
+                    item.price_display = f"from {prices['min_price']}"
+    
+    return items
+
+
+@frappe.whitelist(allow_guest=True)
+def get_item_groups(pos_profile=None):
+    """
+    Get item groups that have items available for POS.
+    Only returns groups that have template or non-variant items.
+    
+    Args:
+        pos_profile (str): POS Profile (optional, for future filtering)
+    
+    Returns:
+        list: Item groups with item counts
+    """
+    # Get all item groups that have items (excluding variant children)
+    item_groups = frappe.db.sql("""
+        SELECT DISTINCT 
+            i.item_group as name,
+            ig.item_group_name,
+            COUNT(i.name) as item_count
+        FROM `tabItem` i
+        INNER JOIN `tabItem Group` ig ON i.item_group = ig.name
+        WHERE i.disabled = 0
+            AND i.is_sales_item = 1
+            AND (i.variant_of IS NULL OR i.variant_of = '')
+        GROUP BY i.item_group, ig.item_group_name
+        HAVING item_count > 0
+        ORDER BY ig.item_group_name
+    """, as_dict=True)
+    
+    return item_groups
