@@ -139,6 +139,100 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 
 For detailed documentation, refer to the [User Guide](link-to-docs) and [Developer Reference](link-to-dev-docs).
 
+## Printing Setup
+
+IMOGI POS supports ESC/POS direct printing for thermal printers via a local Print Bridge service.
+
+### Supported Printer Types
+
+- ✅ **Network Thermal Printer** (TCP/IP)
+- ✅ **USB Thermal Printer** (Direct device)
+- ✅ **Bluetooth Thermal Printer** (Wireless)
+
+### Quick Setup (5 Minutes)
+
+#### Step 1: Install Print Bridge on Cashier PC
+
+```bash
+# Download and setup
+cd ~
+mkdir imogi-print-bridge
+cd imogi-print-bridge
+
+# Install dependencies
+pip3 install flask flask-cors pybluez pyserial
+
+# Run the bridge
+python3 print_bridge.py
+```
+
+#### Step 2: Configure in Browser
+
+1. Login to POS
+2. Click **Tools** → **Printer Settings**
+3. Choose printer type and configuration:
+
+**Network Printer:**
+- Type: Network
+- IP: 192.168.1.100
+- Port: 9100
+
+**USB Printer:**
+- Type: USB
+- Device: /dev/usb/lp0
+
+**Bluetooth Printer:**
+- Type: Bluetooth
+- Click **Discover Devices**
+- Select printer from list
+
+4. Click **Save & Test**
+5. Verify test print works ✅
+
+#### Step 3: Print!
+
+Enable **Auto Print** in Printer Settings or manually click "Print Receipt (ESC/POS)" button.
+
+### Printing from Code
+
+```javascript
+// Print receipt
+imogi_pos.printing.print_receipt('POS-INV-00001');
+
+// Print KOT
+imogi_pos.printing.print_kot('POS-INV-00001');
+
+// Test printer
+imogi_pos.printing.test_printer();
+```
+
+### Troubleshooting
+
+**Print Bridge not running?**
+```bash
+python3 print_bridge.py
+```
+
+**Permission denied on USB?**
+```bash
+sudo chmod 666 /dev/usb/lp0
+# Or add user to lp group
+sudo usermod -a -G lp $USER
+```
+
+**Test network printer connectivity:**
+```bash
+ping 192.168.1.100
+telnet 192.168.1.100 9100
+```
+
+**Check Print Bridge health:**
+```bash
+curl http://localhost:5555/health
+```
+
+For detailed printing setup including auto-start configuration, multi-branch deployment, and advanced troubleshooting, refer to the printing documentation in the repository.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
