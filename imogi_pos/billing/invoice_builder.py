@@ -88,7 +88,8 @@ def build_sales_invoice_from_pos_order(
     # Set standard POS fields
     si.pos_profile = pos_order.pos_profile
     si.update_stock = pos_profile.update_stock
-    si.ignore_pricing_rule = pos_profile.ignore_pricing_rule
+    # Enable native ERPNext Pricing Rules (native-first approach)
+    si.ignore_pricing_rule = 0  # Always use native pricing rules
     
     # Copy tax/charging template from POS Profile
     if pos_profile.taxes_and_charges:
@@ -101,7 +102,8 @@ def build_sales_invoice_from_pos_order(
             "rate": 11.0
         })
 
-    # Apply order discount if any
+    # Apply order discount if any (custom promo codes as fallback)
+    # Native pricing rules will be applied first automatically by ERPNext
     if getattr(pos_order, "discount_amount", None) or getattr(pos_order, "discount_percent", None):
         si.apply_discount_on = "Grand Total"
         if getattr(pos_order, "discount_amount", None):

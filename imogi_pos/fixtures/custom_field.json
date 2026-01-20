@@ -1290,11 +1290,25 @@
     "name": "Sales Invoice-customer_identification"
   },
   {
+    "fieldname": "lead_name",
+    "fieldtype": "Link",
+    "label": "Lead",
+    "options": "Lead",
+    "insert_after": "customer_name",
+    "read_only": 1,
+    "description": "Link to Lead if customer was converted from Lead (Native CRM Integration)",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Customer",
+    "doctype": "Custom Field",
+    "name": "Customer-lead_name"
+  },
+  {
     "fieldname": "customer_identification",
     "fieldtype": "Select",
     "label": "Customer Identification",
     "options": "Berkeluarga\nTidak Berkeluarga",
-    "insert_after": "customer_name",
+    "insert_after": "lead_name",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "Customer",

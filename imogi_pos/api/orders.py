@@ -9,16 +9,18 @@ from frappe import _
 from frappe.utils import now_datetime, flt, cstr, cint
 from imogi_pos.utils.permissions import validate_branch_access
 from imogi_pos.api.queue import get_next_queue_number
-from imogi_pos.api.pricing import evaluate_order_discounts, get_price_list_rate_maps
+from imogi_pos.api.pricing import get_price_list_rate_maps
 from frappe.exceptions import TimestampMismatchError
 
-
-DEFAULT_DISCOUNT_ROLES = {
-    "System Manager",
-    "Restaurant Manager",
-    "Cashier",
-    "POS Manager",
-}
+# Import native pricing integration
+try:
+    from imogi_pos.api.native_pricing import (
+        get_applicable_pricing_rules,
+        apply_pricing_rules_to_items,
+    )
+    NATIVE_PRICING_AVAILABLE = True
+except ImportError:
+    NATIVE_PRICING_AVAILABLE = False
 
 
 def _get_flag(name):
@@ -50,6 +52,49 @@ def _set_flag(name, value):
             setattr(flags, name, value)
 
 
+def _apply_native_pricing_rules_to_item(item_dict, customer=None, price_list=None, pos_profile=None):
+    """Apply native ERPNext pricing rules to a single item."""
+    if not NATIVE_PRICING_AVAILABLE:
+        return item_dict
+    
+    try:
+        item_code = item_dict.get("item_code") or item_dict.get("item")
+        qty = flt(item_dict.get("qty", 1))
+        
+        if not item_code:
+            return item_dict
+        
+        # Get applicable pricing rules
+        pricing_result = get_applicable_pricing_rules(
+            item_code=item_code,
+            customer=customer,
+            price_list=price_list,
+            qty=qty,
+            pos_profile=pos_profile,
+        )
+        
+        if pricing_result.get("has_rule"):
+            # Apply discount from pricing rule
+            if pricing_result.get("discount_percentage"):
+                item_dict["discount_percentage"] = pricing_result["discount_percentage"]
+            if pricing_result.get("discount_amount"):
+                item_dict["discount_amount"] = pricing_result["discount_amount"]
+            if pricing_result.get("rate"):
+                item_dict["rate"] = pricing_result["rate"]
+            
+            item_dict["pricing_rule"] = pricing_result.get("pricing_rule")
+            
+            # Log for debugging
+            frappe.log_error(
+                f"Applied native pricing rule: {pricing_result.get('pricing_rule')} to item {item_code}",
+                "Native Pricing Applied"
+            )
+    except Exception as e:
+        frappe.log_error(f"Error applying native pricing rules: {str(e)}", "Native Pricing Error")
+    
+    return item_dict
+
+
 def _apply_customer_metadata(customer, details):
     """Persist provided customer demographics onto the Customer document when available."""
 
@@ -77,26 +122,7 @@ def _apply_customer_metadata(customer, details):
         frappe.db.set_value("Customer", customer, updates, update_modified=False)
 
 
-def user_can_apply_order_discounts(user=None):
-    """Return True when the current session is allowed to apply manual discounts."""
 
-    user = user or getattr(getattr(frappe, "session", None), "user", None)
-    if not user or user == "Guest":
-        return False
-
-    try:
-        roles = set(frappe.get_roles(user))
-    except Exception:
-        roles = set()
-
-    allowed_roles = set(DEFAULT_DISCOUNT_ROLES)
-    try:
-        hooks = frappe.get_hooks("imogi_discount_roles") or []
-    except Exception:
-        hooks = []
-    allowed_roles.update(hooks)
-
-    return bool(roles.intersection(allowed_roles))
 
 WORKFLOW_CLOSED_STATES = ("Closed", "Cancelled", "Returned")
 
@@ -263,6 +289,14 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     if options_value is not None:
         row_data["item_options"] = options_value
 
+    # Apply native ERPNext pricing rules (native-first approach)
+    row_data = _apply_native_pricing_rules_to_item(
+        row_data,
+        customer=getattr(order_doc, "customer", None),
+        price_list=getattr(order_doc, "selling_price_list", None),
+        pos_profile=getattr(order_doc, "pos_profile", None),
+    )
+
     # Carry over other recognised optional fields from the payload
     for key in ("notes", "kitchen", "kitchen_station"):
         if key in item_payload and item_payload.get(key) is not None:
@@ -296,8 +330,6 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
         "workflow_state": order_doc.workflow_state,
         "subtotal": flt(getattr(order_doc, "subtotal", 0)),
         "pb1_amount": flt(getattr(order_doc, "pb1_amount", 0)),
-        "discount_amount": flt(getattr(order_doc, "discount_amount", 0)),
-        "discount_percent": flt(getattr(order_doc, "discount_percent", 0)),
         "totals": flt(getattr(order_doc, "totals", 0)),
         "item_count": len(getattr(order_doc, "items", []) or []),
         "total_qty": sum(
@@ -366,7 +398,7 @@ def get_next_available_table(branch):
     return str(min(numbers))
 
 @frappe.whitelist()
-def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, discount_amount=0, discount_percent=0, promo_code=None, service_type=None, selling_price_list=None, customer_info=None):
+def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.
     
@@ -428,54 +460,6 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     elif order_type == "Dine-in":
         # Allow Dine-in orders without specifying a table, but ensure Restaurant domain
         check_restaurant_domain(pos_profile)
-    evaluation = evaluate_order_discounts(items, promo_code=promo_code)
-    evaluation_errors = evaluation.get("errors") or []
-    if evaluation_errors:
-        frappe.throw(evaluation_errors[0], frappe.ValidationError)
-
-    computed_percent = flt(evaluation.get("discount_percent") or 0)
-    computed_amount = flt(evaluation.get("discount_amount") or 0)
-    computed_code = evaluation.get("applied_promo_code")
-
-    has_computed_discount = bool(computed_amount or computed_percent)
-
-    if has_computed_discount:
-        discount_amount = computed_amount
-        discount_percent = computed_percent
-
-    if computed_code is not None or has_computed_discount:
-        promo_code = computed_code
-
-    temporary_discount_flag = False
-    if has_computed_discount and not _get_flag("imogi_allow_discount_override"):
-        _set_flag("imogi_allow_discount_override", True)
-        temporary_discount_flag = True
-
-    try:
-        # Ensure numeric discounts to avoid type issues
-        try:
-            discount_amount = float(discount_amount or 0)
-        except Exception:
-            discount_amount = 0
-        try:
-            discount_percent = float(discount_percent or 0)
-        except Exception:
-            discount_percent = 0
-
-        trusted_discount_context = _get_flag("imogi_allow_discount_override")
-        if not trusted_discount_context:
-            if discount_amount or discount_percent:
-                frappe.log_error(
-                    _("Blocked untrusted discount submission for user {0}").format(
-                        getattr(getattr(frappe, "session", None), "user", "Guest")
-                    ),
-                    "IMOGI POS Discount Guard",
-                )
-            discount_amount = 0
-            discount_percent = 0
-    finally:
-        if temporary_discount_flag:
-            _set_flag("imogi_allow_discount_override", None)
 
     # Normalise optional customer metadata
     customer_details = {}
@@ -564,9 +548,6 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             "table": table,
             "customer": customer,
             "workflow_state": "Draft",
-            "discount_amount": discount_amount,
-            "discount_percent": discount_percent,
-            "promo_code": promo_code,
             "selling_price_list": selling_price_list,
         }
     )
@@ -586,6 +567,27 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             items = frappe.parse_json(items)
         if isinstance(items, dict):
             items = [items]
+        
+        # Apply native pricing rules to all items (native-first approach)
+        if NATIVE_PRICING_AVAILABLE:
+            try:
+                pricing_result = apply_pricing_rules_to_items(
+                    items=items,
+                    customer=customer,
+                    price_list=selling_price_list,
+                    pos_profile=pos_profile,
+                )
+                
+                if pricing_result.get("has_pricing_rules"):
+                    items = pricing_result.get("items", items)
+                    
+                    # Add free items if any
+                    free_items = pricing_result.get("free_items", [])
+                    if free_items:
+                        items.extend(free_items)
+            except Exception as e:
+                frappe.log_error(f"Error applying native pricing to order items: {str(e)}", "Native Pricing Error")
+        
         for item in items:
             if not item.get("item") and item.get("item_code"):
                 item["item"] = item.get("item_code")
@@ -594,6 +596,13 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 row.rate = item.get("rate")
             if item.get("item_options") is not None:
                 row.item_options = item.get("item_options")
+            # Copy pricing rule info if available
+            if item.get("pricing_rule"):
+                row.pricing_rule = item.get("pricing_rule")
+            if item.get("discount_percentage"):
+                row.discount_percentage = item.get("discount_percentage")
+            if item.get("discount_amount"):
+                row.discount_amount = item.get("discount_amount")
             validate_item_is_sales_item(row)
 
     # Validate customer before inserting the order
@@ -639,40 +648,23 @@ def create_staff_order(
     table=None,
     customer=None,
     items=None,
-    discount_amount=0,
-    discount_percent=0,
-    promo_code=None,
     service_type=None,
     selling_price_list=None,
     customer_info=None,
 ):
-    """Create an order on behalf of staff while enabling trusted discount overrides."""
+    """Create an order on behalf of staff."""
 
-    existing_flag = _get_flag("imogi_allow_discount_override")
-    should_clear_flag = False
-
-    if not existing_flag and user_can_apply_order_discounts():
-        _set_flag("imogi_allow_discount_override", True)
-        should_clear_flag = True
-
-    try:
-        return create_order(
-            order_type,
-            branch,
-            pos_profile,
-            table=table,
-            customer=customer,
-            items=items,
-            discount_amount=discount_amount,
-            discount_percent=discount_percent,
-            promo_code=promo_code,
-            service_type=service_type,
-            selling_price_list=selling_price_list,
-            customer_info=customer_info,
-        )
-    finally:
-        if should_clear_flag:
-            _set_flag("imogi_allow_discount_override", None)
+    return create_order(
+        order_type,
+        branch,
+        pos_profile,
+        table=table,
+        customer=customer,
+        items=items,
+        service_type=service_type,
+        selling_price_list=selling_price_list,
+        customer_info=customer_info,
+    )
 
 @frappe.whitelist()
 def open_or_create_for_table(table, floor, pos_profile):

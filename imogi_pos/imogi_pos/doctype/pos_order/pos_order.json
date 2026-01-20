@@ -28,9 +28,6 @@
         "section_break_13",
         "subtotal",
         "pb1_amount",
-        "discount_percent",
-        "discount_amount",
-        "promo_code",
         "totals",
         "section_break_15",
         "notes",
@@ -173,21 +170,6 @@
             "fieldtype": "Currency",
             "label": "PB1 Amount",
             "read_only": 1
-        },
-        {
-            "fieldname": "discount_percent",
-            "fieldtype": "Percent",
-            "label": "Discount Percent"
-        },
-        {
-            "fieldname": "discount_amount",
-            "fieldtype": "Currency",
-            "label": "Discount Amount"
-        },
-        {
-            "fieldname": "promo_code",
-            "fieldtype": "Data",
-            "label": "Promo Code"
         },
         {
             "fieldname": "totals",

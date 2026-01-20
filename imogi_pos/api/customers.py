@@ -204,6 +204,22 @@ def quick_create_customer_with_contact(
                 "customer": existing_customers[0]
             }
         
+        # Create Lead first (native ERPNext CRM approach)
+        lead = None
+        try:
+            if frappe.db.exists("DocType", "Lead"):
+                lead = frappe.get_doc({
+                    "doctype": "Lead",
+                    "lead_name": name,
+                    "mobile_no": normalized_phone,
+                    "email_id": email,
+                    "source": "POS",
+                    "status": "Lead"
+                })
+                lead.insert(ignore_permissions=True)
+        except Exception as lead_error:
+            frappe.log_error(f"Error creating lead: {str(lead_error)}")
+        
         # Create the customer
         customer = frappe.get_doc({
             "doctype": "Customer",
@@ -212,10 +228,19 @@ def quick_create_customer_with_contact(
             "territory": territory,
             "customer_type": "Individual",
             "mobile_no": normalized_phone,
-            "email_id": email
+            "email_id": email,
+            # Link to lead if created
+            "lead_name": lead.name if lead else None
         })
         
         customer.insert(ignore_permissions=True)
+        
+        # Convert lead to customer if lead was created
+        if lead:
+            try:
+                lead.db_set("status", "Converted")
+            except Exception:
+                pass
         
         # Create the contact
         contact = frappe.get_doc({

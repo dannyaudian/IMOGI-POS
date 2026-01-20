@@ -8,6 +8,11 @@
         "item",
         "qty",
         "rate",
+        "pricing_section",
+        "pricing_rule",
+        "discount_percentage",
+        "discount_amount",
+        "column_break_pricing",
         "amount",
         "column_break_5",
         "notes",
@@ -43,6 +48,36 @@
             "in_list_view": 1,
             "label": "Rate",
             "reqd": 1
+        },
+        {
+            "fieldname": "pricing_section",
+            "fieldtype": "Section Break",
+            "label": "Pricing & Discount",
+            "collapsible": 1
+        },
+        {
+            "fieldname": "pricing_rule",
+            "fieldtype": "Link",
+            "label": "Pricing Rule Applied",
+            "options": "Pricing Rule",
+            "read_only": 1,
+            "description": "Native ERPNext Pricing Rule that was applied to this item"
+        },
+        {
+            "fieldname": "discount_percentage",
+            "fieldtype": "Percent",
+            "label": "Discount %",
+            "description": "Discount percentage from pricing rule or manual"
+        },
+        {
+            "fieldname": "discount_amount",
+            "fieldtype": "Currency",
+            "label": "Discount Amount",
+            "description": "Fixed discount amount from pricing rule or manual"
+        },
+        {
+            "fieldname": "column_break_pricing",
+            "fieldtype": "Column Break"
         },
         {
             "fieldname": "amount",

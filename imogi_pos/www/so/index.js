@@ -19,18 +19,6 @@ frappe.ready(function() {
         variantPool: new Map(),
         taxRate: 0,
 
-        discountState: {
-            cartQuantity: 0,
-            autoPercent: 0,
-            promo: null,
-            applied: null,
-            error: null,
-            isApplying: false,
-        },
-
-        allowDiscounts:
-            typeof ALLOW_DISCOUNTS !== 'undefined' && Boolean(ALLOW_DISCOUNTS),
-        
         // Payment state
         paymentRequest: null,
         paymentTimer: null,
@@ -43,8 +31,6 @@ frappe.ready(function() {
             cartSubtotal: document.getElementById('cart-subtotal'),
             cartTax: document.getElementById('cart-tax'),
             cartTotal: document.getElementById('cart-total'),
-            cartDiscount: document.getElementById('cart-discount'),
-            cartDiscountLabel: document.getElementById('cart-discount-label'),
             cartCount: document.getElementById('cart-count'),
             cartPanel: document.getElementById('cart-panel'),
             overlay: document.getElementById('overlay'),
@@ -75,14 +61,6 @@ frappe.ready(function() {
             paymentCancelBtn: document.getElementById('btn-payment-cancel'),
             paymentModalClose: document.getElementById('payment-modal-close'),
 
-            promoSection: document.getElementById('promo-section'),
-            promoButton: document.getElementById('btn-promo'),
-            promoInputContainer: document.getElementById('promo-input-container'),
-            promoInput: document.getElementById('promo-code-input'),
-            promoApplyBtn: document.getElementById('promo-apply-btn'),
-            promoCancelBtn: document.getElementById('promo-cancel-btn'),
-            promoStatus: document.getElementById('promo-status'),
-            
             // Loading overlay
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text')
@@ -312,7 +290,6 @@ frappe.ready(function() {
             }
 
             this.setupEventListeners();
-            this.initDiscountControls();
             await this.loadItems();
             await this.loadTaxTemplate();
             this.renderItems();
@@ -396,333 +373,6 @@ frappe.ready(function() {
             this.elements.paymentCancelBtn.addEventListener('click', () => {
                 this.cancelPayment();
             });
-        },
-
-        initDiscountControls: function() {
-            if (!this.allowDiscounts) {
-                if (this.elements.promoSection) {
-                    this.elements.promoSection.style.display = 'none';
-                }
-                return;
-            }
-
-            if (this.elements.promoButton) {
-                this.elements.promoButton.addEventListener('click', () => {
-                    if (!this.cart.length) {
-                        this.setPromoError(__('Add items to use a promo code.'));
-                        return;
-                    }
-                    this.discountState.error = null;
-                    this.showPromoInput();
-                });
-            }
-
-            if (this.elements.promoCancelBtn) {
-                this.elements.promoCancelBtn.addEventListener('click', () => {
-                    this.cancelPromoInput();
-                });
-            }
-
-            if (this.elements.promoApplyBtn) {
-                this.elements.promoApplyBtn.addEventListener('click', () => {
-                    this.handleApplyPromo();
-                });
-            }
-
-            if (this.elements.promoInput) {
-                this.elements.promoInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        event.preventDefault();
-                        this.handleApplyPromo();
-                    }
-                });
-            }
-
-            if (this.elements.promoStatus) {
-                this.elements.promoStatus.addEventListener('click', (event) => {
-                    const target = event.target;
-                    if (target && target.classList.contains('promo-remove')) {
-                        event.preventDefault();
-                        this.removePromoCode();
-                    }
-                });
-            }
-
-            this.refreshDiscountUI();
-        },
-
-        resetDiscountState: function() {
-            this.discountState.cartQuantity = 0;
-            this.discountState.autoPercent = 0;
-            this.discountState.applied = null;
-            this.discountState.error = null;
-            this.discountState.isApplying = false;
-            this.discountState.promo = null;
-            if (this.elements.promoInput) {
-                this.elements.promoInput.value = '';
-            }
-            this.hidePromoInput();
-            this.refreshDiscountUI();
-        },
-
-        showPromoInput: function() {
-            if (!this.allowDiscounts) {
-                return;
-            }
-            const container = this.elements.promoInputContainer;
-            if (!container) {
-                return;
-            }
-            container.classList.remove('hidden');
-            if (this.elements.promoButton) {
-                this.elements.promoButton.disabled = true;
-            }
-            const input = this.elements.promoInput;
-            if (input) {
-                input.disabled = false;
-                input.value = this.discountState.promo?.code || '';
-                requestAnimationFrame(() => {
-                    input.focus();
-                    input.select();
-                });
-            }
-        },
-
-        hidePromoInput: function() {
-            const container = this.elements.promoInputContainer;
-            if (container) {
-                container.classList.add('hidden');
-            }
-        },
-
-        cancelPromoInput: function() {
-            if (!this.allowDiscounts) {
-                return;
-            }
-            const input = this.elements.promoInput;
-            if (input) {
-                input.value = this.discountState.promo?.code || '';
-            }
-            this.hidePromoInput();
-            this.discountState.error = null;
-            this.refreshDiscountUI();
-        },
-
-        handleApplyPromo: async function() {
-            if (!this.allowDiscounts || this.discountState.isApplying) {
-                return;
-            }
-
-            if (!this.cart.length) {
-                this.setPromoError(__('Add items to use a promo code.'));
-                return;
-            }
-
-            const input = this.elements.promoInput;
-            const rawCode = (input?.value || '').trim();
-            if (!rawCode) {
-                this.setPromoError(__('Enter a promo code.'));
-                return;
-            }
-
-            this.discountState.isApplying = true;
-            this.discountState.error = null;
-            this.refreshDiscountUI();
-
-            try {
-                const totals = this.calculateTotals();
-                const payload = {
-                    promo_code: rawCode,
-                    pos_profile: POS_PROFILE,
-                    branch: typeof BRANCH !== 'undefined' ? BRANCH : null,
-                    quantity: this.discountState.cartQuantity,
-                    subtotal: totals.subtotal,
-                    tax: totals.tax,
-                    total: totals.gross,
-                    order_type: MODE || null,
-                };
-                if (TABLE) {
-                    payload.table = TABLE;
-                }
-
-                const response = await frappe.call({
-                    method: 'imogi_pos.api.pricing.validate_promo_code',
-                    args: payload,
-                });
-
-                const result = response?.message ?? response;
-                const normalized = this.normalizePromoResult(result, rawCode);
-                if (!normalized || normalized.error) {
-                    const message = normalized?.error || result?.message || __('Promo code is invalid or expired.');
-                    this.discountState.promo = null;
-                    this.setPromoError(message);
-                } else {
-                    this.discountState.promo = normalized;
-                    this.discountState.error = null;
-                    if (this.elements.promoInput) {
-                        this.elements.promoInput.value = normalized.code;
-                    }
-                    this.hidePromoInput();
-                }
-            } catch (error) {
-                console.error('Failed to validate promo code:', error);
-                const message = error?.message || __('Failed to validate promo code. Please try again.');
-                this.setPromoError(message);
-            } finally {
-                this.discountState.isApplying = false;
-                this.updateCartTotals();
-            }
-        },
-
-        removePromoCode: function() {
-            if (!this.allowDiscounts) {
-                return;
-            }
-            this.discountState.promo = null;
-            this.discountState.error = null;
-            if (this.elements.promoInput) {
-                this.elements.promoInput.value = '';
-            }
-            this.hidePromoInput();
-            this.updateCartTotals();
-        },
-
-        setPromoError: function(message) {
-            if (!this.allowDiscounts) {
-                return;
-            }
-            this.discountState.error = message ? String(message) : null;
-            this.refreshDiscountUI();
-        },
-
-        refreshDiscountUI: function(totals) {
-            if (!this.allowDiscounts) {
-                if (this.elements.cartDiscountLabel) {
-                    this.elements.cartDiscountLabel.textContent = __('Discount');
-                }
-                return;
-            }
-
-            if (!totals) {
-                totals = this.calculateTotals();
-            }
-
-            const hasItems = this.cart.length > 0;
-
-            if (this.elements.promoButton) {
-                this.elements.promoButton.disabled = !hasItems || this.discountState.isApplying;
-            }
-            if (this.elements.promoApplyBtn) {
-                this.elements.promoApplyBtn.disabled = this.discountState.isApplying;
-            }
-            if (this.elements.promoCancelBtn) {
-                this.elements.promoCancelBtn.disabled = this.discountState.isApplying;
-            }
-            if (this.elements.promoInput) {
-                this.elements.promoInput.disabled = this.discountState.isApplying;
-            }
-
-            if (!hasItems) {
-                if (this.discountState.promo) {
-                    this.discountState.promo = null;
-                }
-                this.hidePromoInput();
-            }
-
-            const labelEl = this.elements.cartDiscountLabel;
-            if (labelEl) {
-                const base = __('Discount');
-                labelEl.textContent = totals.discountLabel ? `${base} (${totals.discountLabel})` : base;
-            }
-
-            const statusEl = this.elements.promoStatus;
-            if (statusEl) {
-                statusEl.classList.remove('error', 'success');
-                let html = '';
-                if (this.discountState.error) {
-                    statusEl.classList.add('error');
-                    html = escapeHtml(this.discountState.error);
-                } else if (this.discountState.promo) {
-                    const promo = this.discountState.promo;
-                    statusEl.classList.add('success');
-                    if (totals.discountSource === 'promo') {
-                        const description =
-                            promo.description || promo.message || __('Promo {0} applied', [promo.code]);
-                        html = `${escapeHtml(description)} <button type="button" class="promo-remove">${__('Remove')}</button>`;
-                    } else {
-                        const infoMessage = __('Promo {0} saved. Automatic discount applied instead.', [promo.code]);
-                        html = `${escapeHtml(infoMessage)} <button type="button" class="promo-remove">${__('Remove')}</button>`;
-                    }
-                } else if (totals.discountSource === 'auto' && totals.discountDescription) {
-                    statusEl.classList.add('success');
-                    html = escapeHtml(totals.discountDescription);
-                }
-                statusEl.innerHTML = html;
-            }
-        },
-
-        normalizePromoResult: function(data, rawCode) {
-            if (!data) {
-                return { error: __('Promo code is invalid or expired.') };
-            }
-            if (data.error) {
-                return { error: data.error };
-            }
-            if (data.valid === false) {
-                return { error: data.message || __('Promo code is invalid or expired.') };
-            }
-
-            const code = (data.code || data.promo_code || rawCode || '').trim();
-            if (!code) {
-                return { error: __('Promo code is invalid or expired.') };
-            }
-
-            let percent = this.normalizeNumber(
-                data.discount_percent ?? data.percent ?? data.percentage ?? 0
-            );
-            let amount = this.normalizeNumber(
-                data.discount_amount ?? data.amount ?? data.value ?? 0
-            );
-            const type = String(data.discount_type || data.type || '').toLowerCase();
-
-            let discountType = 'percent';
-            if (type.includes('amount') || type.includes('value') || type.includes('fixed')) {
-                discountType = 'amount';
-            } else if (percent <= 0 && amount > 0) {
-                discountType = 'amount';
-            }
-
-            percent = Math.max(0, percent);
-            amount = Math.max(0, amount);
-            if (discountType === 'percent' && percent <= 0 && amount > 0) {
-                discountType = 'amount';
-            } else if (discountType === 'amount' && amount <= 0 && percent > 0) {
-                discountType = 'percent';
-            }
-
-            const normalizedPercent = discountType === 'percent' ? percent : 0;
-            const normalizedAmount = discountType === 'amount' ? amount : 0;
-
-            return {
-                code: code.toUpperCase(),
-                discountType,
-                percent: normalizedPercent,
-                amount: normalizedAmount,
-                label:
-                    data.label ||
-                    data.title ||
-                    (discountType === 'percent'
-                        ? __('Promo {0} ({1}% off)', [code.toUpperCase(), normalizedPercent])
-                        : __('Promo {0}', [code.toUpperCase()])),
-                description:
-                    data.description ||
-                    data.message ||
-                    data.detail ||
-                    (discountType === 'percent'
-                        ? __('{0}% discount applied.', [normalizedPercent])
-                        : __('Discount applied.')),
-                message: data.status_message || data.success_message || null,
-            };
         },
         
         // Load item data
@@ -1012,9 +662,6 @@ frappe.ready(function() {
                 }
 
                 this.elements.clearBtn.disabled = true;
-                if (this.allowDiscounts) {
-                    this.resetDiscountState();
-                }
                 return;
             }
             
@@ -1085,9 +732,6 @@ frappe.ready(function() {
             }
 
             this.elements.clearBtn.disabled = false;
-            if (this.allowDiscounts) {
-                this.refreshDiscountUI();
-            }
         },
         
         // Render variants in the modal
@@ -1147,14 +791,8 @@ frappe.ready(function() {
 
             this.elements.cartSubtotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.subtotal)}`;
             this.elements.cartTax.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.tax)}`;
-            if (this.elements.cartDiscount) {
-                this.elements.cartDiscount.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.discountAmount)}`;
-            }
             this.elements.cartTotal.textContent = `${CURRENCY_SYMBOL} ${formatNumber(totals.total)}`;
             this.elements.cartCount.textContent = this.cart.reduce((sum, item) => sum + item.qty, 0);
-            if (this.allowDiscounts) {
-                this.refreshDiscountUI(totals);
-            }
         },
 
         isItemSoldOut: function(item, actualQty, isComponentShortage) {
@@ -1458,10 +1096,7 @@ frappe.ready(function() {
                         cart_items: this.cart,
                         table: TABLE,
                         pos_profile: POS_PROFILE,
-                        branch: BRANCH,
-                        discount_amount: totals.discountAmount,
-                        discount_percent: totals.discountPercent,
-                        promo_code: totals.promoCode
+                        branch: BRANCH
                     }
                 });
                 
@@ -1525,10 +1160,7 @@ frappe.ready(function() {
                         cart_items: this.cart,
                         pos_profile: POS_PROFILE,
                         branch: BRANCH,
-                        customer: 'Walk-in Customer',
-                        discount_amount: totals.discountAmount,
-                        discount_percent: totals.discountPercent,
-                        promo_code: totals.promoCode
+                        customer: 'Walk-in Customer'
                     }
                 });
                 
@@ -1723,10 +1355,7 @@ frappe.ready(function() {
                         pos_profile: POS_PROFILE,
                         branch: BRANCH,
                         customer: 'Walk-in Customer',
-                        skip_payment: true,
-                        discount_amount: totals.discountAmount,
-                        discount_percent: totals.discountPercent,
-                        promo_code: totals.promoCode
+                        skip_payment: true
                     }
                 });
                 
@@ -1758,108 +1387,11 @@ frappe.ready(function() {
         calculateTotals: function() {
             const subtotal = this.cart.reduce((sum, item) => sum + item.amount, 0);
             const tax = subtotal * this.taxRate;
-            const gross = subtotal + tax;
-
-            const quantity = this.cart.reduce(
-                (sum, item) => sum + this.normalizeNumber(item.qty),
-                0
-            );
-            this.discountState.cartQuantity = quantity;
-
-            let discountAmount = 0;
-            let discountPercent = 0;
-            let discountLabel = '';
-            let discountDescription = '';
-            let discountSource = null;
-            let promoCode = null;
-
-            let autoPercent = 0;
-            let autoAmount = 0;
-            let autoDescription = '';
-            if (this.allowDiscounts && quantity >= 5 && gross > 0) {
-                autoPercent = 10;
-                autoAmount = gross * 0.1;
-                autoDescription = __('Automatic 10% discount applied for 5 or more items.');
-            }
-            this.discountState.autoPercent = autoPercent;
-
-            let promoAmount = 0;
-            let promoPercent = 0;
-            let promoLabel = '';
-            let promoDescription = '';
-            if (this.allowDiscounts && this.discountState.promo && gross > 0) {
-                const promo = this.discountState.promo;
-                promoLabel = promo.label || __('Promo {0}', [promo.code]);
-                promoDescription = promo.description || promo.message || '';
-                promoCode = promo.code || null;
-
-                if (promo.discountType === 'percent' && promo.percent > 0) {
-                    promoPercent = this.normalizeNumber(promo.percent);
-                    promoAmount = gross * (promoPercent / 100);
-                } else if (promo.discountType === 'amount' && promo.amount > 0) {
-                    promoAmount = this.normalizeNumber(promo.amount);
-                } else {
-                    if (promo.percent > 0) {
-                        promoPercent = this.normalizeNumber(promo.percent);
-                        promoAmount = gross * (promoPercent / 100);
-                    } else if (promo.amount > 0) {
-                        promoAmount = this.normalizeNumber(promo.amount);
-                    }
-                }
-            }
-
-            promoAmount = Math.min(gross, Math.max(0, promoAmount));
-            autoAmount = Math.min(gross, Math.max(0, autoAmount));
-
-            if (this.allowDiscounts) {
-                if (promoAmount > 0 && promoAmount >= autoAmount) {
-                    discountAmount = promoAmount;
-                    discountPercent = promoPercent;
-                    discountLabel = promoLabel || __('Promo');
-                    discountDescription =
-                        promoDescription ||
-                        (promoPercent > 0
-                            ? __('{0}% discount applied.', [promoPercent])
-                            : __('Discount applied.'));
-                    discountSource = 'promo';
-                } else if (autoAmount > 0) {
-                    discountAmount = autoAmount;
-                    discountPercent = autoPercent;
-                    discountLabel = __('Auto 10%');
-                    discountDescription = autoDescription;
-                    discountSource = 'auto';
-                    promoCode = null;
-                } else {
-                    promoCode = null;
-                }
-            } else {
-                this.discountState.autoPercent = 0;
-            }
-
-            discountAmount = Math.min(gross, Math.max(0, discountAmount));
-            const total = Math.max(0, gross - discountAmount);
-
-            this.discountState.applied = discountSource
-                ? {
-                      type: discountSource,
-                      amount: discountAmount,
-                      percent: discountPercent,
-                      code: promoCode,
-                      label: discountLabel,
-                      description: discountDescription,
-                  }
-                : null;
+            const total = subtotal + tax;
 
             return {
                 subtotal,
                 tax,
-                gross,
-                discountAmount,
-                discountPercent,
-                discountLabel,
-                discountDescription,
-                discountSource,
-                promoCode,
                 total,
             };
         },
