@@ -202,17 +202,17 @@ website_route_rules = [
    - ✅ Added `data-roles` attributes to admin-only elements in displays page
    - ✅ Implemented dual-mode layout in displays page (admin panel + customer view)
 
-5. **Delete Old Directories**
-   - Remove `www/create-order/`
-   - Remove `www/kiosk/`
-   - Remove `www/waiter_order/`
-   - Remove `www/cashier-console/`
-   - Remove `www/customer-display/`
-   - Remove `www/kitchen_display/`
-   - Remove `www/table_display/`
-   - Remove `www/imogi-login/`
-   - Remove `www/so/`
-   - Remove entire `imogi_pos/page/` directory (after merging to www)
+5. **✅ Delete Old Directories** (COMPLETED)
+   - ✅ Removed `www/create-order/`
+   - ✅ Removed `www/kiosk/`
+   - ✅ Removed `www/waiter_order/`
+   - ✅ Removed `www/cashier-console/`
+   - ✅ Removed `www/customer-display/`
+   - ✅ Removed `www/kitchen_display/`
+   - ✅ Removed `www/table_display/`
+   - ✅ Removed `www/imogi-login/`
+   - ✅ Removed `www/so/`
+   - ✅ Removed entire `imogi_pos/page/` directory
 
 6. **Testing**
    - Test all new URLs
@@ -312,15 +312,15 @@ website_route_rules = [
    - Document any issues found
 
 ### 🔜 Short Term (After Testing Passes)
-1. **Consolidate CSS/JS Assets**
+1. **✅ Clean Up Old Directories** (COMPLETED)
+   - ✅ Deleted old www/ directories
+   - ✅ Deleted old imogi_pos/page/ directory
+   - ✅ All references now point to new structure
+
+2. **Consolidate CSS/JS Assets** (Optional Optimization)
    - Merge duplicate CSS files
    - Organize JavaScript modules
    - Update HTML file references
-
-2. **Clean Up Old Directories**
-   - Delete old www/ directories after confirmation
-   - Delete old imogi_pos/page/ directory
-   - Update any remaining references
 
 3. **Documentation Updates**
    - Update README with new structure
