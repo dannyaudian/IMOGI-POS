@@ -1,7 +1,7 @@
 {% extends "templates/web.html" %}
 
 {% block style %}
-<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/core.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
 <style>
   :root {
@@ -23,7 +23,7 @@
   const DOMAIN = '{{ domain }}';
   const BRANDING = {{ branding | tojson }};
 </script>
-{{ include_script('imogi_pos/js/nav.js') }}
-{{ include_script('imogi_pos/js/branch.js') }}
+{{ include_script('imogi_pos/js/core/nav.js') }}
+{{ include_script('imogi_pos/js/core/branch.js') }}
 <script src="../table_layout_editor/index.js"></script>
 {% endblock %}

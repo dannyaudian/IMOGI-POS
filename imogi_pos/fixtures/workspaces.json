@@ -81,33 +81,33 @@
       },
       {
         "label": "Table Display",
-        "link_to": "table-display",
-        "type": "Page"
+        "link_to": "/restaurant/tables",
+        "type": "URL"
       },
       {
         "label": "Kitchen Display",
-        "link_to": "kitchen-display",
-        "type": "Page"
+        "link_to": "/restaurant/kitchen",
+        "type": "URL"
       },
       {
         "label": "Cashier Console",
-        "link_to": "/cashier-console",
+        "link_to": "/counter/pos",
         "type": "URL"
       },
       {
         "label": "Kiosk",
-        "link_to": "/kiosk",
+        "link_to": "/restaurant/waiter?mode=kiosk",
         "type": "URL"
       },
       {
         "label": "Customer Display",
-        "link_to": "customer-display",
-        "type": "Page"
+        "link_to": "/devices/displays",
+        "type": "URL"
       },
       {
         "label": "Customer Display Editor",
-        "link_to": "customer-display-editor",
-        "type": "Page"
+        "link_to": "/customer_display_editor",
+        "type": "URL"
       }
     ],
     "cards": [],
@@ -123,6 +123,7 @@
     "title": "Table Service",
     "label": "Table Service",
     "type": "Workspace",
+    "parent_page": "IMOGI POS",
     "icon": "table",
     "module": "IMOGI POS",
     "public": 1,
@@ -154,13 +155,13 @@
       },
       {
         "label": "Table Display",
-        "link_to": "table-display",
-        "type": "Page"
+        "link_to": "/restaurant/tables",
+        "type": "URL"
       },
       {
         "label": "Waiter Order",
-        "link_to": "waiter-order",
-        "type": "Page"
+        "link_to": "/restaurant/waiter",
+        "type": "URL"
       },
       {
         "label": "POS Orders (My Floor)",
@@ -169,8 +170,8 @@
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "table-layout-editor",
-        "type": "Page"
+        "link_to": "/table_layout_editor",
+        "type": "URL"
       }
     ],
     "cards": [],
@@ -186,6 +187,7 @@
     "title": "Kitchen Ops",
     "label": "Kitchen Ops",
     "type": "Workspace",
+    "parent_page": "IMOGI POS",
     "icon": "cooking",
     "module": "IMOGI POS",
     "public": 1,
@@ -212,8 +214,8 @@
       },
       {
         "label": "Kitchen Display",
-        "link_to": "kitchen-display",
-        "type": "Page"
+        "link_to": "/restaurant/kitchen",
+        "type": "URL"
       },
       {
         "label": "KOT Tickets List",
@@ -234,6 +236,7 @@
     "title": "Cashier Ops",
     "label": "Cashier Ops",
     "type": "Workspace",
+    "parent_page": "IMOGI POS",
     "icon": "money-cash",
     "module": "IMOGI POS",
     "public": 1,
@@ -270,7 +273,7 @@
       },
       {
         "label": "Cashier Console",
-        "link_to": "/cashier-console",
+        "link_to": "/counter/pos",
         "type": "URL"
       },
       {

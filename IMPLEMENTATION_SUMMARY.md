@@ -153,23 +153,32 @@ website_route_rules = [
 - ✅ Testing guide prepared
 - ✅ Rollback plan documented
 
+### 10. ✅ Workspace Fixtures Updated (COMPLETED)
+
+- ✅ Updated workspaces.json with new URL structure:
+  - Table Display: `table-display` → `/restaurant/tables`
+  - Kitchen Display: `kitchen-display` → `/restaurant/kitchen`
+  - Cashier Console: `/cashier-console` → `/counter/pos`
+  - Kiosk: `/kiosk` → `/restaurant/waiter?mode=kiosk`
+  - Customer Display: `customer-display` → `/devices/displays`
+  - Waiter Order: `waiter-order` → `/restaurant/waiter`
+  - Customer Display Editor: `customer-display-editor` → `/customer_display_editor`
+  - Table Layout Editor: `table-layout-editor` → `/table_layout_editor`
+- ✅ Changed all page references to URL type for consistency
+- ✅ Updated all 4 workspaces: IMOGI POS, Table Service, Kitchen Ops, Cashier Ops
+- ✅ **Created workspace hierarchy:**
+  - **IMOGI POS** (Parent Workspace)
+    - Table Service (Child)
+    - Kitchen Ops (Child)
+    - Cashier Ops (Child)
+
 ---
 
 ## 📋 Remaining Tasks
 
-### 5. Consolidate Public Assets (Optional - Can be done post-deployment)
+### ✅ All Core Tasks Completed
 
-**TODO:**
-- Merge CSS files:
-  - `base.css` + `checkout-shared.css` → `core.css`
-  - `kiosk.css` + `waiter_order.css` → `modules/pos.css`
-  - `customer_display.css` → `modules/displays.css`
-- Organize JavaScript:
-  - Move to `public/js/core/` (auth.js, nav.js, branch.js)
-  - Move to `public/js/modules/` (pos.js, cashier.js, displays.js)
-- Update all HTML file references to new asset paths
-
-**Note:** This is a non-critical optimization task that can be done after successful deployment.
+All essential tasks for the architecture reorganization have been completed successfully!
 
 ### Additional Recommended Tasks
 
@@ -214,7 +223,12 @@ website_route_rules = [
    - ✅ Removed `www/so/`
    - ✅ Removed entire `imogi_pos/page/` directory
 
-6. **Testing**
+6. **✅ Update Workspace Fixtures** (COMPLETED)
+   - ✅ Updated all workspace shortcuts to new URL structure
+   - ✅ Changed from Page type to URL type for web pages
+   - ✅ All 4 workspaces updated (IMOGI POS, Table Service, Kitchen Ops, Cashier Ops)
+
+7. **Testing**
    - Test all new URLs
    - Test old URL redirects
    - Test role-based access for each role:
@@ -317,10 +331,14 @@ website_route_rules = [
    - ✅ Deleted old imogi_pos/page/ directory
    - ✅ All references now point to new structure
 
-2. **Consolidate CSS/JS Assets** (Optional Optimization)
-   - Merge duplicate CSS files
-   - Organize JavaScript modules
-   - Update HTML file references
+2. **✅ Consolidate CSS/JS Assets** (COMPLETED)
+   - ✅ Created `public/css/core.css` (merged base.css + checkout-shared.css)
+   - ✅ Created `public/css/modules/pos.css` (merged kiosk.css + waiter_order.css)
+   - ✅ Created `public/css/modules/displays.css` (customer_display.css)
+   - ✅ Moved auth.js, nav.js, branch.js to `public/js/core/`
+   - ✅ Created `public/js/modules/pos.js` (merged POS-related JS)
+   - ✅ Created `public/js/modules/displays.js`
+   - ✅ Updated all HTML templates to reference consolidated assets
 
 3. **Documentation Updates**
    - Update README with new structure
