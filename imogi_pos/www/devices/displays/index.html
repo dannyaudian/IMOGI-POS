@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+
+    <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+    <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+    <link rel="stylesheet" href="/assets/imogi_pos/css/customer_display.css">
+
+    <style>
+        :root {
+            --primary-color: {{ branding.primary_color }};
+            --accent-color: {{ branding.accent_color }};
+            --background-color: {{ branding.background_color }};
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--background-color);
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+        }
+
+        .customer-display {
+            display: flex;
+            flex-direction: column;
+            height: 100dvh;
+            width: 100vw;
+            position: relative;
+        }
+
+        .display-block {
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Block Types */
+        .block-branding {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .brand-logo {
+            max-height: 80%;
+            max-width: 80%;
+            object-fit: contain;
+        }
+
+        .brand-name {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+
+        .block-order-summary {
+            padding: 1.5rem;
+            background-color: #f9f9f9;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .order-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .order-meta {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .order-meta-item {
+            padding: 0.25rem 0.5rem;
+            background-color: rgba(0,0,0,0.05);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .order-items {
+            margin-bottom: 1rem;
+            max-height: 50%;
+            overflow-y: auto;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .item-name-qty {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-qty {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            padding: 0.1rem 0.4rem;
+            font-size: 0.9rem;
+        }
+
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+        }
+
+        .block-payment {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .payment-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .payment-header {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .payment-instructions {
+            margin-bottom: 1rem;
+            max-width: 400px;
+        }
+
+        .payment-qr {
+            width: 200px;
+            height: 200px;
+            max-width: 80%;
+            margin: 1rem 0;
+        }
+
+        .payment-link {
+            margin-top: 1rem;
+            color: var(--accent-color);
+            word-break: break-all;
+        }
+
+        .payment-amount {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .payment-expires {
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        .block-ticker {
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .ticker-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 20s linear infinite;
+            font-size: 1.25rem;
+        }
+
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .block-promotion {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .promotion-container {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .promotion-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .promotion-slide.active {
+            opacity: 1;
+        }
+
+        .promotion-image {
+            max-height: 80%;
+            max-width: 80%;
+            object-fit: contain;
+        }
+
+        .promotion-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .promotion-content {
+            font-size: 1.25rem;
+        }
+
+        .registration-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .registration-qr {
+            width: 200px;
+            height: 200px;
+            margin: 2rem 0;
+        }
+
+        .device-id {
+            font-family: monospace;
+            background-color: #f0f0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        /* Positioning classes */
+        .block-top { flex: 0 0 auto; }
+        .block-middle { flex: 1 1 auto; }
+        .block-bottom { flex: 0 0 auto; }
+
+        /* Hide initially, JS will show when ready */
+        .customer-display { display: none; }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--background-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.25rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Admin Panel Styles */
+        .admin-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100%;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            z-index: 10000;
+            overflow-y: auto;
+        }
+
+        .admin-panel.active {
+            right: 0;
+        }
+
+        .admin-panel-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-panel-content {
+            padding: 1rem;
+        }
+
+        .admin-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .admin-section h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .admin-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .admin-toggle:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Admin Toggle Button (only for managers) -->
+    <button class="admin-toggle" id="admin-toggle" data-roles="Restaurant Manager,System Manager" style="display: none;">
+        ⚙️
+    </button>
+
+    <!-- Admin Panel (only for managers) -->
+    <div class="admin-panel" id="admin-panel" data-roles="Restaurant Manager,System Manager" style="display: none;">
+        <div class="admin-panel-header">
+            <h2>Display Management</h2>
+            <button class="btn btn-secondary" id="close-admin">Close</button>
+        </div>
+        <div class="admin-panel-content">
+            <div class="admin-section">
+                <h3>Current Device</h3>
+                <div class="form-group">
+                    <label>Device ID:</label>
+                    <input type="text" id="current-device-id" value="{{ device_id }}" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <input type="text" value="{{ 'Registered' if is_registered else 'Unregistered' }}" disabled>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <h3>Device Selection</h3>
+                <div class="form-group">
+                    <label>Select Display Device:</label>
+                    <select id="device-selector">
+                        <option value="">-- Select Device --</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" id="switch-device">Switch Device</button>
+            </div>
+
+            <div class="admin-section">
+                <h3>Test Controls</h3>
+                <button class="btn btn-primary" id="test-order">Send Test Order</button>
+                <button class="btn btn-secondary" id="clear-display">Clear Display</button>
+            </div>
+
+            <div class="admin-section">
+                <h3>Display Actions</h3>
+                <button class="btn btn-danger" id="unpair-device">Unpair Device</button>
+                <button class="btn btn-secondary" id="refresh-display">Refresh Display</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing Display...</div>
+    </div>
+
+    {% if show_registration %}
+    <div class="registration-container">
+        <h1>Customer Display Registration</h1>
+        <p>This device is not registered. Please register it in the IMOGI POS system.</p>
+
+        <div class="device-id">Device ID: {{ device_id }}</div>
+
+        <div class="registration-instructions">
+            <p>To register this display:</p>
+            <ol>
+                <li>Go to Customer Display Devices in IMOGI POS</li>
+                <li>Create a new device with this Device ID</li>
+                <li>Assign a profile and link it to a floor or table</li>
+                <li>This page will automatically refresh when registered</li>
+            </ol>
+        </div>
+    </div>
+    {% else %}
+    <div class="customer-display" id="customer-display">
+        <!-- Blocks will be dynamically rendered here based on config -->
+    </div>
+    {% endif %}
+
+    <!-- Pass important variables to the frontend -->
+    <script>
+        const DEVICE_ID = "{{ device_id }}";
+        const IS_REGISTERED = {{ is_registered | tojson }};
+        const DISPLAY_CONFIG = {{ display_config | tojson }};
+        const CONFIG = {{ config | tojson }};
+        const LINKED_ORDER = {{ linked_order | tojson if linked_order else 'null' }};
+        const TICKER_MESSAGE = {{ ticker_message | tojson }};
+        const PROMOTIONAL_CONTENT = {{ promotional_content | tojson }};
+        const BRANDING = {{ branding | tojson }};
+        const CURRENCY_SYMBOL = "{{ currency_symbol }}";
+    </script>
+
+    <script src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+    <script src="/assets/frappe/js/frappe-web.bundle.js"></script>
+    <script src="/assets/imogi_pos/js/core/role-ui.js"></script>
+    <script src="../customer-display/index.js"></script>
+    
+    <script>
+        // Admin Panel Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const adminToggle = document.getElementById('admin-toggle');
+            const adminPanel = document.getElementById('admin-panel');
+            const closeAdmin = document.getElementById('close-admin');
+            
+            // Initialize role-based UI
+            if (typeof RoleUI !== 'undefined') {
+                RoleUI.init();
+            }
+            
+            if (adminToggle) {
+                adminToggle.addEventListener('click', function() {
+                    adminPanel.classList.toggle('active');
+                });
+            }
+            
+            if (closeAdmin) {
+                closeAdmin.addEventListener('click', function() {
+                    adminPanel.classList.remove('active');
+                });
+            }
+            
+            // Load available devices
+            loadAvailableDevices();
+            
+            // Device switcher
+            const switchBtn = document.getElementById('switch-device');
+            if (switchBtn) {
+                switchBtn.addEventListener('click', function() {
+                    const selector = document.getElementById('device-selector');
+                    const deviceId = selector.value;
+                    if (deviceId) {
+                        localStorage.setItem('customer_display_device_id', deviceId);
+                        window.location.reload();
+                    }
+                });
+            }
+            
+            // Test order
+            const testBtn = document.getElementById('test-order');
+            if (testBtn) {
+                testBtn.addEventListener('click', sendTestOrder);
+            }
+            
+            // Clear display
+            const clearBtn = document.getElementById('clear-display');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearDisplay);
+            }
+            
+            // Unpair device
+            const unpairBtn = document.getElementById('unpair-device');
+            if (unpairBtn) {
+                unpairBtn.addEventListener('click', unpairDevice);
+            }
+            
+            // Refresh display
+            const refreshBtn = document.getElementById('refresh-display');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => window.location.reload());
+            }
+        });
+        
+        function loadAvailableDevices() {
+            frappe.call({
+                method: 'imogi_pos.www.devices.displays.index.get_all_display_devices',
+                callback: function(r) {
+                    if (r.message) {
+                        const selector = document.getElementById('device-selector');
+                        r.message.forEach(device => {
+                            const option = document.createElement('option');
+                            option.value = device.name;
+                            option.textContent = `${device.device_name} (${device.name})`;
+                            if (device.name === DEVICE_ID) {
+                                option.selected = true;
+                            }
+                            selector.appendChild(option);
+                        });
+                    }
+                }
+            });
+        }
+        
+        function sendTestOrder() {
+            frappe.call({
+                method: 'imogi_pos.api.customer_display.send_test_order',
+                args: { device_id: DEVICE_ID },
+                callback: function(r) {
+                    if (r.message) {
+                        frappe.show_alert({message: 'Test order sent', indicator: 'green'});
+                    }
+                }
+            });
+        }
+        
+        function clearDisplay() {
+            frappe.call({
+                method: 'imogi_pos.api.customer_display.clear_display',
+                args: { device_id: DEVICE_ID },
+                callback: function(r) {
+                    if (r.message) {
+                        frappe.show_alert({message: 'Display cleared', indicator: 'green'});
+                        window.location.reload();
+                    }
+                }
+            });
+        }
+        
+        function unpairDevice() {
+            if (confirm('Are you sure you want to unpair this device?')) {
+                localStorage.removeItem('customer_display_device_id');
+                frappe.show_alert({message: 'Device unpaired', indicator: 'green'});
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        }
+    </script>
+</body>
+</html>

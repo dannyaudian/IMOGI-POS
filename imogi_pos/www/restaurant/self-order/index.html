@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ title }}</title>
+    
+    <link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+    <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+    <link rel="stylesheet" href="/assets/imogi_pos/css/self_order.css">
+    
+    <style>
+        :root {
+            --primary-color: {{ branding.primary_color }};
+            --accent-color: {{ branding.accent_color }};
+            --background-color: #f5f7fa;
+            --header-bg: {{ branding.header_bg }};
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--background-color);
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            overscroll-behavior: none;
+        }
+        
+        .self-order-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100dvh;
+        }
+        
+        .header {
+            background-color: var(--header-bg);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+        }
+        
+        .brand-logo {
+            height: 40px;
+            margin-right: 1rem;
+        }
+        
+        .brand-name {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        
+        .cart-summary {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .cart-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 0.75rem;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .categories {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        .categories::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .category-pill {
+            padding: 0.5rem 1rem;
+            background-color: #f0f0f0;
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        
+        .category-pill.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .search-bar {
+            margin-bottom: 1rem;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .item-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+        }
+        
+        .item-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .item-image {
+            width: 100%;
+            height: 120px;
+            background-color: #f0f0f0;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .item-info {
+            padding: 0.75rem;
+        }
+        
+        .item-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            line-height: 1.2;
+            font-size: 0.9rem;
+        }
+        
+        .item-price {
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .item-has-variants {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .cart-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 320px;
+            max-width: 100%;
+            background-color: white;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .cart-panel.open {
+            transform: translateX(0);
+        }
+        
+        .cart-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .cart-title {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
+        .cart-close {
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .cart-item {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .cart-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cart-item-name {
+            font-weight: 500;
+        }
+        
+        .cart-item-price {
+            font-weight: 600;
+        }
+        
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .cart-item-qty {
+            width: 40px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.25rem;
+        }
+        
+        .qty-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qty-btn:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .cart-item-notes {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+        
+        .cart-item-remove {
+            color: #ff5555;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            text-align: right;
+        }
+        
+        .cart-totals {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .discount-row span:first-child {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .discount-row span:last-child {
+            color: var(--accent-color);
+        }
+
+        .grand-total {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+        }
+
+        .cart-actions {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .promo-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .promo-trigger {
+            align-self: flex-start;
+            background: rgba(46, 125, 220, 0.1);
+            color: var(--accent-color);
+            border: 1px dashed var(--accent-color);
+            border-radius: 6px;
+            padding: 0.35rem 0.65rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.12s ease;
+        }
+
+        .promo-trigger:hover {
+            background: rgba(46, 125, 220, 0.16);
+        }
+
+        .promo-trigger:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .promo-inline {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .promo-inline.hidden {
+            display: none;
+        }
+
+        .promo-input {
+            flex: 1;
+            border: 1px solid #d4d4d8;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.95rem;
+        }
+
+        .promo-apply {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.4rem 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .promo-cancel {
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .promo-status {
+            min-height: 18px;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .promo-status.error {
+            color: #ef4444;
+        }
+
+        .promo-status.success {
+            color: var(--accent-color);
+        }
+
+        .promo-remove {
+            margin-left: 0.5rem;
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: underline;
+        }
+        
+        .btn-submit {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .btn-submit:hover {
+            background-color: #3a4651;
+        }
+        
+        .btn-checkout {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .btn-checkout:hover {
+            background-color: #1a7fd1;
+        }
+        
+        .btn-clear {
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .btn-clear:hover {
+            background-color: #e9e9e9;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .overlay.open {
+            display: block;
+        }
+        
+        /* Variant Picker Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: relative;
+        }
+        
+        .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background-color: white;
+        }
+        
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .modal-close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            line-height: 1;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
+        
+        .variant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+        
+        .variant-card {
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .variant-card:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(36, 144, 239, 0.05);
+        }
+        
+        .variant-card.selected {
+            border-color: var(--accent-color);
+            background-color: rgba(36, 144, 239, 0.1);
+        }
+        
+        .variant-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .variant-price {
+            color: var(--primary-color);
+        }
+        
+        .variant-attributes {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .variant-attribute {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .notes-field {
+            margin-top: 1rem;
+        }
+        
+        .notes-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .notes-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            position: sticky;
+            bottom: 0;
+            background-color: white;
+        }
+        
+        .btn-cancel {
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-add {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        /* Payment Modal */
+        .payment-modal .modal-content {
+            max-width: 600px;
+        }
+        
+        .payment-options {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-option {
+            flex: 1;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .payment-option.selected {
+            border-color: var(--accent-color);
+            background-color: rgba(36, 144, 239, 0.05);
+        }
+        
+        .payment-option-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .payment-option-name {
+            font-weight: 500;
+        }
+        
+        .payment-amount {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .payment-qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 1rem 0;
+        }
+        
+        .payment-qr {
+            width: 200px;
+            height: 200px;
+            background-color: #f0f0f0;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-instructions {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-timer {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-status {
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .payment-status.pending {
+            background-color: var(--color-warning-light);
+            color: #856404;
+        }
+
+        .payment-status.success {
+            background-color: var(--color-success-light);
+            color: #155724;
+        }
+
+        .payment-status.error {
+            background-color: var(--color-danger-light);
+            color: #721c24;
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+            margin-bottom: 1rem;
+        }
+        
+        .loading-text {
+            font-size: 1.1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Session Expired */
+        .session-expired-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+            height: 70vh;
+        }
+        
+        .session-expired-icon {
+            font-size: 4rem;
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        
+        .session-expired-message {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .session-expired-details {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        /* Disclaimer */
+        .disclaimer {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        
+        /* Empty states */
+        .empty-items {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: #666;
+            text-align: center;
+        }
+        
+        .empty-cart-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 50vh;
+            color: #666;
+            text-align: center;
+        }
+        
+        .empty-cart-icon {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+        
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            .cart-panel {
+                width: 100%;
+            }
+            
+            .items-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+        
+        /* Success message */
+        .success-message {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .success-icon {
+            font-size: 4rem;
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+        
+        .success-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .success-details {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .btn-success {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="self-order-container">
+        <header class="header">
+            <div class="brand">
+                {% if branding.logo %}
+                    {% if branding.logo_dark %}
+                    <picture>
+                        <source srcset="{{ branding.logo_dark }}" media="(prefers-color-scheme: dark)">
+                        <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+                    </picture>
+                    {% else %}
+                    <img src="{{ branding.logo }}" alt="{{ branding.name }}" class="brand-logo">
+                    {% endif %}
+                {% else %}
+                <span class="brand-name">{{ branding.name }}</span>
+                {% endif %}
+            </div>
+            <div class="cart-summary" id="cart-toggle">
+                <div class="cart-icon">
+                    <i class="fa fa-shopping-cart"></i>
+                </div>
+                <div class="cart-count" id="cart-count">0</div>
+            </div>
+        </header>
+        
+        <main class="main-content">
+            {% if session_expired %}
+            <div class="session-expired-container">
+                <div class="session-expired-icon">
+                    <i class="fa fa-clock-o"></i>
+                </div>
+                <h2 class="session-expired-message">Session Expired</h2>
+                <p class="session-expired-details">
+                    Your ordering session has expired. Please scan the QR code again to start a new session.
+                </p>
+                <a href="/" class="btn-submit">Return to Home</a>
+            </div>
+            {% else %}
+            <div class="content-container">
+                {% if table %}
+                <div class="table-info">
+                    <h2>Table {{ table }}</h2>
+                </div>
+                {% endif %}
+                
+                {% if disclaimer %}
+                <div class="disclaimer">
+                    {{ disclaimer }}
+                </div>
+                {% endif %}
+                
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="search-input" placeholder="Search items...">
+                </div>
+                
+                <div class="categories" id="categories-container">
+                    <div class="category-pill active" data-category="all">All Items</div>
+                    
+                    {% for category in item_categories.menu_categories %}
+                    <div class="category-pill" data-category="{{ category.name }}">{{ category.name }}</div>
+                    {% endfor %}
+                    
+                    {% for group in item_categories.item_groups %}
+                    <div class="category-pill" data-category="{{ group.name }}">{{ group.name }}</div>
+                    {% endfor %}
+                </div>
+                
+                <div class="items-grid" id="items-grid">
+                    <!-- Items will be loaded here -->
+                    <div class="empty-items">
+                        <p>Loading items...</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+        
+        <div class="cart-panel" id="cart-panel">
+            <div class="cart-header">
+                <div class="cart-title">Your Order</div>
+                <div class="cart-close" id="cart-close">&times;</div>
+            </div>
+            
+            <div class="cart-items" id="cart-items">
+                <div class="empty-cart-message">
+                    <div class="empty-cart-icon">
+                        <i class="fa fa-shopping-cart"></i>
+                    </div>
+                    <p>Your cart is empty</p>
+                    <p>Add items to get started</p>
+                </div>
+            </div>
+            
+            <div class="cart-totals">
+                <div class="total-row">
+                    <span>Subtotal</span>
+                    <span id="cart-subtotal">{{ currency_symbol }} 0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>{{ _("PB1") }}</span>
+                    <span id="cart-tax">{{ currency_symbol }} 0.00</span>
+                </div>
+                <div class="total-row discount-row">
+                    <span id="cart-discount-label">{{ _("Discount") }}</span>
+                    <span id="cart-discount">{{ currency_symbol }} 0.00</span>
+                </div>
+                {% if allow_discounts %}
+                <div class="promo-section" id="promo-section">
+                    <button id="btn-promo" class="promo-trigger" disabled>{{ _("Add Promo Code") }}</button>
+                    <div class="promo-inline hidden" id="promo-input-container">
+                        <input type="text" id="promo-code-input" class="promo-input" placeholder="{{ _("Enter promo code") }}" autocomplete="off">
+                        <button type="button" id="promo-apply-btn" class="promo-apply">{{ _("Apply") }}</button>
+                        <button type="button" id="promo-cancel-btn" class="promo-cancel">{{ _("Cancel") }}</button>
+                    </div>
+                    <div class="promo-status" id="promo-status"></div>
+                </div>
+                {% endif %}
+                <div class="grand-total total-row">
+                    <span>Total</span>
+                    <span id="cart-total">{{ currency_symbol }} 0.00</span>
+                </div>
+            </div>
+            
+            <div class="cart-actions">
+                {% if mode == "Table" %}
+                <button id="btn-submit" class="btn-submit" disabled>Submit Order to Kitchen</button>
+                {% else %}
+                <button id="btn-checkout" class="btn-checkout" disabled>Checkout</button>
+                {% endif %}
+                <button id="btn-clear" class="btn-clear" disabled>Clear Order</button>
+            </div>
+        </div>
+        
+        <div class="overlay" id="overlay"></div>
+        
+        <!-- Variant Picker Modal -->
+        <div class="modal" id="variant-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Choose Variant</div>
+                    <div class="modal-close" id="variant-modal-close">&times;</div>
+                </div>
+                <div class="modal-body">
+                    <div class="variant-grid" id="variant-grid">
+                        <!-- Variants will be populated here -->
+                    </div>
+                    
+                    {% if allow_notes %}
+                    <div class="notes-field">
+                        <label for="item-notes" class="notes-label">Special Instructions</label>
+                        <textarea id="item-notes" class="notes-input" placeholder="Add special instructions here..."></textarea>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" id="btn-variant-cancel">Cancel</button>
+                    <button class="btn-add" id="btn-variant-add" disabled>Add to Order</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Modal -->
+        <div class="modal payment-modal" id="payment-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Complete Payment</div>
+                    <div class="modal-close" id="payment-modal-close">&times;</div>
+                </div>
+                <div class="modal-body">
+                    <div class="payment-amount" id="payment-amount">
+                        {{ currency_symbol }} 0.00
+                    </div>
+                    
+                    <div id="payment-qr-section">
+                        <div class="payment-qr-container">
+                            <div class="payment-qr" id="payment-qr"></div>
+                            <div class="payment-instructions">Scan the QR code with your payment app</div>
+                        </div>
+                        
+                        <div class="payment-timer" id="payment-timer">
+                            Expires in: <span id="payment-countdown">5:00</span>
+                        </div>
+                        
+                        <div class="payment-status pending" id="payment-status">
+                            Waiting for payment...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" id="btn-payment-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loading-text">Processing...</div>
+        </div>
+    </div>
+    
+    <!-- Pass important context variables to the frontend -->
+    <script>
+        const TOKEN = "{{ token }}";
+        const SESSION_DATA = {{ session_data | tojson }};
+        const MODE = "{{ mode }}";
+        const IS_RESTAURANT = {{ is_restaurant | tojson }};
+        const POS_PROFILE = "{{ pos_profile.name }}";
+        const CURRENCY_SYMBOL = "{{ currency_symbol }}";
+        const DEFAULT_CURRENCY = "{{ default_currency }}";
+        const PAYMENT_SETTINGS = {{ payment_settings | tojson }};
+        const ALLOW_NOTES = {{ allow_notes }};
+        const ALLOW_DISCOUNTS = {{ allow_discounts }};
+        const REQUIRE_PAYMENT = {{ require_payment }};
+        const BRANCH = {{ branch | tojson if branch else 'null' }};
+        const TABLE = {{ table | tojson if table else 'null' }};
+        const SESSION_ID = {{ self_order_session.session_id | tojson if self_order_session else 'null' }};
+        {% if pos_order %}
+        const EXISTING_ORDER = {{ pos_order | tojson }};
+        {% else %}
+        const EXISTING_ORDER = null;
+        {% endif %}
+    </script>
+    
+    <script src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
+    <script src="/assets/js/frappe-web.min.js"></script>
+    <script src="../so/index.js"></script>
+</body>
+</html>

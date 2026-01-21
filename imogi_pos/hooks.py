@@ -100,5 +100,20 @@ jinja = {
     ]
 }
 
+# Website route redirects for new architecture
+website_route_rules = [
+    {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
+    {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},
+    {"from_route": "/kiosk", "to_route": "/restaurant/waiter?mode=kiosk"},
+    {"from_route": "/cashier-console", "to_route": "/counter/pos"},
+    {"from_route": "/customer-display", "to_route": "/devices/displays"},
+    {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
+    {"from_route": "/table_display", "to_route": "/restaurant/tables"},
+    {"from_route": "/imogi-login", "to_route": "/shared/login"},
+    {"from_route": "/device-select", "to_route": "/shared/device-select"},
+    {"from_route": "/service-select", "to_route": "/shared/service-select"},
+    {"from_route": "/so", "to_route": "/restaurant/self-order"},
+]
+
 after_install = "imogi_pos.setup.install.after_install"
 after_migrate = "imogi_pos.setup.install.after_migrate"

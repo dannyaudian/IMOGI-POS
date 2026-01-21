@@ -1,0 +1,391 @@
+{% extends "templates/web.html" %}
+
+{% block style %}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="/assets/imogi_pos/css/base.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
+<link rel="stylesheet" href="/assets/imogi_pos/css/cashier_console.css">
+
+<style>
+  /* ===== Monochrome, Light-Only ===== */
+  :root{
+    color-scheme: light;            /* paksa light theme */
+    --ink: #111;                    /* teks utama (hitam) */
+    --ink-2: #3f3f46;               /* teks sekunder (abu tua) */
+    --muted: #6b7280;               /* placeholder/label */
+    --bg: #f5f6f7;                  /* latar halaman */
+    --surface: #fff;                /* kartu/panel */
+    --line: #e6e7eb;                /* garis/border */
+    --line-soft: #ededf0;
+
+    --radius: 12px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+    --shadow-md: 0 6px 18px rgba(0,0,0,.08);
+
+    --gap: 18px;
+    --sidebar-w: min(420px, 32vw);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  html{font-size: clamp(14px, 0.35vw + 12px, 16px)}
+  body{
+    font-family: "Ubuntu", "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ===== Header (bersih, tipis) ===== */
+  .app-header{
+    display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+    gap: 16px; padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    position: sticky; top:0; z-index:10;
+  }
+  .page-title{margin:0;font-weight:700;font-size:18px}
+  .header-left, .header-right{display:flex;align-items:center;gap:10px}
+  .home-link{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
+  .brand-logo{height:26px}
+
+  /* ===== Layout ===== */
+  .cashier-console{
+    display:grid; gap: 22px;
+    grid-template-columns: minmax(0,1fr) var(--sidebar-w);
+    padding: 20px; max-width: 1360px; margin-inline:auto;
+  }
+  @media (max-width: 1100px){ .cashier-console{ grid-template-columns: 1fr } }
+  .cashier-console.disabled{ filter:saturate(.75); pointer-events:none; user-select:none }
+
+  /* ===== Card ===== */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+  .card-body{padding:16px}
+  .section-title{margin:0 0 10px 0;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);font-weight:700}
+
+  /* ===== Order List ===== */
+  .order-header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding: 16px 18px; border-bottom:1px solid var(--line);
+  }
+
+  .order-tabs{display:flex;gap:8px; padding:10px 18px 0; flex-wrap:wrap}
+  .order-tab{
+    padding:8px 12px;
+    border:1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink-2);
+    font-weight:600; font-size:13px; cursor:pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .order-tab:hover{ background:#f2f3f5; border-color:#dcdfe4; color:var(--ink) }
+  .order-tab.active{
+    background:#1f1f1f; color:#fff; border-color:#1f1f1f;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04);
+  }
+
+  .search-container{ padding: 12px 18px 8px }
+  .search-input{
+    width:100%; padding:11px 12px;
+    border:1px solid var(--line); border-radius: 10px;
+    background: #fff;
+    color: var(--ink);                /* teks input hitam */
+    outline: none;
+  }
+  .search-input::placeholder{ color: var(--muted) }
+  .search-input:focus{ border-color:#cfd3d9; box-shadow: 0 0 0 3px rgba(0,0,0,.06) }
+
+  .order-list{ padding: 8px 18px 18px; min-height:420px; overflow:auto }
+  .order-card{
+    border:1px solid var(--line); border-radius:12px; background:#fff;
+    padding:12px; margin-top:12px;
+    transition: transform .1s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .order-card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); border-color:#dfe2e6 }
+  .order-card.selected{ background:#fafafa; border-color:#cfd3d9 }
+  .order-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .order-items{margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
+  .order-item{display:flex;align-items:center;gap:8px}
+  .order-item-img img{width:32px;height:32px;object-fit:cover;border-radius:6px}
+  .order-item-name{flex:1}
+  .order-item-meta{font-size:12px;color:var(--muted)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;font-size:12px;
+    background:#fff;border:1px solid var(--line);color:var(--ink-2)
+  }
+
+  .empty-state{
+    display:grid;place-items:center;text-align:center;gap:6px;
+    color:var(--muted); padding:22px; border:1px dashed var(--line); border-radius:12px; background:#fff;
+  }
+
+  /* ===== Checkout ===== */
+  .checkout-panel{ display:flex; flex-direction:column; min-height:560px }
+  .checkout-panel-header{ padding:16px 18px; border-bottom:1px solid var(--line); font-weight:700 }
+
+  .customer-info{
+    margin:16px 18px 12px; padding:12px;
+    border:1px solid var(--line); border-radius:12px; background:#fff;
+  }
+  .customer-info-header{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px }
+  .customer-search-btn{ color:#111; font-weight:700; border:1px solid var(--line); background:#fff; padding:6px 10px; border-radius:8px; cursor:pointer }
+  .customer-search-btn:hover{ background:#f2f3f5 }
+
+  .checkout-items{ flex:1; margin:0 18px 14px; overflow:auto }
+  .checkout-item{ display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px dashed var(--line); font-size:14px }
+  .item-image{width:40px;height:40px}
+  .item-image img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+  .item-details{flex:1}
+  .item-name{font-weight:500}
+  .item-notes{font-size:12px;color:var(--muted)}
+  .item-quantity-price{display:flex;flex-direction:column;align-items:flex-end;min-width:70px}
+
+  .checkout-totals{ margin:0 18px 16px; padding-top:12px; border-top:1px solid var(--line) }
+  .total-row{ display:flex; justify-content:space-between; margin:6px 0; color:var(--ink) }
+  .grand-total{ font-size:18px; font-weight:800 }
+
+  /* ===== Buttons (monochrome) ===== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-height:40px; padding:10px 14px;
+    border-radius:10px; border:1px solid var(--line);
+    background:#fff; color:var(--ink); font-weight:700; cursor:pointer;
+    transition: background .15s ease, border-color .15s ease, transform .05s ease;
+  }
+  .btn:hover{ background:#f2f3f5; border-color:#dcdfe4 }
+  .btn:active{ transform: translateY(1px) }
+  .btn-primary{ background:#111; color:#fff; border-color:#111 }
+  .btn-primary:hover{ background:#000 }
+
+  .btn-accent{ background:#2b2b2b; color:#fff; border-color:#2b2b2b }
+  .btn-accent:hover{ background:#1f1f1f }
+  .btn-ghost{ background:#f7f7f7; border-color:var(--line); color:#111 }
+
+  .checkout-actions{ display:flex; flex-direction:column; gap:10px; margin:0 18px 18px }
+
+  .session-warning, .error-message{
+    margin:16px auto; max-width:1080px; border-radius:12px; padding:12px 14px; border:1px solid var(--line);
+  }
+  .session-warning{ background:#fffdf5; color:#6b5a00 }
+  .error-message{ background:#fff5f5; color:#8a1b1b }
+
+  /* Scrollbar halus (Chromium) */
+  .order-list::-webkit-scrollbar,
+  .checkout-items::-webkit-scrollbar{ height:10px; width:10px }
+  .order-list::-webkit-scrollbar-thumb,
+  .checkout-items::-webkit-scrollbar-thumb{ background:#d6d7db; border-radius:999px }
+</style>
+{% endblock %}
+
+{% block page_content %}
+
+{% if show_header %}
+<header class="app-header">
+  <div class="header-left">
+    <a href="/" class="home-link" aria-label="Home">
+      <i class="fa fa-home" aria-hidden="true"></i>
+    </a>
+    <h1 class="page-title">{{ _("Cashier Console") }}</h1>
+  </div>
+
+  <div class="header-center" aria-label="Brand">
+    {% if branding.logo %}
+      {% if branding.logo_dark %}
+      <picture>
+        <source srcset="{{ branding.logo_dark }}" media="(prefers-color-scheme: dark)">
+        <img src="{{ branding.logo }}" alt="{{ branding.name|default('IMOGI POS') }}" class="brand-logo">
+      </picture>
+      {% else %}
+      <img src="{{ branding.logo }}" alt="{{ branding.name|default('IMOGI POS') }}" class="brand-logo">
+      {% endif %}
+    {% else %}
+      <span class="brand-name">{{ branding.name|default("IMOGI POS") }}</span>
+    {% endif %}
+  </div>
+
+  <div class="header-right">
+    {% if branch %}
+    <div class="branch-selector" role="status" aria-live="polite">
+      <span class="branch-label">{{ _("Branch") }}:</span>
+      <span class="branch-value badge">{{ branch_label or branch }}</span>
+    </div>
+    {% endif %}
+    <div class="user-menu">
+      <span class="user-name badge"><i class="fa fa-user" aria-hidden="true"></i>&nbsp;{{ frappe.session.user }}</span>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+{% if error_message %}
+  <div class="error-message card"><div class="card-body">
+    {{ error_message }}
+  </div></div>
+{% elif require_pos_session and enforce_session_on_cashier and not has_active_session %}
+  <div class="session-warning card">
+    <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <span>{{ _("No active POS Session. Please open a session to continue.") }}</span>
+      <a href="/desk#pos-session/new-pos-session-1" class="btn btn-primary">{{ _("Open Session") }}</a>
+    </div>
+  </div>
+{% endif %}
+
+{% if not error_message %}
+<div class="cashier-console {% if require_pos_session and enforce_session_on_cashier and not has_active_session %}disabled{% endif %}">
+  <!-- Order list -->
+  <section class="order-list-container card" aria-labelledby="orders-heading">
+    <div class="order-header">
+      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
+      <div class="order-actions" style="display:flex;gap:8px;">
+        <a id="create-order" class="btn btn-default" type="button" href="/create-order">
+          <i class="fa fa-plus" aria-hidden="true"></i>&nbsp;{{ _("Create Order") }}
+        </a>
+        <button id="refresh-orders" class="btn btn-default" type="button">
+          <i class="fa fa-rotate" aria-hidden="true"></i>&nbsp;{{ _("Refresh") }}
+        </button>
+      </div>
+    </div>
+
+    <div class="order-tabs" role="tablist" aria-label="{{ _('Order filters') }}">
+      <div class="order-tab active" role="tab" aria-selected="true" tabindex="0" data-status="Ready">{{ _("Ready") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Served">{{ _("Served") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="All">{{ _("All") }}</div>
+    </div>
+
+    <div class="search-container">
+      <label class="sr-only" for="order-search">{{ _('Search Orders') }}</label>
+      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}" aria-label="{{ _('Search Orders') }}">
+    </div>
+
+    <div id="order-list" class="order-list">
+      <div class="empty-state" aria-live="polite">
+        <div>
+          <strong>{{ _("Loading orders…") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch recent orders.") }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Checkout -->
+  <aside class="checkout-panel card" aria-labelledby="checkout-heading">
+    <div class="checkout-panel-header" id="checkout-heading">{{ _("Checkout") }}</div>
+
+    <div class="customer-info" aria-labelledby="customer-heading">
+      <div class="customer-info-header">
+        <span id="customer-heading">{{ _("Customer") }}:
+          <span id="customer-name" class="badge">{{ _("Walk-in Customer") }}</span>
+        </span>
+        <button class="customer-search-btn" id="find-customer" type="button" aria-describedby="customer-heading">{{ _("Find / Create") }}</button>
+      </div>
+      <div id="customer-details" class="customer-details" style="font-size:13px; color:var(--muted)"></div>
+    </div>
+
+    <div id="checkout-items" class="checkout-items">
+      <div class="empty-state">
+        <div>
+          <strong>{{ _("Select an order to checkout") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Choose an item on the left to see details here.") }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkout-totals">
+      <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="subtotal">0.00</span></div>
+      <div class="total-row"><span>{{ _("PB1") }}</span><span id="tax-amount">0.00</span></div>
+      <div class="total-row"><span>{{ _("Discount") }}</span><span id="discount-amount">0.00</span></div>
+      <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="grand-total">0.00</span></div>
+    </div>
+
+    <div class="checkout-actions">
+      <select id="payment-mode" class="btn" style="margin-right:8px">
+        <option value="">{{ _("Mode of Payment") }}</option>
+        <option value="Cash">{{ _("Cash") }}</option>
+        <option value="Card">{{ _("Card") }}</option>
+        <option value="Online">{{ _("Online") }}</option>
+      </select>
+      <button id="btn-generate-invoice" class="btn btn-primary" type="button" disabled>{{ _("Generate Invoice") }}</button>
+      <button id="btn-request-payment" class="btn btn-accent" type="button" disabled>{{ _("Request Payment") }}</button>
+      <button id="btn-print-bill" class="btn btn-ghost" type="button" disabled>{{ _("Print Bill") }}</button>
+    </div>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+  // Pass context to JS
+  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+  window.POS_PROFILE        = {{ (pos_profile.name if pos_profile else none) | tojson }};
+  window.ACTIVE_POS_SESSION = {{ (active_pos_session.name if active_pos_session else none) | tojson }};
+  window.CURRENT_BRANCH     = {{ (branch if branch else none) | tojson }};
+  window.CURRENT_BRANCH_LABEL = {{ (branch_label if branch_label else (branch if branch else none)) | tojson }};
+  window.CURRENCY_SYMBOL    = {{ (currency_symbol if currency_symbol else "Rp") | tojson }};
+  window.DOMAIN             = {{ (domain if domain else "Restaurant") | tojson }};
+
+  // Minor UX: toggle active class on tabs with keyboard support
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = Array.from(document.querySelectorAll('.order-tab'));
+    const list = document.getElementById('order-list');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => setActive(tab));
+      tab.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(tab); }
+      });
+    });
+
+    function setActive(el){
+      tabs.forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      el.setAttribute('aria-selected', 'true');
+      tabs.filter(t=>t!==el).forEach(t=>t.setAttribute('aria-selected','false'));
+
+      if (!list) return;
+      const status = el.dataset.status;
+      list.querySelectorAll('[data-status]').forEach(item => {
+        item.hidden = !(status === 'All' || item.dataset.status === status);
+      });
+    }
+
+    const initial = tabs.find(t => t.classList.contains('active'));
+    if (initial) setActive(initial);
+
+    // Header shadow on scroll
+    const header = document.querySelector('.app-header');
+    if (header) {
+      const onScroll = () => header.style.boxShadow = window.scrollY > 6 ? 'var(--shadow-md)' : 'var(--shadow-sm)';
+      document.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+  });
+</script>
+<script src="/assets/frappe/js/frappe-web.bundle.js"></script>
+<script src="/assets/frappe/js/dialog.bundle.js"></script>
+<script src="/assets/imogi_pos/js/nav.js"></script>
+<script src="/assets/imogi_pos/js/auth.js"></script>
+<script src="/assets/imogi_pos/js/branch.js"></script>
+<script src="/assets/imogi_pos/js/print/service.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_bluetooth.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_bridge.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_lan.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_spool.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="../cashier-console/index.js"></script>
+{% endblock %}

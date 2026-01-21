@@ -11,3 +11,6 @@ imogi_pos.patches.add_cashier_session_ref
 
 imogi_pos.patches.v1_1.reload_restaurant_settings_discounts
 imogi_pos.patches.add_pos_order_customer_gender_column
+
+# Architecture reorganization - January 2026
+imogi_pos.patches.migrate_to_new_architecture
