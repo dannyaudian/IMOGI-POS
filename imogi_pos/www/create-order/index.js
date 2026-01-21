@@ -1184,22 +1184,32 @@ frappe.ready(async function () {
           return payloadItem;
         });
 
-        const response = await frappe.call({
-          method: "imogi_pos.api.pricing.validate_promo_code",
-          args: payload,
-        });
-
-        const result = response?.message ?? response;
-        const normalized = this.normalizePromoResult(result, rawCode);
-        if (!normalized || normalized.error) {
-          const message = normalized?.error || result?.message || __("Promo code is invalid or expired.");
-          this.discountState.promo = null;
-          this.setPromoError(message);
-        } else {
-          this.discountState.promo = normalized;
+        // Try native coupon code first (native-first approach)
+        let nativeCoupon = await this.applyNativeCouponCode(rawCode);
+        if (nativeCoupon) {
+          this.discountState.promo = nativeCoupon;
           this.discountState.error = null;
-          if (select) select.value = normalized.code;
+          if (select) select.value = nativeCoupon.code;
           this.hidePromoInput();
+        } else {
+          // Fallback to custom promo code
+          const response = await frappe.call({
+            method: "imogi_pos.api.pricing.validate_promo_code",
+            args: payload,
+          });
+
+          const result = response?.message ?? response;
+          const normalized = this.normalizePromoResult(result, rawCode);
+          if (!normalized || normalized.error) {
+            const message = normalized?.error || result?.message || __("Promo code is invalid or expired.");
+            this.discountState.promo = null;
+            this.setPromoError(message);
+          } else {
+            this.discountState.promo = normalized;
+            this.discountState.error = null;
+            if (select) select.value = normalized.code;
+            this.hidePromoInput();
+          }
         }
       } catch (error) {
         console.error("Failed to validate promo code:", error);
@@ -1211,6 +1221,109 @@ frappe.ready(async function () {
       }
     },
 
+    /**
+     * Check native ERPNext pricing rules for cart items
+     * Native-first approach: check pricing rules automatically
+     */
+    checkNativePricingRules: async function() {
+      if (!this.cart.length) return null;
+      
+      try {
+        const customer = this.selectedCustomer || 'Walk-in Customer';
+        const priceList = this.selectedPriceList || POS_PROFILE_DATA?.selling_price_list || 'Standard Selling';
+        const posProfile = POS_PROFILE_DATA?.name || POS_PROFILE?.name || null;
+        
+        const response = await frappe.call({
+          method: 'imogi_pos.api.native_pricing.apply_pricing_rules_to_items',
+          args: {
+            items: this.cart.map(item => ({
+              item_code: item.item_code || item.item,
+              qty: item.qty || item.quantity || 1,
+              rate: item.rate || item.price || 0
+            })),
+            customer: customer,
+            price_list: priceList,
+            pos_profile: posProfile
+          }
+        });
+        
+        const result = response?.message || response;
+        if (result && result.has_pricing_rules) {
+          this.showPricingRuleIndicator(result);
+          return result;
+        }
+        return null;
+      } catch (error) {
+        console.warn('Native pricing rules check failed:', error);
+        return null;
+      }
+    },
+    
+    /**
+     * Validate native ERPNext coupon code
+     */
+    applyNativeCouponCode: async function(couponCode) {
+      if (!couponCode) return null;
+      
+      try {
+        const customer = this.selectedCustomer || null;
+        const response = await frappe.call({
+          method: 'imogi_pos.api.native_pricing.validate_coupon_code',
+          args: {
+            coupon_code: couponCode,
+            customer: customer
+          }
+        });
+        
+        const result = response?.message || response;
+        if (result && result.valid) {
+          return {
+            code: couponCode,
+            type: 'native_coupon',
+            pricing_rule: result.pricing_rule,
+            discount_type: result.discount_type,
+            discount_percentage: result.discount_percentage || 0,
+            discount_amount: result.discount_amount || 0
+          };
+        }
+        return null;
+      } catch (error) {
+        console.warn('Native coupon validation failed:', error);
+        return null;
+      }
+    },
+    
+    /**
+     * Show visual indicator for active pricing rules
+     */
+    showPricingRuleIndicator: function(pricingResult) {
+      if (!pricingResult || !pricingResult.has_pricing_rules) return;
+      
+      let indicator = document.querySelector('.pricing-rules-indicator');
+      if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'pricing-rules-indicator alert alert-success';
+        indicator.style.cssText = 'margin: 10px; padding: 10px; font-size: 14px;';
+        
+        const cartSummary = document.querySelector('.cart-summary') || 
+                          document.querySelector('.order-summary');
+        if (cartSummary) {
+          cartSummary.insertBefore(indicator, cartSummary.firstChild);
+        }
+      }
+      
+      let message = '🎁 ' + __('Active Promotions:');
+      if (pricingResult.total_discount_amount > 0) {
+        message += ' ' + __('Discount') + ' ' + format_currency(pricingResult.total_discount_amount);
+      }
+      if (pricingResult.free_items && pricingResult.free_items.length > 0) {
+        message += ' | ' + __('Free Items') + ': ' + pricingResult.free_items.length;
+      }
+      
+      indicator.innerHTML = message;
+      indicator.style.display = 'block';
+    },
+
     removePromoCode: function () {
       if (!this.allowDiscounts) return;
       this.discountState.promo = null;
@@ -1219,6 +1332,12 @@ frappe.ready(async function () {
       this.hidePromoInput();
       this.updateCartTotals();
       this.refreshDiscountUI();
+      
+      // Hide pricing rule indicator
+      const indicator = document.querySelector('.pricing-rules-indicator');
+      if (indicator) {
+        indicator.style.display = 'none';
+      }
     },
 
     setPromoError: function (message) {
@@ -2344,6 +2463,14 @@ frappe.ready(async function () {
 
       if (this.allowDiscounts) {
         this.refreshDiscountUI(totals);
+      }
+      
+      // Auto-check native pricing rules when cart changes (native-first approach)
+      if (this.cart.length > 0 && !this._checkingPricingRules) {
+        this._checkingPricingRules = true;
+        this.checkNativePricingRules().finally(() => {
+          this._checkingPricingRules = false;
+        });
       }
     },
 
