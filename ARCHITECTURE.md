@@ -2,7 +2,8 @@
 
 **System Type:** Custom POS System untuk ERPNext  
 **Version:** v15 Compatible  
-**Updated:** January 20, 2026
+**Updated:** January 21, 2026  
+**Architecture:** Domain-Driven Design (Restaurant/Counter/Devices/Shared)
 
 ## 🎯 Overview
 
@@ -70,21 +71,53 @@
 
 ## 📦 Custom Components
 
+### Directory Structure (New Architecture - January 2026)
+
+```
+www/
+├── restaurant/          # Restaurant operations
+│   ├── waiter/         # Unified POS (waiter + kiosk mode)
+│   ├── kitchen/        # Kitchen Display System
+│   ├── tables/         # Table layout display
+│   └── self-order/     # Self-ordering system
+├── counter/            # Counter operations
+│   └── pos/            # Cashier console
+├── devices/            # Device management
+│   └── displays/       # Customer display
+├── shared/             # Shared interfaces
+│   ├── login/          # Authentication
+│   ├── device-select/  # Device selector
+│   └── service-select/ # Service selector
+├── retail/             # Future: Retail domain (placeholder)
+└── service/            # Future: Service domain (placeholder)
+```
+
+**Benefits of New Structure:**
+- ✅ Clear separation by business domain
+- ✅ Scalable for future features (Retail, Service)
+- ✅ Backward compatible (old URLs redirect)
+- ✅ Role-based access control integrated
+
 ### 1. Custom Frontend Interfaces
 
 | Interface | Path | Purpose | Type |
 |-----------|------|---------|------|
-| **Kiosk** | `www/kiosk/` | Self-service ordering terminal | Custom SPA |
-| **Self Order** | `www/so/` | QR code table ordering | Custom SPA |
-| **Cashier Console** | `www/cashier-console/` | Counter payment & checkout | Custom SPA |
-| **Waiter App** | `www/create-order/` | Table service ordering | Custom SPA |
-| **Customer Display** | `www/customer-display/` | Secondary screen for customer | Custom SPA |
+| **Kiosk** | `www/restaurant/waiter?mode=kiosk` | Self-service ordering terminal | Custom SPA |
+| **Waiter App** | `www/restaurant/waiter` | Table service ordering | Custom SPA |
+| **Self Order** | `www/restaurant/self-order` | QR code table ordering | Custom SPA |
+| **Cashier Console** | `www/counter/pos` | Counter payment & checkout | Custom SPA |
+| **Kitchen Display** | `www/restaurant/kitchen` | Kitchen order management | Custom SPA |
+| **Table Display** | `www/restaurant/tables` | Table layout & status | Custom SPA |
+| **Customer Display** | `www/devices/displays` | Secondary screen for customer | Custom SPA |
+| **Login** | `www/shared/login` | Authentication page | Custom SPA |
 
 **Technology Stack:**
 - Custom JavaScript (no framework)
 - Frappe.js client library
-- Custom CSS
+- Custom CSS (organized: core.css + modules)
 - Real-time updates via Frappe Realtime
+- **Role-based UI** - Dynamic rendering based on user roles
+- **Centralized Authentication** - Unified auth decorators and helpers
 
 ### 2. Custom Backend APIs
 
@@ -117,7 +150,19 @@ imogi_pos.api.kot.update_kot_status()
 # Table Management (Custom)
 imogi_pos.api.layout.get_restaurant_layout()
 imogi_pos.api.layout.update_table_status()
+
+# Authentication & Authorization (NEW - January 2026)
+imogi_pos.utils.auth_decorators.require_roles()
+imogi_pos.utils.auth_decorators.allow_guest_if_configured()
+imogi_pos.utils.auth_helpers.get_user_role_context()
+imogi_pos.utils.auth_helpers.get_role_based_default_route()
 ```
+
+**New Architecture Features:**
+- ✅ **Centralized Auth** - Reusable decorators for role-based access
+- ✅ **Guest Access** - Configurable guest mode for kiosk and self-order
+- ✅ **Role-based Routing** - Automatic redirect based on user roles
+- ✅ **POS Profile Validation** - Ensure user has proper POS setup
 
 ### 3. Custom DocTypes
 
@@ -340,7 +385,18 @@ Apply Coupon in POS → Validate via Native → Discount Applied
 ### Custom Components:
 - Deploy via `bench get-app imogi_pos`
 - Custom fixtures installed on setup
-- Custom pages accessible via `/app/kiosk`, `/app/so`, etc.
+- Custom pages organized by business domain:
+  - **Restaurant:** `/restaurant/waiter`, `/restaurant/kitchen`, `/restaurant/tables`, `/restaurant/self-order`
+  - **Counter:** `/counter/pos`
+  - **Devices:** `/devices/displays`
+  - **Shared:** `/shared/login`
+- Backward-compatible redirects from old URLs
+
+### Workspace Hierarchy:
+- **IMOGI POS** (Parent Workspace)
+  - Table Service (Child)
+  - Kitchen Ops (Child)
+  - Cashier Ops (Child)
 
 ### Native Features:
 - No additional deployment needed
@@ -359,11 +415,18 @@ Apply Coupon in POS → Validate via Native → Discount Applied
 ## 📚 Related Documentation
 
 - [README.md](./README.md) - Project overview
+- [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) - Latest architecture changes (January 2026)
+- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick reference guide for new structure
+- [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Testing checklist
+- [DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md) - Deployment guide
 - [NATIVE_INTEGRATION.md](./NATIVE_INTEGRATION.md) - Native feature setup guide
 - [INTEGRATION_STATUS.md](./INTEGRATION_STATUS.md) - Current integration status
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment instructions
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Full deployment instructions
+- [www/README.md](./imogi_pos/www/README.md) - WWW directory structure
 
 ---
 
 **Summary:**  
 IMOGI-POS = **Custom POS** (UI, API, DocTypes) + **Native ERPNext** (Pricing, CRM, Accounting)
+
+**Architecture Update:** January 2026 - Reorganized by business domain with centralized authentication and role-based UI rendering.
