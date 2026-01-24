@@ -29,10 +29,8 @@
     "timeout_action",
     "section_printing",
     "enable_auto_print",
-    "receipt_printer",
     "receipt_print_format",
     "enable_queue_ticket",
-    "queue_printer",
     "queue_print_format",
     "section_payment",
     "allow_cash_payment",
@@ -178,13 +176,6 @@
     },
     {
       "depends_on": "eval:doc.enable_auto_print==1",
-      "fieldname": "receipt_printer",
-      "fieldtype": "Link",
-      "label": "Receipt Printer",
-      "options": "Printer"
-    },
-    {
-      "depends_on": "eval:doc.enable_auto_print==1",
       "fieldname": "receipt_print_format",
       "fieldtype": "Link",
       "label": "Receipt Print Format",
@@ -195,13 +186,6 @@
       "fieldname": "enable_queue_ticket",
       "fieldtype": "Check",
       "label": "Enable Queue Ticket"
-    },
-    {
-      "depends_on": "eval:doc.enable_queue_ticket==1",
-      "fieldname": "queue_printer",
-      "fieldtype": "Link",
-      "label": "Queue Ticket Printer",
-      "options": "Printer"
     },
     {
       "depends_on": "eval:doc.enable_queue_ticket==1",
