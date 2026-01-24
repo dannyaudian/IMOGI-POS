@@ -3,11 +3,34 @@ Authentication decorators for www pages.
 
 These decorators provide centralized authentication and authorization
 for public web pages (www/) in the IMOGI POS system.
+
+Note: Frappe v15+ calls get_context() without arguments and expects the function
+to accept 'context' as a keyword argument. These decorators handle this by
+extracting 'context' from kwargs if not in args.
 """
 
 import frappe
 from frappe import _
 from functools import wraps
+import inspect
+
+
+def _get_context_from_call(func, args, kwargs):
+    """
+    Helper to ensure context is properly passed to decorated functions.
+    
+    Frappe v15+ may call get_context() without positional args, expecting
+    the context to be injected. This helper handles both calling conventions.
+    """
+    sig = inspect.signature(func)
+    params = list(sig.parameters.keys())
+    
+    # If 'context' is the first parameter and no args provided, create empty dict
+    if params and params[0] == 'context' and not args and 'context' not in kwargs:
+        # Frappe should have set this, but just in case
+        kwargs['context'] = frappe._dict()
+    
+    return args, kwargs
 
 
 def require_login(redirect_to=None):
@@ -31,6 +54,7 @@ def require_login(redirect_to=None):
             if frappe.session.user == "Guest":
                 redirect_path = redirect_to or frappe.request.path
                 raise frappe.Redirect(f"/imogi-login?redirect={redirect_path}")
+            args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -70,6 +94,7 @@ def require_roles(*roles):
                     frappe.PermissionError
                 )
             
+            args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -111,6 +136,7 @@ def allow_guest_if_configured(setting_field="imogi_allow_guest_access", setting_
                     # Settings doc doesn't exist, require login
                     raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
             
+            args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -145,6 +171,7 @@ def require_pos_profile(allow_fallback=True):
                     frappe.ValidationError
                 )
             
+            args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -176,6 +203,7 @@ def require_branch_access(branch_param="branch"):
             if branch:
                 validate_branch_access(branch)
             
+            args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
     return decorator

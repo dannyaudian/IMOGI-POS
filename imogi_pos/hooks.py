@@ -12,7 +12,8 @@ app_email = "support@imogi.com"
 app_license = "MIT"
 
 app_include_js = [
-    '/assets/imogi_pos/js/escpos_printing.js'
+    '/assets/imogi_pos/js/escpos_printing.js',
+    '/assets/imogi_pos/js/workspace_shortcuts.js'
 ]
 app_include_css = []
 
