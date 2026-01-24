@@ -1113,23 +1113,10 @@
     "name": "Item-photo"
   },
   {
-    "fieldname": "item_topping_options",
-    "fieldtype": "Table",
-    "label": "Topping Options",
-    "options": "Item Topping Option",
-    "depends_on": "eval:['Restaurant','Universal'].includes(doc.imogi_menu_channel)",
-    "insert_after": "item_variant_options",
-    "is_system_generated": 0,
-    "module": "IMOGI POS",
-    "dt": "Item",
-    "doctype": "Custom Field",
-    "name": "Item-item_topping_options"
-  },
-  {
     "fieldname": "imogi_kitchen_routing_section",
     "fieldtype": "Section Break",
     "label": "Kitchen Routing",
-    "insert_after": "item_topping_options",
+    "insert_after": "photo",
     "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
     "is_system_generated": 0,
     "module": "IMOGI POS",
