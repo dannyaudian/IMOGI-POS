@@ -327,7 +327,8 @@
   </aside>
 </div>
 
-{% endif %}
+{% endif %}  {# Close 'if not error_message' #}
+{% endif %}  {# Close 'if setup_error' from block page_content #}
 {% endblock %}
 
 {% block script %}

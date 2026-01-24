@@ -123,7 +123,7 @@ frappe.ready(function() {
       },
       error: function(xhr, textStatus) {
         showError('Login failed. Please try again.');
-      console.error(textStatus);
+        console.error(textStatus);
         setFormDisabled(false);
       }
     });
