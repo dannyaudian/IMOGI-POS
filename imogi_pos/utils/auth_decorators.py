@@ -80,6 +80,9 @@ def require_roles(*roles):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            # Import security logging
+            from imogi_pos.utils.security import log_security_event
+            
             # Check if user is logged in
             if frappe.session.user == "Guest":
                 raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
@@ -87,6 +90,16 @@ def require_roles(*roles):
             # Check if user has required role
             user_roles = frappe.get_roles(frappe.session.user)
             if not any(role in user_roles for role in roles):
+                # Log unauthorized access attempt
+                log_security_event(
+                    "UNAUTHORIZED_ACCESS",
+                    {
+                        "required_roles": list(roles),
+                        "user_roles": user_roles,
+                        "path": frappe.request.path
+                    },
+                    "WARNING"
+                )
                 frappe.throw(
                     _("Access denied: This page requires one of these roles: {0}").format(
                         ", ".join(roles)

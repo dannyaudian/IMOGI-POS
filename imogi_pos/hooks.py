@@ -101,6 +101,16 @@ jinja = {
     ]
 }
 
+# Security: Add security headers to all responses
+after_request = [
+    "imogi_pos.utils.security.add_security_headers"
+]
+
+# Security: Track failed login attempts
+on_login_fail = [
+    "imogi_pos.utils.security.on_login_fail"
+]
+
 # Website route redirects for new architecture
 website_route_rules = [
     {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
