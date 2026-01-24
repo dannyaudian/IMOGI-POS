@@ -111,6 +111,15 @@ jinja = {
     ]
 }
 
+# Whitelisted methods that can be called from frontend
+whitelisted_methods = {
+    "imogi_pos.utils.auth_helpers": [
+        "get_role_based_default_route",
+        "get_user_pos_profile",
+        "get_user_role_context",
+    ]
+}
+
 # Security: Add security headers to all responses
 after_request = [
     "imogi_pos.utils.security.add_security_headers"

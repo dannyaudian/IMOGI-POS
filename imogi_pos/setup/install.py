@@ -8,12 +8,14 @@ import frappe
 def after_install():
     """Run all post-installation tasks."""
     sync_pages()
+    sync_workspace_fixtures()
     create_cash_accounts()
 
 
 def after_migrate():
     """Run all post-migration tasks."""
     sync_pages()
+    sync_workspace_fixtures()
     create_cash_accounts()
 
 
@@ -67,6 +69,58 @@ def sync_pages():
             page_doc.insert()
 
         frappe.db.commit()
+
+
+def sync_workspace_fixtures():
+    """Sync Workspace fixtures from workspaces.json."""
+    app_path = frappe.get_app_path("imogi_pos")
+    fixtures_path = os.path.join(app_path, "fixtures")
+    workspaces_file = os.path.join(fixtures_path, "workspaces.json")
+    
+    if not os.path.exists(workspaces_file):
+        frappe.logger().warning(f"Workspaces fixture file not found: {workspaces_file}")
+        return
+    
+    try:
+        with open(workspaces_file, "r") as f:
+            workspaces_data = json.load(f)
+        
+        if not isinstance(workspaces_data, list):
+            frappe.logger().error("Workspaces fixture must be a JSON array")
+            return
+        
+        for workspace_data in workspaces_data:
+            workspace_name = workspace_data.get("name")
+            if not workspace_name:
+                continue
+            
+            # Check if workspace already exists
+            if frappe.db.exists("Workspace", workspace_name):
+                # Update existing workspace
+                existing = frappe.get_doc("Workspace", workspace_name)
+                for key, value in workspace_data.items():
+                    if key not in ("doctype", "name", "creation", "modified", "modified_by", "owner"):
+                        if key == "content" and isinstance(value, str):
+                            # Keep content as-is (it's JSON string)
+                            setattr(existing, key, value)
+                        else:
+                            setattr(existing, key, value)
+                existing.flags.ignore_validate = True
+                existing.flags.ignore_permissions = True
+                existing.save()
+                frappe.logger().info(f"Updated workspace: {workspace_name}")
+            else:
+                # Create new workspace
+                workspace_doc = frappe.get_doc(workspace_data)
+                workspace_doc.flags.ignore_validate = True
+                workspace_doc.flags.ignore_permissions = True
+                workspace_doc.insert()
+                frappe.logger().info(f"Created workspace: {workspace_name}")
+            
+            frappe.db.commit()
+    
+    except Exception as e:
+        frappe.logger().error(f"Error syncing workspace fixtures: {str(e)}")
 
 
 def create_cash_accounts():
