@@ -1,0 +1,74 @@
+[
+  {
+    "doctype": "Web Page",
+    "name": "counter-pos",
+    "title": "Cashier Console",
+    "route": "/counter/pos",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page", 
+    "name": "restaurant-kitchen",
+    "title": "Kitchen Display",
+    "route": "/restaurant/kitchen",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "restaurant-tables", 
+    "title": "Table Display",
+    "route": "/restaurant/tables",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "restaurant-waiter",
+    "title": "Waiter Order",
+    "route": "/restaurant/waiter", 
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "devices-displays",
+    "title": "Customer Display",
+    "route": "/devices/displays",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "customer-display-editor",
+    "title": "Customer Display Editor",
+    "route": "/customer_display_editor",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "table-layout-editor",
+    "title": "Table Layout Editor",
+    "route": "/table_layout_editor",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  },
+  {
+    "doctype": "Web Page",
+    "name": "opening-balance",
+    "title": "Opening Balance",
+    "route": "/opening-balance",
+    "published": 1,
+    "module": "IMOGI POS",
+    "page_blocks": []
+  }
+]
