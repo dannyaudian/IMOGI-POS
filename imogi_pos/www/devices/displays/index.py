@@ -7,8 +7,10 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.auth_helpers import get_user_role_context
+from imogi_pos.utils.auth_decorators import allow_guest_if_configured
 
 
+@allow_guest_if_configured("imogi_allow_public_display", "Restaurant Settings")
 def get_context(context):
     """
     Context provider for customer display page.

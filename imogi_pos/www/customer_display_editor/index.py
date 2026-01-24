@@ -5,13 +5,13 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
+from imogi_pos.utils.auth_decorators import require_roles
 
 
+@require_roles("Restaurant Manager", "System Manager")
 def get_context(context):
     """Context builder for customer display editor page."""
     try:
-        if frappe.session.user == "Guest":
-            raise frappe.Redirect("/imogi-login?redirect=/customer_display_editor")
 
         pos_profile = get_pos_profile()
         context.pos_profile = pos_profile
