@@ -85,35 +85,34 @@ class KitchenStation(Document):
         
         if not printer_profile:
             # Return OS default if no profile configured
-            return {
+            settings = {
                 "interface": "OS",
                 "thermal_width": 32,
                 "paper_width_mm": 58,
                 "dpi": 203
             }
+        else:
+            # Fetch printer configuration from Printer Profile
+            try:
+                printer_doc = frappe.get_doc("Printer Profile", printer_profile)
+                settings = printer_doc.get_printer_config()
+            except Exception as e:
+                frappe.log_error(
+                    title="Printer Profile Error",
+                    message=f"Error getting printer config for {printer_profile}: {str(e)}"
+                )
+                settings = {
+                    "interface": "OS",
+                    "thermal_width": 32,
+                    "paper_width_mm": 58,
+                    "dpi": 203
+                }
         
-        # Fetch and return printer configuration from Printer Profile
-        try:
-            printer_doc = frappe.get_doc("Printer Profile", printer_profile)
-            return printer_doc.get_printer_config()
-        except Exception as e:
-            frappe.log_error(
-                title="Printer Profile Error",
-                message=f"Error getting printer config for {printer_profile}: {str(e)}"
-            )
-            return {
-                "interface": "OS",
-                "thermal_width": 32,
-                "paper_width_mm": 58,
-                "dpi": 203
-            }
+        # Add bridge settings if provided
+        if self.print_bridge_url:
+            settings.update({
+                "bridge_url": self.print_bridge_url,
+                "bridge_token": self.print_bridge_token
             })
-            
-            # Add bridge settings if provided
-            if self.print_bridge_url:
-                settings.update({
-                    "bridge_url": self.print_bridge_url,
-                    "bridge_token": self.print_bridge_token
-                })
         
         return settings
