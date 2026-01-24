@@ -4,7 +4,7 @@ from frappe.utils import cint
 from imogi_pos.utils.branding import get_brand_context
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.utils.auth_decorators import require_roles
-from imogi_pos.utils.auth_helpers import get_user_pos_profile, validate_active_session
+from imogi_pos.utils.auth_helpers import get_user_pos_profile
 from imogi_pos.utils.error_pages import set_setup_error
 
 
@@ -26,16 +26,22 @@ def get_context(context):
         context.require_pos_session = cint(pos_profile_doc.get("imogi_require_pos_session", 0))
         context.enforce_session_on_cashier = cint(pos_profile_doc.get("imogi_enforce_session_on_cashier", 0))
         
-        # Check active session
+        # Check active session without throwing error
         if context.require_pos_session and context.enforce_session_on_cashier:
-            active_session = validate_active_session(pos_profile)
-            context.has_active_session = bool(active_session)
-            context.active_pos_session = active_session
-            
-            if not active_session:
-                set_setup_error(context, "session", page_name=_("Cashier Console"))
-                context.title = _("Cashier Console")
-                return context
+            # Check if POS Session exists
+            if not frappe.db.exists("DocType", "POS Session"):
+                context.has_active_session = True
+                context.active_pos_session = None
+            else:
+                # Check for active session
+                active_session = check_active_pos_session(pos_profile)
+                context.has_active_session = bool(active_session)
+                context.active_pos_session = active_session
+                
+                if not active_session:
+                    set_setup_error(context, "session", page_name=_("Cashier Console"))
+                    context.title = _("Cashier Console")
+                    return context
         else:
             context.has_active_session = True
             context.active_pos_session = None
