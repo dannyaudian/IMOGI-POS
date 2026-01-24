@@ -123,6 +123,21 @@ on_login_fail = [
 
 # Website route redirects for new architecture
 website_route_rules = [
+    # Main www routes
+    {"from_route": "/counter/pos", "to_route": "/counter/pos"},
+    {"from_route": "/restaurant/tables", "to_route": "/restaurant/tables"},
+    {"from_route": "/restaurant/kitchen", "to_route": "/restaurant/kitchen"},
+    {"from_route": "/restaurant/waiter", "to_route": "/restaurant/waiter"},
+    {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},
+    {"from_route": "/devices/displays", "to_route": "/devices/displays"},
+    {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/opening-balance", "to_route": "/opening-balance"},
+    {"from_route": "/shared/login", "to_route": "/shared/login"},
+    {"from_route": "/shared/device-select", "to_route": "/shared/device-select"},
+    {"from_route": "/shared/service-select", "to_route": "/shared/service-select"},
+    
+    # Aliases and redirects
     {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
     {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},
     {"from_route": "/kiosk", "to_route": "/restaurant/waiter?mode=kiosk"},

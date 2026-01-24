@@ -15,6 +15,7 @@ imogi_pos.workspace_shortcuts = {
         '/restaurant/tables',
         '/restaurant/kitchen', 
         '/restaurant/waiter',
+        '/restaurant/self-order',
         '/counter/pos',
         '/devices/displays',
         '/customer_display_editor',
@@ -23,8 +24,7 @@ imogi_pos.workspace_shortcuts = {
         '/imogi-login',
         '/shared/login',
         '/shared/device-select',
-        '/shared/service-select',
-        '/restaurant/self-order'
+        '/shared/service-select'
     ],
     
     initialized: false,
@@ -54,14 +54,28 @@ imogi_pos.workspace_shortcuts = {
         ].join(', '), function(e) {
             const $target = $(this);
             
-            // Try to get the URL from various attributes
+            // Try to get the URL from various attributes and locations
             let href = $target.attr('href') 
                 || $target.data('route') 
                 || $target.data('link-to')
+                || $target.data('label')
                 || $target.find('a').attr('href')
-                || $target.closest('[data-link-to]').data('link-to');
+                || $target.closest('[data-link-to]').data('link-to')
+                || $target.closest('[data-route]').data('route')
+                || $target.attr('data-route')
+                || $target.attr('data-link-to');
             
-            if (!href) return;
+            // Also check for onclick handler data
+            if (!href && $target.closest('.shortcut-widget-box').length) {
+                const $shortcut = $target.closest('.shortcut-widget-box');
+                href = $shortcut.find('a').attr('href');
+            }
+            
+            if (!href) {
+                // Log unhandled shortcut for debugging
+                console.debug('IMOGI POS: No href found for shortcut element:', $target);
+                return;
+            }
             
             // Clean up the href
             let clean_href = href.toString().replace(/^\/app/, '');
@@ -101,6 +115,8 @@ imogi_pos.workspace_shortcuts = {
                     route = '/' + route;
                 }
                 
+                console.debug('IMOGI POS: set_route called with:', { original: args, processed: route });
+                
                 // Check if route matches a www page
                 if (self.is_www_page(route)) {
                     console.log('IMOGI POS: Redirecting set_route to www page:', route);
@@ -123,6 +139,8 @@ imogi_pos.workspace_shortcuts = {
                 if (!clean_route.startsWith('/')) {
                     clean_route = '/' + clean_route;
                 }
+                
+                console.debug('IMOGI POS: push_state called with:', { original: route, processed: clean_route });
                 
                 if (self.is_www_page(clean_route)) {
                     console.log('IMOGI POS: Redirecting push_state to www page:', clean_route);
