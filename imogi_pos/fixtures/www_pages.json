@@ -6,6 +6,9 @@
     "route": "/counter/pos",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Cashier Console - IMOGI POS",
+    "meta_description": "POS cashier console for processing customer payments and managing transactions",
     "page_blocks": []
   },
   {
@@ -15,6 +18,9 @@
     "route": "/restaurant/kitchen",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Kitchen Display System - IMOGI POS",
+    "meta_description": "Real-time kitchen order display for restaurant kitchen staff to manage and track orders",
     "page_blocks": []
   },
   {
@@ -24,6 +30,9 @@
     "route": "/restaurant/tables",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Table Management Display - IMOGI POS",
+    "meta_description": "Visual table layout and status management for restaurant floor operations",
     "page_blocks": []
   },
   {
@@ -33,6 +42,9 @@
     "route": "/restaurant/waiter", 
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Waiter Order Taking - IMOGI POS",
+    "meta_description": "Mobile-friendly order taking interface for waitstaff and table service",
     "page_blocks": []
   },
   {
@@ -42,6 +54,9 @@
     "route": "/devices/displays",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Customer Display - IMOGI POS",
+    "meta_description": "Customer-facing display showing order items and total amount",
     "page_blocks": []
   },
   {
@@ -51,6 +66,9 @@
     "route": "/customer_display_editor",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Customer Display Editor - IMOGI POS",
+    "meta_description": "Configure and customize customer display templates and layouts",
     "page_blocks": []
   },
   {
@@ -60,6 +78,9 @@
     "route": "/table_layout_editor",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Table Layout Editor - IMOGI POS",
+    "meta_description": "Visual editor for designing restaurant floor plans and table arrangements",
     "page_blocks": []
   },
   {
@@ -69,6 +90,9 @@
     "route": "/opening-balance",
     "published": 1,
     "module": "IMOGI POS",
+    "content_type": "Page Builder",
+    "meta_title": "Opening Balance - IMOGI POS",
+    "meta_description": "Record cashier opening balance at start of shift",
     "page_blocks": []
   }
 ]
