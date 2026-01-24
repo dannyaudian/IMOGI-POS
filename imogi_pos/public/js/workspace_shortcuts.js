@@ -7,6 +7,8 @@
  * to the correct URL.
  * 
  * Uses capture phase to intercept clicks BEFORE Frappe's router processes them.
+ * 
+ * @version 2.0 - Added capture phase handler
  */
 
 frappe.provide('imogi_pos');
