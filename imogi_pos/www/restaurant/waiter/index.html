@@ -1548,6 +1548,97 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 {% endblock %}
 
 {% block page_content %}
+{% if setup_error %}
+<!-- Setup Error Page -->
+<div class="setup-error-container">
+  <div class="setup-error-card">
+    <div class="error-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+    <h1 class="error-title">{{ error_title }}</h1>
+    <p class="error-message">{{ error_message }}</p>
+    {% if error_details %}
+    <ul class="error-details">
+      {% for detail in error_details %}
+      <li>{{ detail }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if show_back_button %}
+    <a href="{{ back_url }}" class="error-back-button">{{ back_label }}</a>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.setup-error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: var(--bg-page, #F7F5F2);
+}
+.setup-error-card {
+  background: white;
+  border-radius: 16px;
+  padding: 48px;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+.error-icon {
+  color: #f59e0b;
+  margin-bottom: 24px;
+}
+.error-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 12px 0;
+}
+.error-message {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+.error-details {
+  text-align: left;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px 16px 16px 32px;
+  margin: 0 0 24px 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+.error-details li {
+  margin-bottom: 8px;
+}
+.error-details li:last-child {
+  margin-bottom: 0;
+}
+.error-back-button {
+  display: inline-block;
+  background: {{ branding.primary_color if branding else '#6B9080' }};
+  color: white;
+  padding: 12px 32px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+.error-back-button:hover {
+  opacity: 0.9;
+  color: white;
+}
+</style>
+{% else %}
+<!-- Normal Page Content -->
 {% if show_header %}
 <header class="app-header">
   <div class="header-center">
@@ -1845,9 +1936,11 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   <div class="loading-spinner"></div>
   <div class="loading-text" id="loading-text">{{ _("Processing...") }}</div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block script %}
+{% if not setup_error %}
 <script>
   const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
   const POS_PROFILE = {{ {"name": pos_profile.name, "warehouse": pos_profile.warehouse, "selling_price_list": pos_profile.selling_price_list} | tojson }};
@@ -1875,4 +1968,5 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 <script src="/assets/imogi_pos/js/print/adapter_spool.js"></script>
 <script src="/assets/imogi_pos/js/print/service.js"></script>
 <script src="../create-order/index.js"></script>
+{% endif %}
 {% endblock %}

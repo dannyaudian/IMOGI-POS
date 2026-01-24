@@ -24,8 +24,30 @@ def get_context(context):
     # Get POS Profile for kiosk mode
     pos_profile = get_pos_profile()
     if not pos_profile:
-        frappe.throw(_("No POS Profile found for Kiosk mode"))
+        # Set error state instead of throwing
+        context.setup_error = True
+        context.error_title = _("Setup Required")
+        context.error_message = _("No POS Profile found. Please contact your administrator to set up a POS Profile.")
+        context.error_details = [
+            _("A POS Profile is required to use this feature."),
+            _("Go to POS Profile list and create a new profile."),
+            _("Assign the profile to your user account.")
+        ]
+        context.show_back_button = True
+        context.back_url = "/app"
+        context.back_label = _("Go to Desk")
+        
+        # Set minimal branding for error page
+        context.branding = {
+            "primary_color": PRIMARY_COLOR,
+            "accent_color": ACCENT_COLOR,
+            "header_bg_color": HEADER_BG_COLOR,
+            "logo_url": None,
+            "brand_name": "IMOGI POS"
+        }
+        return context
     
+    context.setup_error = False
     context.pos_profile = pos_profile
     
     # Check if domain is valid
