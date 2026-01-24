@@ -236,7 +236,7 @@ def regenerate_payment_qr(invoice_name, branch=None):
                 'xendit_integration_imogi.api.qris.generate_dynamic_qr',
                 amount=invoice.grand_total,
                 invoice=invoice.name,
-                branch=branch or invoice.branch,
+                branch=branch or invoice.imogi_branch,
                 description=f"Payment Regenerated - Invoice {invoice.name}"
             )
             

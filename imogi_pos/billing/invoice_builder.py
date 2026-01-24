@@ -71,19 +71,19 @@ def build_sales_invoice_from_pos_order(
     
     # Set IMOGI-specific context fields
     si.imogi_pos_order = pos_order.name
-    si.branch = pos_order.branch
+    si.imogi_branch = pos_order.branch
     
     if pos_order.table:
-        si.table = pos_order.table
+        si.imogi_table = pos_order.table
         
         # Get floor from table if available
         table_floor = frappe.db.get_value("Restaurant Table", pos_order.table, "floor")
         if table_floor:
-            si.floor = table_floor
+            si.imogi_floor = table_floor
     
     # Link to POS session if active
     if pos_session:
-        si.pos_session = pos_session
+        si.imogi_pos_session = pos_session
     
     # Set standard POS fields
     si.pos_profile = pos_order.pos_profile

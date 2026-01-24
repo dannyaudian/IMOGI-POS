@@ -1,7 +1,7 @@
 <div class="payment-receipt">
     {% set branch_address = "" %}
-    {% if doc.branch %}
-        {% set branch = frappe.get_cached_doc("Branch", doc.branch) %}
+    {% if doc.imogi_branch %}
+        {% set branch = frappe.get_cached_doc("Branch", doc.imogi_branch) %}
         {% if branch %}
             {% set branch_address_candidate = branch.get("branch_address") %}
             {% if branch_address_candidate %}
@@ -142,7 +142,7 @@
     </div>
     <div class="receipt-footer">
         <p>Thank you for your purchase!</p>
-        <p>POS Session: {{ doc.pos_session or "" }}</p>
+        <p>POS Session: {{ doc.imogi_pos_session or "" }}</p>
         <p>Cashier: {{ frappe.db.get_value("User", doc.owner, "full_name") }}</p>
     </div>
 </div>

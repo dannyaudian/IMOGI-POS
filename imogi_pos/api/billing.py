@@ -955,14 +955,14 @@ def generate_invoice(
             "is_pos": 1,
             "pos_profile": order_doc.pos_profile,
             "customer": order_doc.customer,
-            "branch": order_doc.branch,
+            "imogi_branch": order_doc.branch,
             "items": invoice_items,
             "imogi_pos_order": pos_order,
             "order_type": order_doc.order_type,
             "update_stock": update_stock,
         }
         if pos_session:
-            invoice_data["pos_session"] = pos_session
+            invoice_data["imogi_pos_session"] = pos_session
 
         if getattr(order_doc, "discount_percent", None):
             invoice_data["additional_discount_percentage"] = order_doc.discount_percent
@@ -1235,13 +1235,13 @@ def prepare_invoice_draft(pos_order):
         "is_pos": 1,
         "pos_profile": order_doc.pos_profile,
         "customer": order_doc.customer or "Walk-in Customer",
-        "branch": order_doc.branch,
+        "imogi_branch": order_doc.branch,
         "items": invoice_items,
         "imogi_pos_order": pos_order,
         "order_type": order_doc.order_type,
     }
     if pos_session:
-        draft_invoice["pos_session"] = pos_session
+        draft_invoice["imogi_pos_session"] = pos_session
 
     if getattr(order_doc, "discount_percent", None):
         draft_invoice["additional_discount_percentage"] = order_doc.discount_percent
@@ -1254,8 +1254,8 @@ def prepare_invoice_draft(pos_order):
 
     # Add table information for Dine-in orders
     if order_doc.table:
-        draft_invoice["table"] = order_doc.table
-        draft_invoice["floor"] = frappe.db.get_value("Restaurant Table", order_doc.table, "floor")
+        draft_invoice["imogi_table"] = order_doc.table
+        draft_invoice["imogi_floor"] = frappe.db.get_value("Restaurant Table", order_doc.table, "floor")
 
     return draft_invoice
 

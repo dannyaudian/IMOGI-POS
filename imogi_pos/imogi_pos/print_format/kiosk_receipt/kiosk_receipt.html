@@ -1,7 +1,7 @@
 <div class="kiosk-receipt">
     {% set branch_address = "" %}
-    {% if doc.branch %}
-        {% set branch = frappe.get_cached_doc("Branch", doc.branch) %}
+    {% if doc.imogi_branch %}
+        {% set branch = frappe.get_cached_doc("Branch", doc.imogi_branch) %}
         {% if branch %}
             {% set branch_address_candidate = branch.get("branch_address") %}
             {% if branch_address_candidate %}

@@ -1039,7 +1039,7 @@
     "name": "Sales Invoice-imogi_pos_order"
   },
   {
-    "fieldname": "table",
+    "fieldname": "imogi_table",
     "fieldtype": "Link",
     "label": "Table",
     "options": "Restaurant Table",
@@ -1049,45 +1049,45 @@
     "module": "IMOGI POS",
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
-    "name": "Sales Invoice-table"
+    "name": "Sales Invoice-imogi_table"
   },
   {
-    "fieldname": "floor",
+    "fieldname": "imogi_floor",
     "fieldtype": "Link",
     "label": "Floor",
     "options": "Restaurant Floor",
     "read_only": 1,
-    "insert_after": "table",
+    "insert_after": "imogi_table",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
-    "name": "Sales Invoice-floor"
+    "name": "Sales Invoice-imogi_floor"
   },
   {
-    "fieldname": "branch",
+    "fieldname": "imogi_branch",
     "fieldtype": "Link",
     "label": "Branch",
     "options": "Branch",
     "read_only": 1,
-    "insert_after": "floor",
+    "insert_after": "imogi_floor",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
-    "name": "Sales Invoice-branch"
+    "name": "Sales Invoice-imogi_branch"
   },
   {
-    "fieldname": "pos_session",
+    "fieldname": "imogi_pos_session",
     "fieldtype": "Data",
     "label": "POS Session",
     "read_only": 1,
-    "insert_after": "branch",
+    "insert_after": "imogi_branch",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
-    "name": "Sales Invoice-pos_session"
+    "name": "Sales Invoice-imogi_pos_session"
   },
   {
     "fieldname": "menu_category",
@@ -1288,20 +1288,6 @@
     "dt": "Sales Invoice",
     "doctype": "Custom Field",
     "name": "Sales Invoice-customer_identification"
-  },
-  {
-    "fieldname": "lead_name",
-    "fieldtype": "Link",
-    "label": "Lead",
-    "options": "Lead",
-    "insert_after": "customer_name",
-    "read_only": 1,
-    "description": "Link to Lead if customer was converted from Lead (Native CRM Integration)",
-    "is_system_generated": 0,
-    "module": "IMOGI POS",
-    "dt": "Customer",
-    "doctype": "Custom Field",
-    "name": "Customer-lead_name"
   },
   {
     "fieldname": "customer_identification",

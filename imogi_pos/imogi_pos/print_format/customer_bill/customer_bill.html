@@ -4,7 +4,7 @@
         <p>{{ frappe.db.get_value("Company", doc.company, "address") or "" }}</p>
         <h3>CUSTOMER BILL</h3>
         <p>Order #: {{ doc.imogi_pos_order or "" }}</p>
-        <p>Table: {{ doc.table or "Takeaway" }}</p>
+        <p>Table: {{ doc.imogi_table or "Takeaway" }}</p>
         <p>Date: {{ frappe.utils.formatdate(doc.posting_date) }}</p>
         <p>Time: {{ frappe.utils.formatdate(doc.posting_time, "hh:mm:ss") }}</p>
     </div>
