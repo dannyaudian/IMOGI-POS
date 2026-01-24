@@ -46,7 +46,13 @@ def get_pos_profile():
         if pos_profile_name:
             return frappe.get_doc("POS Profile", pos_profile_name)
 
-        profiles = frappe.get_all("POS Profile", fields=["name"], limit=1)
+        # Fallback to any enabled profile (customer display works with all modes)
+        profiles = frappe.get_all(
+            "POS Profile",
+            filters={"disabled": 0},
+            fields=["name"],
+            limit=1
+        )
         if profiles:
             return frappe.get_doc("POS Profile", profiles[0].name)
     except Exception as e:

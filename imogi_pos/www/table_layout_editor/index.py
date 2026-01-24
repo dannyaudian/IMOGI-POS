@@ -44,9 +44,18 @@ def get_pos_profile():
             "POS Profile User", {"user": frappe.session.user}, "parent"
         )
         if pos_profile_name:
-            return frappe.get_doc("POS Profile", pos_profile_name)
+            pos_profile = frappe.get_doc("POS Profile", pos_profile_name)
+            # Accept Table mode for layout editor
+            if pos_profile.get("imogi_mode") in ["Table", "Self-Order"]:
+                return pos_profile
 
-        profiles = frappe.get_all("POS Profile", fields=["name"], limit=1)
+        # Fallback to any Table or Self-Order profile
+        profiles = frappe.get_all(
+            "POS Profile",
+            filters={"imogi_mode": ["in", ["Table", "Self-Order"]]},
+            fields=["name"],
+            limit=1
+        )
         if profiles:
             return frappe.get_doc("POS Profile", profiles[0].name)
     except Exception as e:

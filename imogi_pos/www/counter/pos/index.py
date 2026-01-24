@@ -100,9 +100,12 @@ def get_pos_profile():
             {"user": frappe.session.user}, "parent")
         
         if pos_profile_name:
-            return frappe.get_doc("POS Profile", pos_profile_name)
+            pos_profile = frappe.get_doc("POS Profile", pos_profile_name)
+            # Accept Counter mode for cashier console
+            if pos_profile.get("imogi_mode") == "Counter":
+                return pos_profile
         
-        # Fallback to any POS profile with cashier mode
+        # Fallback to any POS profile with Counter mode
         profile = frappe.get_all(
             "POS Profile",
             filters={"imogi_mode": "Counter"},

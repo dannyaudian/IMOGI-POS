@@ -49,9 +49,18 @@ def get_pos_profile():
             "POS Profile User", {"user": frappe.session.user}, "parent"
         )
         if pos_profile_name:
-            return frappe.get_doc("POS Profile", pos_profile_name)
+            pos_profile = frappe.get_doc("POS Profile", pos_profile_name)
+            # Accept restaurant modes for kitchen display
+            if pos_profile.get("imogi_mode") in ["Table", "Kiosk", "Self-Order"]:
+                return pos_profile
 
-        profiles = frappe.get_all("POS Profile", fields=["name"], limit=1)
+        # Fallback to any restaurant profile
+        profiles = frappe.get_all(
+            "POS Profile",
+            filters={"imogi_mode": ["in", ["Table", "Kiosk", "Self-Order"]]},
+            fields=["name"],
+            limit=1
+        )
         if profiles:
             return frappe.get_doc("POS Profile", profiles[0].name)
     except Exception as e:

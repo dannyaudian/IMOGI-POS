@@ -110,7 +110,7 @@ def get_context(context):
     return context
 
 def get_pos_profile():
-    """Get appropriate POS profile for kiosk mode."""
+    """Get appropriate POS profile for waiter/kiosk mode."""
     try:
         # First try to find from User's POS Profile
         if frappe.session.user != "Guest":
@@ -119,23 +119,25 @@ def get_pos_profile():
             
             if pos_profile_name:
                 pos_profile = frappe.get_doc("POS Profile", pos_profile_name)
-                if pos_profile.get("imogi_mode") == "Kiosk":
+                # Accept Table, Kiosk, or Self-Order modes for this page
+                mode = pos_profile.get("imogi_mode")
+                if mode in ["Table", "Kiosk", "Self-Order"]:
                     return pos_profile
         
-        # Then try to find any Kiosk profile
-        kiosk_profiles = frappe.get_all(
+        # Then try to find any Table/Kiosk/Self-Order profile
+        profiles = frappe.get_all(
             "POS Profile",
-            filters={"imogi_mode": "Kiosk"},
+            filters={"imogi_mode": ["in", ["Table", "Kiosk", "Self-Order"]]},
             fields=["name"],
             limit=1
         )
         
-        if kiosk_profiles:
-            return frappe.get_doc("POS Profile", kiosk_profiles[0].name)
+        if profiles:
+            return frappe.get_doc("POS Profile", profiles[0].name)
         
         return None
     except Exception as e:
-        frappe.log_error(f"Error fetching Kiosk POS Profile: {str(e)}")
+        frappe.log_error(f"Error fetching POS Profile: {str(e)}")
         return None
 
 
