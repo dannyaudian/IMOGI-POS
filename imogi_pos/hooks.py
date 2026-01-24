@@ -21,7 +21,8 @@ app_include_css = []
 # Override native ERPNext doctypes
 override_doctype_class = {
     "POS Opening Entry": "imogi_pos.overrides.pos_opening_entry.CustomPOSOpeningEntry",
-    "Sales Invoice": "imogi_pos.overrides.sales_invoice.CustomSalesInvoice"
+    "Sales Invoice": "imogi_pos.overrides.sales_invoice.CustomSalesInvoice",
+    "POS Profile": "imogi_pos.overrides.pos_profile.CustomPOSProfile"
 }
 
 # web_include_js = [

@@ -884,6 +884,11 @@ frappe.ready(function () {
     return `${CURRENCY_SYMBOL} ${new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)}`;
   }
 
+  function formatNumber(value) {
+    const v = Number(value || 0);
+    return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
+  }
+
   function showLoading(message = 'Loading...') {
     if (!window.$) return; // jaga-jaga kalau jQuery belum ada
     if (!$('#loading-indicator').length) {
