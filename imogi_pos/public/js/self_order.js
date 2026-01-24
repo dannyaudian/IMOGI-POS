@@ -2118,10 +2118,14 @@ imogi_pos.self_order = {
             method: 'imogi_pos.api.self_order.checkout_takeaway',
             args: {
                 session_id: this.state.session.name,
-                cart: this.state.cart.map(item => {
+                cart_items: this.state.cart.map(item => {
                     const itemOptions = item.item_options || item.options || {};
                     return Object.assign({}, item, { item_options: itemOptions });
-                })
+                }),
+                pos_profile: this.settings.posProfile,
+                branch: this.settings.branch,
+                customer: 'Walk-in Customer',
+                payment_method: 'qris'
             },
             callback: (response) => {
                 this.showLoading(false);
@@ -2129,15 +2133,19 @@ imogi_pos.self_order = {
                 if (response.message && response.message.success) {
                     // Check if payment is required
                     if (response.message.payment_required && response.message.payment) {
+                        // Store invoice and payment data
+                        this.state.currentInvoice = response.message.invoice.name;
+                        this.state.currentPayment = response.message.payment;
+                        
                         // Show payment view
-                        this.showPaymentView(response.message.payment);
+                        this.showPaymentView(response.message.payment, response.message.invoice);
                     } else {
                         // Mark KOT as submitted
                         this.state.kotSubmitted = true;
                         
                         // Store order number
-                        if (response.message.order_name) {
-                            this.state.orderNumber = response.message.order_name;
+                        if (response.message.order && response.message.order.name) {
+                            this.state.orderNumber = response.message.order.name;
                         }
                         
                         // Clear cart
@@ -2162,8 +2170,9 @@ imogi_pos.self_order = {
     /**
      * Show payment view
      * @param {Object} paymentData - Payment data
+     * @param {Object} invoiceData - Invoice data
      */
-    showPaymentView: function(paymentData) {
+    showPaymentView: function(paymentData, invoiceData) {
         // Switch to payment view
         this.switchView('payment');
         
@@ -2179,13 +2188,20 @@ imogi_pos.self_order = {
             return;
         }
         
+        // Store payment data for regeneration
+        this.state.currentPayment = paymentData;
+        if (invoiceData) {
+            this.state.currentInvoice = invoiceData.name;
+        }
+        
         // Render QR code if available
         let qrHtml = '';
         if (paymentData.qr_image) {
             qrHtml = `
                 <div class="payment-qr-container">
-                    <img src="${paymentData.qr_image}" class="payment-qr" alt="Payment QR Code">
+                    <img src="${paymentData.qr_image}" class="payment-qr" alt="Scan to Pay">
                     <p class="payment-qr-instructions">Scan QR code to pay</p>
+                    <button id="regenerate-qr-btn" class="action-button secondary" style="display: none; margin-top: 1rem;">Regenerate QR Code</button>
                 </div>
             `;
         } else if (paymentData.payment_url) {
@@ -2198,6 +2214,9 @@ imogi_pos.self_order = {
                 </div>
             `;
         }
+        
+        // Calculate expiry time
+        const expiryTime = this.calculateExpiryCountdown(paymentData.expires_at);
         
         // Create payment UI
         paymentContent.innerHTML = `
@@ -2216,8 +2235,8 @@ imogi_pos.self_order = {
                     </div>
                     ${paymentData.expires_at ? `
                         <div class="payment-info-row">
-                            <div class="payment-info-label">Expires</div>
-                            <div class="payment-info-value">${this.formatDateTime(paymentData.expires_at)}</div>
+                            <div class="payment-info-label">Expires In</div>
+                            <div class="payment-info-value payment-countdown" id="payment-countdown">${expiryTime}</div>
                         </div>
                     ` : ''}
                 </div>
@@ -2232,27 +2251,195 @@ imogi_pos.self_order = {
         const cancelBtn = paymentContent.querySelector('#cancel-payment-btn');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
+                this.stopPaymentCountdown();
                 this.switchView('checkout');
             });
         }
         
+        // Bind regenerate button
+        const regenerateBtn = paymentContent.querySelector('#regenerate-qr-btn');
+        if (regenerateBtn) {
+            regenerateBtn.addEventListener('click', () => {
+                this.regeneratePaymentQR();
+            });
+        }
+        
+        // Start countdown timer
+        if (paymentData.expires_at) {
+            this.startPaymentCountdown(paymentData.expires_at);
+        }
+        
         // Setup payment listener
-        this.setupPaymentListener(paymentData.payment_request);
+        if (paymentData.xendit_id) {
+            this.setupPaymentListener(paymentData.xendit_id, paymentData.payment_request);
+        }
     },
     
     /**
      * Setup payment listener
+     * @param {string} xenditId - Xendit transaction ID
      * @param {string} paymentRequestId - Payment request ID
      */
-    setupPaymentListener: function(paymentRequestId) {
-        // Listen for payment updates
-        frappe.realtime.on('payment_update', (data) => {
-            if (data && data.payment_request === paymentRequestId) {
+    setupPaymentListener: function(xenditId, paymentRequestId) {
+        // Listen for Xendit webhook updates
+        if (xenditId) {
+            frappe.realtime.on(`xendit:payment:${xenditId}`, (data) => {
+                if (data.status === 'COMPLETED' || data.status === 'PAID') {
+                    this.handlePaymentSuccess(data);
+                }
+            });
+        }
+        
+        // Also listen to payment request channel
+        if (paymentRequestId) {
+            frappe.realtime.on(`payment:pr:${paymentRequestId}`, (data) => {
                 if (data.status === 'Paid') {
                     this.handlePaymentSuccess(data);
                 } else if (data.status === 'Expired') {
                     this.handlePaymentExpired(data);
                 }
+            });
+        }
+    },
+    
+    /**
+     * Start payment countdown timer
+     * @param {string} expiresAt - ISO timestamp of expiry
+     */
+    startPaymentCountdown: function(expiresAt) {
+        // Clear existing timer
+        this.stopPaymentCountdown();
+        
+        const expiryTime = new Date(expiresAt).getTime();
+        
+        this.state.paymentTimer = setInterval(() => {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((expiryTime - now) / 1000));
+            
+            // Update countdown display
+            const countdownEl = this.container.querySelector('#payment-countdown');
+            if (countdownEl) {
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Add warning class when less than 60 seconds
+                if (remaining <= 60) {
+                    countdownEl.classList.add('warning');
+                } else {
+                    countdownEl.classList.remove('warning');
+                }
+            }
+            
+            // Show regenerate button at 60 seconds
+            if (remaining === 60) {
+                const regenerateBtn = this.container.querySelector('#regenerate-qr-btn');
+                if (regenerateBtn) {
+                    regenerateBtn.style.display = 'inline-block';
+                }
+            }
+            
+            // Auto-regenerate at 30 seconds
+            if (remaining === 30) {
+                this.showToast('QR code expiring soon, generating new QR...');
+                this.regeneratePaymentQR(true);
+            }
+            
+            // Stop timer when expired
+            if (remaining === 0) {
+                this.stopPaymentCountdown();
+                this.handlePaymentExpired();
+            }
+        }, 1000);
+    },
+    
+    /**
+     * Stop payment countdown timer
+     */
+    stopPaymentCountdown: function() {
+        if (this.state.paymentTimer) {
+            clearInterval(this.state.paymentTimer);
+            this.state.paymentTimer = null;
+        }
+    },
+    
+    /**
+     * Calculate expiry countdown for display
+     * @param {string} expiresAt - ISO timestamp
+     * @returns {string} Formatted countdown
+     */
+    calculateExpiryCountdown: function(expiresAt) {
+        if (!expiresAt) return 'N/A';
+        
+        const expiryTime = new Date(expiresAt).getTime();
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((expiryTime - now) / 1000));
+        
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    },
+    
+    /**
+     * Regenerate payment QR code
+     * @param {boolean} isAuto - Whether this is auto-regeneration
+     */
+    regeneratePaymentQR: function(isAuto = false) {
+        if (!this.state.currentInvoice) {
+            this.showError('No invoice found');
+            return;
+        }
+        
+        this.showLoading(true, isAuto ? 'Auto-regenerating QR...' : 'Regenerating QR code...');
+        
+        frappe.call({
+            method: 'imogi_pos.api.self_order.regenerate_payment_qr',
+            args: {
+                invoice_name: this.state.currentInvoice,
+                branch: this.settings.branch
+            },
+            callback: (response) => {
+                this.showLoading(false);
+                
+                if (response.message && response.message.success) {
+                    const newPayment = response.message.payment;
+                    
+                    // Update current payment data
+                    this.state.currentPayment = newPayment;
+                    
+                    // Update QR image
+                    const qrImg = this.container.querySelector('.payment-qr');
+                    if (qrImg && newPayment.qr_image) {
+                        qrImg.src = newPayment.qr_image;
+                    }
+                    
+                    // Hide regenerate button
+                    const regenerateBtn = this.container.querySelector('#regenerate-qr-btn');
+                    if (regenerateBtn) {
+                        regenerateBtn.style.display = 'none';
+                    }
+                    
+                    // Reset countdown timer
+                    this.stopPaymentCountdown();
+                    if (newPayment.expires_at) {
+                        this.startPaymentCountdown(newPayment.expires_at);
+                    }
+                    
+                    // Setup new payment listener
+                    if (newPayment.xendit_id) {
+                        this.setupPaymentListener(newPayment.xendit_id, newPayment.payment_request);
+                    }
+                    
+                    if (!isAuto) {
+                        this.showToast('QR code regenerated successfully');
+                    }
+                } else {
+                    this.showError('Failed to regenerate QR code');
+                }
+            },
+            error: () => {
+                this.showLoading(false);
+                this.showError('Failed to regenerate QR code');
             }
         });
     },

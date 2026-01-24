@@ -1384,31 +1384,45 @@ def request_payment(sales_invoice):
         
         payment_request.submit()
         
-        # Try to use IMOGI Xendit Connect for payment
+        # Try to use Xendit Integration for QRIS payment
         xendit_payload = None
-        if frappe.db.exists("Module Def", "imogi_xendit_connect"):
+        if frappe.db.exists("Module Def", "xendit_integration_imogi"):
             try:
-                # Import the method from the app if available
-                from imogi_xendit_connect.api import create_payment_qr
-
-                # Create payment QR through Xendit
-                xendit_payload = create_payment_qr(
-                    payment_request=payment_request.name,
+                # Get customer display device_id if configured
+                device_id = invoice_doc.get("imogi_customer_display")
+                
+                # Call new Xendit QRIS integration
+                xendit_payload = frappe.call(
+                    'xendit_integration_imogi.api.qris.generate_dynamic_qr',
                     amount=invoice_doc.grand_total,
-                    external_id=payment_request.name,  # Use PR name as external_id for idempotency
-                    description=f"Payment for {sales_invoice}",
-                    expiry=expiry
+                    invoice=sales_invoice,
+                    branch=invoice_doc.branch,
+                    device_id=device_id,  # Automatically pushes to customer display
+                    description=f"Payment for {sales_invoice}"
                 )
+                
+                # Reformat for compatibility with existing frontend code
+                xendit_payload = {
+                    "qr_image": xendit_payload.get("qr_image"),
+                    "qr_string": xendit_payload.get("qr_string"),
+                    "checkout_url": None,  # QRIS doesn't need checkout URL
+                    "amount": xendit_payload.get("amount"),
+                    "currency": invoice_doc.currency,
+                    "expiry": xendit_payload.get("expires_at"),
+                    "xendit_id": xendit_payload.get("xendit_id"),
+                    "payment_request": payment_request.name
+                }
             except Exception as e:
-                frappe.log_error(f"Error creating Xendit payment: {str(e)}")
+                frappe.log_error(f"Error creating Xendit QRIS payment: {str(e)}")
+                raise frappe.ValidationError(_("Failed to generate payment QR code"))
         else:
-            raise frappe.ValidationError(_("IMOGI Xendit Connect module is not installed"))
+            raise frappe.ValidationError(_("Xendit Integration module is not installed"))
         
         # If Xendit integration failed or not available, create a fallback
         if not xendit_payload:
             # Fallback to standard Payment Request URL
             xendit_payload = {
-                "qr_image_url": None,
+                "qr_image": None,
                 "checkout_url": get_url(f"/payments/payment-request/{payment_request.name}"),
                 "amount": invoice_doc.grand_total,
                 "currency": invoice_doc.currency,

@@ -1147,64 +1147,91 @@ frappe.ready(function() {
         },
         
         // Request payment QR from server
-        requestPaymentQR: async function() {
-            this.showLoading('Generating payment QR code...');
+        requestPaymentQR: async function(isRegenerate = false) {
+            this.showLoading(isRegenerate ? 'Regenerating QR code...' : 'Generating payment QR code...');
 
             try {
-                // First create a draft invoice and order
-                const totals = this.calculateTotals();
-                const checkoutResponse = await frappe.call({
-                    method: 'imogi_pos.api.self_order.checkout_takeaway',
-                    args: {
-                        session_id: SESSION_ID,
-                        cart_items: this.cart,
-                        pos_profile: POS_PROFILE,
-                        branch: BRANCH,
-                        customer: 'Walk-in Customer'
-                    }
-                });
+                let response;
                 
-                if (!checkoutResponse.message || !checkoutResponse.message.invoice) {
-                    throw new Error('Failed to create invoice');
+                // If regenerating, call regenerate endpoint
+                if (isRegenerate && this.paymentRequest && this.paymentRequest.invoice) {
+                    response = await frappe.call({
+                        method: 'imogi_pos.api.self_order.regenerate_payment_qr',
+                        args: {
+                            invoice_name: this.paymentRequest.invoice,
+                            branch: BRANCH
+                        }
+                    });
+                    
+                    if (response.message && response.message.success) {
+                        // Update payment data from regenerated response
+                        this.paymentRequest = {
+                            ...this.paymentRequest,
+                            qr_image: response.message.payment.qr_image,
+                            qr_string: response.message.payment.qr_string,
+                            xendit_id: response.message.payment.xendit_id,
+                            expires_at: response.message.payment.expires_at
+                        };
+                    }
+                } else {
+                    // Create new checkout with order + invoice + payment
+                    response = await frappe.call({
+                        method: 'imogi_pos.api.self_order.checkout_takeaway',
+                        args: {
+                            session_id: SESSION_ID,
+                            cart_items: this.cart,
+                            pos_profile: POS_PROFILE,
+                            branch: BRANCH,
+                            customer: 'Walk-in Customer',
+                            payment_method: 'qris'
+                        }
+                    });
+                    
+                    if (!response.message || !response.message.success) {
+                        throw new Error('Checkout failed');
+                    }
+                    
+                    const result = response.message;
+                    
+                    // Store payment request and invoice
+                    this.paymentRequest = {
+                        invoice: result.invoice.name,
+                        qr_image: result.payment?.qr_image,
+                        qr_string: result.payment?.qr_string,
+                        xendit_id: result.payment?.xendit_id,
+                        expires_at: result.payment?.expires_at,
+                        amount: result.payment?.amount
+                    };
                 }
-                
-                const invoice = checkoutResponse.message.invoice;
-                
-                // Now request payment
-                const paymentResponse = await frappe.call({
-                    method: 'imogi_pos.api.billing.request_payment',
-                    args: {
-                        sales_invoice: invoice.name
-                    }
-                });
                 
                 this.hideLoading();
                 
-                if (!paymentResponse.message) {
-                    throw new Error('Failed to create payment request');
-                }
-                
-                // Store payment request and invoice
-                this.paymentRequest = {
-                    ...paymentResponse.message,
-                    invoice: invoice.name
-                };
-                
                 // Update UI with payment QR
                 if (this.paymentRequest.qr_image) {
-                    this.elements.paymentQr.innerHTML = `<img src="${this.paymentRequest.qr_image}" alt="Payment QR Code">`;
-                } else if (this.paymentRequest.payment_url) {
-                    // Fallback to QR code generation from URL
-                    this.elements.paymentQr.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.paymentRequest.payment_url)}" alt="Payment QR Code">`;
+                    this.elements.paymentQr.innerHTML = `
+                        <img src="${this.paymentRequest.qr_image}" alt="Scan to Pay" class="qr-code-image">
+                    `;
+                    
+                    // Show regenerate button
+                    if (!this.elements.btnRegenerateQr) {
+                        const regenerateBtn = document.createElement('button');
+                        regenerateBtn.id = 'btn-regenerate-qr';
+                        regenerateBtn.className = 'btn-regenerate-qr';
+                        regenerateBtn.textContent = 'Regenerate QR';
+                        regenerateBtn.style.display = 'none';
+                        regenerateBtn.addEventListener('click', () => this.regenerateQR());
+                        this.elements.paymentQrSection.appendChild(regenerateBtn);
+                        this.elements.btnRegenerateQr = regenerateBtn;
+                    }
+                } else {
+                    throw new Error('No QR code received');
                 }
                 
                 // Start countdown
                 this.startPaymentCountdown();
                 
-                // Check payment status periodically if realtime not available
-                if (!frappe.realtime) {
-                    this.pollPaymentStatus();
-                }
+                // Listen for payment webhook updates
+                this.listenForPaymentUpdates();
                 
             } catch (error) {
                 console.error("Error requesting payment:", error);
@@ -1212,6 +1239,11 @@ frappe.ready(function() {
                 this.showError("Failed to generate payment QR. Please try again.");
                 this.closePaymentModal();
             }
+        },
+        
+        // Regenerate QR code (called manually or auto)
+        regenerateQR: async function() {
+            await this.requestPaymentQR(true);
         },
         
         // Start payment countdown timer
@@ -1230,6 +1262,18 @@ frappe.ready(function() {
                 this.paymentCountdown--;
                 this.updateCountdownDisplay();
                 
+                // Auto-regenerate QR 30 seconds before expiry
+                if (this.paymentCountdown === 30) {
+                    this.showExpiryWarning();
+                    // Auto-regenerate
+                    this.regenerateQR();
+                }
+                
+                // Show regenerate button at 60 seconds warning
+                if (this.paymentCountdown === 60 && this.elements.btnRegenerateQr) {
+                    this.elements.btnRegenerateQr.style.display = 'block';
+                }
+                
                 if (this.paymentCountdown <= 0) {
                     clearInterval(this.paymentTimer);
                     this.handlePaymentExpired();
@@ -1237,11 +1281,53 @@ frappe.ready(function() {
             }, 1000);
         },
         
+        // Show expiry warning
+        showExpiryWarning: function() {
+            if (this.elements.paymentStatus) {
+                this.elements.paymentStatus.className = 'payment-status warning';
+                this.elements.paymentStatus.textContent = 'QR expiring soon, generating new QR...';
+            }
+        },
+        
         // Update countdown display
         updateCountdownDisplay: function() {
             const minutes = Math.floor(this.paymentCountdown / 60);
             const seconds = this.paymentCountdown % 60;
-            this.elements.paymentCountdown.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const timeText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (this.elements.paymentCountdown) {
+                this.elements.paymentCountdown.textContent = timeText;
+                
+                // Add warning class when less than 60 seconds
+                if (this.paymentCountdown <= 60) {
+                    this.elements.paymentCountdown.classList.add('warning');
+                } else {
+                    this.elements.paymentCountdown.classList.remove('warning');
+                }
+            }
+        },
+        
+        // Listen for payment webhook updates via realtime
+        listenForPaymentUpdates: function() {
+            if (!this.paymentRequest || !this.paymentRequest.xendit_id) return;
+            
+            // Subscribe to Xendit webhook channel
+            if (frappe.realtime) {
+                frappe.realtime.on(`xendit:payment:${this.paymentRequest.xendit_id}`, (data) => {
+                    if (data.status === 'COMPLETED' || data.status === 'PAID') {
+                        this.handlePaymentSuccess();
+                    }
+                });
+                
+                // Also listen to payment request channel
+                if (this.paymentRequest.payment_request) {
+                    frappe.realtime.on(`payment:pr:${this.paymentRequest.payment_request}`, (data) => {
+                        if (data.status === 'Paid') {
+                            this.handlePaymentSuccess();
+                        }
+                    });
+                }
+            }
         },
         
         // Poll payment status

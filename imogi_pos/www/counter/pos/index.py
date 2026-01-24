@@ -45,21 +45,21 @@ def get_context(context):
                 branch_info = frappe.db.get_value(
                     "Branch",
                     branch_id,
-                        ["name", "branch_name"],
-                        as_dict=True,
-                    )
+                    ["name", "branch_name"],
+                    as_dict=True,
+                )
 
-                    if branch_info:
-                        # Ensure the canonical branch name is available along with a user-facing label
-                        context.branch = branch_info.get("name") or branch_id
-                        context.branch_name = branch_info.get("branch_name") or branch_info.get("name")
-                    else:
-                        context.branch_name = branch_id
-                except Exception as branch_error:
-                    frappe.log_error(
-                        f"Error fetching branch details for {branch_id}: {branch_error}"
-                    )
+                if branch_info:
+                    # Ensure the canonical branch name is available along with a user-facing label
+                    context.branch = branch_info.get("name") or branch_id
+                    context.branch_name = branch_info.get("branch_name") or branch_info.get("name")
+                else:
                     context.branch_name = branch_id
+            except Exception as branch_error:
+                frappe.log_error(
+                    f"Error fetching branch details for {branch_id}: {branch_error}"
+                )
+                context.branch_name = branch_id
 
             if context.branch_name:
                 context.branch_label = context.branch_name
