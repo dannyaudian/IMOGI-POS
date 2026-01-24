@@ -1,5 +1,5 @@
 /**
- * IMOGI POS - Branch Utility
+ * IMOGI POS - Branch Utility (v2.0)
  *
  * Manages active branch selection across browser tabs and persists
  * the current branch in localStorage. Exposes a global CURRENT_BRANCH
