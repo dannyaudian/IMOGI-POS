@@ -5,6 +5,8 @@
  * Frappe's default behavior adds /app prefix to URL shortcuts, which breaks
  * navigation to www pages. This script intercepts those clicks and redirects
  * to the correct URL.
+ * 
+ * Uses capture phase to intercept clicks BEFORE Frappe's router processes them.
  */
 
 frappe.provide('imogi_pos');
@@ -27,6 +29,19 @@ imogi_pos.workspace_shortcuts = {
         '/shared/service-select'
     ],
     
+    // Map shortcut labels to URLs for quick reference
+    shortcut_urls: {
+        'Cashier Console': '/counter/pos',
+        'Kitchen Display': '/restaurant/kitchen',
+        'Table Display': '/restaurant/tables',
+        'Customer Display': '/devices/displays',
+        'Customer Display Editor': '/customer_display_editor',
+        'Table Layout Editor': '/table_layout_editor',
+        'Opening Balance': '/opening-balance',
+        'Waiter Order': '/restaurant/waiter',
+        'Kiosk': '/restaurant/waiter?mode=kiosk'
+    },
+    
     initialized: false,
     
     init: function() {
@@ -35,15 +50,76 @@ imogi_pos.workspace_shortcuts = {
         
         console.log('IMOGI POS: Initializing workspace shortcuts handler');
         
-        // Override the workspace shortcut click handler
-        this.setup_shortcut_handler();
+        // Use capture phase to intercept clicks BEFORE Frappe processes them
+        this.setup_capture_phase_handler();
+        // Also setup override for frappe.set_route as fallback
         this.override_frappe_router();
+    },
+    
+    setup_capture_phase_handler: function() {
+        const self = this;
+        
+        // Capture phase handler - intercepts BEFORE bubbling phase
+        const captureHandler = function(e) {
+            // Find the shortcut widget box if we clicked on child element
+            let target = e.target;
+            let shortcutBox = null;
+            
+            // Traverse up to find shortcut-widget-box
+            while (target && target.parentElement) {
+                if (target.classList && target.classList.contains('shortcut-widget-box')) {
+                    shortcutBox = target;
+                    break;
+                }
+                target = target.parentElement;
+            }
+            
+            if (!shortcutBox) return;
+            
+            // Get the shortcut text to identify it
+            const shortcutText = (shortcutBox.innerText || shortcutBox.textContent || '').trim();
+            const shortcutUrl = self.shortcut_urls[shortcutText];
+            
+            if (shortcutUrl || self.is_www_page_text(shortcutText)) {
+                const urlToNavigate = shortcutUrl || self.extract_url_from_text(shortcutText);
+                
+                if (urlToNavigate) {
+                    console.log('IMOGI POS: Intercepting shortcut click (capture phase) to:', {
+                        text: shortcutText,
+                        url: urlToNavigate
+                    });
+                    
+                    // Prevent Frappe's router from handling this
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    
+                    // Navigate directly to www page
+                    window.location.href = urlToNavigate;
+                    return false;
+                }
+            }
+        };
+        
+        // Attach at CAPTURE phase (third parameter = true)
+        document.addEventListener('click', captureHandler, true);
+        console.log('IMOGI POS: Capture phase handler attached');
+    },
+    
+    is_www_page_text: function(text) {
+        // Check if shortcut text maps to a www page
+        return Object.keys(this.shortcut_urls).some(key => key.trim() === text);
+    },
+    
+    extract_url_from_text: function(text) {
+        // Fallback: try to find URL from shortcut_urls mapping
+        return this.shortcut_urls[text.trim()] || null;
     },
     
     setup_shortcut_handler: function() {
         const self = this;
         
-        // Use event delegation with multiple selectors for Frappe v15
+        // Fallback: Use event delegation with multiple selectors for Frappe v15
         $(document).on('click', [
             '.shortcut-widget-box',
             '.workspace-shortcut',
