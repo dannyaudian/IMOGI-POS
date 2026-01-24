@@ -36,6 +36,8 @@
     font-family: "Ubuntu", "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--ink);
+    font-weight: 400;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -101,12 +103,26 @@
     box-shadow: var(--shadow-md);
   }
   .card-body{padding:16px}
-  .section-title{margin:0 0 10px 0;padding-bottom:10px;border-bottom:1px dashed var(--line-soft);font-weight:700}
+  .section-title{
+    margin:0;
+    padding:0;
+    font-weight:700;
+    font-size:18px;
+    line-height:1.3;
+    color: var(--ink);
+  }
 
   /* ===== Order List ===== */
   .order-header{
     display:flex;justify-content:space-between;align-items:center;
-    padding: 16px 18px; border-bottom:1px solid var(--line);
+    padding: 16px 18px; 
+    border-bottom:1px solid var(--line);
+    background: #fff;
+  }
+  .order-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
   }
 
   .order-tabs{display:flex;gap:8px; padding:10px 18px 0; flex-wrap:wrap}
@@ -136,7 +152,13 @@
   .search-input::placeholder{ color: var(--muted) }
   .search-input:focus{ border-color:#cfd3d9; box-shadow: 0 0 0 3px rgba(0,0,0,.06) }
 
-  .order-list{ padding: 8px 18px 18px; min-height:420px; overflow:auto }
+  .order-list{ 
+    padding: 8px 18px 18px; 
+    min-height:400px; 
+    max-height:calc(100vh - 300px);
+    overflow-y:auto;
+    overflow-x:hidden;
+  }
   .order-card{
     border:1px solid var(--line); border-radius:12px; background:#fff;
     padding:12px; margin-top:12px;
@@ -145,6 +167,19 @@
   .order-card:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); border-color:#dfe2e6 }
   .order-card.selected{ background:#fafafa; border-color:#cfd3d9 }
   .order-meta{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .order-info{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:6px;
+  }
+  .order-amount{
+    font-weight:700;
+    font-size:15px;
+    white-space:nowrap;
+    color:var(--ink);
+  }
   .order-items{margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink)}
   .order-item{display:flex;align-items:center;gap:8px}
   .order-item-img img{width:32px;height:32px;object-fit:cover;border-radius:6px}
@@ -158,8 +193,22 @@
   }
 
   .empty-state{
-    display:grid;place-items:center;text-align:center;gap:6px;
-    color:var(--muted); padding:22px; border:1px dashed var(--line); border-radius:12px; background:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:8px;
+    color:var(--muted); 
+    padding:32px 22px; 
+    border:1px dashed var(--line); 
+    border-radius:12px; 
+    background:#fff;
+    min-height:200px;
+  }
+  .empty-state strong{
+    color:var(--ink-2);
+    font-size:15px;
   }
 
   /* ===== Checkout ===== */
@@ -192,12 +241,14 @@
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
     min-height:40px; padding:10px 14px;
     border-radius:10px; border:1px solid var(--line);
-    background:#fff; color:var(--ink); font-weight:700; cursor:pointer;
+    background:#fff; color:var(--ink); 
+    font-weight:600; font-size:14px;
+    cursor:pointer;
     transition: background .15s ease, border-color .15s ease, transform .05s ease;
   }
   .btn:hover{ background:#f2f3f5; border-color:#dcdfe4 }
   .btn:active{ transform: translateY(1px) }
-  .btn-primary{ background:#111; color:#fff; border-color:#111 }
+  .btn-primary{ background:#111; color:#fff; border-color:#111; font-weight:700 }
   .btn-primary:hover{ background:#000 }
 
   .btn-accent{ background:#2b2b2b; color:#fff; border-color:#2b2b2b }
@@ -529,8 +580,8 @@
   <!-- Order list -->
   <section class="order-list-container card" aria-labelledby="orders-heading">
     <div class="order-header">
-      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Order History") }}</h2>
-      <div class="order-actions" style="display:flex;gap:8px;">
+      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
+      <div class="order-actions">
         <button id="create-order" class="btn btn-primary" type="button">
           <i class="fa fa-plus" aria-hidden="true"></i>&nbsp;{{ _("Create Order") }}
         </button>
@@ -541,21 +592,23 @@
     </div>
 
     <div class="order-tabs" role="tablist" aria-label="{{ _('Order filters') }}" style="display:none;">
-      <div class="order-tab active" role="tab" aria-selected="true" tabindex="0" data-status="Ready">{{ _("Ready") }}</div>
-      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Served">{{ _("Served") }}</div>
-      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="All">{{ _("All") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Draft">{{ _("Draft") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Pending">{{ _("Pending") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Ready">{{ _("Ready") }}</div>
+      <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Confirmed">{{ _("Confirmed") }}</div>
+      <div class="order-tab active" role="tab" aria-selected="true" tabindex="0" data-status="All">{{ _("All") }}</div>
     </div>
 
     <div class="search-container">
-      <label class="sr-only" for="order-search">{{ _('Search Order History') }}</label>
-      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, queue, or customer...') }}" aria-label="{{ _('Search Order History') }}">
+      <label class="sr-only" for="order-search">{{ _('Search Orders') }}</label>
+      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, queue, or customer...') }}" aria-label="{{ _('Search Orders') }}">
     </div>
 
     <div id="order-list" class="order-list">
       <div class="empty-state" aria-live="polite">
         <div>
-          <strong>{{ _("Loading order history…") }}</strong>
-          <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch your transactions.") }}</div>
+          <strong>{{ _("Loading orders…") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Please wait") }}</div>
         </div>
       </div>
     </div>

@@ -48,15 +48,17 @@ frappe.ready(function () {
   const paymentModeSelect  = document.getElementById('payment-mode');
 
   // ====== State ======
-  // Map label tab → nama state di DB (SAMAKAN dengan Workflow kamu)
-  // Kalau state di DB beda, edit nilai kanan.
+  // Counter mode: menampilkan pending orders yang siap untuk di-checkout
+  // Setelah klik "Create Order", order masuk ke list ini untuk di-checkout
   const STATE_MAP = {
-    'Ready'  : 'Ready',          // ubah ke 'Ready to Serve' jika begitu di DB
-    'Served' : 'Served',
-    'All'    : null
+    'Draft'     : 'Draft',
+    'Pending'   : 'Pending',
+    'Ready'     : 'Ready',
+    'Confirmed' : 'Confirmed',
+    'All'       : null
   };
 
-  let currentTab     = 'Ready';
+  let currentTab     = 'All';  // Default ke All untuk menampilkan semua pending orders
   let allOrders      = [];  // sumber asli
   let currentOrders  = [];  // hasil filter/pencarian
   let selectedOrder  = null;
@@ -186,16 +188,14 @@ frappe.ready(function () {
      Data loading & rendering
      ========================= */
   function loadOrders() {
-    showLoading('Loading order history…');
+    showLoading('Loading orders…');
 
     const args = {
       branch: CURRENT_BRANCH,
       pos_profile: POS_PROFILE
     };
 
-    // Counter mode: load history instead of pending orders
-    // No workflow_state filter needed - history shows completed orders only
-    console.debug('[loadOrders] Loading counter history with args:', args);
+    console.debug('[loadOrders] Loading pending orders with args:', args);
 
     frappe.call({
       method: 'imogi_pos.api.billing.list_counter_order_history',
@@ -222,7 +222,7 @@ frappe.ready(function () {
     .fail((err) => {
       console.error('[loadOrders] error', err);
       const errorMsg = err?._server_messages || err?.message || 'Unknown error';
-      showError(__('Failed to load order history: ') + errorMsg);
+      showError(__('Failed to load orders: ') + errorMsg);
       allOrders = [];
       currentOrders = [];
       renderOrders();
@@ -257,7 +257,7 @@ frappe.ready(function () {
     if (!currentOrders.length) {
       orderList.innerHTML = `
         <div class="empty-state">
-          <p>No ${(currentTab || 'selected').toLowerCase()} orders found</p>
+          <p>${currentTab === 'All' ? 'No orders found. Click "Create Order" to start.' : 'No ' + currentTab.toLowerCase() + ' orders found'}</p>
         </div>`;
       return;
     }

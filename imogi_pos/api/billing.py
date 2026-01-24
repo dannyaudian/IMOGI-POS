@@ -1619,11 +1619,10 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
     except:
         date_obj = getdate(today())
     
-    # Build filters - only Counter mode orders that are completed
+    # Build filters - pending orders ready for checkout
     filters = {
         "branch": branch,
-        "imogi_mode": "Counter",  # Only Counter orders
-        "workflow_state": ["in", ["Paid", "Completed", "Invoiced"]],  # Completed orders only
+        "workflow_state": ["in", ["Draft", "Pending", "Ready", "Confirmed"]],  # Pending orders ready for checkout
         "creation": [">=", date_obj],
         "owner": cashier  # This cashier only
     }
