@@ -14,7 +14,7 @@ app_license = "MIT"
 app_include_js = [
     '/assets/imogi_pos/js/escpos_printing.js',
     '/assets/imogi_pos/js/workspace_shortcuts.js?v=2.0',
-    '/assets/imogi_pos/js/workspace_shortcuts_init.js'
+    '/assets/imogi_pos/js/workspace_shortcuts_init.js?v=2.0'
 ]
 app_include_css = []
 
