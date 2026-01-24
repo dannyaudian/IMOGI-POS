@@ -1,5 +1,9 @@
 {% extends "templates/web.html" %}
 
+{% block base_scripts %}
+{# Override to prevent Frappe from loading default scripts that cause 404 errors #}
+{% endblock %}
+
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/core.css">
 <link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
@@ -31,11 +35,11 @@
 
 <script src="/assets/imogi_pos/js/core/nav.js"></script>
 <script src="/assets/imogi_pos/js/core/branch.js"></script>
-<script src="/assets/imogi_pos/js/service.js"></script>
-{{ include_script('imogi_pos/js/print/adapter_bluetooth.js') }}
-{{ include_script('imogi_pos/js/print/adapter_bridge.js') }}
-{{ include_script('imogi_pos/js/print/adapter_spool.js') }}
-{{ include_script('imogi_pos/js/print/adapter_lan.js') }}
+<script src="/assets/imogi_pos/js/print/service.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_bluetooth.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_bridge.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_lan.js"></script>
+<script src="/assets/imogi_pos/js/print/adapter_spool.js"></script>
 <script src="../customer_display_editor/index.js"></script>
 {% endif %}
 {% endblock %}

@@ -1,5 +1,13 @@
 {% extends "templates/web.html" %}
 
+{% block base_scripts %}
+{# Override to prevent Frappe from loading default scripts that cause 404 errors #}
+{% endblock %}
+
+{% block head_include %}
+{# Override to prevent Frappe from preloading scripts that don't exist #}
+{% endblock %}
+
 {% block style %}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">

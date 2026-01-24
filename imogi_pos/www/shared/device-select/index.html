@@ -1,5 +1,9 @@
 {% extends "templates/web.html" %}
 
+{% block base_scripts %}
+{# Override to prevent Frappe from loading default scripts that cause 404 errors #}
+{% endblock %}
+
 {% block style %}
 <link rel="stylesheet" href="/assets/imogi_pos/css/core.css">
 <style>
