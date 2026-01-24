@@ -20,9 +20,6 @@
         "section_break_10",
         "printer_profile"
     ],
-        "print_bridge_url",
-        "print_bridge_token"
-    ],
     "fields": [
         {
             "fieldname": "station_name",
