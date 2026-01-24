@@ -4,6 +4,10 @@
 {# Override to prevent Frappe from loading default scripts that cause 404 errors #}
 {% endblock %}
 
+{% block head_include %}
+{# Override to prevent Frappe from preloading scripts that don't exist #}
+{% endblock %}
+
 {% block style %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 

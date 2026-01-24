@@ -33,14 +33,23 @@ const IMOGIBranch = {
         }
 
         // If no branch stored, fetch from server
-        if (!this.current && typeof frappe !== 'undefined') {
-            frappe.call({
-                method: 'imogi_pos.api.public.get_active_branch',
-                callback: (r) => {
-                    if (r.message) {
-                        this.set(r.message, false);
-                    }
+        if (!this.current) {
+            // Use fetch API instead of frappe.call for better compatibility
+            fetch('/api/method/imogi_pos.api.public.get_active_branch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-CSRF-Token': window.csrf_token || window.FRAPPE_CSRF_TOKEN || ''
                 }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    this.set(data.message, false);
+                }
+            })
+            .catch(err => {
+                console.warn('Could not fetch active branch:', err);
             });
         }
     },
