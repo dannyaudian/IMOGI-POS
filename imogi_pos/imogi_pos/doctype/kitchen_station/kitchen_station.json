@@ -18,16 +18,8 @@
         "warning_threshold",
         "critical_threshold",
         "section_break_10",
-        "interface",
-        "lan_section",
-        "lan_host",
-        "lan_port",
-        "bluetooth_section",
-        "bt_device_name",
-        "bt_mac",
-        "bt_vendor_profile",
-        "bt_retry",
-        "print_bridge_section",
+        "printer_profile"
+    ],
         "print_bridge_url",
         "print_bridge_token"
     ],
@@ -103,85 +95,12 @@
             "label": "Printer Settings"
         },
         {
-            "default": "OS",
-            "fieldname": "interface",
-            "fieldtype": "Select",
+            "fieldname": "printer_profile",
+            "fieldtype": "Link",
             "in_list_view": 1,
-            "label": "Printer Interface",
-            "options": "LAN\nBluetooth\nOS",
-            "reqd": 1
-        },
-        {
-            "depends_on": "eval:doc.interface==\"LAN\"",
-            "fieldname": "lan_section",
-            "fieldtype": "Section Break",
-            "label": "LAN Printer Settings"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"LAN\"",
-            "fieldname": "lan_host",
-            "fieldtype": "Data",
-            "label": "LAN Printer Host/IP",
-            "mandatory_depends_on": "eval:doc.interface==\"LAN\""
-        },
-        {
-            "default": "9100",
-            "depends_on": "eval:doc.interface==\"LAN\"",
-            "fieldname": "lan_port",
-            "fieldtype": "Int",
-            "label": "LAN Printer Port"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "bluetooth_section",
-            "fieldtype": "Section Break",
-            "label": "Bluetooth Printer Settings"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "bt_device_name",
-            "fieldtype": "Data",
-            "label": "Bluetooth Device Name",
-            "mandatory_depends_on": "eval:doc.interface==\"Bluetooth\""
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "bt_mac",
-            "fieldtype": "Data",
-            "label": "Bluetooth MAC Address"
-        },
-        {
-            "default": "ESC/POS",
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "bt_vendor_profile",
-            "fieldtype": "Select",
-            "label": "Bluetooth Vendor Profile",
-            "options": "ESC/POS\nCPCL\nZPL"
-        },
-        {
-            "default": "3",
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "bt_retry",
-            "fieldtype": "Int",
-            "label": "Bluetooth Retry Attempts"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "print_bridge_section",
-            "fieldtype": "Section Break",
-            "label": "Print Bridge Settings (Optional)"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "print_bridge_url",
-            "fieldtype": "Data",
-            "label": "Print Bridge URL"
-        },
-        {
-            "depends_on": "eval:doc.interface==\"Bluetooth\"",
-            "fieldname": "print_bridge_token",
-            "fieldtype": "Password",
-            "label": "Print Bridge Token"
+            "label": "Printer Profile",
+            "options": "Printer Profile",
+            "description": "Select printer profile for this station (inherits from kitchen if not set)"
         }
     ],
     "links": [

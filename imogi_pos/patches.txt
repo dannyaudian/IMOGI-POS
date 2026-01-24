@@ -14,3 +14,8 @@ imogi_pos.patches.add_pos_order_customer_gender_column
 
 # Architecture reorganization - January 2026
 imogi_pos.patches.migrate_to_new_architecture
+
+# v2.0 - Kitchen Module Simplification - January 2026
+imogi_pos.patches.v2_0.migrate_kitchen_simplification
+imogi_pos.patches.v2_0.migrate_customer_fields_simplification
+imogi_pos.patches.v2_0.migrate_branding_consolidation

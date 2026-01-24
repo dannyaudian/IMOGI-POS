@@ -10,13 +10,7 @@
     "column_break_bs",
     "show_branch_selector_in_ui",
     "branding_section",
-    "imogi_brand_logo",
-    "imogi_brand_logo_dark",
-    "column_break_branding",
-    "imogi_brand_name",
-    "imogi_brand_home_url",
-    "imogi_brand_color_primary",
-    "imogi_brand_color_accent",
+    "brand_profile",
     "kot_section",
     "enable_kot",
     "auto_kot_print",
@@ -100,38 +94,11 @@
       "label": "Branding"
     },
     {
-      "fieldname": "imogi_brand_logo",
-      "fieldtype": "Attach Image",
-      "label": "Brand Logo"
-    },
-    {
-      "fieldname": "imogi_brand_logo_dark",
-      "fieldtype": "Attach Image",
-      "label": "Brand Logo (Dark Mode)"
-    },
-    {
-      "fieldname": "column_break_branding",
-      "fieldtype": "Column Break"
-    },
-    {
-      "fieldname": "imogi_brand_name",
-      "fieldtype": "Data",
-      "label": "Brand Name"
-    },
-    {
-      "fieldname": "imogi_brand_home_url",
-      "fieldtype": "Data",
-      "label": "Brand Home URL"
-    },
-    {
-      "fieldname": "imogi_brand_color_primary",
-      "fieldtype": "Color",
-      "label": "Brand Primary Color"
-    },
-    {
-      "fieldname": "imogi_brand_color_accent",
-      "fieldtype": "Color",
-      "label": "Brand Accent Color"
+      "fieldname": "brand_profile",
+      "fieldtype": "Link",
+      "label": "Brand Profile",
+      "options": "Brand Profile",
+      "description": "Select a brand profile to use its branding settings globally"
     },
     {
       "fieldname": "kot_section",

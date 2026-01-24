@@ -83,7 +83,7 @@ frappe.ready(function () {
       args: {
         doctype: 'Workflow State',
         filters: { workflow: 'POS Order' },
-        fields: ['name', 'state'],
+        fields: ['name'],
         limit_page_length: 100
       }
     }).then(r => {

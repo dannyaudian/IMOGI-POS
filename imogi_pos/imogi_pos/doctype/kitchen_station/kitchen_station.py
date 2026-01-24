@@ -9,7 +9,6 @@ from frappe import _
 class KitchenStation(Document):
     def validate(self):
         self.validate_domain()
-        self.validate_printer_settings()
         self.set_defaults_from_kitchen()
     
     def validate_domain(self):
@@ -26,14 +25,6 @@ class KitchenStation(Document):
                 indicator="orange",
                 alert=True
             )
-    
-    def validate_printer_settings(self):
-        """Validate that required printer settings are provided based on interface"""
-        if self.interface == "LAN" and not self.lan_host:
-            frappe.throw(_("LAN Printer Host/IP is required for LAN interface"))
-            
-        if self.interface == "Bluetooth" and not self.bt_device_name:
-            frappe.throw(_("Bluetooth Device Name is required for Bluetooth interface"))
     
     def set_defaults_from_kitchen(self):
         """Set defaults from the linked kitchen if not already set"""
@@ -53,26 +44,9 @@ class KitchenStation(Document):
         if not self.target_prep_time and kitchen.default_target_prep_time:
             self.target_prep_time = kitchen.default_target_prep_time
         
-        # Set printer defaults if not set
-        if not self.interface and kitchen.default_printer_interface:
-            self.interface = kitchen.default_printer_interface
-            
-        if self.interface == "LAN":
-            if not self.lan_host and kitchen.default_printer:
-                self.lan_host = kitchen.default_printer
-                
-            if not self.lan_port and kitchen.default_printer_port:
-                self.lan_port = kitchen.default_printer_port
-                
-        elif self.interface == "Bluetooth":
-            if not self.bt_device_name and kitchen.default_bt_device_name:
-                self.bt_device_name = kitchen.default_bt_device_name
-                
-            if not self.bt_mac and kitchen.default_bt_mac:
-                self.bt_mac = kitchen.default_bt_mac
-                
-            if not self.bt_vendor_profile and kitchen.default_bt_vendor_profile:
-                self.bt_vendor_profile = kitchen.default_bt_vendor_profile
+        # Inherit printer profile from kitchen if not set
+        if not self.printer_profile and kitchen.default_printer_profile:
+            self.printer_profile = kitchen.default_printer_profile
     
     def after_insert(self):
         """Update kitchen's stations list after insert"""
@@ -101,23 +75,38 @@ class KitchenStation(Document):
             )
     
     def get_print_settings(self):
-        """Get the print settings for this station"""
-        settings = {
-            "interface": self.interface
-        }
+        """Get the print settings for this station from Printer Profile"""
+        # Get printer profile for this station or fallback to kitchen default
+        printer_profile = self.printer_profile
         
-        # Add settings based on interface type
-        if self.interface == "LAN":
-            settings.update({
-                "host": self.lan_host,
-                "port": self.lan_port or 9100
-            })
-        elif self.interface == "Bluetooth":
-            settings.update({
-                "device_name": self.bt_device_name,
-                "mac": self.bt_mac,
-                "vendor_profile": self.bt_vendor_profile or "ESC/POS",
-                "retry": self.bt_retry or 3
+        if not printer_profile and self.kitchen:
+            kitchen = frappe.get_doc("Kitchen", self.kitchen)
+            printer_profile = kitchen.default_printer_profile
+        
+        if not printer_profile:
+            # Return OS default if no profile configured
+            return {
+                "interface": "OS",
+                "thermal_width": 32,
+                "paper_width_mm": 58,
+                "dpi": 203
+            }
+        
+        # Fetch and return printer configuration from Printer Profile
+        try:
+            printer_doc = frappe.get_doc("Printer Profile", printer_profile)
+            return printer_doc.get_printer_config()
+        except Exception as e:
+            frappe.log_error(
+                title="Printer Profile Error",
+                message=f"Error getting printer config for {printer_profile}: {str(e)}"
+            )
+            return {
+                "interface": "OS",
+                "thermal_width": 32,
+                "paper_width_mm": 58,
+                "dpi": 203
+            }
             })
             
             # Add bridge settings if provided

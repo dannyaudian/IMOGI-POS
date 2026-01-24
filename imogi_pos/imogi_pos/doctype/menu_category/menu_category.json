@@ -1,0 +1,132 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:category_name",
+  "creation": "2026-01-24 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "category_name",
+    "description",
+    "is_active",
+    "column_break_3",
+    "sort_order",
+    "icon",
+    "color",
+    "section_break_routing",
+    "default_kitchen",
+    "default_kitchen_station"
+  ],
+  "fields": [
+    {
+      "fieldname": "category_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Category Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Small Text",
+      "label": "Description"
+    },
+    {
+      "default": "1",
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Is Active"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "default": "0",
+      "fieldname": "sort_order",
+      "fieldtype": "Int",
+      "in_list_view": 1,
+      "label": "Sort Order"
+    },
+    {
+      "fieldname": "icon",
+      "fieldtype": "Data",
+      "label": "Icon (emoji or class)"
+    },
+    {
+      "fieldname": "color",
+      "fieldtype": "Color",
+      "label": "Color"
+    },
+    {
+      "collapsible": 1,
+      "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
+      "fieldname": "section_break_routing",
+      "fieldtype": "Section Break",
+      "label": "Default Kitchen Routing"
+    },
+    {
+      "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
+      "fieldname": "default_kitchen",
+      "fieldtype": "Link",
+      "label": "Default Kitchen",
+      "options": "Kitchen"
+    },
+    {
+      "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
+      "fieldname": "default_kitchen_station",
+      "fieldtype": "Link",
+      "label": "Default Kitchen Station",
+      "options": "Kitchen Station"
+    }
+  ],
+  "links": [
+    {
+      "link_doctype": "Item",
+      "link_fieldname": "menu_category",
+      "group": "Items"
+    }
+  ],
+  "modified": "2026-01-24 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Menu Category",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "Cashier"
+    }
+  ],
+  "sort_field": "sort_order",
+  "sort_order": "ASC",
+  "states": [],
+  "track_changes": 1
+}

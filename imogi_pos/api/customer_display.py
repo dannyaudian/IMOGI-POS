@@ -434,6 +434,59 @@ def publish_customer_display_update(target_channel, payload):
             "timestamp": now_datetime().isoformat()
         }
 
+@frappe.whitelist()
+def check_display_status(branch):
+    """
+    Checks if a customer display device is online for the specified branch.
+    
+    Args:
+        branch (str): Branch name
+    
+    Returns:
+        dict: Status information with 'online' boolean
+    """
+    if not branch:
+        return {"online": False}
+    
+    # Validate branch access
+    validate_branch_access(branch)
+    
+    # Check if there's an active display device for this branch
+    devices = frappe.get_all(
+        "Customer Display Device",
+        filters={
+            "branch": branch,
+            "is_active": 1
+        },
+        fields=["name", "last_heartbeat"],
+        limit=1
+    )
+    
+    if not devices:
+        return {"online": False}
+    
+    device = devices[0]
+    
+    # Check last heartbeat - consider online if heartbeat within last 60 seconds
+    if device.get("last_heartbeat"):
+        from frappe.utils import get_datetime, now_datetime
+        from datetime import timedelta
+        
+        last_heartbeat = get_datetime(device["last_heartbeat"])
+        current_time = now_datetime()
+        
+        # Online if heartbeat within 60 seconds
+        is_online = (current_time - last_heartbeat) < timedelta(seconds=60)
+        
+        return {
+            "online": is_online,
+            "device": device["name"],
+            "last_heartbeat": device["last_heartbeat"]
+        }
+    
+    # No heartbeat recorded yet
+    return {"online": False, "device": device["name"]}
+
 def generate_pairing_code():
     """
     Generates a 6-digit pairing code for customer display devices.

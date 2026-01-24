@@ -5,11 +5,13 @@ import frappe
 from frappe.model.document import Document
 from frappe import _
 from frappe.utils import flt
+from imogi_pos.utils.customer_sync import sync_customer_fields_to_order
 
 
 class POSOrder(Document):
     def validate(self):
         self.validate_domain()
+        self.sync_customer_fields()
         self.set_last_edited_by()
         self.calculate_totals()
     
@@ -18,6 +20,11 @@ class POSOrder(Document):
     
     def on_update(self):
         self.update_table_status()
+    
+    def sync_customer_fields(self):
+        """Auto-sync customer fields from Customer master if customer selected"""
+        if self.customer and self.customer != "Guest":
+            sync_customer_fields_to_order(self)
     
     def validate_domain(self):
         """Validate that the POS Profile has the right domain"""

@@ -16,12 +16,7 @@
         "default_target_queue_time",
         "default_target_prep_time",
         "column_break_8",
-        "default_printer_interface",
-        "default_printer",
-        "default_printer_port",
-        "default_bt_device_name",
-        "default_bt_mac",
-        "default_bt_vendor_profile",
+        "default_printer_profile",
         "section_break_15",
         "stations"
     ],
@@ -82,42 +77,11 @@
             "fieldtype": "Column Break"
         },
         {
-            "default": "OS",
-            "fieldname": "default_printer_interface",
-            "fieldtype": "Select",
-            "label": "Default Printer Interface",
-            "options": "LAN\nBluetooth\nOS"
-        },
-        {
-            "depends_on": "eval:doc.default_printer_interface==\"LAN\"",
-            "fieldname": "default_printer",
-            "fieldtype": "Data",
-            "label": "Default Printer (LAN)"
-        },
-        {
-            "depends_on": "eval:doc.default_printer_interface==\"LAN\"",
-            "fieldname": "default_printer_port",
-            "fieldtype": "Int",
-            "label": "Default Printer Port"
-        },
-        {
-            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
-            "fieldname": "default_bt_device_name",
-            "fieldtype": "Data",
-            "label": "Default Bluetooth Device Name"
-        },
-        {
-            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
-            "fieldname": "default_bt_mac",
-            "fieldtype": "Data",
-            "label": "Default Bluetooth MAC Address"
-        },
-        {
-            "depends_on": "eval:doc.default_printer_interface==\"Bluetooth\"",
-            "fieldname": "default_bt_vendor_profile",
-            "fieldtype": "Select",
-            "label": "Default Bluetooth Vendor Profile",
-            "options": "ESC/POS\nCPCL\nZPL"
+            "fieldname": "default_printer_profile",
+            "fieldtype": "Link",
+            "label": "Default Printer Profile",
+            "options": "Printer Profile",
+            "description": "Default printer for this kitchen (can be overridden per station)"
         },
         {
             "fieldname": "section_break_15",

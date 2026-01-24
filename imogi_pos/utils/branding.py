@@ -56,12 +56,34 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
             )
 
         brand_profile = None
-        if profile_doc:
+        
+        # NEW CASCADE LOGIC: Check for brand_profile link field first
+        if profile_doc and hasattr(profile_doc, 'brand_profile') and profile_doc.brand_profile:
+            # POS Profile has brand_profile override
+            try:
+                brand_profile = frappe.get_doc("Brand Profile", profile_doc.brand_profile)
+            except frappe.DoesNotExistError:
+                pass
+        
+        # Fallback to Restaurant Settings brand_profile
+        if not brand_profile:
+            try:
+                settings = frappe.get_cached_doc("Restaurant Settings")
+                if hasattr(settings, 'brand_profile') and settings.brand_profile:
+                    brand_profile = frappe.get_doc("Brand Profile", settings.brand_profile)
+            except (frappe.DoesNotExistError, AttributeError):
+                pass
+        
+        # Legacy support: check old brand profile fields
+        if not brand_profile and profile_doc:
             brand_profile_name = getattr(
                 profile_doc, "imogi_self_order_brand_profile", None
             ) or getattr(profile_doc, "imogi_brand_profile", None)
             if brand_profile_name:
-                brand_profile = frappe.get_doc("Brand Profile", brand_profile_name)
+                try:
+                    brand_profile = frappe.get_doc("Brand Profile", brand_profile_name)
+                except frappe.DoesNotExistError:
+                    pass
 
         source = brand_profile or profile_doc
         if source:
@@ -81,7 +103,7 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
                     branding[key] = value
 
             if source is profile_doc:
-                # POS Profile uses different fieldnames
+                # POS Profile uses different fieldnames (legacy support)
                 for key, attr in (
                     ("logo", "imogi_brand_logo"),
                     ("logo_dark", "imogi_brand_logo_dark"),
@@ -96,6 +118,7 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
                     if value:
                         branding[key] = value
 
+        # Fallback to Restaurant Settings old fields (legacy support)
         if not branding["logo"] or branding["name"] == "IMOGI POS":
             settings = frappe.get_cached_doc("Restaurant Settings")
             if not branding["logo"] and getattr(settings, "imogi_brand_logo", None):
@@ -113,6 +136,7 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
             if not branding["css_vars"] and getattr(settings, "imogi_brand_css_vars", None):
                 branding["css_vars"] = settings.imogi_brand_css_vars
 
+        # Final fallback to Company
         if not branding["logo"]:
             company = frappe.defaults.get_user_default("Company") or frappe.defaults.get_global_default(
                 "company"
