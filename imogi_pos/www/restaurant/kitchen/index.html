@@ -618,15 +618,20 @@
 {% endblock %}
 
 {% block content %}
+{% if setup_error %}
+{% include "imogi_pos/templates/includes/error_page.html" %}
+{% else %}
 <div id="kitchen-display">
   <div class="loading-indicator">
     <div class="spinner"></div>
     <p>Memuat Kitchen Display...</p>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block script %}
+{% if not setup_error %}
 <script>
   const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
@@ -670,4 +675,5 @@
     }, 300);
   });
 </script>
+{% endif %}
 {% endblock %}

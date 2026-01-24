@@ -6,14 +6,21 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.error_pages import set_setup_error
 
 
 @require_roles("Restaurant Manager", "System Manager")
 def get_context(context):
     """Context builder for customer display editor page."""
     try:
-
         pos_profile = get_pos_profile()
+        
+        if not pos_profile:
+            set_setup_error(context, "pos_profile", page_name=_("Customer Display Editor"))
+            context.title = _("Customer Display Editor")
+            return context
+        
+        context.setup_error = False
         context.pos_profile = pos_profile
 
         context.branding = get_branding_info(pos_profile)
@@ -26,7 +33,9 @@ def get_context(context):
         raise
     except Exception as e:
         frappe.log_error(f"Error in customer_display_editor get_context: {str(e)}")
-        raise frappe.Redirect("/imogi-login?redirect=/customer_display_editor")
+        set_setup_error(context, "generic", str(e), page_name=_("Customer Display Editor"))
+        context.title = _("Customer Display Editor")
+        return context
 
 
 def get_pos_profile():

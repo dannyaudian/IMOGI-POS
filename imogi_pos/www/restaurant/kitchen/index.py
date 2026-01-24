@@ -7,14 +7,21 @@ from imogi_pos.utils.branding import (
 )
 from imogi_pos.utils.restaurant_settings import get_default_branch
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.error_pages import set_setup_error
 
 
 @require_roles("Kitchen Staff", "Restaurant Manager", "System Manager")
 def get_context(context):
     """Context builder for kitchen display page."""
     try:
-
         pos_profile = get_pos_profile()
+        
+        if not pos_profile:
+            set_setup_error(context, "pos_profile", page_name=_("Kitchen Display"))
+            context.title = _("Kitchen Display")
+            return context
+        
+        context.setup_error = False
         context.pos_profile = pos_profile
 
         context.branding = get_branding_info(pos_profile)
@@ -31,8 +38,9 @@ def get_context(context):
         raise
     except Exception as e:
         frappe.log_error(f"Error in kitchen_display get_context: {str(e)}")
-        # Redirect to login on any error
-        raise frappe.Redirect("/imogi-login?redirect=/kitchen_display")
+        set_setup_error(context, "generic", str(e), page_name=_("Kitchen Display"))
+        context.title = _("Kitchen Display")
+        return context
 
 
 def get_pos_profile():

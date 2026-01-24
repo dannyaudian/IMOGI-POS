@@ -191,6 +191,9 @@
 {% endblock %}
 
 {% block page_content %}
+{% if setup_error %}
+{% include "imogi_pos/templates/includes/error_page.html" %}
+{% else %}
 
 {% if show_header %}
 <header class="app-header">
@@ -323,10 +326,12 @@
     </div>
   </aside>
 </div>
+
 {% endif %}
 {% endblock %}
 
 {% block script %}
+{% if not setup_error %}
 <script>
   // Pass context to JS
   window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
@@ -388,4 +393,5 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script src="../cashier-console/index.js"></script>
+{% endif %}
 {% endblock %}

@@ -13,10 +13,15 @@
 {% endblock %}
 
 {% block content %}
+{% if setup_error %}
+{% include "imogi_pos/templates/includes/error_page.html" %}
+{% else %}
 <div id="customer-display-editor"></div>
+{% endif %}
 {% endblock %}
 
 {% block script %}
+{% if not setup_error %}
 <script>
   const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
@@ -32,4 +37,5 @@
 {{ include_script('imogi_pos/js/print/adapter_spool.js') }}
 {{ include_script('imogi_pos/js/print/adapter_lan.js') }}
 <script src="../customer_display_editor/index.js"></script>
+{% endif %}
 {% endblock %}

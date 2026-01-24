@@ -6,6 +6,7 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.error_pages import set_setup_error
 
 
 @require_roles("Waiter", "Restaurant Manager", "System Manager")
@@ -15,25 +16,7 @@ def get_context(context):
         pos_profile = get_pos_profile()
         
         if not pos_profile:
-            # Set error state instead of throwing
-            context.setup_error = True
-            context.error_title = _("Setup Required")
-            context.error_message = _("No POS Profile found. Please contact your administrator to set up a POS Profile.")
-            context.error_details = [
-                _("A POS Profile is required to use Table Display."),
-                _("Go to POS Profile list and create a new profile."),
-                _("Assign the profile to your user account.")
-            ]
-            context.show_back_button = True
-            context.back_url = "/app"
-            context.back_label = _("Go to Desk")
-            context.branding = {
-                "primary_color": PRIMARY_COLOR,
-                "accent_color": ACCENT_COLOR,
-                "header_bg_color": HEADER_BG_COLOR,
-                "logo_url": None,
-                "brand_name": "IMOGI POS"
-            }
+            set_setup_error(context, "pos_profile", page_name=_("Table Display"))
             context.title = _("Table Display")
             return context
         
@@ -50,20 +33,7 @@ def get_context(context):
         raise
     except Exception as e:
         frappe.log_error(f"Error in table_display get_context: {str(e)}")
-        # Show error page instead of redirect
-        context.setup_error = True
-        context.error_title = _("Error")
-        context.error_message = str(e)
-        context.show_back_button = True
-        context.back_url = "/app"
-        context.back_label = _("Go to Desk")
-        context.branding = {
-            "primary_color": PRIMARY_COLOR,
-            "accent_color": ACCENT_COLOR,
-            "header_bg_color": HEADER_BG_COLOR,
-            "logo_url": None,
-            "brand_name": "IMOGI POS"
-        }
+        set_setup_error(context, "generic", str(e), page_name=_("Table Display"))
         context.title = _("Table Display")
         return context
 

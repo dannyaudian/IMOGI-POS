@@ -5,6 +5,7 @@ from imogi_pos.utils.branding import get_brand_context
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.utils.auth_decorators import require_roles
 from imogi_pos.utils.auth_helpers import get_user_pos_profile, validate_active_session
+from imogi_pos.utils.error_pages import set_setup_error
 
 
 @require_roles("Cashier", "Restaurant Manager", "System Manager")
@@ -14,10 +15,13 @@ def get_context(context):
         # Get POS Profile for user
         pos_profile = get_user_pos_profile()
         if not pos_profile:
-            frappe.throw(_("No POS Profile assigned to your user"))
+            set_setup_error(context, "pos_profile", page_name=_("Cashier Console"))
+            context.title = _("Cashier Console")
+            return context
         
         pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
         
+        context.setup_error = False
         context.pos_profile = pos_profile_doc
         context.require_pos_session = cint(pos_profile_doc.get("imogi_require_pos_session", 0))
         context.enforce_session_on_cashier = cint(pos_profile_doc.get("imogi_enforce_session_on_cashier", 0))
@@ -27,6 +31,11 @@ def get_context(context):
             active_session = validate_active_session(pos_profile)
             context.has_active_session = bool(active_session)
             context.active_pos_session = active_session
+            
+            if not active_session:
+                set_setup_error(context, "session", page_name=_("Cashier Console"))
+                context.title = _("Cashier Console")
+                return context
         else:
             context.has_active_session = True
             context.active_pos_session = None
@@ -68,36 +77,16 @@ def get_context(context):
 
             # UI configuration
             context.title = _("Cashier Console")
-            context.domain = pos_profile.get("imogi_pos_domain", "Restaurant")
-            context.show_header = cint(pos_profile.get("imogi_show_header_on_pages", 1))
-        else:
-            # Handle the case when no pos_profile is found
-            context.pos_profile = None
-            context.require_pos_session = 0
-            context.has_active_session = False
-            context.active_pos_session = None
-            context.branding = get_brand_context()
-            context.branch = None
-            context.branch_name = None
-            context.branch_label = None
-            context.title = _("Cashier Console")
-            context.domain = "Restaurant"
-            context.show_header = 1
+            context.domain = pos_profile_doc.get("imogi_pos_domain", "Restaurant")
+            context.show_header = cint(pos_profile_doc.get("imogi_show_header_on_pages", 1))
 
-            # Add an error message
-            context.error_message = _("No POS Profile found. Please contact your administrator.")
-
+    except frappe.Redirect:
+        raise
     except Exception as e:
         frappe.log_error(f"Error in cashier console: {str(e)}")
-        context.error_message = _("An error occurred. Please try again or contact support.")
-        context.pos_profile = None
-        context.show_header = 1
-        context.branding = get_brand_context()
+        set_setup_error(context, "generic", str(e), page_name=_("Cashier Console"))
         context.title = _("Cashier Console")
-        context.domain = "Restaurant"
-        context.branch = None
-        context.branch_name = None
-        context.branch_label = None
+        return context
 
     # Add currency symbol for use in templates
     context.currency_symbol = get_currency_symbol()

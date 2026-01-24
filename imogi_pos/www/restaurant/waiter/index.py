@@ -10,6 +10,7 @@ from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
 from imogi_pos.utils.auth_decorators import allow_guest_if_configured
+from imogi_pos.utils.error_pages import set_setup_error
 
 
 @allow_guest_if_configured()
@@ -19,32 +20,13 @@ def get_context(context):
     mode = frappe.form_dict.get("mode", "waiter")  # default to waiter mode
     context.mode = mode
     
-    context.title = _("IMOGI POS Kiosk") if mode == "kiosk" else _("Waiter Order")
+    page_name = _("IMOGI POS Kiosk") if mode == "kiosk" else _("Waiter Order")
+    context.title = page_name
     
     # Get POS Profile for kiosk mode
     pos_profile = get_pos_profile()
     if not pos_profile:
-        # Set error state instead of throwing
-        context.setup_error = True
-        context.error_title = _("Setup Required")
-        context.error_message = _("No POS Profile found. Please contact your administrator to set up a POS Profile.")
-        context.error_details = [
-            _("A POS Profile is required to use this feature."),
-            _("Go to POS Profile list and create a new profile."),
-            _("Assign the profile to your user account.")
-        ]
-        context.show_back_button = True
-        context.back_url = "/app"
-        context.back_label = _("Go to Desk")
-        
-        # Set minimal branding for error page
-        context.branding = {
-            "primary_color": PRIMARY_COLOR,
-            "accent_color": ACCENT_COLOR,
-            "header_bg_color": HEADER_BG_COLOR,
-            "logo_url": None,
-            "brand_name": "IMOGI POS"
-        }
+        set_setup_error(context, "pos_profile", page_name=page_name)
         return context
     
     context.setup_error = False
