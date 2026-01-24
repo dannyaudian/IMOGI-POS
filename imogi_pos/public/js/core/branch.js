@@ -1,5 +1,5 @@
 /**
- * IMOGI POS - Branch Utility (v2.0)
+ * IMOGI POS - Branch Utility
  *
  * Manages active branch selection across browser tabs and persists
  * the current branch in localStorage. Exposes a global CURRENT_BRANCH
@@ -39,10 +39,16 @@ const IMOGIBranch = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Frappe-CSRF-Token': window.csrf_token || window.FRAPPE_CSRF_TOKEN || ''
-                }
+                    'X-Frappe-CSRF-Token': window.FRAPPE_CSRF_TOKEN || ''
+                },
+                credentials: 'same-origin'
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.message) {
                     this.set(data.message, false);
