@@ -12,7 +12,7 @@
     "is_hidden": 0,
     "hide_custom": 0,
     "content_type": "Blocks",
-    "content": "[{\"id\": \"hdr1\", \"type\": \"header\", \"data\": {\"text\": \"Orders\", \"col\": 12}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"KOT Tickets\", \"col\": 3}}, {\"id\": \"s10\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Self Order Sessions\", \"col\": 3}}, {\"id\": \"spacer1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr2\", \"type\": \"header\", \"data\": {\"text\": \"Setup\", \"col\": 12}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Profile\", \"col\": 3}}, {\"id\": \"s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Settings\", \"col\": 3}}, {\"id\": \"s11\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Menu Profiles\", \"col\": 3}}, {\"id\": \"s12\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Brand Profiles\", \"col\": 3}}, {\"id\": \"s13\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk Profiles\", \"col\": 3}}, {\"id\": \"s14\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Profiles\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr3\", \"type\": \"header\", \"data\": {\"text\": \"Promotions\", \"col\": 12}}, {\"id\": \"s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Promo Codes\", \"col\": 3}}, {\"id\": \"s15\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Promo Categories\", \"col\": 3}}, {\"id\": \"spacer3\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr4\", \"type\": \"header\", \"data\": {\"text\": \"Devices\", \"col\": 12}}, {\"id\": \"s16\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk Devices\", \"col\": 3}}, {\"id\": \"s17\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Devices\", \"col\": 3}}, {\"id\": \"spacer4\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr5\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Table Display\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kitchen Display\", \"col\": 3}}, {\"id\": \"s8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk\", \"col\": 3}}, {\"id\": \"s18\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display\", \"col\": 3}}, {\"id\": \"s19\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Editor\", \"col\": 3}}]",
+    "content": "[{\"id\": \"hdr1\", \"type\": \"header\", \"data\": {\"text\": \"Orders\", \"col\": 12}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"KOT Tickets\", \"col\": 3}}, {\"id\": \"s10\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Self Order Sessions\", \"col\": 3}}, {\"id\": \"spacer1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr2\", \"type\": \"header\", \"data\": {\"text\": \"Setup\", \"col\": 12}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Profile\", \"col\": 3}}, {\"id\": \"s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Restaurant Settings\", \"col\": 3}}, {\"id\": \"s11\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Menu Profiles\", \"col\": 3}}, {\"id\": \"s12\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Brand Profiles\", \"col\": 3}}, {\"id\": \"s13\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk Profiles\", \"col\": 3}}, {\"id\": \"s14\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Profiles\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr4\", \"type\": \"header\", \"data\": {\"text\": \"Devices\", \"col\": 12}}, {\"id\": \"s16\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk Devices\", \"col\": 3}}, {\"id\": \"s17\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Devices\", \"col\": 3}}, {\"id\": \"spacer4\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr5\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Table Display\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kitchen Display\", \"col\": 3}}, {\"id\": \"s8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Kiosk\", \"col\": 3}}, {\"id\": \"s18\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display\", \"col\": 3}}, {\"id\": \"s19\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Customer Display Editor\", \"col\": 3}}]",
     "shortcuts": [
       {
         "label": "POS Orders",
@@ -57,16 +57,6 @@
       {
         "label": "Customer Display Profiles",
         "link_to": "Customer Display Profile",
-        "type": "DocType"
-      },
-      {
-        "label": "Promo Codes",
-        "link_to": "POS Promo Code",
-        "type": "DocType"
-      },
-      {
-        "label": "Promo Categories",
-        "link_to": "POS Promo Category",
         "type": "DocType"
       },
       {
@@ -244,26 +234,16 @@
     "is_hidden": 0,
     "hide_custom": 0,
     "content_type": "Blocks",
-    "content": "[{\"id\": \"hdr1\", \"type\": \"header\", \"data\": {\"text\": \"Orders\", \"col\": 12}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"spacer1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr2\", \"type\": \"header\", \"data\": {\"text\": \"Sessions\", \"col\": 12}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Sessions\", \"col\": 3}}, {\"id\": \"s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Sessions\", \"col\": 3}}, {\"id\": \"s8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Device Sessions\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr3\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opening Balance\", \"col\": 3}}]",
+    "content": "[{\"id\": \"hdr1\", \"type\": \"header\", \"data\": {\"text\": \"Orders\", \"col\": 12}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"spacer1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr2\", \"type\": \"header\", \"data\": {\"text\": \"Sessions\", \"col\": 12}}, {\"id\": \"s8\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Device Sessions\", \"col\": 3}}, {\"id\": \"spacer2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"hdr3\", \"type\": \"header\", \"data\": {\"text\": \"Quick Access\", \"col\": 12}}, {\"id\": \"s5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Cashier Console\", \"col\": 3}}, {\"id\": \"s6\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"POS Orders (To Bill) List\", \"col\": 3}}, {\"id\": \"s7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Invoices (Today) List\", \"col\": 3}}, {\"id\": \"s9\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opening Balance\", \"col\": 3}}]",
     "shortcuts": [
       {
-        "label": "POS Orders (To Bill)",
+        "label": "POS Orders (To Bill) List",
         "link_to": "POS Order",
         "type": "DocType"
       },
       {
-        "label": "Sales Invoices (Today)",
+        "label": "Sales Invoices (Today) List",
         "link_to": "Sales Invoice",
-        "type": "DocType"
-      },
-      {
-        "label": "Payment Entries",
-        "link_to": "Payment Entry",
-        "type": "DocType"
-      },
-      {
-        "label": "POS Sessions",
-        "link_to": "POS Session",
         "type": "DocType"
       },
       {
@@ -277,24 +257,9 @@
         "type": "URL"
       },
       {
-        "label": "POS Orders (To Bill) List",
-        "link_to": "POS Order",
-        "type": "DocType"
-      },
-      {
-        "label": "Sales Invoices (Today) List",
-        "link_to": "Sales Invoice",
-        "type": "DocType"
-      },
-      {
         "label": "Opening Balance",
         "link_to": "/opening-balance",
         "type": "URL"
-      },
-      {
-        "label": "Sales Invoices (Today) List",
-        "link_to": "Sales Invoice",
-        "type": "DocType"
       }
     ],
     "cards": [],
