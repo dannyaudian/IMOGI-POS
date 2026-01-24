@@ -18,6 +18,14 @@ frappe.ready(function() {
   localStorage.setItem(redirectStorageKey, initialRedirect);
   localStorage.setItem(redirectSourceKey, redirectParam ? 'explicit' : 'default');
   
+  // SECURITY WARNING: Never pass credentials in URL!
+  // This is a major security vulnerability:
+  // - Credentials stored in browser history
+  // - Logged in server access logs
+  // - Visible to anyone looking at screen
+  // - Can be shared accidentally
+  // Use session cookies or secure tokens instead
+  
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -29,6 +37,10 @@ frappe.ready(function() {
       return;
     }
     
+    performLogin(username, password);
+  });
+  
+  function performLogin(username, password) {
     // Disable form during submission
     setFormDisabled(true);
     
@@ -111,7 +123,7 @@ frappe.ready(function() {
       },
       error: function(xhr, textStatus) {
         showError('Login failed. Please try again.');
-        console.error(textStatus);
+      console.error(textStatus);
         setFormDisabled(false);
       }
     });

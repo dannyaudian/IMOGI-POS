@@ -17,6 +17,11 @@ app_include_js = [
 ]
 app_include_css = []
 
+# Override native ERPNext doctypes
+override_doctype_class = {
+    "POS Opening Entry": "imogi_pos.overrides.pos_opening_entry.CustomPOSOpeningEntry"
+}
+
 # web_include_js = [
 #     "js/branch.js",
 #     "js/auth.js",
@@ -30,6 +35,8 @@ app_include_css = []
 doctype_js = {
     "POS Order": "public/js/doctype/pos_order.js",
     "Restaurant Table": "public/js/restaurant_table_qr.js",
+    "POS Opening Entry": "public/js/doctype/pos_opening_entry.js",
+    "POS Profile": "public/js/doctype/pos_profile.js",
 }
 
 doctype_list_js = {"Item": "public/js/doctype/item_list.js"}
@@ -67,6 +74,9 @@ doc_events = {
     "Sales Invoice": {
         "before_submit": "imogi_pos.api.invoice_modifiers.apply_invoice_modifiers",
         "on_submit": "imogi_pos.api.billing.on_sales_invoice_submit",
+    },
+    "POS Opening Entry": {
+        "on_submit": "imogi_pos.overrides.pos_opening_entry.get_custom_redirect_url",
     },
     "Item Price": {
         "on_update": "imogi_pos.api.pricing.publish_item_price_update",
