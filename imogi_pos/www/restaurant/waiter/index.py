@@ -118,22 +118,28 @@ def get_pos_profile():
                 {"user": frappe.session.user}, "parent")
             
             if pos_profile_name:
-                pos_profile = frappe.get_doc("POS Profile", pos_profile_name)
-                # Accept Table, Kiosk, or Self-Order modes for this page
-                mode = pos_profile.get("imogi_mode")
-                if mode in ["Table", "Kiosk", "Self-Order"]:
-                    return pos_profile
+                # If user has assigned profile, use it regardless of mode
+                # This allows flexibility - admins decide what profile to assign
+                return frappe.get_doc("POS Profile", pos_profile_name)
         
-        # Then try to find any Table/Kiosk/Self-Order profile
+        # Fallback: try to find any suitable profile for restaurant operations
+        # Prefer Table/Kiosk/Self-Order but also allow Counter as fallback
         profiles = frappe.get_all(
             "POS Profile",
-            filters={"imogi_mode": ["in", ["Table", "Kiosk", "Self-Order"]]},
-            fields=["name"],
-            limit=1
+            filters={"disabled": 0},
+            fields=["name", "imogi_mode"],
+            order_by="imogi_mode desc",  # Prefer Table mode
+            limit=5
         )
         
+        # First try to find Table, Kiosk, or Self-Order
+        for profile in profiles:
+            if profile.get("imogi_mode") in ["Table", "Kiosk", "Self-Order"]:
+                return frappe.get_doc("POS Profile", profile["name"])
+        
+        # If no restaurant-specific profile found, return any enabled profile
         if profiles:
-            return frappe.get_doc("POS Profile", profiles[0].name)
+            return frappe.get_doc("POS Profile", profiles[0]["name"])
         
         return None
     except Exception as e:

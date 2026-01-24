@@ -56,6 +56,8 @@ imogi_pos.workspace_shortcuts = {
         this.setup_capture_phase_handler();
         // Also setup override for frappe.set_route as fallback
         this.override_frappe_router();
+        // Intercept getpage errors
+        this.intercept_getpage_errors();
     },
     
     setup_capture_phase_handler: function() {
@@ -202,7 +204,14 @@ imogi_pos.workspace_shortcuts = {
                     return Promise.resolve();
                 }
                 
-                return original_set_route.apply(this, arguments);
+                // Prevent routing to non-existent pages
+                try {
+                    return original_set_route.apply(this, arguments);
+                } catch (e) {
+                    console.error('IMOGI POS: Route error, redirecting to /app:', e);
+                    window.location.href = '/app';
+                    return Promise.resolve();
+                }
             };
             
             frappe.set_route._imogi_patched = true;
@@ -230,6 +239,36 @@ imogi_pos.workspace_shortcuts = {
             };
             
             frappe.router.push_state._imogi_patched = true;
+        }
+    },
+    
+    intercept_getpage_errors: function() {
+        // Override frappe.call to intercept getpage 404 errors
+        if (window.frappe && frappe.call && !frappe.call._imogi_error_handler) {
+            const original_call = frappe.call;
+            
+            frappe.call = function(opts) {
+                const original_error = opts.error;
+                
+                opts.error = function(r) {
+                    // Check if this is a getpage 404 error
+                    if (opts.method === 'frappe.desk.desk_page.getpage' && r && r.status === 404) {
+                        console.log('IMOGI POS: Intercepted getpage 404 error, redirecting to /app');
+                        // Redirect to desk instead of showing error
+                        window.location.href = '/app';
+                        return;
+                    }
+                    
+                    // Call original error handler if exists
+                    if (original_error) {
+                        return original_error(r);
+                    }
+                };
+                
+                return original_call.call(this, opts);
+            };
+            
+            frappe.call._imogi_error_handler = true;
         }
     },
     

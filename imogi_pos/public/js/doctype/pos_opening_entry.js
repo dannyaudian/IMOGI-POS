@@ -44,24 +44,29 @@ function open_imogi_pos(frm) {
         return;
     }
     
-    // Get POS Profile to determine domain
+    // Get POS Profile to determine mode for redirect
     frappe.call({
         method: 'frappe.client.get_value',
         args: {
             doctype: 'POS Profile',
             filters: { name: frm.doc.pos_profile },
-            fieldname: ['imogi_pos_domain']
+            fieldname: ['imogi_mode', 'imogi_pos_domain']
         },
         callback: function(r) {
             let redirect_url = '/counter/pos'; // Default
             
-            if (r.message && r.message.imogi_pos_domain) {
-                const domain = r.message.imogi_pos_domain;
+            if (r.message) {
+                const mode = r.message.imogi_mode || 'Counter';
                 
-                if (domain === 'Restaurant') {
+                // Route based on operation mode
+                if (mode === 'Table') {
                     redirect_url = '/restaurant/waiter';
-                } else if (domain === 'Counter') {
+                } else if (mode === 'Counter') {
                     redirect_url = '/counter/pos';
+                } else if (mode === 'Kiosk') {
+                    redirect_url = '/restaurant/waiter?mode=kiosk';
+                } else if (mode === 'Self-Order') {
+                    redirect_url = '/restaurant/self-order';
                 }
             }
             

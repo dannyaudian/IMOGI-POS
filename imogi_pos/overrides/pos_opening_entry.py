@@ -27,21 +27,25 @@ class CustomPOSOpeningEntry(POSOpeningEntry):
     @frappe.whitelist()
     def get_redirect_url(self):
         """
-        Menentukan redirect URL berdasarkan POS Profile domain
+        Menentukan redirect URL berdasarkan POS Profile mode
         """
         if not self.pos_profile:
-            return "/app/imogi-pos"
+            return "/counter/pos"
         
         pos_profile = frappe.get_cached_doc("POS Profile", self.pos_profile)
-        domain = pos_profile.get("imogi_pos_domain")
+        mode = pos_profile.get("imogi_mode", "Counter")
         
-        # Redirect berdasarkan domain
-        if domain == "Restaurant":
+        # Redirect berdasarkan operation mode
+        if mode == "Table":
             return "/restaurant/waiter"
-        elif domain == "Counter":
+        elif mode == "Counter":
             return "/counter/pos"
+        elif mode == "Kiosk":
+            return "/restaurant/waiter?mode=kiosk"
+        elif mode == "Self-Order":
+            return "/restaurant/self-order"
         else:
-            # Default ke custom POS
+            # Default ke counter POS
             return "/counter/pos"
 
 

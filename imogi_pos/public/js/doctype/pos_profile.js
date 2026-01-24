@@ -9,21 +9,37 @@ frappe.ui.form.on('POS Profile', {
             // Remove native "Open POS" button if exists
             frm.page.clear_primary_action();
             
-            // Add custom button based on domain
-            const domain = frm.doc.imogi_pos_domain;
+            // Determine redirect URL and button label based on mode
+            const mode = frm.doc.imogi_mode || 'Counter';
             let button_label = __('Open POS');
             let redirect_url = '/counter/pos';
             
-            if (domain === 'Restaurant') {
-                button_label = __('Open Restaurant POS');
+            // Route based on operation mode
+            if (mode === 'Table') {
+                button_label = __('Open Waiter Order');
                 redirect_url = '/restaurant/waiter';
-            } else if (domain === 'Counter') {
-                button_label = __('Open Counter POS');
+            } else if (mode === 'Counter') {
+                button_label = __('Open Cashier Console');
                 redirect_url = '/counter/pos';
+            } else if (mode === 'Kiosk') {
+                button_label = __('Open Kiosk');
+                redirect_url = '/restaurant/waiter?mode=kiosk';
+            } else if (mode === 'Self-Order') {
+                button_label = __('Open Self Order');
+                redirect_url = '/restaurant/self-order';
             }
             
             // Add custom button
             frm.add_custom_button(button_label, function() {
+                // Check if POS Session is required
+                const require_session = frm.doc.imogi_require_pos_session;
+                
+                if (!require_session) {
+                    // Session not required, go directly to POS
+                    window.location.href = redirect_url;
+                    return;
+                }
+                
                 // Check if there's an active session first
                 frappe.call({
                     method: 'imogi_pos.api.billing.get_active_pos_session',
@@ -47,6 +63,10 @@ frappe.ui.form.on('POS Profile', {
                                 }
                             });
                         }
+                    },
+                    error: function() {
+                        // Error or session feature not available, just proceed
+                        window.location.href = redirect_url;
                     }
                 });
             }, __('POS')).addClass('btn-primary');
