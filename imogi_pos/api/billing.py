@@ -1638,8 +1638,6 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
             "order_type",
             "queue_number",
             "workflow_state",
-            "discount_amount",
-            "promo_code",
             "totals",
             "creation",
             "modified",

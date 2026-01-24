@@ -82,7 +82,7 @@ frappe.ready(function () {
       method: 'frappe.client.get_list',
       args: {
         doctype: 'Workflow State',
-        filters: { workflow: 'POS Order' },
+        filters: {},
         fields: ['name'],
         limit_page_length: 100
       }
