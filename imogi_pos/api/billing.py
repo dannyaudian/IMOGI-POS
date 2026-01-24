@@ -1323,6 +1323,118 @@ def get_active_pos_session(context_scope=None):
     return active_session
 
 @frappe.whitelist()
+def get_session_info(pos_session=None):
+    """
+    Get detailed session information for display in UI.
+    
+    Args:
+        pos_session (str, optional): POS Session name. If not provided, gets active session.
+    
+    Returns:
+        dict: Session details including start time, sales summary, etc.
+    """
+    if not frappe.db.exists("DocType", "POS Session"):
+        return None
+    
+    # Get session
+    if not pos_session:
+        pos_session = get_active_pos_session()
+    
+    if not pos_session:
+        return None
+    
+    try:
+        session_doc = frappe.get_doc("POS Session", pos_session)
+        
+        # Calculate session duration
+        from frappe.utils import time_diff_in_seconds, now_datetime
+        start_time = session_doc.get("posting_date") or session_doc.get("creation")
+        duration_seconds = time_diff_in_seconds(now_datetime(), start_time)
+        duration_hours = duration_seconds / 3600
+        
+        # Get sales summary
+        sales_summary = frappe.db.sql("""
+            SELECT 
+                COUNT(DISTINCT name) as total_orders,
+                SUM(grand_total) as total_sales,
+                SUM(outstanding_amount) as outstanding
+            FROM `tabSales Invoice`
+            WHERE imogi_pos_session = %s
+            AND docstatus = 1
+        """, (pos_session,), as_dict=True)
+        
+        summary = sales_summary[0] if sales_summary else {}
+        
+        return {
+            "name": pos_session,
+            "user": session_doc.get("user"),
+            "pos_profile": session_doc.get("pos_profile"),
+            "start_time": str(start_time),
+            "duration_hours": round(duration_hours, 2),
+            "status": session_doc.get("status"),
+            "opening_amount": flt(session_doc.get("opening_amount", 0)),
+            "total_orders": cint(summary.get("total_orders", 0)),
+            "total_sales": flt(summary.get("total_sales", 0)),
+            "outstanding": flt(summary.get("outstanding", 0))
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting session info: {str(e)}")
+        return None
+
+@frappe.whitelist()
+def close_session_request(pos_session, closing_amount=None):
+    """
+    Prepare data for closing a POS Session.
+    Creates a POS Closing Entry draft.
+    
+    Args:
+        pos_session (str): POS Session name
+        closing_amount (float, optional): Closing cash amount
+    
+    Returns:
+        dict: POS Closing Entry draft data
+    """
+    if not frappe.db.exists("DocType", "POS Closing Entry"):
+        frappe.throw(_("POS Closing Entry doctype not available"))
+    
+    if not frappe.db.exists("POS Session", pos_session):
+        frappe.throw(_("POS Session {0} not found").format(pos_session))
+    
+    # Check if session already has closing entry
+    existing = frappe.db.exists("POS Closing Entry", {"pos_session": pos_session})
+    if existing:
+        frappe.throw(_("Closing Entry already exists for this session: {0}").format(existing))
+    
+    try:
+        # Get session details
+        session_doc = frappe.get_doc("POS Session", pos_session)
+        
+        # Create new POS Closing Entry
+        closing_entry = frappe.new_doc("POS Closing Entry")
+        closing_entry.pos_session = pos_session
+        closing_entry.user = session_doc.user
+        closing_entry.pos_profile = session_doc.pos_profile
+        closing_entry.company = session_doc.company
+        closing_entry.period_start_date = session_doc.posting_date
+        closing_entry.period_end_date = frappe.utils.nowdate()
+        
+        if closing_amount:
+            closing_entry.closing_amount = flt(closing_amount)
+        
+        # Set missing values and calculate
+        closing_entry.set_missing_values()
+        
+        return {
+            "name": "new-pos-closing-entry-1",
+            "doctype": "POS Closing Entry",
+            "pos_session": pos_session,
+            "redirect_url": f"/app/pos-closing-entry/new-pos-closing-entry-1?pos_session={pos_session}"
+        }
+    except Exception as e:
+        frappe.log_error(f"Error creating closing entry: {str(e)}")
+        frappe.throw(_("Failed to create closing entry: {0}").format(str(e)))
+
+@frappe.whitelist()
 def request_payment(sales_invoice):
     """
     Creates a Payment Request and delegates to IMOGI Xendit Connect to get a payment QR code.
@@ -1456,3 +1568,113 @@ def request_payment(sales_invoice):
     except Exception as e:
         frappe.log_error(f"Error creating payment request: {str(e)}")
         frappe.throw(_("Failed to create payment request: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date=None, limit=50):
+    """
+    Lists completed POS Orders created by Counter mode for history view.
+    Only shows orders created in Counter mode by the current cashier or all cashiers in branch.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name
+        branch (str, optional): Branch filter
+        cashier (str, optional): Filter by specific cashier (defaults to current user)
+        date (str, optional): Date filter (defaults to today)
+        limit (int, optional): Number of records to return
+    
+    Returns:
+        list: Completed POS Orders with summarized details
+    """
+    from frappe.utils import today, getdate
+    
+    # Get branch from POS Profile if not provided
+    if not branch:
+        if pos_profile:
+            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+        else:
+            pos_profile = frappe.db.get_value(
+                "POS Profile User", {"user": frappe.session.user}, "parent"
+            )
+            if not pos_profile:
+                frappe.throw(
+                    _("No POS Profile found for user: {0}").format(frappe.session.user)
+                )
+            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    
+    if branch:
+        validate_branch_access(branch)
+    
+    # Default to current user if cashier not specified
+    if not cashier:
+        cashier = frappe.session.user
+    
+    # Default to today if date not specified
+    if not date:
+        date = today()
+    
+    # Validate date
+    try:
+        date_obj = getdate(date)
+    except:
+        date_obj = getdate(today())
+    
+    # Build filters - only Counter mode orders that are completed
+    filters = {
+        "branch": branch,
+        "imogi_mode": "Counter",  # Only Counter orders
+        "workflow_state": ["in", ["Paid", "Completed", "Invoiced"]],  # Completed orders only
+        "creation": [">=", date_obj],
+        "owner": cashier  # This cashier only
+    }
+    
+    # Query POS Orders
+    orders = frappe.get_all(
+        "POS Order",
+        filters=filters,
+        fields=[
+            "name",
+            "customer",
+            "order_type",
+            "queue_number",
+            "workflow_state",
+            "discount_percent",
+            "discount_amount",
+            "promo_code",
+            "totals",
+            "creation",
+            "modified",
+            "owner"
+        ],
+        order_by="modified desc",
+        limit_page_length=limit
+    )
+    
+    # Fetch customer names and items for each order
+    for order in orders:
+        order["customer_name"] = (
+            frappe.db.get_value("Customer", order["customer"], "customer_name")
+            if order.get("customer")
+            else "Walk-in Customer"
+        )
+        
+        order_items = frappe.get_all(
+            "POS Order Item",
+            filters={"parent": order["name"]},
+            fields=["item", "qty", "rate", "amount", "notes"],
+            order_by="idx",
+        )
+        
+        # Attach item info from Item doctype
+        for item in order_items:
+            details = frappe.db.get_value(
+                "Item", item["item"], ["item_name", "image"], as_dict=True
+            ) or {}
+            
+            item["item_name"] = details.get("item_name") or item.get("item")
+            item["image"] = details.get("image")
+            item["rate"] = flt(item.get("rate"))
+        
+        order["items"] = order_items
+    
+    return orders

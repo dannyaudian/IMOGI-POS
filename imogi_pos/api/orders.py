@@ -1006,3 +1006,196 @@ def set_order_type(pos_order, order_type):
         "new_type": order_type,
         "updated_at": now_datetime()
     }
+
+
+@frappe.whitelist()
+def create_counter_order(pos_profile, branch, items, customer=None, order_type="Takeaway", customer_info=None):
+    """
+    Creates a new POS Order specifically for Counter mode.
+    Simplified version of create_order() focused on counter operations.
+    
+    Args:
+        pos_profile (str): POS Profile name
+        branch (str): Branch name
+        items (list): Items to add to order [{"item_code": "ITEM-001", "qty": 2, "rate": 50000, "notes": ""}]
+        customer (str, optional): Customer name (defaults to Walk-in Customer)
+        order_type (str, optional): "Takeaway" or "Dine-in" (for queue number)
+        customer_info (dict, optional): Additional customer metadata
+    
+    Returns:
+        dict: Created POS Order with name, items, totals
+    """
+    from frappe.utils import flt, cint, now_datetime
+    from imogi_pos.api.pricing import calculate_order_totals
+    
+    # Validate access
+    validate_branch_access(branch)
+    ensure_update_stock_enabled(pos_profile)
+    
+    # Parse items if string
+    if isinstance(items, str):
+        items = frappe.parse_json(items)
+    
+    if not items or not isinstance(items, list):
+        frappe.throw(_("Items are required to create an order"))
+    
+    # Get POS Profile settings
+    pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+    selling_price_list = pos_profile_doc.selling_price_list
+    currency = pos_profile_doc.currency or frappe.defaults.get_global_default("currency")
+    
+    # Get or create Walk-in Customer if no customer specified
+    if not customer:
+        customer = frappe.db.get_value(
+            "POS Profile", pos_profile, "customer"
+        ) or frappe.db.get_value("Selling Settings", None, "customer")
+        
+        if not customer:
+            # Create Walk-in Customer if not exists
+            if not frappe.db.exists("Customer", "Walk-in Customer"):
+                walk_in = frappe.get_doc({
+                    "doctype": "Customer",
+                    "customer_name": "Walk-in Customer",
+                    "customer_group": frappe.db.get_value("Selling Settings", None, "customer_group") or "Commercial",
+                    "territory": frappe.db.get_value("Selling Settings", None, "territory") or "All Territories"
+                })
+                walk_in.insert(ignore_permissions=True)
+                customer = "Walk-in Customer"
+            else:
+                customer = "Walk-in Customer"
+    
+    # Parse customer_info if string
+    customer_details = {}
+    if customer_info:
+        if isinstance(customer_info, str):
+            customer_info = frappe.parse_json(customer_info)
+        if isinstance(customer_info, dict):
+            customer_details = customer_info
+    
+    # Apply customer metadata if provided
+    if customer_details:
+        _apply_customer_metadata(customer, customer_details)
+    
+    # Generate queue number if Dine-in (for counter dine-in orders)
+    queue_number = None
+    if order_type == "Dine-in":
+        queue_number = get_next_queue_number(branch)
+    
+    # Create POS Order document
+    order_doc = frappe.get_doc({
+        "doctype": "POS Order",
+        "branch": branch,
+        "pos_profile": pos_profile,
+        "customer": customer,
+        "order_type": order_type,
+        "selling_price_list": selling_price_list,
+        "currency": currency,
+        "workflow_state": "Draft",  # Start as Draft
+        "imogi_mode": "Counter",  # Mark as Counter mode order
+        "queue_number": queue_number,
+        "items": []
+    })
+    
+    # Add customer metadata to order if available
+    for key, value in customer_details.items():
+        if hasattr(order_doc, key):
+            order_doc.set(key, value)
+    
+    # Add items to order
+    for item_data in items:
+        item_code = item_data.get("item_code") or item_data.get("item")
+        if not item_code:
+            continue
+        
+        qty = flt(item_data.get("qty", 1))
+        if qty <= 0:
+            continue
+        
+        # Get item details
+        item_doc = frappe.get_doc("Item", item_code)
+        
+        # Get rate from item_data or fetch from price list
+        rate = flt(item_data.get("rate", 0))
+        if rate == 0:
+            # Fetch from Item Price
+            item_price = frappe.db.get_value(
+                "Item Price",
+                {
+                    "item_code": item_code,
+                    "price_list": selling_price_list,
+                    "selling": 1
+                },
+                "price_list_rate"
+            )
+            rate = flt(item_price) if item_price else 0
+        
+        # Calculate amount
+        amount = flt(qty * rate)
+        
+        # Add item row
+        order_doc.append("items", {
+            "item": item_code,
+            "item_name": item_doc.item_name,
+            "qty": qty,
+            "rate": rate,
+            "amount": amount,
+            "uom": item_doc.stock_uom,
+            "notes": item_data.get("notes", ""),
+            "default_kitchen": item_doc.get("default_kitchen"),
+            "default_kitchen_station": item_doc.get("default_kitchen_station")
+        })
+    
+    # Insert order (will trigger calculations)
+    order_doc.insert(ignore_permissions=True)
+    
+    # Calculate totals
+    totals = calculate_order_totals(order_doc.name)
+    order_doc.reload()
+    
+    # Send to kitchen if KOT is enabled in Restaurant Settings
+    # Check global setting instead of hardcoding based on order_type
+    kot_ticket = None
+    try:
+        from imogi_pos.utils.restaurant_settings import get_kot_settings
+        kot_settings = get_kot_settings()
+        
+        # If KOT is enabled, send ALL counter orders to kitchen (Takeaway + Dine-in)
+        if kot_settings.get("enable_kot"):
+            from imogi_pos.kitchen.kot_service import create_kot_from_order
+            kot_result = create_kot_from_order(
+                pos_order=order_doc.name,
+                selected_items=None,  # All items
+                send_to_kitchen=True
+            )
+            if kot_result and kot_result.get("tickets"):
+                # Get first ticket name (may be multiple if grouped by station)
+                kot_ticket = kot_result["tickets"][0] if kot_result["tickets"] else None
+                frappe.logger().info(f"KOT created for counter order {order_doc.name}: {kot_ticket}")
+    except Exception as e:
+        frappe.log_error(f"Failed to create KOT for counter order {order_doc.name}: {str(e)}")
+        # Don't fail order creation if KOT fails
+    
+    # Return order details
+    return {
+        "name": order_doc.name,
+        "customer": order_doc.customer,
+        "order_type": order_doc.order_type,
+        "queue_number": order_doc.queue_number,
+        "workflow_state": order_doc.workflow_state,
+        "kot_ticket": kot_ticket,
+        "items": [
+            {
+                "item": row.item,
+                "item_name": row.item_name,
+                "qty": row.qty,
+                "rate": row.rate,
+                "amount": row.amount,
+                "notes": row.notes
+            }
+            for row in order_doc.items
+        ],
+        "totals": totals,
+        "creation": order_doc.creation,
+        "modified": order_doc.modified
+    }
+

@@ -9,6 +9,14 @@ frappe.ready(function () {
   const CURRENT_BRANCH_LABEL = window.CURRENT_BRANCH_LABEL ?? null;
   const CURRENCY_SYMBOL    = window.CURRENCY_SYMBOL ?? 'Rp';
   const DOMAIN             = window.DOMAIN ?? 'Restaurant';
+  const MODE               = window.MODE ?? 'Counter';
+
+  // Debug: Log domain and mode
+  console.log('POS Configuration:');
+  console.log('  Domain:', DOMAIN, '(Restaurant/Retail/Service)');
+  console.log('  Mode:', MODE, '(Table/Counter/Kiosk/Self-Order)');
+  console.log('  Branch:', CURRENT_BRANCH_LABEL || CURRENT_BRANCH);
+  console.log('  Full Mode Display:', DOMAIN + ' - ' + MODE);
 
   // ====== Early checks ======
   if (!POS_PROFILE) {
@@ -63,7 +71,80 @@ frappe.ready(function () {
     setupEventListeners();
     initPrintService();
     setupRealtimeUpdates();
+    checkCustomerDisplayStatus();
+    loadWorkflowStates();
     loadOrders();
+  }
+
+  function loadWorkflowStates() {
+    // Load workflow states dynamically from backend
+    frappe.call({
+      method: 'frappe.client.get_list',
+      args: {
+        doctype: 'Workflow State',
+        filters: { workflow: 'POS Order' },
+        fields: ['name', 'state'],
+        limit_page_length: 100
+      }
+    }).then(r => {
+      if (r && r.message && r.message.length > 0) {
+        console.log('✅ Loaded workflow states:', r.message);
+        // Keep existing STATE_MAP but log available states
+        r.message.forEach(state => {
+          console.log('  -', state.name);
+        });
+      }
+    }).catch(err => {
+      console.warn('Could not load workflow states:', err);
+    });
+  }
+
+  function checkCustomerDisplayStatus() {
+    const statusContainer = document.querySelector('.customer-display-status');
+    if (!statusContainer) return;
+
+    frappe.call({
+      method: 'imogi_pos.api.customer_display.check_display_status',
+      args: { branch: CURRENT_BRANCH }
+    })
+    .then(r => {
+      const isOnline = r && r.message && r.message.online;
+      updateCustomerDisplayStatus(isOnline);
+      statusContainer.style.display = 'flex';
+    })
+    .catch(() => {
+      updateCustomerDisplayStatus(false);
+      statusContainer.style.display = 'flex';
+    });
+
+    // Check every 30 seconds
+    setInterval(() => {
+      frappe.call({
+        method: 'imogi_pos.api.customer_display.check_display_status',
+        args: { branch: CURRENT_BRANCH },
+        silent: true
+      })
+      .then(r => {
+        const isOnline = r && r.message && r.message.online;
+        updateCustomerDisplayStatus(isOnline);
+      })
+      .catch(() => updateCustomerDisplayStatus(false));
+    }, 30000);
+  }
+
+  function updateCustomerDisplayStatus(isOnline) {
+    const badge = document.getElementById('display-status-badge');
+    const icon = document.getElementById('display-status-icon');
+    
+    if (!badge || !icon) return;
+
+    icon.className = 'fa fa-circle ' + (isOnline ? 'online' : 'offline');
+    badge.textContent = '';
+    badge.appendChild(icon);
+    badge.appendChild(document.createTextNode(' ' + (isOnline ? __('Online') : __('Offline'))));
+    
+    badge.className = 'status-indicator badge badge-' + (isOnline ? 'success' : 'secondary');
+    badge.title = isOnline ? __('Customer display is online') : __('Customer display is offline');
   }
 
   function setupEventListeners() {
@@ -78,7 +159,18 @@ frappe.ready(function () {
     });
 
     refreshOrdersBtn?.addEventListener('click', loadOrders);
-    createOrderBtn?.addEventListener('click', openCreateOrderDialog);
+    
+    // Disable create order in Counter mode - orders should come from waiter interface
+    if (MODE === 'Counter') {
+      if (createOrderBtn) {
+        createOrderBtn.disabled = true;
+        createOrderBtn.title = 'Orders are created from the Waiter interface';
+        createOrderBtn.style.opacity = '0.5';
+        createOrderBtn.style.cursor = 'not-allowed';
+      }
+    } else {
+      createOrderBtn?.addEventListener('click', openCreateOrderDialog);
+    }
     findCustomerBtn?.addEventListener('click', openCustomerSearch);
     generateInvoiceBtn?.addEventListener('click', generateInvoice);
     requestPaymentBtn?.addEventListener('click', requestPayment);
@@ -94,20 +186,19 @@ frappe.ready(function () {
      Data loading & rendering
      ========================= */
   function loadOrders() {
-    showLoading('Loading orders…');
+    showLoading('Loading order history…');
 
     const args = {
       branch: CURRENT_BRANCH,
       pos_profile: POS_PROFILE
     };
 
-    const wf = STATE_MAP[currentTab] ?? null;
-    if (wf) args.workflow_state = wf; // hanya kirim kalau ada mappingnya
-
-    console.debug('[loadOrders] args =', args);
+    // Counter mode: load history instead of pending orders
+    // No workflow_state filter needed - history shows completed orders only
+    console.debug('[loadOrders] Loading counter history with args:', args);
 
     frappe.call({
-      method: 'imogi_pos.api.billing.list_orders_for_cashier',
+      method: 'imogi_pos.api.billing.list_counter_order_history',
       args
     })
     .then((r) => {
@@ -130,7 +221,8 @@ frappe.ready(function () {
     })
     .fail((err) => {
       console.error('[loadOrders] error', err);
-      showError('Failed to load orders');
+      const errorMsg = err?._server_messages || err?.message || 'Unknown error';
+      showError(__('Failed to load order history: ') + errorMsg);
       allOrders = [];
       currentOrders = [];
       renderOrders();
@@ -385,6 +477,12 @@ frappe.ready(function () {
   function generateInvoice() {
     if (!selectedOrder) return;
 
+    // Validate order has items
+    if (!selectedOrder.items || selectedOrder.items.length === 0) {
+      showError(__('Cannot generate invoice: Order has no items'));
+      return;
+    }
+
     const mop = paymentModeSelect?.value;
     if (!mop) {
       showError(__('Please select a mode of payment'));
@@ -439,6 +537,13 @@ frappe.ready(function () {
   function requestPayment() {
     if (!invoiceDoc) return;
 
+    // Validate payment amount
+    const amount = safeTotal(selectedOrder);
+    if (amount <= 0) {
+      showError(__('Cannot request payment: Total amount is zero'));
+      return;
+    }
+
     showLoading('Requesting payment…');
 
     frappe.call({
@@ -462,11 +567,12 @@ frappe.ready(function () {
     .fail((err) => {
       hideLoading();
       console.error('[requestPayment] error', err);
-      showError(__('Failed to request payment'));
+      const errorMsg = err?.exc || err?._server_messages || err?.message || 'Unknown error';
+      showError(__('Payment request failed: ') + errorMsg);
     });
   }
 
-  function sendToCustomerDisplay(paymentRequest) {
+  function sendToCustomerDisplay(paymentRequest, retryCount = 0) {
     const fallbackBranch =
       (typeof window.IMOGIBranch !== 'undefined' &&
         typeof window.IMOGIBranch.get === 'function'
@@ -497,11 +603,30 @@ frappe.ready(function () {
       payload.branch_label = branchLabel;
     }
 
-    frappe.call({
+    return frappe.call({
       method: 'imogi_pos.api.customer_display.publish_customer_display_update',
       args: {
         event_type: 'payment_request',
         data: payload
+      }
+    })
+    .then(r => {
+      console.log('✅ Payment request sent to customer display');
+      updateCustomerDisplayStatus(true);
+      return r;
+    })
+    .catch(err => {
+      console.warn('⚠️ Failed to send to customer display:', err);
+      updateCustomerDisplayStatus(false);
+      
+      // Retry mechanism (max 2 retries)
+      if (retryCount < 2) {
+        console.log(`Retrying... (${retryCount + 1}/2)`);
+        setTimeout(() => {
+          sendToCustomerDisplay(paymentRequest, retryCount + 1);
+        }, 2000);
+      } else {
+        showToast(__('Customer display may be offline. Payment request created.'), 'warning');
       }
     });
   }
@@ -554,6 +679,9 @@ frappe.ready(function () {
 
   function attachCustomerToOrder(customerName) {
     if (!selectedOrder) return;
+    
+    showLoading(__('Attaching customer...'));
+    
     frappe.call({
       method: 'imogi_pos.api.customers.attach_customer_to_order_or_invoice',
       args: {
@@ -563,15 +691,22 @@ frappe.ready(function () {
       }
     })
     .then((r) => {
+      hideLoading();
       if (r && r.message) {
-        showSuccess(__('Customer attached to order'));
+        showSuccess(__('Customer attached successfully'));
         selectedOrder.customer = customerName;
         selectedOrder.customer_name = selectedCustomer?.customer_name || customerName;
+        // Reload order to get updated data
+        loadOrders();
       } else {
         showError(__('Failed to attach customer to order'));
       }
     })
-    .fail((err) => showError('Error attaching customer: ' + (err?.message || err)));
+    .fail((err) => {
+      hideLoading();
+      const errorMsg = err?._server_messages || err?.message || 'Unknown error';
+      showError(__('Error attaching customer: ') + errorMsg);
+    });
   }
 
   /* =========================
@@ -802,4 +937,297 @@ frappe.ready(function () {
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;'); }
+
+  // ====== Item Selector & Order Creation (NEW) ======
+  let itemsData = { items: [], categories: [] };
+  let cartItems = [];  // { item_code, item_name, qty, rate, amount }
+
+  function openItemSelector() {
+    const modal = document.getElementById('item-selector-modal');
+    if (!modal) return;
+    
+    modal.style.display = 'flex';
+    cartItems = [];  // Reset cart
+    loadItemsForSelector();
+    renderCart();
+  }
+
+  function closeItemSelector() {
+    const modal = document.getElementById('item-selector-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function loadItemsForSelector() {
+    const itemGrid = document.getElementById('item-grid');
+    if (!itemGrid) return;
+    
+    itemGrid.innerHTML = '<div class="loading-items">Loading items...</div>';
+    
+    frappe.call({
+      method: 'imogi_pos.api.items.get_items_for_counter',
+      args: {
+        pos_profile: POS_PROFILE,
+        branch: CURRENT_BRANCH
+      }
+    })
+    .then(r => {
+      if (r && r.message) {
+        itemsData = r.message;
+        renderItems();
+        populateCategories();
+      }
+    })
+    .fail(err => {
+      console.error('Failed to load items:', err);
+      itemGrid.innerHTML = '<div class="loading-items">Failed to load items. Please try again.</div>';
+    });
+  }
+
+  function populateCategories() {
+    const select = document.getElementById('category-filter');
+    if (!select || !itemsData.categories) return;
+    
+    // Keep "All Categories" option
+    const options = ['<option value="">All Categories</option>'];
+    itemsData.categories.forEach(cat => {
+      options.push(`<option value="${escapeAttr(cat.name)}">${escapeHtml(cat.category_name || cat.name)}</option>`);
+    });
+    select.innerHTML = options.join('');
+  }
+
+  function renderItems() {
+    const itemGrid = document.getElementById('item-grid');
+    if (!itemGrid || !itemsData.items) return;
+    
+    const searchTerm = (document.getElementById('item-search')?.value || '').toLowerCase();
+    const categoryFilter = document.getElementById('category-filter')?.value || '';
+    
+    let filtered = itemsData.items;
+    
+    // Apply category filter
+    if (categoryFilter) {
+      filtered = filtered.filter(item => item.menu_category === categoryFilter);
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        (item.item_name || '').toLowerCase().includes(searchTerm) ||
+        (item.item_code || '').toLowerCase().includes(searchTerm) ||
+        (item.description || '').toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    if (filtered.length === 0) {
+      itemGrid.innerHTML = '<div class="loading-items">No items found.</div>';
+      return;
+    }
+    
+    const html = filtered.map(item => {
+      const inStock = item.in_stock !== false;
+      const stockClass = inStock ? '' : ' out-of-stock';
+      const stockText = item.actual_qty != null ? `Stock: ${item.actual_qty}` : 'Available';
+      const imageUrl = item.image || '/assets/imogi_pos/images/placeholder-item.png';
+      
+      return `
+        <div class="item-card${stockClass}" data-item-code="${escapeAttr(item.item_code)}" data-rate="${item.rate || 0}">
+          <img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(item.item_name)}" class="item-card-image" 
+               onerror="this.src='/assets/imogi_pos/images/placeholder-item.png'">
+          <div class="item-card-name" title="${escapeAttr(item.item_name)}">${escapeHtml(item.item_name)}</div>
+          <div class="item-card-price">${CURRENCY_SYMBOL} ${formatNumber(item.rate || 0)}</div>
+          <div class="item-card-stock">${escapeHtml(stockText)}</div>
+        </div>
+      `;
+    }).join('');
+    
+    itemGrid.innerHTML = html;
+    
+    // Add click handlers
+    itemGrid.querySelectorAll('.item-card:not(.out-of-stock)').forEach(card => {
+      card.addEventListener('click', () => {
+        const itemCode = card.dataset.itemCode;
+        const rate = parseFloat(card.dataset.rate) || 0;
+        const item = itemsData.items.find(i => i.item_code === itemCode);
+        if (item) {
+          addItemToCart(item, rate);
+        }
+      });
+    });
+  }
+
+  function addItemToCart(item, rate) {
+    // Check if item already in cart
+    const existing = cartItems.find(ci => ci.item_code === item.item_code);
+    
+    if (existing) {
+      // Increase quantity
+      existing.qty += 1;
+      existing.amount = existing.qty * existing.rate;
+    } else {
+      // Add new item
+      cartItems.push({
+        item_code: item.item_code,
+        item_name: item.item_name,
+        qty: 1,
+        rate: rate,
+        amount: rate,
+        notes: ''
+      });
+    }
+    
+    renderCart();
+  }
+
+  function updateCartItemQty(itemCode, delta) {
+    const item = cartItems.find(ci => ci.item_code === itemCode);
+    if (!item) return;
+    
+    item.qty += delta;
+    if (item.qty <= 0) {
+      // Remove item
+      cartItems = cartItems.filter(ci => ci.item_code !== itemCode);
+    } else {
+      item.amount = item.qty * item.rate;
+    }
+    
+    renderCart();
+  }
+
+  function removeCartItem(itemCode) {
+    cartItems = cartItems.filter(ci => ci.item_code !== itemCode);
+    renderCart();
+  }
+
+  function renderCart() {
+    const cartItemsEl = document.getElementById('cart-items');
+    const submitBtn = document.getElementById('submit-order');
+    
+    if (!cartItemsEl) return;
+    
+    if (cartItems.length === 0) {
+      cartItemsEl.innerHTML = '<div class="empty-cart">No items added yet</div>';
+      if (submitBtn) submitBtn.disabled = true;
+    } else {
+      const html = cartItems.map(item => `
+        <div class="cart-item">
+          <div class="cart-item-details">
+            <div class="cart-item-name">${escapeHtml(item.item_name)}</div>
+            <div class="cart-item-price">${CURRENCY_SYMBOL} ${formatNumber(item.rate)} × ${item.qty}</div>
+          </div>
+          <div class="cart-item-qty">
+            <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="minus">−</button>
+            <span class="qty-value">${item.qty}</span>
+            <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="plus">+</button>
+          </div>
+          <div class="cart-item-remove" data-item="${escapeAttr(item.item_code)}" title="Remove">×</div>
+        </div>
+      `).join('');
+      
+      cartItemsEl.innerHTML = html;
+      if (submitBtn) submitBtn.disabled = false;
+      
+      // Add event listeners
+      cartItemsEl.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const itemCode = btn.dataset.item;
+          const delta = btn.dataset.action === 'plus' ? 1 : -1;
+          updateCartItemQty(itemCode, delta);
+        });
+      });
+      
+      cartItemsEl.querySelectorAll('.cart-item-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          removeCartItem(btn.dataset.item);
+        });
+      });
+    }
+    
+    // Update totals
+    const subtotal = cartItems.reduce((sum, item) => sum + item.amount, 0);
+    const subtotalEl = document.getElementById('cart-subtotal');
+    const totalEl = document.getElementById('cart-total');
+    
+    if (subtotalEl) subtotalEl.textContent = formatNumber(subtotal);
+    if (totalEl) totalEl.textContent = formatNumber(subtotal);
+  }
+
+  function submitNewOrder() {
+    if (cartItems.length === 0) {
+      showError(__('Please add items to the order'));
+      return;
+    }
+    
+    const orderType = document.querySelector('input[name="order-type"]:checked')?.value || 'Takeaway';
+    
+    showLoading('Creating order...');
+    
+    frappe.call({
+      method: 'imogi_pos.api.orders.create_counter_order',
+      args: {
+        pos_profile: POS_PROFILE,
+        branch: CURRENT_BRANCH,
+        items: cartItems,
+        order_type: orderType
+      }
+    })
+    .then(r => {
+      if (r && r.message) {
+        showSuccess(__('Order created successfully: {0}', [r.message.name]));
+        closeItemSelector();
+        loadOrders();  // Refresh history
+      }
+    })
+    .fail(err => {
+      console.error('Failed to create order:', err);
+      const errorMsg = err?._server_messages || err?.message || 'Unknown error';
+      showError(__('Failed to create order: ') + errorMsg);
+    })
+    .always(hideLoading);
+  }
+
+  // Setup event listeners for item selector
+  function setupItemSelectorListeners() {
+    const createBtn = document.getElementById('create-order');
+    const closeBtn = document.getElementById('close-item-selector');
+    const searchInput = document.getElementById('item-search');
+    const categoryFilter = document.getElementById('category-filter');
+    const submitBtn = document.getElementById('submit-order');
+    const modalBackdrop = document.querySelector('.modal-backdrop');
+    
+    if (createBtn) {
+      createBtn.addEventListener('click', openItemSelector);
+    }
+    
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeItemSelector);
+    }
+    
+    if (modalBackdrop) {
+      modalBackdrop.addEventListener('click', closeItemSelector);
+    }
+    
+    if (searchInput) {
+      let debounceTimer;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => renderItems(), 300);
+      });
+    }
+    
+    if (categoryFilter) {
+      categoryFilter.addEventListener('change', renderItems);
+    }
+    
+    if (submitBtn) {
+      submitBtn.addEventListener('click', submitNewOrder);
+    }
+  }
+
+  // Call setup after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupItemSelectorListeners);
+  } else {
+    setupItemSelectorListeners();
+  }
 });
+

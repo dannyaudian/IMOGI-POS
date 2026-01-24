@@ -196,3 +196,143 @@ def set_item_flags(doc, method=None):
     if doc.get("variant_of"):
         doc.set("has_variants", 0)
         doc.flags.ignore_validate_update_after_stock = True
+
+
+@frappe.whitelist()
+def get_items_for_counter(pos_profile=None, branch=None, search_term=None, category=None, limit=100):
+    """
+    Get items for Counter mode item selector with categories, variants, and pricing.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name
+        branch (str, optional): Branch filter
+        search_term (str, optional): Search query for item name/code
+        category (str, optional): Filter by menu category
+        limit (int, optional): Number of items to return
+    
+    Returns:
+        dict: {
+            "items": list of items with details,
+            "categories": list of available menu categories
+        }
+    """
+    from frappe.utils import flt, cint
+    
+    # Get POS Profile if not provided
+    if not pos_profile:
+        pos_profile = frappe.db.get_value(
+            "POS Profile User", {"user": frappe.session.user}, "parent"
+        )
+        if not pos_profile:
+            frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
+    
+    # Get branch from POS Profile if not provided
+    if not branch:
+        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    
+    # Get item price list from POS Profile
+    price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+    
+    # Build filters
+    filters = {
+        "disabled": 0,
+        "is_sales_item": 1,
+        "has_variants": 0,  # Exclude templates, include actual items and variants
+    }
+    
+    # Add category filter if specified
+    if category:
+        filters["menu_category"] = category
+    
+    # Build query fields
+    fields = [
+        "name",
+        "item_code",
+        "item_name",
+        "image",
+        "description",
+        "menu_category",
+        "item_group",
+        "stock_uom",
+        "variant_of",
+        "is_stock_item"
+    ]
+    
+    # Search filter
+    or_filters = None
+    if search_term:
+        search_term = search_term.strip()
+        or_filters = [
+            ["item_name", "like", f"%{search_term}%"],
+            ["item_code", "like", f"%{search_term}%"],
+            ["description", "like", f"%{search_term}%"]
+        ]
+    
+    # Query items
+    items = frappe.get_all(
+        "Item",
+        filters=filters,
+        or_filters=or_filters,
+        fields=fields,
+        order_by="item_name asc",
+        limit_page_length=limit
+    )
+    
+    # Enrich items with pricing and variant info
+    for item in items:
+        # Get price from Item Price
+        item_price = frappe.db.get_value(
+            "Item Price",
+            {
+                "item_code": item["item_code"],
+                "price_list": price_list,
+                "selling": 1
+            },
+            ["price_list_rate", "currency"],
+            as_dict=True
+        )
+        
+        item["rate"] = flt(item_price.get("price_list_rate") if item_price else 0)
+        item["currency"] = item_price.get("currency") if item_price else "IDR"
+        
+        # Get stock quantity if stock item
+        if cint(item.get("is_stock_item")):
+            warehouse = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+            if warehouse:
+                actual_qty = frappe.db.get_value(
+                    "Bin",
+                    {"item_code": item["item_code"], "warehouse": warehouse},
+                    "actual_qty"
+                ) or 0
+                item["actual_qty"] = flt(actual_qty)
+                item["in_stock"] = actual_qty > 0
+            else:
+                item["actual_qty"] = 0
+                item["in_stock"] = True  # Assume available if no warehouse
+        else:
+            item["actual_qty"] = None
+            item["in_stock"] = True  # Non-stock items always available
+        
+        # Get variants if this is a template item (shouldn't happen with has_variants=0 filter)
+        # But check parent for variant items
+        if item.get("variant_of"):
+            item["is_variant"] = True
+            item["template"] = item["variant_of"]
+        else:
+            item["is_variant"] = False
+            item["template"] = None
+    
+    # Get list of categories for filtering
+    categories = frappe.get_all(
+        "Menu Category",
+        filters={"disabled": 0},
+        fields=["name", "category_name", "icon", "sort_order"],
+        order_by="sort_order asc, category_name asc"
+    )
+    
+    return {
+        "items": items,
+        "categories": categories,
+        "price_list": price_list
+    }
+

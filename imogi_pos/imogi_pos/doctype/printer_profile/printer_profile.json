@@ -1,0 +1,243 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:printer_name",
+  "creation": "2026-01-24 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "printer_name",
+    "description",
+    "is_active",
+    "column_break_3",
+    "branch",
+    "printer_type",
+    "section_break_6",
+    "interface",
+    "lan_section",
+    "lan_host",
+    "lan_port",
+    "usb_section",
+    "usb_device_path",
+    "bluetooth_section",
+    "bt_device_name",
+    "bt_mac",
+    "bt_vendor_profile",
+    "bt_retry",
+    "print_bridge_section",
+    "print_bridge_url",
+    "print_bridge_token",
+    "section_break_advanced",
+    "thermal_width",
+    "paper_width_mm",
+    "dpi"
+  ],
+  "fields": [
+    {
+      "fieldname": "printer_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Printer Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Small Text",
+      "label": "Description"
+    },
+    {
+      "default": "1",
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Is Active"
+    },
+    {
+      "fieldname": "column_break_3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "branch",
+      "fieldtype": "Link",
+      "label": "Branch",
+      "options": "Branch"
+    },
+    {
+      "fieldname": "printer_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Printer Type",
+      "options": "Receipt\nKitchen\nLabel\nGeneral",
+      "default": "Receipt"
+    },
+    {
+      "fieldname": "section_break_6",
+      "fieldtype": "Section Break",
+      "label": "Connection Settings"
+    },
+    {
+      "default": "OS",
+      "fieldname": "interface",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Interface",
+      "options": "LAN\nUSB\nBluetooth\nOS",
+      "reqd": 1
+    },
+    {
+      "depends_on": "eval:doc.interface==\"LAN\"",
+      "fieldname": "lan_section",
+      "fieldtype": "Section Break",
+      "label": "LAN Printer Settings"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"LAN\"",
+      "fieldname": "lan_host",
+      "fieldtype": "Data",
+      "label": "Host/IP Address",
+      "mandatory_depends_on": "eval:doc.interface==\"LAN\""
+    },
+    {
+      "default": "9100",
+      "depends_on": "eval:doc.interface==\"LAN\"",
+      "fieldname": "lan_port",
+      "fieldtype": "Int",
+      "label": "Port"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"USB\"",
+      "fieldname": "usb_section",
+      "fieldtype": "Section Break",
+      "label": "USB Printer Settings"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"USB\"",
+      "description": "e.g. /dev/usb/lp0 (Linux), /dev/cu.usbserial (Mac), LPT1 (Windows)",
+      "fieldname": "usb_device_path",
+      "fieldtype": "Data",
+      "label": "USB Device Path",
+      "mandatory_depends_on": "eval:doc.interface==\"USB\""
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "bluetooth_section",
+      "fieldtype": "Section Break",
+      "label": "Bluetooth Printer Settings"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "bt_device_name",
+      "fieldtype": "Data",
+      "label": "Bluetooth Device Name",
+      "mandatory_depends_on": "eval:doc.interface==\"Bluetooth\""
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "bt_mac",
+      "fieldtype": "Data",
+      "label": "Bluetooth MAC Address"
+    },
+    {
+      "default": "ESC/POS",
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "bt_vendor_profile",
+      "fieldtype": "Select",
+      "label": "Vendor Profile",
+      "options": "ESC/POS\nCPCL\nZPL"
+    },
+    {
+      "default": "3",
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "bt_retry",
+      "fieldtype": "Int",
+      "label": "Retry Attempts"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "print_bridge_section",
+      "fieldtype": "Section Break",
+      "label": "Print Bridge (Optional)"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "print_bridge_url",
+      "fieldtype": "Data",
+      "label": "Print Bridge URL"
+    },
+    {
+      "depends_on": "eval:doc.interface==\"Bluetooth\"",
+      "fieldname": "print_bridge_token",
+      "fieldtype": "Password",
+      "label": "Print Bridge Token"
+    },
+    {
+      "fieldname": "section_break_advanced",
+      "fieldtype": "Section Break",
+      "label": "Advanced Settings"
+    },
+    {
+      "default": "32",
+      "fieldname": "thermal_width",
+      "fieldtype": "Select",
+      "label": "Thermal Width (characters)",
+      "options": "32\n48\n64"
+    },
+    {
+      "default": "58",
+      "fieldname": "paper_width_mm",
+      "fieldtype": "Select",
+      "label": "Paper Width (mm)",
+      "options": "58\n80"
+    },
+    {
+      "default": "203",
+      "fieldname": "dpi",
+      "fieldtype": "Select",
+      "label": "DPI",
+      "options": "203\n300"
+    }
+  ],
+  "links": [],
+  "modified": "2026-01-24 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "Printer Profile",
+  "naming_rule": "By fieldname",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 0,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Restaurant Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "Kitchen Staff"
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1
+}

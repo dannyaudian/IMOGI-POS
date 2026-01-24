@@ -281,6 +281,79 @@ const IMOGIAuth = {
      * @returns {Promise} Promise that resolves on successful logout
      */
     logout: function(redirect) {
+        return new Promise(async (resolve, reject) => {
+            // Check for active POS session before logout
+            try {
+                const hasActiveSession = await this.checkActiveSession();
+                
+                if (hasActiveSession) {
+                    // Warn user about active session
+                    frappe.confirm(
+                        __('You have an active POS Session. Logging out will not close your session. Do you want to close the session first?'),
+                        () => {
+                            // User wants to close session first
+                            this.promptCloseSession();
+                            reject(new Error('User cancelled logout to close session'));
+                        },
+                        () => {
+                            // User wants to logout without closing session
+                            this.performLogout(redirect).then(resolve).catch(reject);
+                        }
+                    );
+                    return;
+                }
+            } catch (e) {
+                // If check fails, just proceed with logout
+                console.log('Session check failed, proceeding with logout');
+            }
+            
+            // No active session, proceed with logout
+            this.performLogout(redirect).then(resolve).catch(reject);
+        });
+    },
+    
+    /**
+     * Check if user has active POS session
+     * @returns {Promise<boolean>}
+     */
+    checkActiveSession: function() {
+        return new Promise((resolve) => {
+            frappe.call({
+                method: 'imogi_pos.api.billing.check_pos_session',
+                callback: (r) => {
+                    if (r.message && r.message.active) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                },
+                error: () => resolve(false)
+            });
+        });
+    },
+    
+    /**
+     * Prompt user to close session
+     */
+    promptCloseSession: function() {
+        frappe.msgprint({
+            title: __('Close Session First'),
+            message: __('Please close your POS Session from the Cashier Console or go to POS Closing Entry to end your shift.'),
+            primary_action: {
+                label: __('Go to Closing Entry'),
+                action: () => {
+                    window.location.href = '/app/pos-closing-entry/new-pos-closing-entry-1';
+                }
+            }
+        });
+    },
+    
+    /**
+     * Perform actual logout
+     * @param {string} [redirect] - URL to redirect to after logout
+     * @returns {Promise}
+     */
+    performLogout: function(redirect) {
         return new Promise((resolve, reject) => {
             frappe.call({
                 method: 'logout',

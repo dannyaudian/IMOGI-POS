@@ -53,6 +53,36 @@
   .header-left, .header-right{display:flex;align-items:center;gap:10px}
   .home-link{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
   .brand-logo{height:26px}
+  
+  /* Mode & Branch Indicators */
+  .mode-indicator, .branch-selector, .user-menu{
+    display:flex;align-items:center;gap:6px;font-size:13px;
+  }
+  .mode-label, .branch-label{color:var(--muted);font-weight:500}
+  .mode-value, .branch-value, .user-name{
+    padding:6px 12px;border-radius:6px;font-weight:600;
+  }
+  .badge{background:#f1f5f9;color:var(--ink-2);border:1px solid var(--line)}
+  .badge-warning{background:#fef3c7;color:#92400e;border-color:#fde68a}
+  .badge-success{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+  .badge-info{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}
+  .badge-secondary{background:#e5e7eb;color:#4b5563;border-color:#d1d5db}
+  
+  /* Customer Display Status */
+  .customer-display-status{display:flex;align-items:center;gap:6px;font-size:13px}
+  .status-indicator i{font-size:8px;vertical-align:middle}
+  #display-status-icon.online{color:#10b981}
+  #display-status-icon.offline{color:#ef4444}
+  #display-status-icon.checking{color:#f59e0b;animation:pulse 2s infinite}
+  
+  /* Responsive header */
+  @media (max-width: 768px){
+    .app-header{grid-template-columns:auto 1fr;gap:8px;padding:10px 14px}
+    .header-left{order:2;justify-content:flex-end}
+    .header-right{order:1;flex-wrap:wrap;gap:6px;font-size:12px}
+    .mode-label, .branch-label{display:none}
+    .page-title{font-size:16px}
+  }
 
   /* ===== Layout ===== */
   .cashier-console{
@@ -187,6 +217,240 @@
   .checkout-items::-webkit-scrollbar{ height:10px; width:10px }
   .order-list::-webkit-scrollbar-thumb,
   .checkout-items::-webkit-scrollbar-thumb{ background:#d6d7db; border-radius:999px }
+
+  /* ===== Item Selector Modal ===== */
+  .item-selector-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+  }
+  .modal-dialog {
+    position: relative;
+    width: 95%;
+    max-width: 1400px;
+    height: 90vh;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f5f6f7;
+    border-radius: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s ease;
+  }
+  .modal-close:hover {
+    background: #e5e7eb;
+  }
+  .modal-toolbar {
+    display: flex;
+    gap: 12px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--line);
+    background: #fafbfc;
+  }
+  .modal-toolbar .search-input {
+    flex: 1;
+    max-width: 400px;
+  }
+  .modal-toolbar #category-filter {
+    min-width: 180px;
+  }
+  .order-type-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .order-type-selector label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .modal-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    padding: 16px 24px;
+    overflow: hidden;
+  }
+  
+  /* Item Grid */
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .item-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: #cfd3d9;
+  }
+  .item-card-image {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f5f6f7;
+  }
+  .item-card-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-card-price {
+    font-size: 13px;
+    color: var(--ink-2);
+    font-weight: 700;
+  }
+  .item-card-stock {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .item-card.out-of-stock {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* Cart Panel */
+  .cart-panel {
+    border-left: 1px solid var(--line);
+    padding-left: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .cart-panel h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .cart-items {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .cart-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .cart-item-details {
+    flex: 1;
+    min-width: 0;
+  }
+  .cart-item-name {
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cart-item-price {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .cart-item-qty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .qty-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.15s ease;
+  }
+  .qty-btn:hover {
+    background: #f5f6f7;
+  }
+  .qty-value {
+    min-width: 32px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .cart-item-remove {
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+  }
+  .empty-cart {
+    text-align: center;
+    color: var(--muted);
+    padding: 24px;
+  }
+  .cart-totals {
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    margin-bottom: 12px;
+  }
+  .btn-block {
+    width: 100%;
+  }
+  .loading-items {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px;
+    color: var(--muted);
+  }
+
 </style>
 {% endblock %}
 
@@ -220,6 +484,20 @@
   </div>
 
   <div class="header-right">
+    {% if domain or mode %}
+    <div class="mode-indicator" role="status" aria-live="polite">
+      <span class="mode-label">{{ _("Mode") }}:</span>
+      <span class="mode-value badge badge-{{ 'warning' if domain == 'Restaurant' else ('success' if domain == 'Retail' else 'info') }}">
+        {{ domain or "Restaurant" }} - {{ mode or "Counter" }}
+      </span>
+    </div>
+    {% endif %}
+    <div class="customer-display-status" role="status" style="display:none;" title="Customer Display Status">
+      <span class="status-label">{{ _("Display") }}:</span>
+      <span class="status-indicator badge badge-secondary" id="display-status-badge">
+        <i class="fa fa-circle" id="display-status-icon"></i> {{ _("Checking") }}
+      </span>
+    </div>
     {% if branch %}
     <div class="branch-selector" role="status" aria-live="polite">
       <span class="branch-label">{{ _("Branch") }}:</span>
@@ -251,37 +529,82 @@
   <!-- Order list -->
   <section class="order-list-container card" aria-labelledby="orders-heading">
     <div class="order-header">
-      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Orders") }}</h2>
+      <h2 id="orders-heading" class="section-title" style="border:none; padding:0; margin:0">{{ _("Order History") }}</h2>
       <div class="order-actions" style="display:flex;gap:8px;">
-        <a id="create-order" class="btn btn-default" type="button" href="/create-order">
+        <button id="create-order" class="btn btn-primary" type="button">
           <i class="fa fa-plus" aria-hidden="true"></i>&nbsp;{{ _("Create Order") }}
-        </a>
+        </button>
         <button id="refresh-orders" class="btn btn-default" type="button">
           <i class="fa fa-rotate" aria-hidden="true"></i>&nbsp;{{ _("Refresh") }}
         </button>
       </div>
     </div>
 
-    <div class="order-tabs" role="tablist" aria-label="{{ _('Order filters') }}">
+    <div class="order-tabs" role="tablist" aria-label="{{ _('Order filters') }}" style="display:none;">
       <div class="order-tab active" role="tab" aria-selected="true" tabindex="0" data-status="Ready">{{ _("Ready") }}</div>
       <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="Served">{{ _("Served") }}</div>
       <div class="order-tab" role="tab" aria-selected="false" tabindex="0" data-status="All">{{ _("All") }}</div>
     </div>
 
     <div class="search-container">
-      <label class="sr-only" for="order-search">{{ _('Search Orders') }}</label>
-      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, table, or customer...') }}" aria-label="{{ _('Search Orders') }}">
+      <label class="sr-only" for="order-search">{{ _('Search Order History') }}</label>
+      <input id="order-search" type="text" class="search-input" placeholder="{{ _('Search by order number, queue, or customer...') }}" aria-label="{{ _('Search Order History') }}">
     </div>
 
     <div id="order-list" class="order-list">
       <div class="empty-state" aria-live="polite">
         <div>
-          <strong>{{ _("Loading orders…") }}</strong>
-          <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch recent orders.") }}</div>
+          <strong>{{ _("Loading order history…") }}</strong>
+          <div style="font-size:12px;margin-top:4px">{{ _("Please wait while we fetch your transactions.") }}</div>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- Item Selector Modal (for creating new orders) -->
+  <div id="item-selector-modal" class="item-selector-modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>{{ _("Create New Order - Select Items") }}</h3>
+          <button class="modal-close" id="close-item-selector" aria-label="{{ _('Close') }}">×</button>
+        </div>
+        
+        <div class="modal-toolbar">
+          <input type="text" id="item-search" class="search-input" placeholder="{{ _('Search items...') }}">
+          <select id="category-filter" class="btn">
+            <option value="">{{ _("All Categories") }}</option>
+          </select>
+          <div class="order-type-selector">
+            <label style="font-size:13px;margin-right:8px;">{{ _("Type") }}:</label>
+            <label><input type="radio" name="order-type" value="Takeaway" checked> {{ _("Takeaway") }}</label>
+            <label><input type="radio" name="order-type" value="Dine-in"> {{ _("Dine-in") }}</label>
+          </div>
+        </div>
+        
+        <div class="modal-body">
+          <div class="item-grid" id="item-grid">
+            <div class="loading-items">{{ _("Loading items...") }}</div>
+          </div>
+          
+          <div class="cart-panel">
+            <h4>{{ _("Current Order") }}</h4>
+            <div id="cart-items" class="cart-items">
+              <div class="empty-cart">{{ _("No items added yet") }}</div>
+            </div>
+            <div class="cart-totals">
+              <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="cart-subtotal">0.00</span></div>
+              <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="cart-total">0.00</span></div>
+            </div>
+            <button id="submit-order" class="btn btn-primary btn-block" disabled>
+              {{ _("Submit Order") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Checkout -->
   <aside class="checkout-panel card" aria-labelledby="checkout-heading">
@@ -342,6 +665,7 @@
   window.CURRENT_BRANCH_LABEL = {{ (branch_label if branch_label else (branch if branch else none)) | tojson }};
   window.CURRENCY_SYMBOL    = {{ (currency_symbol if currency_symbol else "Rp") | tojson }};
   window.DOMAIN             = {{ (domain if domain else "Restaurant") | tojson }};
+  window.MODE               = {{ (mode if mode else "Counter") | tojson }};
 
   // Minor UX: toggle active class on tabs with keyboard support
   document.addEventListener('DOMContentLoaded', () => {
@@ -380,8 +704,14 @@
     }
   });
 </script>
-<script src="/assets/frappe/js/frappe-web.bundle.js"></script>
-<script src="/assets/frappe/js/dialog.bundle.js"></script>
+<style>
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+<script type="module" src="/assets/frappe/js/frappe-web.bundle.js"></script>
+<script type="module" src="/assets/frappe/js/dialog.bundle.js"></script>
 <script src="/assets/imogi_pos/js/core/nav.js"></script>
 <script src="/assets/imogi_pos/js/core/auth.js"></script>
 <script src="/assets/imogi_pos/js/core/branch.js"></script>
@@ -393,6 +723,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<script src="../cashier-console/index.js"></script>
+<script src="/counter/pos/index.js"></script>
 {% endif %}
 {% endblock %}

@@ -21,6 +21,20 @@ def get_context(context):
         
         pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
         
+        # Redirect if wrong mode - Counter page is only for Counter mode
+        current_mode = pos_profile_doc.get("imogi_mode", "Counter")
+        if current_mode != "Counter":
+            # Redirect to appropriate page based on mode
+            if current_mode == "Table":
+                frappe.local.flags.redirect_location = "/restaurant/waiter"
+                raise frappe.Redirect
+            elif current_mode == "Kiosk":
+                frappe.local.flags.redirect_location = "/restaurant/waiter?mode=kiosk"
+                raise frappe.Redirect
+            elif current_mode == "Self-Order":
+                frappe.local.flags.redirect_location = "/restaurant/self-order"
+                raise frappe.Redirect
+        
         context.setup_error = False
         context.pos_profile = pos_profile_doc
         context.require_pos_session = cint(pos_profile_doc.get("imogi_require_pos_session", 0))
@@ -32,11 +46,18 @@ def get_context(context):
             if not frappe.db.exists("DocType", "POS Session"):
                 context.has_active_session = True
                 context.active_pos_session = None
+                context.session_info = None
             else:
                 # Check for active session
                 active_session = check_active_pos_session(pos_profile)
                 context.has_active_session = bool(active_session)
-                context.active_pos_session = active_session
+                context.active_pos_session = active_session.get("name") if active_session else None
+                
+                # Get session info for display
+                if active_session:
+                    context.session_info = get_session_info(active_session.get("name"))
+                else:
+                    context.session_info = None
                 
                 if not active_session:
                     set_setup_error(context, "session", page_name=_("Cashier Console"))
@@ -45,6 +66,7 @@ def get_context(context):
         else:
             context.has_active_session = True
             context.active_pos_session = None
+            context.session_info = None
             
         # Set branding information
         context.branding = get_brand_context(pos_profile_doc)
@@ -84,6 +106,7 @@ def get_context(context):
             # UI configuration
             context.title = _("Cashier Console")
             context.domain = pos_profile_doc.get("imogi_pos_domain", "Restaurant")
+            context.mode = pos_profile_doc.get("imogi_mode", "Counter")
             context.show_header = cint(pos_profile_doc.get("imogi_show_header_on_pages", 1))
 
     except frappe.Redirect:
@@ -148,6 +171,29 @@ def check_active_pos_session(pos_profile_name):
         return session[0] if session else None
     except Exception as e:
         frappe.log_error(f"Error checking active POS session: {str(e)}")
+        return None
+
+def get_session_info(pos_session_name):
+    """Get session information for display."""
+    try:
+        from frappe.utils import time_diff_in_seconds, now_datetime
+        
+        session_doc = frappe.get_doc("POS Session", pos_session_name)
+        
+        # Calculate session duration
+        start_time = session_doc.get("posting_date") or session_doc.get("creation")
+        duration_seconds = time_diff_in_seconds(now_datetime(), start_time)
+        duration_hours = duration_seconds / 3600
+        
+        return {
+            "name": pos_session_name,
+            "start_time": str(start_time),
+            "duration_hours": round(duration_hours, 2),
+            "status": session_doc.get("status"),
+            "user": session_doc.get("user")
+        }
+    except Exception as e:
+        frappe.log_error(f"Error getting session info: {str(e)}")
         return None
 
 def get_current_branch(pos_profile):

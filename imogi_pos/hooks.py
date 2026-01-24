@@ -37,6 +37,7 @@ doctype_js = {
     "POS Order": "public/js/doctype/pos_order.js",
     "Restaurant Table": "public/js/restaurant_table_qr.js",
     "POS Opening Entry": "public/js/doctype/pos_opening_entry.js",
+    "POS Closing Entry": "public/js/doctype/pos_closing_entry.js",
     "POS Profile": "public/js/doctype/pos_profile.js",
 }
 
