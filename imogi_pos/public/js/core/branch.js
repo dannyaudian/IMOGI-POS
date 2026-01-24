@@ -16,8 +16,19 @@ const IMOGIBranch = {
      * Initialize branch manager
      */
     init() {
-        // Load from localStorage if available
-        this.current = localStorage.getItem(this.storageKey) || null;
+        // First check if branch is provided by the server
+        const serverBranch = window.CURRENT_BRANCH;
+        
+        // Load from localStorage or use server-provided value
+        this.current = localStorage.getItem(this.storageKey) || serverBranch || null;
+        
+        // If we got a new value from server, update localStorage
+        if (serverBranch && this.current !== serverBranch) {
+            this.current = serverBranch;
+            localStorage.setItem(this.storageKey, this.current);
+        }
+        
+        // Update the global variable
         window.CURRENT_BRANCH = this.current;
 
         // Setup broadcast channel for cross-tab updates
@@ -30,33 +41,6 @@ const IMOGIBranch = {
                     window.CURRENT_BRANCH = this.current;
                 }
             };
-        }
-
-        // If no branch stored, fetch from server
-        if (!this.current) {
-            // Use fetch API instead of frappe.call for better compatibility
-            fetch('/api/method/imogi_pos.api.public.get_active_branch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Frappe-CSRF-Token': window.FRAPPE_CSRF_TOKEN || ''
-                },
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.message) {
-                    this.set(data.message, false);
-                }
-            })
-            .catch(err => {
-                console.warn('Could not fetch active branch:', err);
-            });
         }
     },
 
