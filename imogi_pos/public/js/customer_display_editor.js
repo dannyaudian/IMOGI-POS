@@ -630,18 +630,200 @@ imogi_pos.customer_display_editor = {
      * Create new profile
      */
     createNewProfile: function() {
-        frappe.new_doc('Customer Display Profile', {
-            branch: this.settings.branch || CURRENT_BRANCH
+        const d = new frappe.ui.Dialog({
+            title: __('Create New Customer Display Profile'),
+            fields: [
+                {
+                    fieldname: 'profile_name',
+                    fieldtype: 'Data',
+                    label: __('Profile Name'),
+                    reqd: 1
+                },
+                {
+                    fieldname: 'branch',
+                    fieldtype: 'Link',
+                    options: 'Branch',
+                    label: __('Branch'),
+                    default: this.settings.branch || CURRENT_BRANCH,
+                    reqd: 1
+                },
+                {
+                    fieldname: 'description',
+                    fieldtype: 'Small Text',
+                    label: __('Description')
+                },
+                {
+                    fieldname: 'layout_type',
+                    fieldtype: 'Select',
+                    options: ['Grid', 'Flex', 'Full'],
+                    label: __('Layout Type'),
+                    default: 'Grid',
+                    reqd: 1
+                },
+                {
+                    fieldname: 'grid_columns',
+                    fieldtype: 'Int',
+                    label: __('Grid Columns'),
+                    default: 3,
+                    depends_on: 'eval:doc.layout_type=="Grid"'
+                },
+                {
+                    fieldname: 'grid_rows',
+                    fieldtype: 'Int',
+                    label: __('Grid Rows'),
+                    default: 2,
+                    depends_on: 'eval:doc.layout_type=="Grid"'
+                }
+            ],
+            primary_action_label: __('Create'),
+            primary_action: (values) => {
+                frappe.call({
+                    method: 'frappe.client.insert',
+                    args: {
+                        doc: {
+                            doctype: 'Customer Display Profile',
+                            profile_name: values.profile_name,
+                            branch: values.branch,
+                            description: values.description,
+                            layout_type: values.layout_type,
+                            grid_columns: values.grid_columns || 3,
+                            grid_rows: values.grid_rows || 2,
+                            is_active: 1
+                        }
+                    },
+                    callback: (r) => {
+                        if (r.message) {
+                            frappe.show_alert({
+                                message: __('Profile created successfully'),
+                                indicator: 'green'
+                            });
+                            d.hide();
+                            
+                            // Reload profiles and select the new one
+                            this.loadProfiles().then(() => {
+                                this.loadProfile(r.message.name);
+                            });
+                        }
+                    },
+                    error: (err) => {
+                        frappe.msgprint({
+                            title: __('Error'),
+                            indicator: 'red',
+                            message: err.message || __('Failed to create profile')
+                        });
+                    }
+                });
+            }
         });
+        
+        d.show();
     },
     
     /**
      * Edit current profile
      */
     editCurrentProfile: function() {
-        if (this.state.currentProfile) {
-            frappe.set_route('Form', 'Customer Display Profile', this.state.currentProfile.name);
+        if (!this.state.currentProfile) {
+            frappe.msgprint(__('Please select a profile first'));
+            return;
         }
+        
+        const profile = this.state.currentProfile;
+        
+        const d = new frappe.ui.Dialog({
+            title: __('Edit Customer Display Profile'),
+            fields: [
+                {
+                    fieldname: 'profile_name',
+                    fieldtype: 'Data',
+                    label: __('Profile Name'),
+                    default: profile.profile_name,
+                    reqd: 1
+                },
+                {
+                    fieldname: 'branch',
+                    fieldtype: 'Link',
+                    options: 'Branch',
+                    label: __('Branch'),
+                    default: profile.branch,
+                    reqd: 1,
+                    read_only: 1
+                },
+                {
+                    fieldname: 'description',
+                    fieldtype: 'Small Text',
+                    label: __('Description'),
+                    default: profile.description
+                },
+                {
+                    fieldname: 'is_active',
+                    fieldtype: 'Check',
+                    label: __('Is Active'),
+                    default: profile.is_active
+                },
+                {
+                    fieldname: 'layout_type',
+                    fieldtype: 'Select',
+                    options: ['Grid', 'Flex', 'Full'],
+                    label: __('Layout Type'),
+                    default: profile.layout_type || 'Grid',
+                    reqd: 1
+                },
+                {
+                    fieldname: 'grid_columns',
+                    fieldtype: 'Int',
+                    label: __('Grid Columns'),
+                    default: profile.grid_columns || 3,
+                    depends_on: 'eval:doc.layout_type=="Grid"'
+                },
+                {
+                    fieldname: 'grid_rows',
+                    fieldtype: 'Int',
+                    label: __('Grid Rows'),
+                    default: profile.grid_rows || 2,
+                    depends_on: 'eval:doc.layout_type=="Grid"'
+                }
+            ],
+            primary_action_label: __('Update'),
+            primary_action: (values) => {
+                frappe.call({
+                    method: 'frappe.client.set_value',
+                    args: {
+                        doctype: 'Customer Display Profile',
+                        name: profile.name,
+                        fieldname: {
+                            profile_name: values.profile_name,
+                            description: values.description,
+                            is_active: values.is_active,
+                            layout_type: values.layout_type,
+                            grid_columns: values.grid_columns || 3,
+                            grid_rows: values.grid_rows || 2
+                        }
+                    },
+                    callback: (r) => {
+                        if (!r.exc) {
+                            frappe.show_alert({
+                                message: __('Profile updated successfully'),
+                                indicator: 'green'
+                            });
+                            d.hide();
+                            
+                            // Reload the profile
+                            this.loadProfile(profile.name);
+                        }
+                    },
+                    error: (err) => {
+                        frappe.msgprint({
+                            title: __('Error'),
+                            indicator: 'red',
+                            message: err.message || __('Failed to update profile')
+                        });
+                    }
+                });
+            }
+        });
+        
+        d.show();
     },
     
     /**
