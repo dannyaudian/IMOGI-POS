@@ -205,18 +205,6 @@
     };
 
     /**
-     * frappe.ready - Execute callback when DOM is ready
-     * @param {Function} callback - Function to execute
-     */
-    window.frappe.ready = function(callback) {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', callback);
-        } else {
-            callback();
-        }
-    };
-
-    /**
      * frappe.call - Make API calls to Frappe backend
      * @param {Object} opts - Call options
      * @param {string} opts.method - API method path
@@ -412,6 +400,20 @@
         // Add jQuery-compatible methods directly to the promise
         // Don't override existing methods, just add the aliases
         
+        // Store original then to wrap its return value
+        const originalThen = promise.then.bind(promise);
+        promise.then = function(...args) {
+            const result = originalThen(...args);
+            return wrapPromiseWithJQueryMethods(result);
+        };
+
+        // Store original catch to wrap its return value
+        const originalCatch = promise.catch.bind(promise);
+        promise.catch = function(...args) {
+            const result = originalCatch(...args);
+            return wrapPromiseWithJQueryMethods(result);
+        };
+        
         promise.fail = function(fn) {
             const result = this.catch(fn);
             return wrapPromiseWithJQueryMethods(result);
@@ -419,7 +421,7 @@
 
         promise.always = function(fn) {
             // jQuery's .always() is called regardless of success/failure
-            const result = this.then(
+            const result = originalThen(
                 (value) => { fn(value); return value; },
                 (error) => { fn(error); throw error; }
             );
@@ -427,7 +429,7 @@
         };
 
         promise.done = function(fn) {
-            const result = this.then(fn);
+            const result = originalThen(fn);
             return wrapPromiseWithJQueryMethods(result);
         };
 
@@ -543,6 +545,25 @@
             alert('Error: ' + msg);
         }
         throw new Error(msg);
+    };
+
+    /**
+     * frappe.ready - Execute callback when DOM is ready
+     * @param {Function} fn - Callback function to execute
+     */
+    window.frappe.ready = function(fn) {
+        if (typeof fn !== 'function') {
+            console.warn('frappe.ready: Expected a function, got', typeof fn);
+            return;
+        }
+
+        // If DOM is already ready, execute immediately
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(fn, 0);
+        } else {
+            // Otherwise, wait for DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', fn);
+        }
     };
 
     /**
@@ -663,7 +684,10 @@
                     let input;
                     if (field.fieldtype === 'Select') {
                         input = document.createElement('select');
-                        (field.options || '').split('\n').forEach(opt => {
+                        const options = Array.isArray(field.options) 
+                            ? field.options 
+                            : (field.options || '').split('\n');
+                        options.forEach(opt => {
                             const option = document.createElement('option');
                             option.value = opt;
                             option.textContent = opt;
@@ -735,79 +759,573 @@
         }
     };
 
+    // =========================================================================
+    // FRAPPE.DB - Database API Wrapper
+    // Provides frappe.db.* methods as documented in Frappe v15
+    // =========================================================================
+    
+    window.frappe.db = {
+        /**
+         * Get a document by doctype and name
+         * @param {string} doctype - DocType name
+         * @param {string} name - Document name
+         * @param {Object} [filters] - Optional filters if name is not provided
+         * @returns {Promise} Promise resolving with document
+         */
+        get_doc: function(doctype, name, filters) {
+            if (name) {
+                return frappe.call({
+                    method: 'frappe.client.get',
+                    args: { doctype, name }
+                }).then(r => r.message);
+            } else {
+                return frappe.call({
+                    method: 'frappe.client.get',
+                    args: { doctype, filters: filters || {} }
+                }).then(r => r.message);
+            }
+        },
+
+        /**
+         * Get list of documents
+         * @param {string} doctype - DocType name
+         * @param {Object} opts - Options: fields, filters, order_by, limit_start, limit_page_length
+         * @returns {Promise} Promise resolving with list of documents
+         */
+        get_list: function(doctype, opts = {}) {
+            return frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                    doctype,
+                    fields: opts.fields || ['name'],
+                    filters: opts.filters || {},
+                    order_by: opts.order_by,
+                    limit_start: opts.limit_start || 0,
+                    limit_page_length: opts.limit_page_length || opts.limit || 20
+                }
+            }).then(r => r.message);
+        },
+
+        /**
+         * Get field value(s) from a document
+         * @param {string} doctype - DocType name
+         * @param {string|Object} name - Document name or filters
+         * @param {string|Array} fieldname - Field name(s) to get
+         * @returns {Promise} Promise resolving with field values
+         */
+        get_value: function(doctype, name, fieldname) {
+            const args = { doctype };
+            
+            if (typeof name === 'object') {
+                args.filters = name;
+            } else {
+                args.name = name;
+            }
+            
+            if (Array.isArray(fieldname)) {
+                args.fieldname = fieldname;
+            } else {
+                args.fieldname = fieldname;
+            }
+            
+            return frappe.call({
+                method: 'frappe.client.get_value',
+                args
+            }).then(r => r);
+        },
+
+        /**
+         * Get value from a Single DocType
+         * @param {string} doctype - Single DocType name
+         * @param {string} field - Field name
+         * @returns {Promise} Promise resolving with field value
+         */
+        get_single_value: function(doctype, field) {
+            return frappe.call({
+                method: 'frappe.client.get_single_value',
+                args: { doctype, field }
+            }).then(r => r.message);
+        },
+
+        /**
+         * Set field value(s) on a document
+         * @param {string} doctype - DocType name
+         * @param {string} name - Document name
+         * @param {string|Object} fieldname - Field name or object of fields
+         * @param {*} [value] - Field value (if fieldname is string)
+         * @returns {Promise} Promise resolving with updated document
+         */
+        set_value: function(doctype, name, fieldname, value) {
+            const args = { doctype, name };
+            
+            if (typeof fieldname === 'object') {
+                args.fieldname = fieldname;
+            } else {
+                args.fieldname = { [fieldname]: value };
+            }
+            
+            return frappe.call({
+                method: 'frappe.client.set_value',
+                args
+            }).then(r => r);
+        },
+
+        /**
+         * Insert a new document
+         * @param {Object} doc - Document to insert (must include doctype)
+         * @returns {Promise} Promise resolving with inserted document
+         */
+        insert: function(doc) {
+            return frappe.call({
+                method: 'frappe.client.insert',
+                args: { doc }
+            }).then(r => r.message);
+        },
+
+        /**
+         * Count documents matching filters
+         * @param {string} doctype - DocType name
+         * @param {Object} [filters] - Optional filters
+         * @returns {Promise} Promise resolving with count
+         */
+        count: function(doctype, filters) {
+            return frappe.call({
+                method: 'frappe.client.get_count',
+                args: { doctype, filters: filters || {} }
+            }).then(r => r.message);
+        },
+
+        /**
+         * Check if a document exists
+         * @param {string} doctype - DocType name
+         * @param {string} name - Document name
+         * @returns {Promise} Promise resolving with boolean
+         */
+        exists: function(doctype, name) {
+            return frappe.call({
+                method: 'frappe.client.get_value',
+                args: { doctype, filters: { name }, fieldname: 'name' },
+                silent: true
+            }).then(r => !!(r.message && r.message.name))
+              .catch(() => false);
+        },
+
+        /**
+         * Delete a document
+         * @param {string} doctype - DocType name
+         * @param {string} name - Document name
+         * @returns {Promise} Promise resolving when deleted
+         */
+        delete_doc: function(doctype, name) {
+            return frappe.call({
+                method: 'frappe.client.delete',
+                args: { doctype, name }
+            });
+        }
+    };
+
+    // =========================================================================
+    // FRAPPE.XCALL - Async API Call
+    // Simplified async call that returns promise with message directly
+    // =========================================================================
+    
     /**
-     * frappe.show_alert - Show a toast notification
-     * @param {Object|string} opts - Alert options or message
+     * frappe.xcall - Async API call shorthand
+     * @param {string} method - API method path
+     * @param {Object} [args] - Method arguments
+     * @returns {Promise} Promise resolving with response message
      */
-    window.frappe.show_alert = function(opts) {
-        let message = opts;
-        let indicator = 'blue';
-        
-        if (typeof opts === 'object') {
-            message = opts.message || '';
-            indicator = opts.indicator || 'blue';
-        }
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 14px;
-            z-index: 9999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            animation: slideIn 0.3s ease;
-        `;
-        
-        const colors = {
-            green: '#28a745',
-            red: '#dc3545',
-            blue: '#2490ef',
-            orange: '#fd7e14',
-            yellow: '#ffc107'
-        };
-        toast.style.backgroundColor = colors[indicator] || colors.blue;
-        toast.textContent = message;
-        
-        // Add animation styles if not exists
-        if (!document.getElementById('frappe-polyfill-styles')) {
-            const style = document.createElement('style');
-            style.id = 'frappe-polyfill-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        document.body.appendChild(toast);
-        
-        // Remove after delay
-        setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+    window.frappe.xcall = function(method, args = {}) {
+        return frappe.call({
+            method,
+            args
+        }).then(r => r.message);
+    };
+
+    // =========================================================================
+    // FRAPPE.UTILS - Utility Functions
+    // Common utility functions used across Frappe applications
+    // =========================================================================
+    
+    window.frappe.utils = window.frappe.utils || {};
+
+    /**
+     * Escape HTML to prevent XSS
+     * @param {string} txt - Text to escape
+     * @returns {string} Escaped HTML
+     */
+    window.frappe.utils.escape_html = function(txt) {
+        if (txt === null || txt === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = txt;
+        return div.innerHTML;
     };
 
     /**
-     * frappe.realtime - Realtime events stub
-     * This is a no-op stub since real realtime requires socket.io
+     * Get current datetime as string
+     * @returns {string} Current datetime in ISO format
      */
-    window.frappe.realtime = {
-        on: function() {},
-        off: function() {},
-        emit: function() {}
+    window.frappe.utils.get_datetime_as_string = function() {
+        return new Date().toISOString().replace('T', ' ').substring(0, 19);
     };
+
+    /**
+     * Get current date as string
+     * @returns {string} Current date in YYYY-MM-DD format
+     */
+    window.frappe.utils.get_today = function() {
+        return new Date().toISOString().substring(0, 10);
+    };
+
+    /**
+     * Get current time as string
+     * @returns {string} Current time in HH:MM:SS format
+     */
+    window.frappe.utils.now_time = function() {
+        return new Date().toTimeString().substring(0, 8);
+    };
+
+    /**
+     * Get current datetime
+     * @returns {string} Current datetime in YYYY-MM-DD HH:MM:SS format
+     */
+    window.frappe.utils.now_datetime = function() {
+        return frappe.utils.get_datetime_as_string();
+    };
+
+    /**
+     * Generate a random string
+     * @param {number} [length=10] - Length of string
+     * @returns {string} Random string
+     */
+    window.frappe.utils.get_random = function(length = 10) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
+
+    /**
+     * Convert string to title case
+     * @param {string} txt - Text to convert
+     * @returns {string} Title-cased text
+     */
+    window.frappe.utils.to_title_case = function(txt) {
+        if (!txt) return '';
+        return txt.replace(/\w\S*/g, word => 
+            word.charAt(0).toUpperCase() + word.substr(1).toLowerCase()
+        );
+    };
+
+    /**
+     * Check if a value is empty (null, undefined, empty string, empty array)
+     * @param {*} value - Value to check
+     * @returns {boolean} True if empty
+     */
+    window.frappe.utils.is_empty = function(value) {
+        if (value === null || value === undefined) return true;
+        if (typeof value === 'string' && value.trim() === '') return true;
+        if (Array.isArray(value) && value.length === 0) return true;
+        if (typeof value === 'object' && Object.keys(value).length === 0) return true;
+        return false;
+    };
+
+    /**
+     * Deep clone an object
+     * @param {Object} obj - Object to clone
+     * @returns {Object} Cloned object
+     */
+    window.frappe.utils.deep_clone = function(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    };
+
+    /**
+     * Get URL parameter value
+     * @param {string} param - Parameter name
+     * @returns {string|null} Parameter value
+     */
+    window.frappe.utils.get_url_arg = function(param) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    };
+
+    // =========================================================================
+    // FRAPPE.GET_ROUTE / FRAPPE.REQUIRE
+    // Route utilities and async asset loading
+    // =========================================================================
+    
+    /**
+     * Get the current route as an array
+     * @returns {Array} Route parts
+     */
+    window.frappe.get_route = function() {
+        const path = window.location.pathname;
+        // Remove /app/ prefix if present
+        const cleanPath = path.replace(/^\/app\//, '').replace(/^\//, '');
+        return cleanPath.split('/').filter(p => p);
+    };
+
+    /**
+     * Get route string
+     * @returns {string} Current route as string
+     */
+    window.frappe.get_route_str = function() {
+        return frappe.get_route().join('/');
+    };
+
+    /**
+     * Load JS or CSS assets asynchronously
+     * @param {string|Array} assets - Asset path(s) to load
+     * @param {Function} [callback] - Callback when loaded
+     * @returns {Promise} Promise resolving when all assets loaded
+     */
+    window.frappe.require = function(assets, callback) {
+        const assetList = Array.isArray(assets) ? assets : [assets];
+        
+        const loadAsset = (src) => {
+            return new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (document.querySelector(`script[src="${src}"], link[href="${src}"]`)) {
+                    resolve();
+                    return;
+                }
+                
+                if (src.endsWith('.css')) {
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = src;
+                    link.onload = resolve;
+                    link.onerror = reject;
+                    document.head.appendChild(link);
+                } else {
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                }
+            });
+        };
+        
+        const promise = Promise.all(assetList.map(loadAsset));
+        
+        if (callback) {
+            promise.then(callback).catch(err => {
+                console.error('Failed to load assets:', err);
+            });
+        }
+        
+        return promise;
+    };
+
+    // =========================================================================
+    // FRAPPE.REALTIME - Socket.io Realtime Events
+    // Connects to Frappe's socket.io server for realtime updates
+    // =========================================================================
+    
+    window.frappe.realtime = (function() {
+        let socket = null;
+        let isConnected = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const eventHandlers = {};
+        const pendingSubscriptions = [];
+        
+        /**
+         * Initialize socket connection
+         */
+        function init() {
+            // Check if socket.io is available
+            if (typeof io === 'undefined') {
+                // Try to load socket.io
+                const script = document.createElement('script');
+                script.src = '/socket.io/socket.io.js';
+                script.onload = () => connect();
+                script.onerror = () => {
+                    console.warn('Socket.io not available. Realtime events will not work.');
+                };
+                document.head.appendChild(script);
+            } else {
+                connect();
+            }
+        }
+        
+        /**
+         * Connect to socket server
+         */
+        function connect() {
+            if (socket && isConnected) return;
+            
+            try {
+                const socketUrl = window.location.origin;
+                socket = io(socketUrl, {
+                    path: '/socket.io',
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionAttempts: maxReconnectAttempts,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000
+                });
+                
+                socket.on('connect', () => {
+                    isConnected = true;
+                    reconnectAttempts = 0;
+                    console.log('Realtime connected');
+                    
+                    // Process pending subscriptions
+                    while (pendingSubscriptions.length > 0) {
+                        const { event, handler } = pendingSubscriptions.shift();
+                        subscribe(event, handler);
+                    }
+                });
+                
+                socket.on('disconnect', () => {
+                    isConnected = false;
+                    console.log('Realtime disconnected');
+                });
+                
+                socket.on('connect_error', (error) => {
+                    reconnectAttempts++;
+                    console.warn('Realtime connection error:', error.message);
+                    
+                    if (reconnectAttempts >= maxReconnectAttempts) {
+                        console.error('Max reconnection attempts reached');
+                    }
+                });
+                
+                // Handle incoming events
+                socket.onAny((event, data) => {
+                    // Trigger handlers for exact match
+                    if (eventHandlers[event]) {
+                        eventHandlers[event].forEach(fn => {
+                            try {
+                                fn(data);
+                            } catch (e) {
+                                console.error('Error in realtime handler:', e);
+                            }
+                        });
+                    }
+                    
+                    // Trigger handlers for wildcard patterns
+                    Object.keys(eventHandlers).forEach(pattern => {
+                        if (pattern.includes('*')) {
+                            const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+                            if (regex.test(event)) {
+                                eventHandlers[pattern].forEach(fn => {
+                                    try {
+                                        fn(data);
+                                    } catch (e) {
+                                        console.error('Error in realtime handler:', e);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Failed to initialize realtime:', error);
+            }
+        }
+        
+        /**
+         * Subscribe to an event
+         */
+        function subscribe(event, handler) {
+            if (!eventHandlers[event]) {
+                eventHandlers[event] = [];
+            }
+            eventHandlers[event].push(handler);
+            
+            // If connected, join the room for user-specific events
+            if (socket && isConnected && frappe.session && frappe.session.user) {
+                socket.emit('frappe:subscribe', event);
+            }
+        }
+        
+        /**
+         * Register event handler
+         * @param {string} event - Event name
+         * @param {Function} handler - Event handler
+         */
+        function on(event, handler) {
+            if (typeof handler !== 'function') {
+                console.warn('Realtime handler must be a function');
+                return;
+            }
+            
+            if (!socket || !isConnected) {
+                // Queue for later
+                pendingSubscriptions.push({ event, handler });
+                // Try to connect
+                if (!socket) init();
+            } else {
+                subscribe(event, handler);
+            }
+        }
+        
+        /**
+         * Remove event handler
+         * @param {string} event - Event name
+         * @param {Function} [handler] - Specific handler to remove (removes all if not specified)
+         */
+        function off(event, handler) {
+            if (!eventHandlers[event]) return;
+            
+            if (handler) {
+                eventHandlers[event] = eventHandlers[event].filter(fn => fn !== handler);
+            } else {
+                delete eventHandlers[event];
+            }
+            
+            if (socket && isConnected) {
+                socket.emit('frappe:unsubscribe', event);
+            }
+        }
+        
+        /**
+         * Emit an event
+         * @param {string} event - Event name
+         * @param {*} data - Event data
+         */
+        function emit(event, data) {
+            if (socket && isConnected) {
+                socket.emit(event, data);
+            } else {
+                console.warn('Realtime not connected, cannot emit:', event);
+            }
+        }
+        
+        /**
+         * Publish event to server
+         * @param {string} event - Event name
+         * @param {*} message - Event data
+         */
+        function publish(event, message) {
+            if (socket && isConnected) {
+                socket.emit('frappe:publish', { event, message });
+            }
+        }
+        
+        // Auto-initialize when document is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            // Delay init to allow page to set up
+            setTimeout(init, 100);
+        }
+        
+        return {
+            on,
+            off,
+            emit,
+            publish,
+            init,
+            get connected() { return isConnected; }
+        };
+    })();
 
     /**
      * frappe.csrf_token - CSRF token for API calls
@@ -830,20 +1348,106 @@
         }
     });
 
+    // =========================================================================
+    // FRAPPE.SESSION & FRAPPE.BOOT
+    // Session and boot data for user context
+    // =========================================================================
+
     /**
-     * frappe.session - Session info stub
-     * Try to get session info from cookie
+     * frappe.session - Session info
+     * Try to get session info from cookie or API
      */
     window.frappe.session = window.frappe.session || {
         user: null,
-        sid: null
+        sid: null,
+        user_fullname: null
     };
 
-    // Try to extract session info from cookies
-    const sidMatch = document.cookie.match(/sid=([^;]+)/);
-    if (sidMatch) {
-        window.frappe.session.sid = sidMatch[1];
-    }
+    /**
+     * frappe.sid - Session ID shortcut (alias for frappe.session.sid)
+     * Used for backward compatibility and direct access
+     */
+    Object.defineProperty(window.frappe, 'sid', {
+        get: function() {
+            return frappe.session.sid;
+        },
+        set: function(value) {
+            frappe.session.sid = value;
+        }
+    });
+
+    /**
+     * frappe.boot - Boot data (user roles, defaults, etc.)
+     * Will be populated from API on init
+     */
+    window.frappe.boot = window.frappe.boot || {
+        user: {
+            name: null,
+            roles: [],
+            defaults: {}
+        },
+        sysdefaults: {},
+        active_domains: []
+    };
+
+    /**
+     * frappe.user - User information shortcuts
+     */
+    window.frappe.user = window.frappe.user || {
+        name: null,
+        full_name: null,
+        image: null,
+        has_role: function(role) {
+            return frappe.boot.user.roles.includes(role);
+        }
+    };
+
+    /**
+     * Initialize session data from cookies and optionally fetch boot data
+     */
+    (function initSessionData() {
+        // Extract SID from cookie
+        const sidMatch = document.cookie.match(/sid=([^;]+)/);
+        if (sidMatch) {
+            frappe.session.sid = sidMatch[1];
+        }
+
+        // Extract user_id from cookie if set
+        const userMatch = document.cookie.match(/user_id=([^;]+)/);
+        if (userMatch) {
+            const userId = decodeURIComponent(userMatch[1]);
+            frappe.session.user = userId;
+            frappe.boot.user.name = userId;
+            frappe.user.name = userId;
+        }
+
+        // Check if we have a logged-in user (not Guest)
+        const isLoggedIn = frappe.session.user && frappe.session.user !== 'Guest';
+
+        // Fetch boot data if logged in
+        if (isLoggedIn) {
+            // Use a deferred fetch to not block initialization
+            frappe.ready(function() {
+                frappe.call({
+                    method: 'imogi_pos.utils.auth_helpers.get_user_role_context',
+                    silent: true
+                }).then(r => {
+                    if (r && r.message) {
+                        const ctx = r.message;
+                        frappe.session.user = ctx.user;
+                        frappe.session.user_fullname = ctx.full_name || ctx.user;
+                        frappe.boot.user.name = ctx.user;
+                        frappe.boot.user.roles = ctx.roles || [];
+                        frappe.boot.user.defaults = ctx.defaults || {};
+                        frappe.user.name = ctx.user;
+                        frappe.user.full_name = ctx.full_name;
+                    }
+                }).catch(() => {
+                    // Silently ignore if API not available
+                });
+            });
+        }
+    })();
 
     /**
      * __ - Translation function (passthrough for now)
