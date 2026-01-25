@@ -18,6 +18,8 @@ import {
   useOrderDetails,
   usePaymentMethods
 } from '../../shared/api/imogi-api'
+import { useAuth } from '../../shared/hooks/useAuth'
+import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
 import './cashier.css'
 
 /**
@@ -25,6 +27,7 @@ import './cashier.css'
  * Complete payment processing interface
  */
 function CashierApp() {
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   const { cashier, branch } = useCashierSession()
   
   // Order state
@@ -36,6 +39,15 @@ function CashierApp() {
   const [showInvoicePreview, setShowInvoicePreview] = useState(false)
   const [completedInvoice, setCompletedInvoice] = useState(null)
   const [completedPayment, setCompletedPayment] = useState(null)
+
+  // Check authentication
+  if (authLoading) {
+    return <LoadingSpinner message="Authenticating..." />
+  }
+
+  if (authError || !hasAccess) {
+    return <ErrorMessage error={authError || 'Access denied - Cashier or Manager role required'} />
+  }
 
   // Fetch data
   const { data: ordersData, isLoading: ordersLoading, mutate: refreshOrders } = usePendingOrders(branch, filters)

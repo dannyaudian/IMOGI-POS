@@ -13,7 +13,7 @@ import { CatalogView } from './components/CatalogView'
 import './App.css'
 
 function CounterPOSContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager'])
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   
   const branch = initialState.branch || 'Default'
   const posProfile = initialState.pos_profile || 'Default'

@@ -4,7 +4,7 @@ import { useItems, useCreateOrder } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
 
 function KioskContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest']) // Kiosk allows guest
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager']) // Allow Guest and staff
   
   const branch = initialState.branch || 'Default'
   const posProfile = initialState.pos_profile || 'Kiosk'

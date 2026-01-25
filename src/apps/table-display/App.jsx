@@ -1,11 +1,21 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useTables } from '@/shared/api/imogi-api'
+import { useAuth } from '@/shared/hooks/useAuth'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 
 function TableDisplayContent({ initialState }) {
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
   const branch = initialState.branch || 'Default'
   
   const { data: tables, error, isLoading } = useTables(branch)
+
+  if (authLoading) {
+    return <LoadingSpinner message="Authenticating..." />
+  }
+
+  if (authError || !hasAccess) {
+    return <ErrorMessage error={authError || 'Access denied - Waiter or Manager role required'} />
+  }
 
   if (isLoading) {
     return <LoadingSpinner message="Loading table layout..." />

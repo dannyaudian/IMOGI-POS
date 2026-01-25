@@ -142,41 +142,68 @@ def get_user_branch_info():
         if not user or user == 'Guest':
             frappe.throw(_('Please login to continue'))
         
+        user_roles = frappe.get_roles(user)
+        is_system_manager = 'System Manager' in user_roles
+        
         # Get user's primary branch with multiple fallbacks
-        current_branch = frappe.db.get_value(
-            'User',
-            user,
-            'imogi_default_branch'
-        )
+        current_branch = None
+        
+        # Try getting from User custom field (if exists)
+        if frappe.db.has_column('User', 'imogi_default_branch'):
+            current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
         
         # If no user branch set, try getting from defaults
         if not current_branch:
-            defaults = frappe.defaults.get_defaults()
-            current_branch = defaults.get('company')
+            try:
+                defaults = frappe.defaults.get_defaults()
+                current_branch = defaults.get('company') or defaults.get('default_company')
+            except:
+                pass
         
-        # If still no branch, get the first available branch
-        if not current_branch:
-            first_branch = frappe.db.get_value('Branch', filters={}, fieldname='name')
-            if first_branch:
-                current_branch = first_branch
-                # Set it as user's default for next time
-                frappe.db.set_value('User', user, 'imogi_default_branch', first_branch)
-                frappe.db.commit()
+        # Try getting available branches/companies
+        available_branches = []
         
-        # Get available branches (from Branch doctype)
-        available_branches = frappe.get_list(
-            'Branch',
-            fields=['name', 'branch'],
-            limit_page_length=0
-        )
+        # First try Branch doctype (if exists)
+        if frappe.db.exists('DocType', 'Branch'):
+            try:
+                available_branches = frappe.get_list(
+                    'Branch',
+                    fields=['name', 'branch_name as branch'],
+                    limit_page_length=0
+                )
+            except:
+                pass
         
-        # If no branches found, throw error
+        # If no Branch doctype or no data, fallback to Company
         if not available_branches:
-            frappe.throw(_('No branches configured in the system. Please contact administrator.'))
+            try:
+                available_branches = frappe.get_list(
+                    'Company',
+                    fields=['name', 'company_name as branch'],
+                    limit_page_length=0
+                )
+            except:
+                pass
+        
+        # If still no branches, create a default one for System Manager
+        if not available_branches:
+            if is_system_manager:
+                available_branches = [{'name': 'Default', 'branch': 'Default Branch'}]
+                current_branch = 'Default'
+            else:
+                frappe.throw(_('No branches configured in the system. Please contact administrator.'))
         
         # If current branch is still None, use first available
         if not current_branch and available_branches:
             current_branch = available_branches[0].name
+            
+            # Try to set it as user's default for next time (if field exists)
+            if frappe.db.has_column('User', 'imogi_default_branch'):
+                try:
+                    frappe.db.set_value('User', user, 'imogi_default_branch', current_branch)
+                    frappe.db.commit()
+                except:
+                    pass
         
         return {
             'current_branch': current_branch,
@@ -185,10 +212,19 @@ def get_user_branch_info():
     
     except Exception as e:
         frappe.log_error(f'Error in get_user_branch_info: {str(e)}')
-        # Try one last fallback
+        
+        # For System Manager, provide default fallback
+        user_roles = frappe.get_roles(frappe.session.user)
+        if 'System Manager' in user_roles:
+            return {
+                'current_branch': 'Default',
+                'available_branches': [{'name': 'Default', 'branch': 'Default Branch'}]
+            }
+        
+        # Try one last fallback for other users
         try:
             defaults = frappe.defaults.get_defaults()
-            fallback_branch = defaults.get('company')
+            fallback_branch = defaults.get('company') or defaults.get('default_company')
             if fallback_branch:
                 return {
                     'current_branch': fallback_branch,
@@ -216,11 +252,17 @@ def get_active_pos_opening(branch=None):
         
         # If no branch provided, get default
         if not branch:
-            branch = frappe.db.get_value(
-                'User',
-                user,
-                'imogi_default_branch'
-            ) or frappe.defaults.get_defaults()['company']
+            # Try custom field first
+            if frappe.db.has_column('User', 'imogi_default_branch'):
+                branch = frappe.db.get_value('User', user, 'imogi_default_branch')
+            
+            # Fallback to defaults
+            if not branch:
+                try:
+                    defaults = frappe.defaults.get_defaults()
+                    branch = defaults.get('company') or defaults.get('default_company') or 'Default'
+                except:
+                    branch = 'Default'
         
         # Get active POS opening entry (most recent one submitted today)
         from datetime import datetime, timedelta

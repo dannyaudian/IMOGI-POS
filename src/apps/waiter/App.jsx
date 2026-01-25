@@ -8,7 +8,7 @@ import { useCart, useTableOrder } from './hooks'
 import './waiter.css'
 
 function WaiterContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager'])
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
   
   const branch = initialState.branch || 'Default'
   const posProfile = initialState.pos_profile || 'Default'

@@ -9,7 +9,7 @@ import { groupKOTsByState, getStationsFromKOTs } from './utils'
 import './kitchen.css'
 
 function KitchenContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Kitchen Staff', 'Branch Manager'])
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Kitchen Staff', 'Branch Manager', 'System Manager'])
   
   const kitchen = initialState.kitchen || 'Main Kitchen'
   const defaultStation = initialState.station || null
