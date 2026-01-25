@@ -1,9 +1,10 @@
 // cashier-console/index.js
 /* global frappe, __ */
 
-frappe.ready(function () {
-  // ====== Guard: context vars from Jinja ======
-  const POS_PROFILE        = window.POS_PROFILE ?? null;
+(function() {
+  const init = function () {
+    // ====== Guard: context vars from Jinja ======
+    const POS_PROFILE        = window.POS_PROFILE ?? null;
   const ACTIVE_POS_SESSION = window.ACTIVE_POS_SESSION ?? null;
   const CURRENT_BRANCH     = window.CURRENT_BRANCH ?? null;
   const CURRENT_BRANCH_LABEL = window.CURRENT_BRANCH_LABEL ?? null;
@@ -1352,5 +1353,12 @@ frappe.ready(function () {
   } else {
     setupItemSelectorListeners();
   }
-});
+  }; // End init function
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})(); // End IIFE
 

@@ -1,27 +1,35 @@
-"""
-Role-based UI utilities for client-side rendering.
-
-This module provides JavaScript helpers for showing/hiding UI elements
-based on user roles and permissions.
-
-Usage:
-    // In any page
-    frappe.ready(() => {
-        RoleUI.init();
-        
-        // Show element only for managers
-        RoleUI.showIfRoles('#admin-panel', ['Branch Manager', 'Area Manager', 'System Manager']);
-        
-        // Hide element for guests
-        RoleUI.hideIfGuest('.logged-in-only');
-        
-        // Get current user context
-        const context = RoleUI.getUserContext();
-        if (context.is_manager) {
-            // Show admin features
-        }
-    });
-*/
+/**
+ * Role-based UI utilities for client-side rendering.
+ *
+ * This module provides JavaScript helpers for showing/hiding UI elements
+ * based on user roles and permissions.
+ *
+ * Usage:
+ *     // In any page
+ *     (function() {
+ *         const init = async () => {
+ *             await RoleUI.init();
+ *             
+ *             // Show element only for managers
+ *             RoleUI.showIfRoles('#admin-panel', ['Branch Manager', 'Area Manager', 'System Manager']);
+ *             
+ *             // Hide element for guests
+ *             RoleUI.hideIfGuest('.logged-in-only');
+ *             
+ *             // Get current user context
+ *             const context = RoleUI.getUserContext();
+ *             if (context.is_manager) {
+ *                 // Show admin features
+ *             }
+ *         };
+ *
+ *         if (document.readyState === 'loading') {
+ *             document.addEventListener('DOMContentLoaded', init);
+ *         } else {
+ *             init();
+ *         }
+ *     })();
+ */
 
 class RoleUI {
     constructor() {

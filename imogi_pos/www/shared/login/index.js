@@ -9,7 +9,7 @@
 (function() {
   'use strict';
 
-  frappe.ready(function() {
+  const init = function() {
     const loginForm = document.getElementById('login-form');
     const errorMessage = document.getElementById('error-message');
   
@@ -170,5 +170,11 @@
     
     // Initialize UI enhancements
     document.getElementById('username').focus();
-  });
+  }; // End init function
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

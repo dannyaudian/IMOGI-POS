@@ -191,26 +191,34 @@ frappe.ui.form.on('Restaurant Table', {
 // Example 5: Global Page Script with Permission Attributes
 // ============================================================================
 
-frappe.ready(async () => {
-    // Initialize permission manager
-    await PermissionManager.init();
-    
-    // Process all permission attributes in the page
-    PermissionManager.processPermissionAttributes();
-    
-    // Example: Show/hide sections dynamically
-    const $adminSection = $('.admin-only-section');
-    if (!PermissionManager.hasAnyRole(['System Manager', 'Area Manager', 'Branch Manager'])) {
-        $adminSection.hide();
-    }
-    
-    // Example: Disable buttons without permission
-    $('[data-action="delete-all"]').each(function() {
-        if (!PermissionManager.hasDocTypePermission('POS Order', 'delete')) {
-            $(this).prop('disabled', true).addClass('btn-disabled');
+(async function() {
+    const init = async () => {
+        // Initialize permission manager
+        await PermissionManager.init();
+        
+        // Process all permission attributes in the page
+        PermissionManager.processPermissionAttributes();
+        
+        // Example: Show/hide sections dynamically
+        const $adminSection = $('.admin-only-section');
+        if (!PermissionManager.hasAnyRole(['System Manager', 'Area Manager', 'Branch Manager'])) {
+            $adminSection.hide();
         }
-    });
-});
+        
+        // Example: Disable buttons without permission
+        $('[data-action="delete-all"]').each(function() {
+            if (!PermissionManager.hasDocTypePermission('POS Order', 'delete')) {
+                $(this).prop('disabled', true).addClass('btn-disabled');
+            }
+        });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
 
 
 // ============================================================================

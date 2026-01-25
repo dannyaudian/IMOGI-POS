@@ -23,8 +23,14 @@ export function VariantPickerModal({
     setLoading(true)
     setError(null)
 
+    if (!window.frappe) {
+      setError('System not ready. Please refresh the page.')
+      setLoading(false)
+      return
+    }
+
     try {
-      const response = await frappe.call({
+      const response = await window.frappe.call({
         method: 'imogi_pos.api.variants.get_item_variants',
         args: {
           template: templateName

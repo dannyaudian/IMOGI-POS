@@ -112,9 +112,14 @@ function CounterPOSContent({ initialState }) {
       return
     }
 
+    if (!window.frappe) {
+      alert('System not ready. Please refresh the page.')
+      return
+    }
+
     try {
       // Call API to add item to order
-      await frappe.call({
+      await window.frappe.call({
         method: 'imogi_pos.api.orders.add_item_to_order',
         args: {
           order_name: selectedOrder.name,
@@ -134,8 +139,13 @@ function CounterPOSContent({ initialState }) {
   const convertTemplateToVariant = async (orderItemRow, variantName) => {
     if (!selectedOrder) return
 
+    if (!window.frappe) {
+      alert('System not ready. Please refresh the page.')
+      return
+    }
+
     try {
-      await frappe.call({
+      await window.frappe.call({
         method: 'imogi_pos.api.variants.choose_variant_for_order_item',
         args: {
           pos_order: selectedOrder.name,

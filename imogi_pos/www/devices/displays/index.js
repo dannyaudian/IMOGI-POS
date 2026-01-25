@@ -1,6 +1,7 @@
-frappe.ready(function() {
-    // Initialize Customer Display
-    const CustomerDisplay = {
+(function() {
+    const init = function() {
+        // Initialize Customer Display
+        const CustomerDisplay = {
         config: CONFIG,
         deviceId: DEVICE_ID,
         isRegistered: IS_REGISTERED,
@@ -516,3 +517,11 @@ document.addEventListener('visibilitychange', function() {
         }, 1000);
     }
 });
+    }; // End init function
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})(); // End IIFE

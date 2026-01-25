@@ -1,9 +1,10 @@
 /* global frappe, __, POS_PROFILE, CURRENT_BRANCH, CURRENCY_SYMBOL, PAYMENT_SETTINGS, PRINT_SETTINGS, DOMAIN */
 
-frappe.ready(async function () {
-  "use strict";
+(function() {
+  const init = async function () {
+    "use strict";
 
-  const POS_PROFILE_DATA = {};
+    const POS_PROFILE_DATA = {};
 
   function determineMenuChannel(options = {}) {
     const { fallback = "POS", allowDomainInference = true } = options;
@@ -4702,4 +4703,11 @@ frappe.ready(async function () {
 
   // GO
   KioskApp.init();
-});
+  }; // End init function
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})(); // End IIFE

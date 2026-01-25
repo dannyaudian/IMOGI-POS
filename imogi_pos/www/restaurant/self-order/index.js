@@ -1,5 +1,6 @@
-frappe.ready(function() {
-    function hasValidMenuCategory(value) {
+(function() {
+    const init = function() {
+        function hasValidMenuCategory(value) {
         if (typeof value !== 'string') {
             return false;
         }
@@ -1576,4 +1577,11 @@ frappe.ready(function() {
     
     // Initialize the app
     SelfOrderApp.init();
-});
+    }; // End init function
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})(); // End IIFE

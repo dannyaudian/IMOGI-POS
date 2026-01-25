@@ -1,5 +1,6 @@
-frappe.ready(() => {
-  const params = new URLSearchParams(window.location.search);
+(function() {
+  const init = () => {
+    const params = new URLSearchParams(window.location.search);
   const device = params.get('device') || 'kiosk';
   const next = params.get('next') || '/service-select';
 
@@ -159,4 +160,11 @@ frappe.ready(() => {
       });
     });
   });
-});
+  }; // End init function
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})(); // End IIFE
