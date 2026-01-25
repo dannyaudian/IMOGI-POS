@@ -989,7 +989,11 @@ frappe.ready(function () {
     const itemGrid = document.getElementById('item-grid');
     if (!itemGrid) return;
     
-    itemGrid.innerHTML = '<div class="loading-items">Loading items...</div>';
+    itemGrid.innerHTML = `
+      <div class="loading-items" style="text-align:center; padding:40px;">
+        <div style="font-size:24px; margin-bottom:8px;">⏳</div>
+        <div>Loading items...</div>
+      </div>`;
     
     frappe.call({
       method: 'imogi_pos.api.items.get_items_for_counter',
@@ -1003,11 +1007,33 @@ frappe.ready(function () {
         itemsData = r.message;
         renderItems();
         populateCategories();
+      } else {
+        itemGrid.innerHTML = `
+          <div class="loading-items" style="text-align:center; padding:40px;">
+            <div style="font-size:24px; margin-bottom:8px;">📦</div>
+            <div style="font-weight:600; margin-bottom:4px;">No items found</div>
+            <div style="font-size:12px; color:var(--muted);">Check your POS Profile item configuration</div>
+          </div>`;
       }
     })
     .fail(err => {
       console.error('Failed to load items:', err);
-      itemGrid.innerHTML = '<div class="loading-items">Failed to load items. Please try again.</div>';
+      const errorMsg = err?.message || err?.exc || 'Server error. Please try again later.';
+      itemGrid.innerHTML = `
+        <div class="loading-items" style="text-align:center; padding:40px;">
+          <div style="font-size:24px; margin-bottom:8px;">❌</div>
+          <div style="font-weight:600; margin-bottom:4px;">Failed to load items</div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Please try again.</div>
+          <button class="btn btn-primary retry-load-items" style="font-size:13px;">
+            🔄 Retry
+          </button>
+        </div>`;
+      // Add retry click handler
+      const retryBtn = itemGrid.querySelector('.retry-load-items');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', loadItemsForSelector);
+      }
+      showError(__('Server error. Please try again later.'));
     });
   }
 
