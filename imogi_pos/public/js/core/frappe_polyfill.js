@@ -241,9 +241,35 @@
 
         const url = `/api/method/${method}`;
         
+        // Prepare body for Frappe API
+        // For frappe.client.* methods, arguments should be sent as top-level properties
+        // NOT nested under an 'args' key
+        let requestBody;
+        
+        if (method.startsWith('frappe.client.') && args) {
+            // Clean up null/undefined values in filters
+            if (args.filters && typeof args.filters === 'object') {
+                const cleanFilters = {};
+                Object.keys(args.filters).forEach(key => {
+                    const value = args.filters[key];
+                    if (value !== null && value !== undefined) {
+                        cleanFilters[key] = value;
+                    }
+                });
+                args.filters = cleanFilters;
+            }
+            
+            // For frappe.client methods, send args as top-level properties
+            requestBody = args;
+        } else if (args) {
+            // For other methods, wrap in args key
+            requestBody = args;
+        } else {
+            requestBody = {};
+        }
+        
         // When using Content-Type: application/json, send args directly as JSON object
         // Frappe's API handler will parse the JSON body correctly
-        // See: cypress/support/commands.js in frappe/frappe repo for reference
         const fetchOpts = {
             method: 'POST',
             headers: {
@@ -252,7 +278,7 @@
                 'X-Frappe-CSRF-Token': frappe.csrf_token || ''
             },
             credentials: 'include',
-            body: JSON.stringify(args)
+            body: JSON.stringify(requestBody)
         };
 
         // Show loading indicator if freeze is true
@@ -339,7 +365,14 @@
             })
             .catch(err => {
                 removeLoading();
-                console.error('frappe.call error:', method, err);
+                
+                // Log detailed error information
+                console.error('=== frappe.call ERROR ===');
+                console.error('Method:', method);
+                console.error('Request body:', requestBody);
+                console.error('Error:', err);
+                console.error('Error status:', err.status);
+                console.error('=======================');
                 
                 // Show visible error unless silent
                 if (!silent && window.IMOGIToast) {

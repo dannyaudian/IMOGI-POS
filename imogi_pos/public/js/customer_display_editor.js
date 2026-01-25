@@ -107,13 +107,18 @@ imogi_pos.customer_display_editor = {
      */
     loadProfiles: function() {
         return new Promise((resolve, reject) => {
+            // Build filters - only include branch if it's available
+            const filters = {};
+            const branch = this.settings.branch || CURRENT_BRANCH;
+            if (branch) {
+                filters.branch = branch;
+            }
+            
             frappe.call({
                 method: 'frappe.client.get_list',
                 args: {
                     doctype: 'Customer Display Profile',
-                    filters: {
-                        branch: this.settings.branch || CURRENT_BRANCH
-                    },
+                    filters: filters,
                     fields: ['name', 'profile_name', 'branch', 'is_active', 'layout_type']
                 },
                 callback: (response) => {
