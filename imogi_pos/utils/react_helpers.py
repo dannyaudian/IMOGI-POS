@@ -70,7 +70,7 @@ def get_react_bundle_urls(app_name):
         entry = manifest[entry_key]
         
         # Build URLs
-        base_url = f'/assets/imogi_pos/public/react/{app_name}'
+        base_url = f'/assets/imogi_pos/react/{app_name}'
         
         urls = {
             'js': f"{base_url}/{entry['file']}",
