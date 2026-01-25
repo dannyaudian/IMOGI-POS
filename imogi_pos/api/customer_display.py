@@ -11,6 +11,268 @@ import json
 import hashlib
 from imogi_pos.utils.permissions import validate_branch_access
 
+
+# ===== REALTIME DISPLAY UPDATES (Phase 2) =====
+
+@frappe.whitelist()
+def send_order_to_display(device, order_data):
+    """
+    Send order data to customer display
+    
+    Args:
+        device: Customer Display Profile name
+        order_data: Order information to display
+    
+    Returns:
+        Success status
+    """
+    try:
+        # Get display configuration
+        profile = frappe.get_doc("Customer Display Profile", device)
+        
+        # Publish realtime event to display
+        frappe.publish_realtime(
+            event="display_order",
+            message={
+                "type": "order",
+                "data": order_data,
+                "config": profile.config if hasattr(profile, 'config') else {}
+            },
+            room=f"customer_display:{device}"
+        )
+        
+        # Log display update
+        frappe.logger().info(f"Order sent to display {device}")
+        
+        return {
+            "success": True,
+            "device": device
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in send_order_to_display: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def update_display_status(device, status, data=None):
+    """
+    Update customer display status
+    
+    Args:
+        device: Customer Display Profile name
+        status: Display status (idle, order, payment, complete)
+        data: Additional data for the status
+    
+    Returns:
+        Success status
+    """
+    try:
+        # Validate status
+        valid_statuses = ["idle", "order", "payment", "processing", "complete", "thank_you"]
+        if status not in valid_statuses:
+            return {
+                "success": False,
+                "error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+            }
+        
+        # Publish realtime event
+        frappe.publish_realtime(
+            event="display_status_update",
+            message={
+                "status": status,
+                "data": data or {},
+                "timestamp": frappe.utils.now()
+            },
+            room=f"customer_display:{device}"
+        )
+        
+        return {
+            "success": True,
+            "device": device,
+            "status": status
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in update_display_status: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def clear_display(device):
+    """
+    Clear customer display and return to idle screen
+    
+    Args:
+        device: Customer Display Profile name
+    
+    Returns:
+        Success status
+    """
+    try:
+        # Get display configuration
+        profile = frappe.get_doc("Customer Display Profile", device)
+        
+        # Publish clear event
+        frappe.publish_realtime(
+            event="display_clear",
+            message={
+                "type": "idle",
+                "config": profile.config if hasattr(profile, 'config') else {}
+            },
+            room=f"customer_display:{device}"
+        )
+        
+        return {
+            "success": True,
+            "device": device
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in clear_display: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def get_display_for_table(table):
+    """
+    Get customer display device assigned to a table
+    
+    Args:
+        table: Restaurant Table name
+    
+    Returns:
+        Display profile name
+    """
+    try:
+        # Get table document
+        table_doc = frappe.get_doc("Restaurant Table", table)
+        
+        # Check if table has assigned display
+        display = None
+        if hasattr(table_doc, 'customer_display'):
+            display = table_doc.customer_display
+        else:
+            # Get default display for branch
+            branch = table_doc.branch if hasattr(table_doc, 'branch') else None
+            if branch:
+                display = frappe.db.get_value(
+                    "Customer Display Profile",
+                    {"branch": branch, "is_active": 1},
+                    "name"
+                )
+        
+        return {
+            "success": True,
+            "display": display,
+            "table": table
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in get_display_for_table: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def show_payment_processing(device, payment_method, amount):
+    """
+    Show payment processing screen
+    
+    Args:
+        device: Customer Display Profile name
+        payment_method: Payment method being used
+        amount: Amount being processed
+    
+    Returns:
+        Success status
+    """
+    try:
+        frappe.publish_realtime(
+            event="display_payment_processing",
+            message={
+                "type": "payment_processing",
+                "payment_method": payment_method,
+                "amount": amount,
+                "timestamp": frappe.utils.now()
+            },
+            room=f"customer_display:{device}"
+        )
+        
+        return {
+            "success": True,
+            "device": device
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in show_payment_processing: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@frappe.whitelist()
+def show_thank_you(device, invoice_name, total_paid, change_amount=0):
+    """
+    Show thank you screen after payment
+    
+    Args:
+        device: Customer Display Profile name
+        invoice_name: Invoice number
+        total_paid: Total amount paid
+        change_amount: Change to return
+    
+    Returns:
+        Success status
+    """
+    try:
+        frappe.publish_realtime(
+            event="display_thank_you",
+            message={
+                "type": "thank_you",
+                "invoice": invoice_name,
+                "total_paid": total_paid,
+                "change": change_amount,
+                "timestamp": frappe.utils.now()
+            },
+            room=f"customer_display:{device}"
+        )
+        
+        # Auto-clear after 30 seconds
+        frappe.enqueue(
+            clear_display,
+            device=device,
+            queue="short",
+            timeout=30
+        )
+        
+        return {
+            "success": True,
+            "device": device
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in show_thank_you: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ===== ORIGINAL DISPLAY DEVICE FUNCTIONS =====
+
 def get_device_by_id(device_id):
     """
     Retrieves customer display device information.

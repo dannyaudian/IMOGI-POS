@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@cashier-console': path.resolve(__dirname, './src/apps/cashier-console'),
+        '@cashier-payment': path.resolve(__dirname, './src/apps/cashier-payment'),
         '@kitchen': path.resolve(__dirname, './src/apps/kitchen'),
         '@waiter': path.resolve(__dirname, './src/apps/waiter'),
         '@kiosk': path.resolve(__dirname, './src/apps/kiosk'),

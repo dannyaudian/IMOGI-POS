@@ -31,6 +31,7 @@ imogi_pos.workspace_shortcuts = {
     
     // Map shortcut labels to URLs for quick reference
     shortcut_urls: {
+        'Open POS': '/shared/module-select',
         'Cashier Console': '/counter/pos',
         'Kitchen Display': '/restaurant/kitchen',
         'Table Display': '/restaurant/tables',
@@ -77,15 +78,37 @@ imogi_pos.workspace_shortcuts = {
             
             if (!shortcutBox) return;
             
-            // Get the shortcut text to identify it
+            // Get the shortcut text and link-to attribute
             const shortcutText = (shortcutBox.innerText || shortcutBox.textContent || '').trim();
+            let linkTo = shortcutBox.getAttribute('data-link-to') || 
+                        shortcutBox.querySelector('[data-link-to]')?.getAttribute('data-link-to');
+            
+            console.debug('IMOGI POS: Shortcut clicked:', {
+                text: shortcutText,
+                linkTo: linkTo,
+                element: shortcutBox
+            });
+            
+            // Check if we have a direct link-to attribute
+            if (linkTo && self.is_www_page(linkTo)) {
+                console.log('IMOGI POS: Intercepting shortcut click (link-to) to:', linkTo);
+                
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                window.location.href = linkTo;
+                return false;
+            }
+            
+            // Check if the shortcut text maps to a known URL
             const shortcutUrl = self.shortcut_urls[shortcutText];
             
             if (shortcutUrl || self.is_www_page_text(shortcutText)) {
                 const urlToNavigate = shortcutUrl || self.extract_url_from_text(shortcutText);
                 
                 if (urlToNavigate) {
-                    console.log('IMOGI POS: Intercepting shortcut click (capture phase) to:', {
+                    console.log('IMOGI POS: Intercepting shortcut click (text mapping) to:', {
                         text: shortcutText,
                         url: urlToNavigate
                     });
@@ -179,6 +202,14 @@ imogi_pos.workspace_shortcuts = {
             
             frappe.set_route = function() {
                 const args = Array.from(arguments);
+                
+                // Handle null/undefined/empty routes - redirect to /app
+                if (!args || args.length === 0 || !args[0] || args[0] === '' || args[0] === 'null' || args[0] === 'undefined') {
+                    console.warn('IMOGI POS: Invalid route detected, redirecting to /app:', args);
+                    window.location.href = '/app';
+                    return Promise.resolve();
+                }
+                
                 let route = args.join('/');
                 
                 // Handle array argument

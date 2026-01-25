@@ -57,7 +57,7 @@ def get_user_pos_profile(user=None, allow_fallback=True):
     return None
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def get_user_role_context(user=None):
     """
     Get comprehensive role context for user.

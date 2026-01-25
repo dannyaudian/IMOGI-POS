@@ -1584,8 +1584,13 @@
         // Check if we have a logged-in user (not Guest)
         const isLoggedIn = frappe.session.user && frappe.session.user !== 'Guest';
 
-        // Fetch boot data if logged in
-        if (isLoggedIn) {
+        // Only fetch boot data if logged in AND in website context (not desk)
+        // In desk context, frappe already has boot data from server
+        const isDeskContext = window.location.pathname.startsWith('/app/');
+        const needsBootData = isLoggedIn && !isDeskContext;
+
+        // Fetch boot data if needed (website/public pages only)
+        if (needsBootData) {
             // Use appropriate initialization based on context
             const initUserContext = function() {
                 frappe.call({
@@ -1602,8 +1607,9 @@
                         frappe.user.name = ctx.user;
                         frappe.user.full_name = ctx.full_name;
                     }
-                }).catch(() => {
+                }).catch((err) => {
                     // Silently ignore if API not available
+                    console.debug('IMOGI POS: Could not fetch user context:', err);
                 });
             };
             
@@ -1612,7 +1618,7 @@
                 // Website/public context - use frappe.ready
                 frappe.ready(initUserContext);
             } else {
-                // Desk context - call immediately or use DOMContentLoaded
+                // Call immediately or use DOMContentLoaded
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', initUserContext);
                 } else {

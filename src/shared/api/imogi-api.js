@@ -210,3 +210,93 @@ export function useTables(branch) {
 export function useUpdateTableStatus() {
   return useImogiAPI('imogi_pos.api.layout.update_table_status')
 }
+
+/**
+ * Cashier API (Phase 2)
+ */
+export function usePendingOrders(branch = null, filters = {}) {
+  const params = { branch, ...filters }
+  
+  return useFrappeGetCall(
+    'imogi_pos.api.cashier.get_pending_orders',
+    params,
+    `pending-orders-${branch || 'all'}`,
+    {
+      refreshInterval: 10000, // Auto refresh every 10 seconds
+      revalidateOnFocus: true
+    }
+  )
+}
+
+export function useOrderDetails(orderName) {
+  return useFrappeGetCall(
+    'imogi_pos.api.cashier.get_order_details',
+    { order_name: orderName },
+    `order-details-${orderName}`,
+    {
+      revalidateOnFocus: true
+    }
+  )
+}
+
+export function useCreateInvoice() {
+  return useImogiAPI('imogi_pos.api.cashier.create_invoice_from_order')
+}
+
+export function useProcessPayment() {
+  return useImogiAPI('imogi_pos.api.cashier.process_payment')
+}
+
+export function useCompleteOrder() {
+  return useImogiAPI('imogi_pos.api.cashier.complete_order')
+}
+
+export function usePaymentMethods(branch = null) {
+  return useFrappeGetCall(
+    'imogi_pos.api.cashier.get_payment_methods',
+    { branch },
+    `payment-methods-${branch || 'all'}`,
+    {
+      revalidateOnFocus: false,
+      refreshInterval: 60000 // Refresh every minute
+    }
+  )
+}
+
+export function useSplitBill() {
+  return useImogiAPI('imogi_pos.api.cashier.split_bill')
+}
+
+/**
+ * Customer Display Realtime API (Phase 2)
+ */
+export function useSendToDisplay() {
+  return useImogiAPI('imogi_pos.api.customer_display.send_order_to_display')
+}
+
+export function useUpdateDisplayStatus() {
+  return useImogiAPI('imogi_pos.api.customer_display.update_display_status')
+}
+
+export function useClearDisplay() {
+  return useImogiAPI('imogi_pos.api.customer_display.clear_display')
+}
+
+export function useDisplayForTable(table) {
+  return useFrappeGetCall(
+    'imogi_pos.api.customer_display.get_display_for_table',
+    { table },
+    `display-for-table-${table}`,
+    {
+      revalidateOnFocus: false
+    }
+  )
+}
+
+export function useShowPaymentProcessing() {
+  return useImogiAPI('imogi_pos.api.customer_display.show_payment_processing')
+}
+
+export function useShowThankYou() {
+  return useImogiAPI('imogi_pos.api.customer_display.show_thank_you')
+}

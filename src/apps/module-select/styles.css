@@ -604,6 +604,10 @@ body {
   --module-color: #3498db;
 }
 
+.module-card.color-cashier-payment {
+  --module-color: #27ae60;
+}
+
 .module-card.color-waiter {
   --module-color: #e74c3c;
 }

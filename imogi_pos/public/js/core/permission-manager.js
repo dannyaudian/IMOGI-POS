@@ -326,18 +326,30 @@ class PermissionManager {
 window.PermissionManager = new PermissionManager();
 
 // Auto-initialize in Frappe desk context
-if (typeof frappe !== 'undefined') {
+if (typeof frappe !== 'undefined' && typeof frappe.ready !== 'undefined') {
     const initPermissions = () => {
         PermissionManager.init().then(() => {
             PermissionManager.processPermissionAttributes();
         });
     };
 
-    // Use native Frappe desk initialization
+    // Use frappe.ready if available (desk context with polyfill)
+    frappe.ready(() => {
+        initPermissions();
+    });
+} else if (typeof frappe !== 'undefined') {
+    // Fallback: Use standard DOM ready events if frappe.ready is not available
+    const initPermissions = () => {
+        if (PermissionManager.init) {
+            PermissionManager.init().then(() => {
+                PermissionManager.processPermissionAttributes();
+            });
+        }
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initPermissions);
     } else {
-        // DOM already ready - init immediately
         initPermissions();
     }
 }

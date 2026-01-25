@@ -23,26 +23,37 @@ def get_available_modules(branch=None):
         modules_config = {
             'cashier': {
                 'name': 'Cashier Console',
-                'description': 'Manage orders and process payments',
+                'description': 'Counter/Retail mode - Quick service',
                 'type': 'cashier',
                 'icon': 'fa-cash-register',
-                'url': '/cashier-console',
+                'url': '/counter',
                 'requires_roles': ['Cashier', 'Branch Manager', 'System Manager'],
                 'requires_session': True,
                 'requires_opening': True,
                 'order': 1
             },
-            'waiter': {
-                'name': 'Waiter Station',
-                'description': 'Create and manage dining orders',
-                'type': 'waiter',
-                'icon': 'fa-server',
-                'url': '/restaurant/waiter',
-                'requires_roles': ['Waiter', 'Branch Manager', 'System Manager'],
+            'cashier-payment': {
+                'name': 'Cashier Payment',
+                'description': 'Table service payment processing',
+                'type': 'cashier-payment',
+                'icon': 'fa-money-bill-wave',
+                'url': '/cashier-payment',
+                'requires_roles': ['Cashier', 'Branch Manager', 'System Manager'],
                 'requires_session': False,
                 'requires_opening': False,
-                'requires_active_cashier': True,
                 'order': 2
+            },3
+            },
+            'kitchen': {
+                'name': 'Kitchen Display',
+                'description': 'View and manage KOT tickets',
+                'type': 'kitchen',
+                'icon': 'fa-fire',
+                'url': '/restaurant/kitchen',
+                'requires_roles': ['Kitchen Staff', 'Branch Manager', 'System Manager'],
+                'requires_session': False,
+                'requires_opening': False,
+                'order': 4
             },
             'kitchen': {
                 'name': 'Kitchen Display',
@@ -54,18 +65,7 @@ def get_available_modules(branch=None):
                 'requires_session': False,
                 'requires_opening': False,
                 'order': 3
-            },
-            'kiosk': {
-                'name': 'Self-Service Kiosk',
-                'description': 'Customers order from self-service terminals',
-                'type': 'kiosk',
-                'icon': 'fa-tablet',
-                'url': '/restaurant/waiter?mode=kiosk',
-                'requires_roles': ['Kiosk', 'Branch Manager', 'System Manager'],
-                'requires_session': False,
-                'requires_opening': False,
-                'requires_active_cashier': True,
-                'order': 4
+            },5
             },
             'self-order': {
                 'name': 'Self-Order Kiosk',
@@ -77,7 +77,18 @@ def get_available_modules(branch=None):
                 'requires_session': False,
                 'requires_opening': False,
                 'requires_active_cashier': True,
-                'order': 5
+                'order': 6
+            },
+            'table-display': {
+                'name': 'Table Display',
+                'description': 'Display table status and orders',
+                'type': 'table-display',
+                'icon': 'fa-th',
+                'url': '/restaurant/tables',
+                'requires_roles': ['Waiter', 'Branch Manager', 'System Manager'],
+                'requires_session': False,
+                'requires_opening': False,
+                'order': 7
             },
             'table-display': {
                 'name': 'Table Display',

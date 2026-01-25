@@ -1,0 +1,11 @@
+{
+  "src/apps/cashier/main.jsx": {
+    "file": "static/js/main.BScoAWCc.js",
+    "name": "main",
+    "src": "src/apps/cashier/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.B2evbQuc.css"
+    ]
+  }
+}

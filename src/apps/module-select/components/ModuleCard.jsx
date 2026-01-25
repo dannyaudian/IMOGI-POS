@@ -4,6 +4,7 @@ function ModuleCard({ module, onClick, posOpeningStatus }) {
   const getModuleIcon = (type) => {
     const icons = {
       'cashier': 'fa-cash-register',
+      'cashier-payment': 'fa-money-bill-wave',
       'waiter': 'fa-server',
       'kiosk': 'fa-tablet',
       'kitchen': 'fa-fire',
@@ -19,6 +20,7 @@ function ModuleCard({ module, onClick, posOpeningStatus }) {
   const getModuleColor = (type) => {
     const colors = {
       'cashier': 'color-cashier',
+      'cashier-payment': 'color-cashier-payment',
       'waiter': 'color-waiter',
       'kiosk': 'color-kiosk',
       'kitchen': 'color-kitchen',

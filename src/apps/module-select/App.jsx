@@ -156,7 +156,7 @@ function App() {
               >
                 {branchData?.available_branches?.map((branch) => (
                   <option key={branch.name} value={branch.name}>
-                    {branch.branch_name || branch.name}
+                    {branch.branch || branch.name}
                   </option>
                 ))}
               </select>
