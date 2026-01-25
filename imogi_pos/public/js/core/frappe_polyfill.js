@@ -1586,8 +1586,8 @@
 
         // Fetch boot data if logged in
         if (isLoggedIn) {
-            // Use a deferred fetch to not block initialization
-            frappe.ready(function() {
+            // Use appropriate initialization based on context
+            const initUserContext = function() {
                 frappe.call({
                     method: 'imogi_pos.utils.auth_helpers.get_user_role_context',
                     silent: true
@@ -1605,7 +1605,20 @@
                 }).catch(() => {
                     // Silently ignore if API not available
                 });
-            });
+            };
+            
+            // Call immediately or when ready based on context
+            if (typeof frappe.ready === 'function') {
+                // Website/public context - use frappe.ready
+                frappe.ready(initUserContext);
+            } else {
+                // Desk context - call immediately or use DOMContentLoaded
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initUserContext);
+                } else {
+                    initUserContext();
+                }
+            }
         }
     })();
 
