@@ -1,7 +1,7 @@
 {
   "name": "imogi-pos-react",
   "version": "2.0.0",
-  "description": "React frontend for IMOGI POS - Centralized multi-app architecture with 13 apps",
+  "description": "React frontend for IMOGI POS - Centralized multi-app architecture with 12 apps",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,11 +17,9 @@
     "dev:table-display-editor": "VITE_APP=table-display-editor vite",
     "dev:table-layout-editor": "VITE_APP=table-layout-editor vite",
     "dev:login": "VITE_APP=login vite",
-    "dev:service-select": "VITE_APP=service-select vite",
-    "dev:device-select": "VITE_APP=device-select vite",
-    "dev:opening-balance": "VITE_APP=opening-balance vite",
+    "dev:module-select": "VITE_APP=module-select vite",
     "build": "npm run build:all",
-    "build:all": "npm run build:cashier && npm run build:kitchen && npm run build:waiter && npm run build:kiosk && npm run build:self-order && npm run build:customer-display && npm run build:table-display && npm run build:customer-display-editor && npm run build:table-display-editor && npm run build:table-layout-editor && npm run build:login && npm run build:service-select && npm run build:device-select && npm run build:opening-balance",
+    "build:all": "npm run build:cashier && npm run build:kitchen && npm run build:waiter && npm run build:kiosk && npm run build:self-order && npm run build:customer-display && npm run build:table-display && npm run build:customer-display-editor && npm run build:table-display-editor && npm run build:table-layout-editor && npm run build:login && npm run build:module-select",
     "build:cashier": "VITE_APP=cashier-console vite build",
     "build:kitchen": "VITE_APP=kitchen vite build",
     "build:waiter": "VITE_APP=waiter vite build",
@@ -33,9 +31,7 @@
     "build:table-display-editor": "VITE_APP=table-display-editor vite build",
     "build:table-layout-editor": "VITE_APP=table-layout-editor vite build",
     "build:login": "VITE_APP=login vite build",
-    "build:service-select": "VITE_APP=service-select vite build",
-    "build:device-select": "VITE_APP=device-select vite build",
-    "build:opening-balance": "VITE_APP=opening-balance vite build",
+    "build:module-select": "VITE_APP=module-select vite build",
     "preview": "vite preview"
   },
   "dependencies": {

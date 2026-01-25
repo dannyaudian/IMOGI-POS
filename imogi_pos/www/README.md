@@ -1,64 +1,71 @@
-# IMOGI POS - New Architecture Structure
+# IMOGI POS - WWW React Applications
 
-This directory represents the reorganized architecture for IMOGI POS, grouped by business type and operation mode.
+This directory contains all React-based POS applications that run in the browser via Frappe's www/ routing system.
 
 ## Directory Structure
 
 ```
 www/
-├── restaurant/          # Restaurant-specific components
-│   ├── waiter/         # Unified POS (merged create-order + kiosk + waiter_order)
-│   ├── kitchen/        # Kitchen Display System (KDS)
-│   ├── tables/         # Table layout display
-│   └── self-order/     # QR-based self-ordering
-│
-├── counter/            # Counter operations
-│   └── pos/            # Counter POS (cashier console)
-│
-├── kiosk/              # Self-service kiosk (future: might merge with waiter/)
-│
-├── devices/            # Device-centric components
-│   ├── displays/       # Customer-facing display
-│   └── printers/       # Printer configuration
-│
-├── shared/             # Shared components across all types
-│   ├── login/          # Authentication
-│   └── module-select/  # Multi-module selection
-│
-├── retail/             # Retail domain (placeholder - Q2 2026)
-│   ├── pos/
-│   ├── inventory/
-│   └── checkout/
-│
-└── service/            # Service domain (placeholder - Q3 2026)
-    ├── booking/
-    ├── queue/
-    └── billing/
+├── cashier-console/     # Cashier POS interface (React app: src/apps/cashier-console)
+├── customer-display/    # Customer-facing display (React app: src/apps/customer-display)
+├── customer-display-editor/  # Customer display editor (React app: src/apps/customer-display-editor)
+├── kiosk/              # Self-service kiosk (React app: src/apps/kiosk)
+├── kitchen/            # Kitchen Display System (React app: src/apps/kitchen)
+├── login/              # Authentication page (React app: src/apps/login)
+├── module-select/      # Multi-module selector (React app: src/apps/module-select)
+├── self-order/         # QR-based self-ordering (React app: src/apps/self-order)
+├── table-display/      # Table layout display (React app: src/apps/table-display)
+├── table-display-editor/  # Table display editor (React app: src/apps/table-display-editor)
+├── table-layout-editor/  # Table layout editor (React app: src/apps/table-layout-editor)
+└── waiter/             # Waiter order interface (React app: src/apps/waiter)
+```
+
+## React Application Mapping
+
+Each www/ directory contains:
+- `index.html` - Frappe page template (loads React bundle)
+- `index.py` - Python backend for page context & authentication
+- `react.py` - React-specific context (app name, mount point)
+- Optional: `index.js` - Legacy JS (being replaced by React)
+
+Corresponding React source code in `src/apps/`:
+```
+www/cashier-console/      → src/apps/cashier-console/
+www/customer-display/     → src/apps/customer-display/
+www/customer-display-editor/ → src/apps/customer-display-editor/
+www/kiosk/                → src/apps/kiosk/
+www/kitchen/              → src/apps/kitchen/
+www/login/                → src/apps/login/
+www/module-select/        → src/apps/module-select/
+www/self-order/           → src/apps/self-order/
+www/table-display/        → src/apps/table-display/
+www/table-display-editor/ → src/apps/table-display-editor/
+www/table-layout-editor/  → src/apps/table-layout-editor/
+www/waiter/               → src/apps/waiter/
 ```
 
 ## URL Structure
 
-### New URLs
-- `/restaurant/waiter` - Unified POS interface (waiter/kiosk modes)
-- `/restaurant/kitchen` - Kitchen Display System
-- `/restaurant/tables` - Table layout display
-- `/restaurant/self-order` - Self-ordering system
-- `/counter/pos` - Cashier console
-- `/devices/displays` - Customer display
-- `/shared/login` - Login page
-- `/shared/module-select` - Multi-module selector
+All React apps are accessible via their www/ directory name:
 
-### Legacy URLs (Redirected)
-Old paths automatically redirect to new structure:
-- `/create-order` → `/restaurant/waiter`
-- `/waiter_order` → `/restaurant/waiter`
-- `/kiosk` → `/restaurant/waiter?mode=kiosk`
-- `/cashier-console` → `/counter/pos`
-- `/customer-display` → `/devices/displays`
-- `/kitchen_display` → `/restaurant/kitchen`
-- `/table_display` → `/restaurant/tables`
-- `/imogi-login` → `/shared/login`
-- `/so` → `/restaurant/self-order`
+### Primary URLs
+- `/cashier-console` - Cashier POS interface
+- `/customer-display` - Customer-facing display
+- `/customer-display-editor` - Customer display configuration editor
+- `/kiosk` - Self-service kiosk
+- `/kitchen` - Kitchen Display System (KDS)
+- `/login` - Authentication page
+- `/module-select` - Multi-module selector (entry point after login)
+- `/self-order` - QR-based self-ordering
+- `/table-display` - Table layout display
+- `/table-display-editor` - Table display configuration editor
+- `/table-layout-editor` - Table layout editor
+- `/waiter` - Waiter order interface
+
+### Legacy URL Redirects
+Some URLs redirect for backward compatibility (configured in `hooks.py`):
+- `/imogi-login` → `/login`
+- `/so` → `/self-order`
 
 ## Authentication System
 
@@ -104,56 +111,79 @@ RoleUI.showIfAuthenticated('.logged-in-features');
 ## Role-Based Routing
 
 Users are automatically routed based on their primary role:
+ after login:
 
 | Role | Default Route |
 |------|--------------|
-| System Manager / Area Manager / Branch Manager | `/app` (ERPNext Desk) |
-| Finance Controller | `/app/query-report/financial-summary` |
-| Cashier | `/counter/pos` |
-| Waiter | `/restaurant/waiter` |
-| Kitchen Staff | `/restaurant/kitchen` |
+| System Manager / Area Manager | `/app` (ERPNext Desk) |
+| Branch Manager | `/module-select` |
+| Cashier / Waiter / Kitchen Staff / Kiosk | `/module-select` |
 | Guest (with guest access enabled) | Configured entry point |
 
-## Migration from Old Structure
+**Note**: All POS users now go to `/module-select` where they can choose which module to open based on POS Profile configuration.
+## React Development
 
-### For Developers
+### Building React Apps
 
-1. **Update imports**: Change references from old paths to new paths
-2. **Use new decorators**: Replace manual auth checks with decorators
-3. **Update frontend URLs**: Use new URL structure in JS/HTML
-4. **Role-based UI**: Implement conditional rendering using RoleUI
+```bash
+# Build all React apps
+bench build --app imogi_pos
 
-### For Administrators
+# Development mode with hot reload
+cd /path/to/imogi_pos
+npm run dev
+```
 
-- **Bookmarks**: Old URLs automatically redirect
-- **Device configs**: Update stored URLs in Customer Display Device, Kiosk Device, etc.
-- **External integrations**: Update webhook/callback URLs if any
+### Adding New React App
 
-## Domain Configuration
+1. Create React app in `src/apps/new-app/`
+2. Create www directory `imogi_pos/www/new-app/`
+3. Add files:
+   - `index.html` (template with `<div id="root">`)
+   - `index.py` (backend context)
+   - `react.py` (React context with app name)
+4. Update `vite.config.js` with new entry point
+5. Run `bench build --app imogi_pos`
 
-Business type controlled via POS Profile:
-- `imogi_pos_domain` - "Restaurant" | "Retail" | "Service"
-- `imogi_mode` - "Table" | "Counter" | "Kiosk" | "Self-Order"
+### Module Selection Architecture
+
+All POS modules now use a unified entry point:
+1. User logs in via `/login`
+2. Redirected to `/module-select` based on role
+3. Module selector shows available modules based on POS Profile flags:
+   - `enable_cashier_console`
+   - `enable_waiter_order`
+   - `enable_kiosk`
+   - `enable_self_order`
+   - `enable_kitchen_display`
+   - `enable_table_display`
+4. User clicks module → validation checks → navigate to module
+
+**Validation checks**:
+- Waiter/Kiosk/Self-Order require active cashier (checks `check_active_cashiers` API)
+- Cashier Console requires POS Opening Entry
+
+## POS Profile Configuration
+
+Multi-module support controlled via POS Profile custom fields:
+- `imogi_pos_session_scope` - "User" | "POS Profile" (determines session isolation)
+- Module enable flags (6 checkboxes for enabling modules)
+- Each branch can have different module configurations
 
 ## Implementation Status
 
 ✅ **Completed**
-- Directory structure created
-- Authentication system implemented
-- Role-based UI utilities created
-- Core components copied to new locations
-- Placeholder structure for retail/service
+- All 12 React applications migrated and functional
+- Multi-module selection interface
+- Role-based authentication and routing
+- Session scope management (User/POS Profile)
+- Active cashier validation
+- Workspace simplified to single "Open POS" entry point
 
-🔄 **In Progress**
-- Merging duplicate POS interfaces
-- Updating all page references
-- CSS/JS asset consolidation
-
-⏳ **Pending**
-- Full testing of all routes
-- Migration scripts for existing deployments
-- Documentation updates
-- Old directory cleanup
+🔄 **Ongoing**
+- Performance optimization
+- UI/UX improvements
+- Bug fixes and testing
 
 ## Notes
 
