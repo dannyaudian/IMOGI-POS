@@ -142,8 +142,6 @@ export function useCustomers(searchTerm = '') {
     `customers-${searchTerm}`,
     {
       revalidateOnFocus: false
-    }every 10 seconds
-      revalidateOnFocus: true
     }
   )
 }
