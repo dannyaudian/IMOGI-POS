@@ -1,48 +1,10 @@
-{% extends "templates/web.html" %}
+{% extends "imogi_pos/templates/includes/react_app.html" %}
 
-{% block base_scripts %}
-{# Override to prevent Frappe from loading default scripts that cause 404 errors #}
-{% endblock %}
-
-{% block head_include %}
-{# Override to prevent Frappe from preloading scripts that don't exist #}
-{% endblock %}
-
-{% block style %}
-<link rel="stylesheet" href="/assets/imogi_pos/css/core.css">
-<link rel="stylesheet" href="/assets/imogi_pos/css/components.css">
-<style>
-  :root {
-    --primary-color: {{ branding.primary_color }};
-    --accent-color: {{ branding.accent_color }};
-    --header-bg: {{ branding.header_bg }};
-  }
-</style>
-{% endblock %}
-
-{% block content %}
-{% if setup_error %}
-{% include "imogi_pos/templates/includes/error_page.html" %}
-{% else %}
-<div id="customer-display-editor"></div>
-{% endif %}
-{% endblock %}
-
-{% block script %}
-{% if not setup_error %}
-<script>
-  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
-  const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
-  const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
-  const DOMAIN = '{{ domain }}';
-  const BRANDING = {{ branding | tojson }};
-</script>
-
-<!-- Frappe polyfill for standalone pages -->
-<script src="/assets/imogi_pos/js/core/frappe_polyfill.js"></script>
-<script src="/assets/imogi_pos/js/core/nav.js"></script>
-<script src="/assets/imogi_pos/js/core/branch.js"></script>
-<script src="/assets/imogi_pos/js/customer_display_editor.js"></script>
-<script src="../customer_display_editor/index.js"></script>
-{% endif %}
-{% endblock %}
+{# 
+  Customer Display Editor - React App
+  
+  This page uses the reusable react_app.html template.
+  All React bundle loading is handled automatically via manifest.json.
+  
+  No need to manually update bundle URLs after rebuild!
+#}

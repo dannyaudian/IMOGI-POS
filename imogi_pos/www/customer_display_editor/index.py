@@ -8,6 +8,7 @@ from imogi_pos.utils.branding import (
 from imogi_pos.utils.auth_decorators import require_roles
 from imogi_pos.utils.auth_helpers import get_active_branch
 from imogi_pos.utils.error_pages import set_setup_error
+from imogi_pos.utils.react_helpers import add_react_context
 
 
 @require_roles("Branch Manager", "System Manager")
@@ -28,6 +29,14 @@ def get_context(context):
         context.branch = get_current_branch(pos_profile)
         context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
         context.title = _("Customer Display Editor")
+        
+        # Add React bundle URLs and initial state (auto-loads from manifest.json)
+        add_react_context(context, 'customer-display-editor', {
+            'posProfile': pos_profile.name,
+            'branch': context.branch,
+            'domain': context.domain,
+            'branding': context.branding
+        })
 
         return context
     except frappe.Redirect:

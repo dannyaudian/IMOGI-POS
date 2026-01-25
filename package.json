@@ -1,13 +1,19 @@
 {
   "name": "imogi-pos-react",
   "version": "1.0.0",
-  "description": "React frontend for IMOGI POS",
+  "description": "React frontend for IMOGI POS - Centralized multi-app architecture",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:counter-pos": "vite build --config vite.config.counter-pos.js",
+    "dev": "VITE_APP=counter-pos vite",
+    "dev:counter": "VITE_APP=counter-pos vite",
+    "dev:kitchen": "VITE_APP=kitchen vite",
+    "dev:waiter": "VITE_APP=waiter vite",
+    "build": "npm run build:all",
+    "build:all": "npm run build:counter && npm run build:kitchen && npm run build:waiter",
+    "build:counter": "VITE_APP=counter-pos vite build",
+    "build:kitchen": "VITE_APP=kitchen vite build",
+    "build:waiter": "VITE_APP=waiter vite build",
     "preview": "vite preview"
   },
   "dependencies": {
