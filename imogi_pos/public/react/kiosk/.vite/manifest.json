@@ -1,0 +1,11 @@
+{
+  "src/apps/kiosk/main.jsx": {
+    "file": "static/js/main.Bym6T6fQ.js",
+    "name": "main",
+    "src": "src/apps/kiosk/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.DSfn3uCX.css"
+    ]
+  }
+}

@@ -713,102 +713,155 @@ bench --site site1.local clear-website-cache
 
 #### Frappe Cloud Deployment
 
-**Frappe Cloud auto-runs:**
+**⚠️ FRAPPE CLOUD CANNOT RUN `npm` COMMANDS!**
+
+Frappe Cloud auto-runs:
 - `bench build` ✅ (vanilla assets)
 - `bench migrate` ✅ (database)
 - `bench restart` ✅ (processes)
 
-**But NOT auto-run:**
+**But CANNOT run:**
 - `npm install` ❌
 - `npm run build:all` ❌
 
-**Solution: Use `install.py` hook**
+**✅ SOLUTION: Pre-build and Commit to Repo**
 
-Create `imogi_pos/install.py`:
-```python
-import os
-import subprocess
-import frappe
+Two approaches:
 
-def after_install():
-    """Run after app installation."""
-    build_react_apps()
+**Approach 1: GitHub Actions (RECOMMENDED)**
 
-def after_migrate():
-    """Run after bench migrate."""
-    build_react_apps()
+Setup is already done! File: `.github/workflows/build-react.yml`
 
-def build_react_apps():
-    """Build all React apps."""
-    try:
-        app_path = frappe.get_app_path('imogi_pos')
-        
-        # Install npm packages
-        frappe.logger().info("Installing npm packages...")
-        subprocess.run(
-            ['npm', 'install', '--production'],
-            cwd=app_path,
-            check=True
-        )
-        
-        # Build all React apps
-        frappe.logger().info("Building React apps...")
-        subprocess.run(
-            ['npm', 'run', 'build:all'],
-            cwd=app_path,
-            check=True
-        )
-        
-        frappe.logger().info("React apps built successfully!")
-        
-    except Exception as e:
-        frappe.log_error(f"Failed to build React apps: {str(e)}")
+**How it works:**
+1. You push React code changes
+2. GitHub Actions automatically:
+   - Installs npm packages
+   - Builds all React apps
+   - Commits built files to repo
+   - Pushes back to GitHub
+3. Frappe Cloud pulls the pre-built bundles
+4. ✅ Deployment complete!
+
+**Workflow triggers:**
+- Push to `main`, `production`, or `develop` branches
+- Changes in `src/apps/`, `src/shared/`, `package.json`, `vite.config.js`
+- Manual trigger via GitHub Actions UI
+
+**To enable:**
+```bash
+# 1. Commit all new files
+git add .github/workflows/build-react.yml
+git add imogi_pos/install.py
+git add imogi_pos/utils/react_helpers.py
+git add imogi_pos/templates/includes/react_app.html
+git commit -m "feat: setup GitHub Actions for Frappe Cloud deployment"
+
+# 2. Push to trigger first build
+git push origin main
+
+# 3. Check GitHub Actions tab to verify build succeeded
+
+# 4. Built files will be auto-committed back to repo
+
+# 5. Frappe Cloud will auto-deploy on next push
 ```
 
-Register in `hooks.py`:
-```python
-# hooks.py
-after_install = "imogi_pos.install.after_install"
-after_migrate = "imogi_pos.install.after_migrate"
+**Approach 2: Manual Pre-build (Backup)**
+
+If GitHub Actions unavailable:
+
+```bash
+# 1. Build locally
+npm run build:all
+
+# 2. Commit built files
+git add imogi_pos/public/react/
+git commit -m "chore: build React apps for Frappe Cloud"
+
+# 3. Push to repo
+git push origin main
+
+# 4. Frappe Cloud will deploy pre-built bundles
 ```
 
-**Alternative: Use GitHub Actions**
+**⚠️ IMPORTANT: DO NOT .gitignore React bundles for Frappe Cloud!**
 
-Create `.github/workflows/frappe-cloud.yml`:
-```yaml
-name: Build React Apps for Frappe Cloud
-
-on:
-  push:
-    branches: [main, production]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm install
-        
-      - name: Build all React apps
-        run: npm run build:all
-        
-      - name: Commit built files
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add imogi_pos/public/react/
-          git commit -m "chore: build React apps [skip ci]" || echo "No changes"
-          git push
+The `.gitignore` is already configured correctly:
+```gitignore
+# ✅ React bundles are tracked in git for Frappe Cloud
+# imogi_pos/public/react/ is NOT ignored
 ```
 
-This way, React builds are committed to repo and Frappe Cloud just deploys them.
+**Verify deployment:**
+
+After push to Frappe Cloud:
+1. Check site URL: `https://your-site.frappe.cloud/customer_display_editor`
+2. Open browser console - should see React app loading
+3. Check response headers - JS bundle should have hashed filename
+4. No "React bundle not found" error
+
+**Troubleshooting Frappe Cloud:**
+
+1. **Bundle not found error:**
+   ```bash
+   # Check if bundles are in repo
+   git ls-files imogi_pos/public/react/
+   
+   # Should show files like:
+   # imogi_pos/public/react/customer-display-editor/.vite/manifest.json
+   # imogi_pos/public/react/customer-display-editor/static/js/main.*.js
+   ```
+
+2. **GitHub Actions failed:**
+   - Check Actions tab in GitHub
+   - Review error logs
+   - Common issue: npm dependencies conflict
+   - Fix: Update package-lock.json, push again
+
+3. **Changes not appearing:**
+   - Hard reload browser (Cmd+Shift+R)
+   - Check if GitHub Actions completed successfully
+   - Verify commit includes built files
+   - Check Frappe Cloud deployment logs
+
+**Self-hosted vs Frappe Cloud:**
+
+| Feature | Self-hosted | Frappe Cloud |
+|---------|------------|--------------|
+| npm install | ✅ Manual | ❌ Not available |
+| Build React apps | ✅ Manual | ❌ Not available |
+| Deploy bundles | ✅ Auto after build | ✅ From git repo |
+| Hooks (install.py) | ✅ Can run npm | ⚠️ Skips npm build |
+| Best practice | Build locally | GitHub Actions |
+
+**Migration Workflow for Frappe Cloud:**
+
+```bash
+# 1. Develop locally
+npm run dev:customer-display-editor
+
+# 2. Test changes
+# (React dev server with HMR)
+
+# 3. Commit React code only
+git add src/apps/customer-display-editor/
+git commit -m "feat: improve customer display editor"
+
+# 4. Push to GitHub
+git push origin main
+
+# 5. GitHub Actions auto-builds
+# (check Actions tab)
+
+# 6. Built files auto-committed
+# (check latest commit)
+
+# 7. Frappe Cloud auto-deploys
+# (check deployment logs)
+
+# 8. Verify live site
+# https://your-site.frappe.cloud/customer_display_editor
+```
 
 ### CI/CD Integration
 

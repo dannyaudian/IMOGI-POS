@@ -1,0 +1,11 @@
+{
+  "src/apps/kitchen/main.jsx": {
+    "file": "static/js/main.DqjEBu--.js",
+    "name": "main",
+    "src": "src/apps/kitchen/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.DSfn3uCX.css"
+    ]
+  }
+}

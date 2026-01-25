@@ -1,0 +1,71 @@
+name: Build React Apps for Frappe Cloud
+
+on:
+  push:
+    branches: 
+      - main
+      - production
+      - develop
+    paths:
+      - 'src/apps/**'
+      - 'src/shared/**'
+      - 'package.json'
+      - 'vite.config.js'
+      - '.github/workflows/build-react.yml'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build all React apps
+        run: npm run build:all
+        
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git add imogi_pos/public/react/
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in React bundles"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "React bundles updated"
+          fi
+          
+      - name: Commit and push built files
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: build React apps [skip ci]"
+          git push
+          
+      - name: Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All React apps built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Bundle Sizes" >> $GITHUB_STEP_SUMMARY
+          du -sh imogi_pos/public/react/*/static/js/*.js | while read size file; do
+            app=$(echo $file | cut -d/ -f5)
+            echo "- $app: $size" >> $GITHUB_STEP_SUMMARY
+          done

@@ -9,16 +9,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Build outputs
+# Build outputs (development only)
 dist/
 dist-ssr/
 *.local
-.vite/
 
-# React build artifacts
-imogi_pos/public/react/*/static/
-imogi_pos/public/react/*/.vite-manifest.json
-imogi_pos/public/react/*/asset-manifest.json
+# ⚠️ IMPORTANT FOR FRAPPE CLOUD:
+# React build artifacts are COMMITTED to repo for Frappe Cloud deployment
+# DO NOT ignore: imogi_pos/public/react/
+# 
+# For self-hosted: you can add to .git/info/exclude if needed
+# echo "imogi_pos/public/react/" >> .git/info/exclude
 
 # Editor directories and files
 .vscode/*

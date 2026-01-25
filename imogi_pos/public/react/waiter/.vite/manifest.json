@@ -1,0 +1,11 @@
+{
+  "src/apps/waiter/main.jsx": {
+    "file": "static/js/main.C5xnI5LA.js",
+    "name": "main",
+    "src": "src/apps/waiter/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.DSfn3uCX.css"
+    ]
+  }
+}

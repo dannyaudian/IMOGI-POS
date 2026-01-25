@@ -1,0 +1,11 @@
+{
+  "src/apps/customer-display-editor/main.jsx": {
+    "file": "static/js/main.6UooHZz2.js",
+    "name": "main",
+    "src": "src/apps/customer-display-editor/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.DSfn3uCX.css"
+    ]
+  }
+}

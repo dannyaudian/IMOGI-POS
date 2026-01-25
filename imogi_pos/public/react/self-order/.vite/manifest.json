@@ -1,0 +1,11 @@
+{
+  "src/apps/self-order/main.jsx": {
+    "file": "static/js/main.T5zCSFiP.js",
+    "name": "main",
+    "src": "src/apps/self-order/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.DSfn3uCX.css"
+    ]
+  }
+}
