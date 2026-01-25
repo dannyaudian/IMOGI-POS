@@ -244,3 +244,235 @@ def test_device_display(device):
         'message': _('Test message sent to display')
     }
 
+
+@frappe.whitelist()
+def get_display_templates():
+    """
+    Get available display templates/presets
+    
+    Returns:
+        dict: List of templates with preview data
+    """
+    templates = [
+        {
+            'id': 'modern-dark',
+            'name': 'Modern Dark',
+            'description': 'Dark theme with modern layout',
+            'preview_image': '/assets/imogi_pos/images/templates/modern-dark.png',
+            'config': {
+                'layout_type': 'Grid',
+                'grid_columns': 2,
+                'grid_rows': 3,
+                'backgroundColor': '#1f2937',
+                'textColor': '#ffffff',
+                'accentColor': '#3b82f6',
+                'priceColor': '#10b981',
+                'fontSize': '1.25rem',
+                'showLogo': True,
+                'showImages': True
+            }
+        },
+        {
+            'id': 'light-minimal',
+            'name': 'Light Minimal',
+            'description': 'Clean light theme with minimal design',
+            'preview_image': '/assets/imogi_pos/images/templates/light-minimal.png',
+            'config': {
+                'layout_type': 'List',
+                'backgroundColor': '#ffffff',
+                'textColor': '#1f2937',
+                'accentColor': '#10b981',
+                'priceColor': '#059669',
+                'fontSize': '1rem',
+                'showLogo': True,
+                'showImages': False,
+                'showSubtotal': True,
+                'showTaxes': True
+            }
+        },
+        {
+            'id': 'colorful',
+            'name': 'Colorful',
+            'description': 'Vibrant colors for retail',
+            'preview_image': '/assets/imogi_pos/images/templates/colorful.png',
+            'config': {
+                'layout_type': 'Grid',
+                'grid_columns': 3,
+                'grid_rows': 2,
+                'backgroundColor': '#ec4899',
+                'textColor': '#ffffff',
+                'accentColor': '#fbbf24',
+                'priceColor': '#ffffff',
+                'fontSize': '1.5rem',
+                'showLogo': True,
+                'showImages': True
+            }
+        },
+        {
+            'id': 'restaurant',
+            'name': 'Restaurant',
+            'description': 'Perfect for restaurant displays',
+            'preview_image': '/assets/imogi_pos/images/templates/restaurant.png',
+            'config': {
+                'layout_type': 'List',
+                'backgroundColor': '#0f172a',
+                'textColor': '#f1f5f9',
+                'accentColor': '#f59e0b',
+                'priceColor': '#fbbf24',
+                'fontSize': '1.25rem',
+                'showLogo': True,
+                'showImages': True,
+                'showDescription': True,
+                'autoScroll': True,
+                'scrollSpeed': 3
+            }
+        }
+    ]
+    
+    return {
+        'templates': templates,
+        'total': len(templates)
+    }
+
+
+@frappe.whitelist()
+def duplicate_profile(source_profile, new_name, new_branch=None):
+    """
+    Duplicate an existing Customer Display Profile
+    
+    Args:
+        source_profile (str): Source profile name
+        new_name (str): New profile name
+        new_branch (str, optional): Branch for new profile
+    
+    Returns:
+        dict: New profile details
+    """
+    if not frappe.has_permission('Customer Display Profile', 'create'):
+        frappe.throw(_('No permission to create Customer Display Profile'))
+    
+    try:
+        source_doc = frappe.get_doc('Customer Display Profile', source_profile)
+        
+        # Create new profile
+        new_doc = frappe.copy_doc(source_doc)
+        new_doc.profile_name = new_name
+        
+        if new_branch:
+            new_doc.branch = new_branch
+        
+        new_doc.insert(ignore_permissions=True)
+        
+        return {
+            'success': True,
+            'profile': {
+                'name': new_doc.name,
+                'profile_name': new_doc.profile_name,
+                'branch': new_doc.branch
+            },
+            'message': _('Profile duplicated successfully')
+        }
+    except frappe.DoesNotExistError:
+        frappe.throw(_('Source profile not found'))
+    except Exception as e:
+        frappe.log_error(f'Error duplicating profile: {str(e)}')
+        frappe.throw(_('Error duplicating profile'))
+
+
+@frappe.whitelist()
+def get_preview_data(device=None, sample_type='default'):
+    """
+    Get sample data for preview display
+    
+    Args:
+        device (str, optional): Device profile name
+        sample_type (str): Type of sample data (default, restaurant, retail)
+    
+    Returns:
+        dict: Sample order data for preview
+    """
+    sample_data = {
+        'default': {
+            'items': [
+                {'item_name': 'Product A', 'qty': 2, 'rate': 25000, 'amount': 50000, 'description': 'Standard product'},
+                {'item_name': 'Product B', 'qty': 1, 'rate': 35000, 'amount': 35000, 'description': 'Premium item'},
+                {'item_name': 'Product C', 'qty': 3, 'rate': 15000, 'amount': 45000, 'description': 'Budget option'}
+            ],
+            'subtotal': 130000,
+            'tax': 13000,
+            'total': 143000,
+            'customer': 'Sample Customer'
+        },
+        'restaurant': {
+            'items': [
+                {'item_name': 'Nasi Goreng Special', 'qty': 2, 'rate': 35000, 'amount': 70000, 'description': 'Extra pedas'},
+                {'item_name': 'Es Teh Manis', 'qty': 2, 'rate': 8000, 'amount': 16000, 'description': 'Less sugar'},
+                {'item_name': 'Ayam Bakar', 'qty': 1, 'rate': 45000, 'amount': 45000, 'description': 'With sambal'},
+                {'item_name': 'Jus Alpukat', 'qty': 1, 'rate': 15000, 'amount': 15000, 'description': 'Fresh'}
+            ],
+            'subtotal': 146000,
+            'tax': 14600,
+            'total': 160600,
+            'customer': 'TABLE-05'
+        },
+        'retail': {
+            'items': [
+                {'item_name': 'T-Shirt Premium', 'qty': 1, 'rate': 125000, 'amount': 125000, 'description': 'Size L, Blue'},
+                {'item_name': 'Jeans Classic', 'qty': 1, 'rate': 250000, 'amount': 250000, 'description': 'Size 32'},
+                {'item_name': 'Sneakers Sport', 'qty': 1, 'rate': 350000, 'amount': 350000, 'description': 'Size 42'},
+                {'item_name': 'Cap Limited Edition', 'qty': 2, 'rate': 75000, 'amount': 150000, 'description': 'Black'}
+            ],
+            'subtotal': 875000,
+            'tax': 87500,
+            'total': 962500,
+            'customer': 'VIP Customer'
+        }
+    }
+    
+    data = sample_data.get(sample_type, sample_data['default'])
+    
+    # Add device config if provided
+    if device:
+        try:
+            profile_doc = frappe.get_doc('Customer Display Profile', device)
+            data['config'] = {
+                'layout_type': profile_doc.layout_type,
+                'brand_name': profile_doc.brand_name,
+                'brand_logo': profile_doc.brand_logo
+            }
+        except:
+            pass
+    
+    return data
+
+
+@frappe.whitelist()
+def get_profile_stats():
+    """
+    Get statistics about customer display profiles
+    
+    Returns:
+        dict: Statistics data
+    """
+    if not frappe.has_permission('Customer Display Profile', 'read'):
+        frappe.throw(_('No permission to read Customer Display Profile'))
+    
+    total = frappe.db.count('Customer Display Profile')
+    active = frappe.db.count('Customer Display Profile', {'is_active': 1})
+    inactive = total - active
+    
+    # Group by branch
+    by_branch = frappe.db.sql("""
+        SELECT branch, COUNT(*) as count
+        FROM `tabCustomer Display Profile`
+        WHERE is_active = 1
+        GROUP BY branch
+        ORDER BY count DESC
+    """, as_dict=True)
+    
+    return {
+        'total': total,
+        'active': active,
+        'inactive': inactive,
+        'by_branch': by_branch
+    }

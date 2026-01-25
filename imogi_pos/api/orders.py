@@ -1234,3 +1234,151 @@ def create_counter_order(pos_profile, branch, items, customer=None, order_type="
         "modified": order_doc.modified
     }
 
+
+@frappe.whitelist()
+def create_table_order(branch, customer, waiter, items, table=None, mode="Dine-in", notes=""):
+    """
+    Create a POS Order for table service (Waiter App).
+    Does not generate invoice - that happens at Cashier when customer pays.
+    
+    Args:
+        branch (str): Branch name
+        customer (str): Customer name (can be "Walk-in Customer")
+        waiter (str): Waiter user email
+        items (list): List of order items with item_code, qty, rate, notes, station
+        table (str, optional): Restaurant table name (required for Dine-in)
+        mode (str): Order mode - "Dine-in" or "Counter"
+        notes (str, optional): Order-level special notes
+    
+    Returns:
+        dict: Created order details
+    """
+    try:
+        # Parse items if JSON string
+        if isinstance(items, str):
+            import json
+            items = json.loads(items)
+        
+        # Validate inputs
+        if not branch:
+            frappe.throw(_("Branch is required"))
+        
+        if not customer:
+            customer = "Walk-in Customer"
+        
+        if not waiter:
+            frappe.throw(_("Waiter is required"))
+        
+        if not items or len(items) == 0:
+            frappe.throw(_("At least one item is required"))
+        
+        if mode == "Dine-in" and not table:
+            frappe.throw(_("Table is required for Dine-in orders"))
+        
+        # Validate branch access
+        validate_branch_access(branch)
+        
+        # Get POS Profile for branch
+        pos_profile = frappe.db.get_value("POS Profile", {"branch": branch, "disabled": 0}, "name")
+        if not pos_profile:
+            frappe.throw(_("No active POS Profile found for branch {0}").format(branch))
+        
+        # Get POS Profile details
+        pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+        
+        # Create POS Order
+        order_doc = frappe.new_doc("POS Order")
+        order_doc.branch = branch
+        order_doc.pos_profile = pos_profile
+        order_doc.customer = customer
+        order_doc.order_type = mode
+        order_doc.table = table if mode == "Dine-in" else None
+        order_doc.waiter = waiter
+        order_doc.workflow_state = "Draft"
+        order_doc.imogi_source_module = "Waiter"
+        
+        # Set company and other defaults from POS Profile
+        order_doc.company = pos_profile_doc.company
+        order_doc.price_list = pos_profile_doc.selling_price_list
+        order_doc.currency = pos_profile_doc.currency or frappe.defaults.get_global_default("currency")
+        
+        # Add special notes
+        if notes:
+            order_doc.special_notes = notes
+        
+        # Add items
+        total_qty = 0
+        total_amount = 0
+        
+        for item in items:
+            item_code = item.get("item_code")
+            qty = flt(item.get("qty", 1))
+            rate = flt(item.get("rate", 0))
+            
+            if not item_code:
+                continue
+            
+            # Get item details
+            item_doc = frappe.get_doc("Item", item_code)
+            
+            order_doc.append("items", {
+                "item_code": item_code,
+                "item_name": item.get("item_name") or item_doc.item_name,
+                "qty": qty,
+                "uom": item.get("uom") or item_doc.stock_uom,
+                "rate": rate,
+                "amount": qty * rate,
+                "notes": item.get("notes", ""),
+                "production_station": item.get("station")
+            })
+            
+            total_qty += qty
+            total_amount += (qty * rate)
+        
+        # Calculate totals
+        order_doc.total_qty = total_qty
+        order_doc.net_total = total_amount
+        order_doc.grand_total = total_amount  # Will be updated with taxes later
+        
+        # Save order
+        order_doc.insert(ignore_permissions=True)
+        
+        # Update table status if dine-in
+        if table:
+            table_doc = frappe.get_doc("Restaurant Table", table)
+            table_doc.status = "Occupied"
+            table_doc.current_order = order_doc.name
+            table_doc.save(ignore_permissions=True)
+        
+        frappe.db.commit()
+        
+        return {
+            "name": order_doc.name,
+            "customer": order_doc.customer,
+            "table": order_doc.table,
+            "order_type": order_doc.order_type,
+            "waiter": order_doc.waiter,
+            "workflow_state": order_doc.workflow_state,
+            "total_qty": order_doc.total_qty,
+            "grand_total": order_doc.grand_total,
+            "items": [
+                {
+                    "item_code": row.item_code,
+                    "item_name": row.item_name,
+                    "qty": row.qty,
+                    "rate": row.rate,
+                    "amount": row.amount,
+                    "notes": row.notes,
+                    "station": row.production_station
+                }
+                for row in order_doc.items
+            ],
+            "creation": order_doc.creation
+        }
+        
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error creating table order: {str(e)}", "Create Table Order Error")
+        frappe.throw(_("Failed to create order: {0}").format(str(e)))
+
+

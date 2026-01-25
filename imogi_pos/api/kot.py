@@ -890,3 +890,274 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
         frappe.log_error(f'Error in get_kitchen_orders: {str(e)}')
         frappe.throw(_('Error fetching kitchen orders: {0}').format(str(e)))
 
+
+@frappe.whitelist()
+def get_active_kots(kitchen=None, station=None):
+    """
+    Get active KOTs for Kitchen Display System.
+    Returns KOTs that are not Served or Cancelled.
+    
+    Args:
+        kitchen (str, optional): Kitchen name to filter
+        station (str, optional): Station name to filter
+    
+    Returns:
+        list: Active KOT documents with items
+    """
+    try:
+        filters = {
+            "workflow_state": ["not in", ["Served", "Cancelled"]],
+            "docstatus": 1
+        }
+        
+        if kitchen:
+            filters["kitchen"] = kitchen
+        
+        if station:
+            filters["station"] = station
+        
+        # Fetch KOT tickets
+        kots = frappe.get_all(
+            "Kitchen Order Ticket",
+            filters=filters,
+            fields=[
+                "name",
+                "ticket_number",
+                "pos_order",
+                "kitchen",
+                "station",
+                "workflow_state",
+                "creation",
+                "modified",
+                "table_name",
+                "order_type",
+                "special_notes"
+            ],
+            order_by="creation asc"
+        )
+        
+        # Fetch items for each KOT
+        for kot in kots:
+            items = frappe.get_all(
+                "KOT Item",
+                filters={"parent": kot.name},
+                fields=[
+                    "name",
+                    "item_code",
+                    "item_name",
+                    "qty",
+                    "uom",
+                    "rate",
+                    "notes",
+                    "variant_of",
+                    "item_group"
+                ],
+                order_by="idx asc"
+            )
+            kot["items"] = items
+        
+        return kots
+        
+    except Exception as e:
+        frappe.log_error(f"Error in get_active_kots: {str(e)}", "KOT API Error")
+        frappe.throw(_("Failed to fetch active KOTs: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def update_kot_state(kot_name, new_state, reason=None):
+    """
+    Update KOT workflow state with validation.
+    Publishes realtime events after successful update.
+    
+    Args:
+        kot_name (str): KOT document name
+        new_state (str): Target workflow state (Queued, In Progress, Ready, Served, Cancelled)
+        reason (str, optional): Reason for state change (required for Cancelled)
+    
+    Returns:
+        dict: Updated KOT document
+    """
+    try:
+        # Validate inputs
+        if not kot_name:
+            frappe.throw(_("KOT name is required"))
+        
+        if not new_state:
+            frappe.throw(_("New state is required"))
+        
+        valid_states = ["Queued", "In Progress", "Ready", "Served", "Cancelled"]
+        if new_state not in valid_states:
+            frappe.throw(_("Invalid state: {0}. Must be one of: {1}").format(
+                new_state, ", ".join(valid_states)
+            ))
+        
+        # Cancellation requires reason
+        if new_state == "Cancelled" and not reason:
+            frappe.throw(_("Cancellation reason is required"))
+        
+        # Get KOT document
+        kot_doc = frappe.get_doc("Kitchen Order Ticket", kot_name)
+        old_state = kot_doc.workflow_state
+        
+        # Validate state transition using StateManager
+        state_manager = StateManager()
+        if not state_manager.can_transition(old_state, new_state):
+            frappe.throw(_(
+                "Invalid state transition from {0} to {1}"
+            ).format(old_state, new_state))
+        
+        # Update state
+        kot_doc.workflow_state = new_state
+        
+        # Add cancellation reason if provided
+        if reason:
+            kot_doc.special_notes = (kot_doc.special_notes or "") + f"\nCancellation reason: {reason}"
+        
+        # Save with ignore_permissions to allow state updates
+        kot_doc.save(ignore_permissions=True)
+        
+        # Publish realtime update
+        publish_kitchen_update(
+            kot_doc,
+            kitchen=kot_doc.kitchen,
+            station=kot_doc.station,
+            event_type="kot_state_changed"
+        )
+        
+        # If table-based, publish table update
+        if kot_doc.table_name:
+            publish_table_update(
+                kot_doc.pos_order,
+                kot_doc.table_name,
+                event_type="kot_state_changed"
+            )
+        
+        frappe.db.commit()
+        
+        return {
+            "name": kot_doc.name,
+            "workflow_state": kot_doc.workflow_state,
+            "old_state": old_state,
+            "new_state": new_state,
+            "modified": kot_doc.modified
+        }
+        
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error updating KOT state: {str(e)}", "KOT State Update Error")
+        frappe.throw(_("Failed to update KOT state: {0}").format(str(e)))
+
+
+@frappe.whitelist()
+def send_to_kitchen(order_name, items_by_station):
+    """
+    Create KOTs from order items grouped by production station.
+    Each station gets its own KOT ticket.
+    
+    Args:
+        order_name (str): POS Order document name
+        items_by_station (dict): Items grouped by station name
+            Example: {
+                "Main Kitchen": [{"item_code": "FOOD-001", "qty": 2, ...}],
+                "Beverage Station": [{"item_code": "DRINK-001", "qty": 1, ...}]
+            }
+    
+    Returns:
+        dict: Created KOT names grouped by station
+    """
+    try:
+        # Parse items_by_station if it's a JSON string
+        if isinstance(items_by_station, str):
+            import json
+            items_by_station = json.loads(items_by_station)
+        
+        if not order_name:
+            frappe.throw(_("Order name is required"))
+        
+        if not items_by_station or not isinstance(items_by_station, dict):
+            frappe.throw(_("Items by station must be a dictionary"))
+        
+        # Get order document
+        order_doc = frappe.get_doc("POS Order", order_name)
+        
+        # Validate order is not already completed
+        if order_doc.docstatus == 2:
+            frappe.throw(_("Cannot send cancelled order to kitchen"))
+        
+        created_kots = {}
+        
+        # Create KOT for each station
+        for station_name, station_items in items_by_station.items():
+            if not station_items:
+                continue
+            
+            # Get kitchen for this station
+            kitchen = frappe.db.get_value("Kitchen Station", station_name, "kitchen")
+            if not kitchen:
+                # Use default kitchen from branch or first available
+                kitchen = frappe.db.get_value("Kitchen", {"branch": order_doc.branch, "is_active": 1}, "name")
+            
+            # Create KOT document
+            kot_doc = frappe.new_doc("Kitchen Order Ticket")
+            kot_doc.pos_order = order_name
+            kot_doc.kitchen = kitchen or "Main Kitchen"
+            kot_doc.station = station_name
+            kot_doc.table_name = order_doc.get("table")
+            kot_doc.order_type = order_doc.get("order_type", "Dine-in")
+            kot_doc.workflow_state = "Queued"
+            kot_doc.branch = order_doc.branch
+            
+            # Add items
+            for item in station_items:
+                kot_doc.append("items", {
+                    "item_code": item.get("item_code"),
+                    "item_name": item.get("item_name"),
+                    "qty": item.get("qty", 1),
+                    "uom": item.get("uom"),
+                    "rate": item.get("rate", 0),
+                    "notes": item.get("notes", ""),
+                    "variant_of": item.get("variant_of")
+                })
+            
+            # Save KOT
+            kot_doc.insert(ignore_permissions=True)
+            kot_doc.submit()
+            
+            created_kots[station_name] = kot_doc.name
+            
+            # Publish realtime notification
+            publish_kitchen_update(
+                kot_doc,
+                kitchen=kitchen,
+                station=station_name,
+                event_type="kot_created"
+            )
+        
+        # Update table status if dine-in
+        if order_doc.get("table"):
+            table_doc = frappe.get_doc("Restaurant Table", order_doc.table)
+            if table_doc.status != "Occupied":
+                table_doc.status = "Occupied"
+                table_doc.current_order = order_name
+                table_doc.save(ignore_permissions=True)
+                
+            # Publish table update
+            publish_table_update(
+                order_name,
+                order_doc.table,
+                event_type="order_sent_to_kitchen"
+            )
+        
+        frappe.db.commit()
+        
+        return {
+            "success": True,
+            "kots": created_kots,
+            "total_kots": len(created_kots)
+        }
+        
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(f"Error sending to kitchen: {str(e)}", "Send to Kitchen Error")
+        frappe.throw(_("Failed to send order to kitchen: {0}").format(str(e)))
+
