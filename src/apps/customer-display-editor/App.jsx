@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react'
-import { useFrappeGetDocList, useFrappeGetCall } from 'frappe-react-sdk'
+import { useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk'
 import './styles.css'
-import Header from './components/Header'
-import DeviceSelector from './components/DeviceSelector'
-import LayoutPreview from './components/LayoutPreview'
-import ConfigPanel from './components/ConfigPanel'
 
 function App() {
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [devices, setDevices] = useState([])
   const [config, setConfig] = useState({})
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState('preview') // preview, layout, theme, advanced
+  const [activeTab, setActiveTab] = useState('preview')
 
   // Fetch customer display devices
-  const { data: deviceList, isLoading: devicesLoading } = useFrappeGetDocList(
+  const { data: deviceList, isLoading: devicesLoading, mutate: mutateDevices } = useFrappeGetDocList(
     'Customer Display Device',
     {
       fields: ['name', 'device_name', 'location', 'status', 'display_type'],
@@ -23,12 +20,7 @@ function App() {
     }
   )
 
-  // Fetch device config
-  const { data: deviceConfig, isLoading: configLoading } = useFrappeGetCall(
-    'imogi_pos.api.customer_display_editor.get_device_config',
-    { device: selectedDevice }
-  )
-
+  // Load devices
   useEffect(() => {
     if (deviceList) {
       setDevices(deviceList)
@@ -36,16 +28,40 @@ function App() {
         setSelectedDevice(deviceList[0].name)
       }
     }
-  }, [deviceList])
+  }, [deviceList, selectedDevice])
 
+  // Load config when device changes
   useEffect(() => {
-    if (deviceConfig && !configLoading) {
-      setConfig(deviceConfig.config || {})
-      setLoading(false)
+    if (selectedDevice) {
+      loadDeviceConfig()
     }
-  }, [deviceConfig, configLoading])
+  }, [selectedDevice])
+
+  const loadDeviceConfig = () => {
+    setLoading(true)
+    frappe.call({
+      method: 'imogi_pos.api.customer_display_editor.get_device_config',
+      args: { device: selectedDevice },
+      callback: (r) => {
+        if (r.message) {
+          setConfig(r.message.config || {})
+        }
+        setLoading(false)
+      },
+      error: () => {
+        setLoading(false)
+        frappe.show_alert({
+          message: 'Error loading device config',
+          indicator: 'red'
+        }, 3)
+      }
+    })
+  }
 
   const handleSaveConfig = () => {
+    if (!selectedDevice) return
+    
+    setSaving(true)
     frappe.call({
       method: 'imogi_pos.api.customer_display_editor.save_device_config',
       args: {
@@ -61,11 +77,54 @@ function App() {
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
         }
+        setSaving(false)
       },
       error: () => {
         frappe.show_alert({
           message: 'Error saving configuration',
           indicator: 'red'
+        }, 3)
+        setSaving(false)
+      }
+    })
+  }
+
+  const handleResetConfig = () => {
+    if (!selectedDevice) return
+    
+    if (!confirm('Reset to default configuration?')) return
+    
+    frappe.call({
+      method: 'imogi_pos.api.customer_display_editor.reset_device_config',
+      args: { device: selectedDevice },
+      callback: (r) => {
+        if (r.message && r.message.success) {
+          loadDeviceConfig()
+          frappe.show_alert({
+            message: 'Configuration reset to defaults',
+            indicator: 'green'
+          }, 3)
+        }
+      },
+      error: () => {
+        frappe.show_alert({
+          message: 'Error resetting configuration',
+          indicator: 'red'
+        }, 3)
+      }
+    })
+  }
+
+  const handleTestDisplay = () => {
+    if (!selectedDevice) return
+    
+    frappe.call({
+      method: 'imogi_pos.api.customer_display_editor.test_device_display',
+      args: { device: selectedDevice },
+      callback: () => {
+        frappe.show_alert({
+          message: 'Test message sent to display',
+          indicator: 'blue'
         }, 3)
       }
     })
@@ -78,285 +137,385 @@ function App() {
     }))
   }
 
-  if (authLoading || profileLoading) {
-    return <LoadingSpinner message="Loading editor..." />
+  if (devicesLoading) {
+    return (
+      <div className="cde-container">
+        <div className="cde-loading">
+          <div className="spinner"></div>
+          <p>Loading Customer Display Editor...</p>
+        </div>
+      </div>
+    )
   }
 
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied - Manager role required'} />
-  }
-
-  if (profileError) {
-    return <ErrorMessage error={`Failed to load POS Profile: ${profileError.message}`} />
-  }
-
-  const handleSave = async () => {
-    try {
-      await updateDoc('POS Profile', posProfile, {
-        imogi_customer_display_settings: JSON.stringify(settings)
-      })
-      
-      window.frappe.show_alert({ 
-        message: 'Settings saved successfully!', 
-        indicator: 'green' 
-      })
-      
-      mutate()
-    } catch (error) {
-      console.error('Save failed:', error)
-      window.frappe.show_alert({ 
-        message: 'Failed to save settings', 
-        indicator: 'red' 
-      })
-    }
+  if (!devices || devices.length === 0) {
+    return (
+      <div className="cde-container">
+        <div className="cde-empty">
+          <h2>No Customer Display Devices</h2>
+          <p>Create a Customer Display Device to get started.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="imogi-app">
-      <NavBar title="Customer Display Editor" user={user} />
-      
-      <main className="imogi-main">
-        <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-          <div>
-            <h2>Configure Customer Display</h2>
-            <p style={{ color: '#6b7280', marginTop: '0.25rem' }}>
-              Branch: <strong>{branch}</strong> • POS Profile: <strong>{posProfile}</strong>
-            </p>
-          </div>
+    <div className="cde-app">
+      {/* Header */}
+      <div className="cde-header">
+        <div className="cde-header-content">
+          <h1>Customer Display Editor</h1>
+          <p>Configure and test customer display devices</p>
+        </div>
+        <div className="cde-header-actions">
           <button 
-            className="btn-primary" 
-            onClick={handleSave}
-            disabled={saving}
+            className="cde-btn cde-btn-secondary"
+            onClick={handleResetConfig}
+            disabled={!selectedDevice || loading}
           >
-            {saving ? 'Saving...' : 'Save Settings'}
+            Reset to Defaults
+          </button>
+          <button 
+            className="cde-btn cde-btn-secondary"
+            onClick={handleTestDisplay}
+            disabled={!selectedDevice || loading}
+          >
+            Test Display
+          </button>
+          <button 
+            className="cde-btn cde-btn-primary"
+            onClick={handleSaveConfig}
+            disabled={!selectedDevice || saving || loading}
+          >
+            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Configuration'}
           </button>
         </div>
-        
-        <div className="grid-2" style={{ gap: '1.5rem', alignItems: 'start' }}>
-          {/* Settings Panel */}
-          <Card title="Display Settings">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="checkbox"
-                  checked={settings.showLogo}
-                  onChange={(e) => setSettings({...settings, showLogo: e.target.checked})}
-                />
-                <span>Show Brand Logo</span>
-              </label>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="checkbox"
-                  checked={settings.showImages}
-                  onChange={(e) => setSettings({...settings, showImages: e.target.checked})}
-                />
-                <span>Show Item Images</span>
-              </label>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="checkbox"
-                  checked={settings.showTotalPrice}
-                  onChange={(e) => setSettings({...settings, showTotalPrice: e.target.checked})}
-                />
-                <span>Show Total Price</span>
-              </label>
-              
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="checkbox"
-                  checked={settings.autoScroll}
-                  onChange={(e) => setSettings({...settings, autoScroll: e.target.checked})}
-                />
-                <span>Auto-scroll Items</span>
-              </label>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  Font Size
-                </label>
-                <select 
-                  value={settings.fontSize}
-                  onChange={(e) => setSettings({...settings, fontSize: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '6px',
-                    border: '1px solid #e5e7eb'
-                  }}
+      </div>
+
+      {/* Main Content */}
+      <div className="cde-main">
+        {/* Sidebar - Device Selector */}
+        <aside className="cde-sidebar">
+          <h3>Devices</h3>
+          <div className="cde-device-list">
+            {devices.map(device => (
+              <button
+                key={device.name}
+                className={`cde-device-item ${selectedDevice === device.name ? 'active' : ''}`}
+                onClick={() => setSelectedDevice(device.name)}
+              >
+                <div className="cde-device-name">{device.device_name || device.name}</div>
+                <div className="cde-device-location">{device.location || 'No location'}</div>
+                <div className={`cde-device-status ${device.status || 'unknown'}`}>
+                  {device.status || 'Unknown'}
+                </div>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* Content - Configuration Panels */}
+        <main className="cde-content">
+          {loading ? (
+            <div className="cde-loading-content">
+              <div className="spinner"></div>
+              <p>Loading configuration...</p>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="cde-tabs">
+                <button
+                  className={`cde-tab ${activeTab === 'preview' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('preview')}
                 >
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                  <option value="xlarge">Extra Large</option>
-                </select>
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Preview
+                </button>
+                <button
+                  className={`cde-tab ${activeTab === 'layout' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('layout')}
+                >
+                  Layout
+                </button>
+                <button
+                  className={`cde-tab ${activeTab === 'theme' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('theme')}
+                >
                   Theme
-                </label>
-                <select 
-                  value={settings.theme}
-                  onChange={(e) => setSettings({...settings, theme: e.target.value})}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: '6px',
-                    border: '1px solid #e5e7eb'
-                  }}
+                </button>
+                <button
+                  className={`cde-tab ${activeTab === 'advanced' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('advanced')}
                 >
-                  <option value="gradient">Gradient</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="brand">Brand Colors</option>
-                </select>
+                  Advanced
+                </button>
               </div>
-              
-              {settings.autoScroll && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                    Scroll Speed (ms)
-                  </label>
-                  <input 
-                    type="number"
-                    min="1000"
-                    max="10000"
-                    step="500"
-                    value={settings.scrollSpeed}
-                    onChange={(e) => setSettings({...settings, scrollSpeed: parseInt(e.target.value)})}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      borderRadius: '6px',
-                      border: '1px solid #e5e7eb'
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
-          
-          {/* Live Preview */}
-          <Card title="Live Preview">
-            <div 
-              style={{
-                background: settings.theme === 'gradient' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
-                           settings.theme === 'dark' ? '#1f2937' : 
-                           settings.theme === 'brand' ? branding.primary_color : 'white',
-                color: settings.theme === 'light' ? '#1f2937' : 'white',
-                padding: '2rem',
-                borderRadius: '8px',
-                minHeight: '400px',
-                fontSize: settings.fontSize === 'small' ? '0.875rem' : 
-                          settings.fontSize === 'large' ? '1.25rem' : 
-                          settings.fontSize === 'xlarge' ? '1.5rem' : '1rem'
-              }}
-            >
-              {settings.showLogo && branding.logo && (
-                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                  <img 
-                    src={branding.logo} 
-                    alt={branding.name}
-                    style={{ maxWidth: '150px', height: 'auto' }}
-                  />
-                </div>
-              )}
-              
-              <h3 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                Current Order
-              </h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  padding: '0.75rem',
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: '6px'
-                }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    {settings.showImages && (
-                      <div style={{ 
-                        width: '60px', 
-                        height: '60px', 
-                        background: 'rgba(255,255,255,0.2)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '2rem'
-                      }}>
-                        🍕
-                      </div>
-                    )}
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Sample Pizza</div>
-                      <div style={{ opacity: 0.7, fontSize: '0.875em' }}>2x</div>
-                    </div>
-                  </div>
-                  <div style={{ fontWeight: '600' }}>$24.00</div>
-                </div>
-                
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  padding: '0.75rem',
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: '6px'
-                }}>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    {settings.showImages && (
-                      <div style={{ 
-                        width: '60px', 
-                        height: '60px', 
-                        background: 'rgba(255,255,255,0.2)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '2rem'
-                      }}>
-                        🥤
-                      </div>
-                    )}
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Soft Drink</div>
-                      <div style={{ opacity: 0.7, fontSize: '0.875em' }}>1x</div>
-                    </div>
-                  </div>
-                  <div style={{ fontWeight: '600' }}>$3.00</div>
-                </div>
+
+              {/* Tab Content */}
+              <div className="cde-tab-content">
+                {activeTab === 'preview' && <PreviewTab config={config} />}
+                {activeTab === 'layout' && (
+                  <LayoutTab config={config} onChange={handleConfigChange} />
+                )}
+                {activeTab === 'theme' && (
+                  <ThemeTab config={config} onChange={handleConfigChange} />
+                )}
+                {activeTab === 'advanced' && (
+                  <AdvancedTab config={config} onChange={handleConfigChange} />
+                )}
               </div>
-              
-              {settings.showTotalPrice && (
-                <div style={{
-                  marginTop: '2rem',
-                  paddingTop: '1rem',
-                  borderTop: '2px solid rgba(255,255,255,0.3)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '1.5em',
-                  fontWeight: '700'
-                }}>
-                  <span>Total</span>
-                  <span>$27.00</span>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      </main>
+            </>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
 
-function App({ initialState }) {
+// Tab Components
+function PreviewTab({ config }) {
+  const sampleItems = [
+    { name: 'Margherita Pizza', qty: 2, price: 12.00 },
+    { name: 'Caesar Salad', qty: 1, price: 8.50 },
+    { name: 'Iced Tea', qty: 3, price: 2.50 }
+  ]
+
+  const bgColor = config.backgroundColor || '#1f2937'
+  const textColor = config.textColor || '#ffffff'
+  const fontSize = config.fontSize || '1rem'
+
   return (
-    <ImogiPOSProvider initialState={initialState}>
-      <CustomerDisplayEditorContent initialState={initialState} />
-    </ImogiPOSProvider>
+    <div className="cde-preview">
+      <div className="cde-preview-label">Live Preview</div>
+      <div 
+        className="cde-preview-display"
+        style={{
+          backgroundColor: bgColor,
+          color: textColor,
+          fontSize: fontSize
+        }}
+      >
+        <div className="cde-preview-header">
+          <h2>Current Order</h2>
+        </div>
+
+        <div className="cde-preview-items">
+          {sampleItems.map((item, idx) => (
+            <div key={idx} className="cde-preview-item">
+              <div className="cde-preview-item-info">
+                <span className="cde-preview-item-name">{item.name}</span>
+                <span className="cde-preview-item-qty">×{item.qty}</span>
+              </div>
+              <span className="cde-preview-item-price">${item.price.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="cde-preview-total">
+          <span>Total</span>
+          <span>${sampleItems.reduce((sum, item) => sum + (item.price * item.qty), 0).toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LayoutTab({ config, onChange }) {
+  return (
+    <div className="cde-form-group">
+      <h3>Layout Settings</h3>
+      
+      <div className="cde-form-field">
+        <label>Show Item Images</label>
+        <input
+          type="checkbox"
+          checked={config.showImages || false}
+          onChange={(e) => onChange('showImages', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Show Item Description</label>
+        <input
+          type="checkbox"
+          checked={config.showDescription || false}
+          onChange={(e) => onChange('showDescription', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Show Brand Logo</label>
+        <input
+          type="checkbox"
+          checked={config.showLogo || false}
+          onChange={(e) => onChange('showLogo', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Show Subtotal</label>
+        <input
+          type="checkbox"
+          checked={config.showSubtotal || false}
+          onChange={(e) => onChange('showSubtotal', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Show Taxes</label>
+        <input
+          type="checkbox"
+          checked={config.showTaxes || false}
+          onChange={(e) => onChange('showTaxes', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Auto-scroll Items</label>
+        <input
+          type="checkbox"
+          checked={config.autoScroll || false}
+          onChange={(e) => onChange('autoScroll', e.target.checked)}
+        />
+      </div>
+
+      {config.autoScroll && (
+        <div className="cde-form-field">
+          <label>Scroll Speed (seconds)</label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            step="0.5"
+            value={config.scrollSpeed || 3}
+            onChange={(e) => onChange('scrollSpeed', parseFloat(e.target.value))}
+          />
+        </div>
+      )}
+
+      <div className="cde-form-field">
+        <label>Font Size</label>
+        <select
+          value={config.fontSize || '1rem'}
+          onChange={(e) => onChange('fontSize', e.target.value)}
+        >
+          <option value="0.875rem">Small</option>
+          <option value="1rem">Medium</option>
+          <option value="1.25rem">Large</option>
+          <option value="1.5rem">Extra Large</option>
+        </select>
+      </div>
+    </div>
+  )
+}
+
+function ThemeTab({ config, onChange }) {
+  return (
+    <div className="cde-form-group">
+      <h3>Theme Settings</h3>
+
+      <div className="cde-form-field">
+        <label>Background Color</label>
+        <input
+          type="color"
+          value={config.backgroundColor || '#1f2937'}
+          onChange={(e) => onChange('backgroundColor', e.target.value)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Text Color</label>
+        <input
+          type="color"
+          value={config.textColor || '#ffffff'}
+          onChange={(e) => onChange('textColor', e.target.value)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Accent Color</label>
+        <input
+          type="color"
+          value={config.accentColor || '#10b981'}
+          onChange={(e) => onChange('accentColor', e.target.value)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Price Color</label>
+        <input
+          type="color"
+          value={config.priceColor || '#fbbf24'}
+          onChange={(e) => onChange('priceColor', e.target.value)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>Theme Preset</label>
+        <select
+          value={config.themePreset || 'dark'}
+          onChange={(e) => onChange('themePreset', e.target.value)}
+        >
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="highcontrast">High Contrast</option>
+          <option value="colorful">Colorful</option>
+        </select>
+      </div>
+    </div>
+  )
+}
+
+function AdvancedTab({ config, onChange }) {
+  return (
+    <div className="cde-form-group">
+      <h3>Advanced Settings</h3>
+
+      <div className="cde-form-field">
+        <label>Display Timeout (seconds)</label>
+        <input
+          type="number"
+          min="5"
+          max="300"
+          step="5"
+          value={config.displayTimeout || 30}
+          onChange={(e) => onChange('displayTimeout', parseInt(e.target.value))}
+        />
+        <small>Time to keep order on display when inactive</small>
+      </div>
+
+      <div className="cde-form-field">
+        <label>Refresh Interval (seconds)</label>
+        <input
+          type="number"
+          min="1"
+          max="60"
+          step="1"
+          value={config.refreshInterval || 5}
+          onChange={(e) => onChange('refreshInterval', parseInt(e.target.value))}
+        />
+        <small>How often to check for updates</small>
+      </div>
+
+      <div className="cde-form-field">
+        <label>Enable Debug Mode</label>
+        <input
+          type="checkbox"
+          checked={config.debugMode || false}
+          onChange={(e) => onChange('debugMode', e.target.checked)}
+        />
+      </div>
+
+      <div className="cde-form-field">
+        <label>API Key (Optional)</label>
+        <input
+          type="password"
+          placeholder="Enter API key for remote management"
+          value={config.apiKey || ''}
+          onChange={(e) => onChange('apiKey', e.target.value)}
+        />
+      </div>
+    </div>
   )
 }
 

@@ -1,3 +1,7 @@
+// @ts-nocheck
+/* global frappe */
+/* eslint-disable no-undef */
+
 frappe.ready(function() {
   const loginForm = document.getElementById('login-form');
   const errorMessage = document.getElementById('error-message');

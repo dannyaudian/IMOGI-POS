@@ -33,7 +33,9 @@ export default defineConfig(({ mode }) => {
         '@kiosk': path.resolve(__dirname, './src/apps/kiosk'),
         '@self-order': path.resolve(__dirname, './src/apps/self-order'),
         '@customer-display': path.resolve(__dirname, './src/apps/customer-display'),
-        '@table-display': path.resolve(__dirname, './src/apps/table-display')
+        '@table-display': path.resolve(__dirname, './src/apps/table-display'),
+        '@customer-display-editor': path.resolve(__dirname, './src/apps/customer-display-editor'),
+        '@table-display-editor': path.resolve(__dirname, './src/apps/table-display-editor')
       }
     },
     server: {

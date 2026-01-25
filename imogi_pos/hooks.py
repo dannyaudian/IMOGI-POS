@@ -159,8 +159,8 @@ website_route_rules = [
     {"from_route": "/restaurant/waiter", "to_route": "/restaurant/waiter"},
     {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},
     {"from_route": "/devices/displays", "to_route": "/devices/displays"},
-    {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
-    {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/devices/customer-display-editor", "to_route": "/devices/customer-display-editor"},
+    {"from_route": "/devices/table-display-editor", "to_route": "/devices/table-display-editor"},
     {"from_route": "/opening-balance", "to_route": "/opening-balance"},
     {"from_route": "/shared/login", "to_route": "/shared/login"},
     {"from_route": "/shared/device-select", "to_route": "/shared/device-select"},
@@ -178,6 +178,8 @@ website_route_rules = [
     {"from_route": "/module-select", "to_route": "/shared/module-select"},
     {"from_route": "/device-select", "to_route": "/shared/device-select"},
     {"from_route": "/service-select", "to_route": "/shared/service-select"},
+    {"from_route": "/customer-display-editor", "to_route": "/devices/customer-display-editor"},
+    {"from_route": "/table-display-editor", "to_route": "/devices/table-display-editor"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},
 ]
 
