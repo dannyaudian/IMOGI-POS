@@ -31,6 +31,7 @@
 {% block script %}
 {% if not setup_error %}
 <script>
+  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
   const POS_PROFILE = {{ pos_profile.name | tojson if pos_profile else 'null' }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};
   const DOMAIN = '{{ domain }}';

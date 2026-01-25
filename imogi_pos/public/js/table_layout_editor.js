@@ -94,7 +94,7 @@ imogi_pos.table_layout_editor = {
                 showBack: true,
                 showBranch: true,
                 showLogo: true,
-                backUrl: '/app/table-display',
+                backUrl: '/restaurant/tables',
                 onBranchChange: (branch) => {
                     this.settings.branch = branch;
                     this.loadFloors().then(() => {

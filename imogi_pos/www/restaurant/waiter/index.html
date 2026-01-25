@@ -1950,7 +1950,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 {% block script %}
 {% if not setup_error %}
 <script>
-  const FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
   const POS_PROFILE = {{ {"name": pos_profile.name, "warehouse": pos_profile.warehouse, "selling_price_list": pos_profile.selling_price_list} | tojson }};
   const POS_WAREHOUSE = {{ pos_profile.warehouse | tojson }};
   const CURRENT_BRANCH = {{ branch | tojson if branch else 'null' }};

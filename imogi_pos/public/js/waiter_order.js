@@ -126,7 +126,7 @@ imogi_pos.waiter_order = {
                 showBranch: true,
                 showProfile: true,
                 showLogo: true,
-                backUrl: '/app/table-display',
+                backUrl: '/restaurant/tables',
                 onBranchChange: (branch) => {
                     this.settings.branch = branch;
                 },
@@ -2317,7 +2317,7 @@ imogi_pos.waiter_order = {
                                 'Go Back',
                                 'Stay Here',
                                 () => {
-                                    window.location.href = '/app/table-display';
+                                    window.location.href = '/restaurant/tables';
                                 }
                             );
                         } else {
@@ -2493,7 +2493,7 @@ imogi_pos.waiter_order = {
                             this.showToast('Order cancelled successfully');
                             
                             // Redirect to table display
-                            window.location.href = '/app/table-display';
+                            window.location.href = '/restaurant/tables';
                         } else {
                             this.showError('Failed to cancel order');
                         }

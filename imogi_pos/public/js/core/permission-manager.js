@@ -315,13 +315,25 @@ class PermissionManager {
 // Create global instance
 window.PermissionManager = new PermissionManager();
 
-// Auto-initialize on frappe ready
+// Auto-initialize when DOM is ready
+// Support both frappe polyfill (frappe.ready) and native Frappe desk context
 if (typeof frappe !== 'undefined') {
-    frappe.ready(() => {
+    const initPermissions = () => {
         PermissionManager.init().then(() => {
             PermissionManager.processPermissionAttributes();
         });
-    });
+    };
+
+    // Check if frappe.ready exists (polyfill context)
+    if (typeof frappe.ready === 'function') {
+        frappe.ready(initPermissions);
+    } else if (document.readyState === 'loading') {
+        // Native Frappe desk - DOM not ready yet
+        document.addEventListener('DOMContentLoaded', initPermissions);
+    } else {
+        // DOM already ready
+        initPermissions();
+    }
 }
 
 // Export for module usage

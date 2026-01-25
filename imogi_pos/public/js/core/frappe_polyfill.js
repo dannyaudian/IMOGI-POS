@@ -241,6 +241,9 @@
 
         const url = `/api/method/${method}`;
         
+        // When using Content-Type: application/json, send args directly as JSON object
+        // Frappe's API handler will parse the JSON body correctly
+        // See: cypress/support/commands.js in frappe/frappe repo for reference
         const fetchOpts = {
             method: 'POST',
             headers: {
@@ -370,8 +373,66 @@
                 throw err;
             });
 
-        return promise;
+        // Wrap promise with jQuery-compatible methods for backward compatibility
+        // This allows code using .then().fail().always() chains to work
+        return wrapPromiseWithJQueryMethods(promise);
     };
+
+    /**
+     * Wrap a Promise with jQuery-compatible .fail(), .always(), and .done() methods
+     * These methods return wrapped promises so chaining works correctly
+     * @param {Promise} promise - The promise to wrap
+     * @returns {Promise} Promise with jQuery-compatible methods
+     */
+    function wrapPromiseWithJQueryMethods(promise) {
+        const originalThen = promise.then.bind(promise);
+        const originalCatch = promise.catch.bind(promise);
+        const originalFinally = promise.finally ? promise.finally.bind(promise) : null;
+
+        // Override .then() to return a wrapped promise
+        promise.then = function(onFulfilled, onRejected) {
+            const result = originalThen(onFulfilled, onRejected);
+            return wrapPromiseWithJQueryMethods(result);
+        };
+
+        // Override .catch() to return a wrapped promise
+        promise.catch = function(onRejected) {
+            const result = originalCatch(onRejected);
+            return wrapPromiseWithJQueryMethods(result);
+        };
+
+        // Override .finally() to return a wrapped promise
+        if (originalFinally) {
+            promise.finally = function(onFinally) {
+                const result = originalFinally(onFinally);
+                return wrapPromiseWithJQueryMethods(result);
+            };
+        }
+
+        // Add jQuery-compatible methods
+        promise.fail = function(fn) {
+            return promise.catch(fn);
+        };
+
+        promise.always = function(fn) {
+            // jQuery's .always() passes the result or error to the callback
+            // and doesn't suppress errors like .finally() does
+            if (originalFinally) {
+                return promise.finally(fn);
+            }
+            // Fallback for older browsers without .finally()
+            return promise.then(
+                (result) => { fn(result); return result; },
+                (error) => { fn(error); throw error; }
+            );
+        };
+
+        promise.done = function(fn) {
+            return promise.then(fn);
+        };
+
+        return promise;
+    }
 
     /**
      * frappe.format - Format values based on fieldtype
@@ -750,11 +811,15 @@
 
     /**
      * frappe.csrf_token - CSRF token for API calls
-     * Try to get it from cookie or meta tag
+     * Try to get it from window global, meta tag, or cookie
      */
     Object.defineProperty(window.frappe, 'csrf_token', {
         get: function() {
-            // Try meta tag first
+            // Try window global first (set by page templates)
+            if (window.FRAPPE_CSRF_TOKEN) {
+                return window.FRAPPE_CSRF_TOKEN;
+            }
+            // Try meta tag
             const meta = document.querySelector('meta[name="csrf_token"]');
             if (meta) {
                 return meta.getAttribute('content');

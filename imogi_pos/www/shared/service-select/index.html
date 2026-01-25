@@ -515,6 +515,9 @@
 
 
 {% block script %}
+<script>
+  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+</script>
 <!-- Frappe polyfill for standalone pages -->
 <script src="/assets/imogi_pos/js/core/frappe_polyfill.js"></script>
 <script src="/assets/imogi_pos/js/core/nav.js"></script>

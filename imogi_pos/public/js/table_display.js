@@ -518,7 +518,7 @@ imogi_pos.table_display = {
      * Navigate to layout editor
      */
     navigateToLayoutEditor: function() {
-        window.location.href = `/app/table-layout-editor?floor=${this.settings.floor}`;
+        window.location.href = `/table_layout_editor?floor=${this.settings.floor}`;
     },
     
     /**
@@ -992,7 +992,7 @@ imogi_pos.table_display = {
                 
                 if (response.message && response.message.name) {
                     // Navigate to waiter order page
-                    window.location.href = `/app/waiter-order?pos_order=${response.message.name}`;
+                    window.location.href = `/restaurant/waiter?pos_order=${response.message.name}`;
                 } else {
                     this.showError('Failed to create new order');
                 }
@@ -1014,7 +1014,7 @@ imogi_pos.table_display = {
         }
         
         // Navigate to waiter order page
-        window.location.href = `/app/waiter-order?pos_order=${this.state.selectedOrder.name}`;
+        window.location.href = `/restaurant/waiter?pos_order=${this.state.selectedOrder.name}`;
     },
     
     /**
@@ -1390,7 +1390,7 @@ imogi_pos.table_display = {
         }
         
         // Navigate to cashier console with the order selected
-        window.location.href = `/app/cashier-console?order=${this.state.selectedOrder.name}`;
+        window.location.href = `/counter/pos?order=${this.state.selectedOrder.name}`;
     },
     
     /**

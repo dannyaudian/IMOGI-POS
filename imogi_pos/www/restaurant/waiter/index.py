@@ -37,7 +37,9 @@ def get_context(context):
     mode_setting = pos_profile.get("imogi_mode", "Table")
     # Waiter/Kiosk page accepts Table, Kiosk, and Self-Order modes
     if mode_setting not in ["Table", "Kiosk", "Self-Order"]:
-        frappe.throw(_(f"This POS Profile mode ({mode_setting}) is not compatible with Restaurant operations. Please use Counter POS instead."))
+        # Redirect to Counter POS for Counter mode
+        frappe.local.flags.redirect_location = "/counter/pos"
+        raise frappe.Redirect
     
     context.domain = pos_profile.get("imogi_pos_domain", "Restaurant")
     
