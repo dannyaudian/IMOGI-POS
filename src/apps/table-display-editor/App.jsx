@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk'
+import { useAuth } from '../../shared/hooks/useAuth'
+import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
 import './styles.css'
 
 function App() {
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Branch Manager', 'System Manager'])
   const [selectedDisplay, setSelectedDisplay] = useState(null)
   const [displays, setDisplays] = useState([])
   const [config, setConfig] = useState({})
@@ -10,6 +13,15 @@ function App() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [activeTab, setActiveTab] = useState('preview')
+
+  // Check authentication
+  if (authLoading) {
+    return <LoadingSpinner message="Authenticating..." />
+  }
+
+  if (authError || !hasAccess) {
+    return <ErrorMessage error={authError || 'Access denied - Manager role required'} />
+  }
 
   // Fetch table display devices
   const { data: displayList, isLoading: displaysLoading, mutate: mutateDisplays } = useFrappeGetDocList(
