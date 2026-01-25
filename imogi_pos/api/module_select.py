@@ -42,7 +42,17 @@ def get_available_modules(branch=None):
                 'requires_session': False,
                 'requires_opening': False,
                 'order': 2
-            },3
+            },
+            'waiter': {
+                'name': 'Waiter Order',
+                'description': 'Table service order taking',
+                'type': 'waiter',
+                'icon': 'fa-utensils',
+                'url': '/restaurant/waiter',
+                'requires_roles': ['Waiter', 'Branch Manager', 'System Manager'],
+                'requires_session': False,
+                'requires_opening': False,
+                'order': 3
             },
             'kitchen': {
                 'name': 'Kitchen Display',
@@ -55,18 +65,6 @@ def get_available_modules(branch=None):
                 'requires_opening': False,
                 'order': 4
             },
-            'kitchen': {
-                'name': 'Kitchen Display',
-                'description': 'View and manage KOT tickets',
-                'type': 'kitchen',
-                'icon': 'fa-fire',
-                'url': '/restaurant/kitchen',
-                'requires_roles': ['Kitchen Staff', 'Branch Manager', 'System Manager'],
-                'requires_session': False,
-                'requires_opening': False,
-                'order': 3
-            },5
-            },
             'self-order': {
                 'name': 'Self-Order Kiosk',
                 'description': 'QR code based ordering system',
@@ -77,18 +75,7 @@ def get_available_modules(branch=None):
                 'requires_session': False,
                 'requires_opening': False,
                 'requires_active_cashier': True,
-                'order': 6
-            },
-            'table-display': {
-                'name': 'Table Display',
-                'description': 'Display table status and orders',
-                'type': 'table-display',
-                'icon': 'fa-th',
-                'url': '/restaurant/tables',
-                'requires_roles': ['Waiter', 'Branch Manager', 'System Manager'],
-                'requires_session': False,
-                'requires_opening': False,
-                'order': 7
+                'order': 5
             },
             'table-display': {
                 'name': 'Table Display',
