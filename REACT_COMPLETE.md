@@ -1,20 +1,26 @@
 # IMOGI POS React - Complete Architecture
 
-## ✅ Setup Lengkap dengan Semua Modes!
+## ✅ Setup Lengkap dengan Semua Apps - 13 Total!
 
-Berdasarkan struktur **IMOGI POS www/** yang sebenarnya, React architecture sekarang support **SEMUA modes**:
+Berdasarkan struktur **IMOGI POS www/** yang sebenarnya, React architecture sekarang support **SEMUA apps**:
 
-### 📱 All Supported Apps
+### 📱 All Supported Apps (13 Total)
 
 ```
 src/apps/
-├── cashier-console/      # Counter POS (renamed dari counter-pos)  
-├── kitchen/              # Kitchen Display System (KDS)
-├── waiter/               # Waiter Order Interface
-├── kiosk/                # Self-Service Kiosk
-├── self-order/           # QR-based Self-Ordering
-├── customer-display/     # Customer-Facing Display
-└── table-display/        # Table Layout Display
+├── cashier-console/          # Counter POS  
+├── kitchen/                  # Kitchen Display System (KDS)
+├── waiter/                   # Waiter Order Interface
+├── kiosk/                    # Self-Service Kiosk
+├── self-order/               # QR-based Self-Ordering
+├── customer-display/         # Customer-Facing Display
+├── table-display/            # Table Layout Display
+├── customer-display-editor/  # Editor untuk Customer Display
+├── table-layout-editor/      # Editor untuk Table Layout
+├── login/                    # ✨ Login Page (BARU)
+├── service-select/           # ✨ Service Selection (BARU)
+├── device-select/            # ✨ Device Selection (BARU)
+└── opening-balance/          # ✨ Opening Balance/Shift Start (BARU)
 ```
 
 ## 🎯 Mapping ke IMOGI POS www/ Structure
@@ -28,11 +34,18 @@ src/apps/
 | `self-order` | `/restaurant/self-order` | Guest | QR code table ordering |
 | `customer-display` | `/devices/displays` | - | Customer-facing display |
 | `table-display` | `/restaurant/tables` | - | Table layout status display |
+| `customer-display-editor` | `/customer_display_editor` | Admin | Edit customer display templates |
+| `table-layout-editor` | `/table_layout_editor` | Admin | Edit table layouts |
+| `login` | `/shared/login` | All | Login page |
+| `service-select` | `/service-select` | Guest | Dine In/Take Away selection |
+| `device-select` | `/device-select` | - | Kiosk/Cashier selection |
+| `opening-balance` | `/opening-balance` | Cashier | Shift start with cash count |
 
 ## 🚀 Build Commands
 
 ### Build Individual Apps:
 ```bash
+# Core POS Apps
 npm run build:cashier          # Cashier Console
 npm run build:kitchen          # Kitchen Display
 npm run build:waiter           # Waiter Interface
@@ -40,9 +53,17 @@ npm run build:kiosk            # Kiosk Mode
 npm run build:self-order       # Self-Order System
 npm run build:customer-display # Customer Display
 npm run build:table-display    # Table Display
+npm run build:customer-display-editor  # Customer Display Editor
+npm run build:table-layout-editor      # Table Layout Editor
+
+# Auth/Shared Apps (NEW!)
+npm run build:login            # Login Page
+npm run build:service-select   # Service Selection
+npm run build:device-select    # Device Selection
+npm run build:opening-balance  # Opening Balance
 ```
 
-### Build All Apps:
+### Build All Apps (13 total):
 ```bash
 npm run build:all
 # Output: imogi_pos/public/react/{app-name}/
@@ -50,6 +71,7 @@ npm run build:all
 
 ### Development Mode:
 ```bash
+# Core POS Apps
 npm run dev:cashier     # http://localhost:3000
 npm run dev:kitchen
 npm run dev:waiter
@@ -57,6 +79,14 @@ npm run dev:kiosk
 npm run dev:self-order
 npm run dev:customer-display
 npm run dev:table-display
+npm run dev:customer-display-editor
+npm run dev:table-layout-editor
+
+# Auth/Shared Apps (NEW!)
+npm run dev:login
+npm run dev:service-select
+npm run dev:device-select
+npm run dev:opening-balance
 ```
 
 ## 📁 Output Structure

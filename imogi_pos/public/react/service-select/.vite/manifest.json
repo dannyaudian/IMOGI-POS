@@ -1,0 +1,11 @@
+{
+  "src/apps/service-select/main.jsx": {
+    "file": "static/js/main.CqbJgWKv.js",
+    "name": "main",
+    "src": "src/apps/service-select/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.COUAKrSo.css"
+    ]
+  }
+}

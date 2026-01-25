@@ -1,0 +1,11 @@
+{
+  "src/apps/opening-balance/main.jsx": {
+    "file": "static/js/main.DhvqEgPh.js",
+    "name": "main",
+    "src": "src/apps/opening-balance/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.B_TCsegV.css"
+    ]
+  }
+}

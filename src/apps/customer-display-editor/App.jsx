@@ -1,6 +1,6 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
+import { NavBar, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
 import { useState, useEffect } from 'react'
 import { useFrappeGetDoc, useFrappeUpdateDoc } from 'frappe-react-sdk'
 
@@ -81,7 +81,7 @@ function CustomerDisplayEditorContent({ initialState }) {
 
   return (
     <div className="imogi-app">
-      <AppHeader title="Customer Display Editor" user={user} />
+      <NavBar title="Customer Display Editor" user={user} />
       
       <main className="imogi-main">
         <div className="flex-between" style={{ marginBottom: '1.5rem' }}>

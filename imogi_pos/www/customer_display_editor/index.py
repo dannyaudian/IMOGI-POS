@@ -25,17 +25,21 @@ def get_context(context):
         context.setup_error = False
         context.pos_profile = pos_profile
 
-        context.branding = get_branding_info(pos_profile)
-        context.branch = get_current_branch(pos_profile)
-        context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
+        branding = get_branding_info(pos_profile)
+        branch = get_current_branch(pos_profile)
+        domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
+        
+        context.branding = branding
+        context.branch = branch
+        context.domain = domain
         context.title = _("Customer Display Editor")
         
         # Add React bundle URLs and initial state (auto-loads from manifest.json)
         add_react_context(context, 'customer-display-editor', {
-            'posProfile': pos_profile.name,
-            'branch': context.branch,
-            'domain': context.domain,
-            'branding': context.branding
+            'posProfile': pos_profile.name if pos_profile else None,
+            'branch': branch,
+            'domain': domain,
+            'branding': branding
         })
 
         return context

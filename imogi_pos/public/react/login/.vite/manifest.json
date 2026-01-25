@@ -1,0 +1,11 @@
+{
+  "src/apps/login/main.jsx": {
+    "file": "static/js/main.BxK8R_pY.js",
+    "name": "main",
+    "src": "src/apps/login/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.B5Nd9cvi.css"
+    ]
+  }
+}
