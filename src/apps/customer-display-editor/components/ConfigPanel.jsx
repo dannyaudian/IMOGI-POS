@@ -189,6 +189,9 @@ function ThemeTab({ config, onChange }) {
     onChange('themePreset', preset.id)
   }
 
+  // Ensure presets is always an array
+  const presetList = Array.isArray(presets) ? presets : []
+
   return (
     <div className="cde-config-section">
       <h3>Theme Settings</h3>
@@ -196,7 +199,7 @@ function ThemeTab({ config, onChange }) {
       <div className="cde-form-group">
         <h4>Quick Presets</h4>
         <div className="cde-preset-grid">
-          {presets.map(preset => (
+          {presetList.map(preset => (
             <button
               key={preset.id}
               className={`cde-preset-btn ${config.themePreset === preset.id ? 'active' : ''}`}

@@ -307,6 +307,40 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     }
 
 @frappe.whitelist()
+def get_tables(branch):
+    """
+    Gets all tables for a specific branch for the waiter app.
+    Returns a simple list of tables with their current status.
+    
+    Args:
+        branch (str): Branch name
+    
+    Returns:
+        list: List of tables with basic information
+    """
+    # Validate branch access
+    validate_branch_access(branch)
+    
+    # Get all tables for this branch through their floors
+    tables = frappe.db.sql("""
+        SELECT 
+            t.name,
+            t.table_number,
+            t.seating_capacity,
+            t.status,
+            t.floor,
+            f.floor_name,
+            t.current_pos_order
+        FROM `tabRestaurant Table` t
+        LEFT JOIN `tabRestaurant Floor` f ON t.floor = f.name
+        WHERE f.branch = %s
+        ORDER BY f.floor_name, t.table_number
+    """, (branch,), as_dict=1)
+    
+    return tables or []
+
+
+@frappe.whitelist()
 def get_table_status(floor=None, tables=None):
     """
     Gets the current status of tables on a floor or specific tables.

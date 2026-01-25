@@ -29,16 +29,19 @@ function App() {
   const [hasChanges, setHasChanges] = useState(false)
 
   // API Hooks
-  const { data: profiles, isLoading: loadingProfiles, mutate: refreshProfiles } = useCustomerDisplayProfiles()
+  const { data: profilesData, isLoading: loadingProfiles, mutate: refreshProfiles } = useCustomerDisplayProfiles()
   const { data: templates, isLoading: loadingTemplates } = useDisplayTemplates()
   const { trigger: saveConfig, isMutating: saving } = useSaveDisplayConfig()
   const { trigger: resetConfig } = useResetDisplayConfig()
   const { trigger: testDisplay } = useTestDisplay()
   const { trigger: duplicateProfile } = useDuplicateProfile()
+  
+  // Extract profiles array from API response
+  const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
 
   // Load device config on selection
   useEffect(() => {
-    if (selectedDevice && profiles) {
+    if (selectedDevice && profiles.length > 0) {
       const device = profiles.find(p => p.name === selectedDevice)
       if (device && device.config) {
         setConfig(device.config)

@@ -9,7 +9,7 @@ export function PreviewPanel({ config, sampleData }) {
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
-    if (sampleData && sampleData.items) {
+    if (sampleData && Array.isArray(sampleData.items)) {
       setItems(sampleData.items)
       setTotal(sampleData.total || sampleData.items.reduce((sum, item) => sum + item.amount, 0))
     } else {

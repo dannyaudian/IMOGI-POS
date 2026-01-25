@@ -5,7 +5,10 @@ import React from 'react'
  * Select from predefined display templates
  */
 export function TemplateSelector({ templates, onTemplateSelect }) {
-  if (!templates || templates.length === 0) {
+  // Ensure templates is an array
+  const templateList = Array.isArray(templates) ? templates : []
+  
+  if (templateList.length === 0) {
     return (
       <div className="cde-template-selector">
         <p>Loading templates...</p>
@@ -21,7 +24,7 @@ export function TemplateSelector({ templates, onTemplateSelect }) {
       </p>
 
       <div className="cde-template-grid">
-        {templates.map(template => (
+        {templateList.map(template => (
           <button
             key={template.id}
             className="cde-template-card"

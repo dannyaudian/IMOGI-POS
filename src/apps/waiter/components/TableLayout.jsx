@@ -5,7 +5,10 @@ import React from 'react'
  * Visual grid of restaurant tables with status indicators
  */
 export function TableLayout({ tables, selectedTable, onTableSelect, mode }) {
-  if (!tables || tables.length === 0) {
+  // Ensure tables is an array
+  const tableList = Array.isArray(tables) ? tables : []
+  
+  if (tableList.length === 0) {
     return (
       <div className="table-layout-empty">
         <p>No tables available</p>
@@ -16,7 +19,7 @@ export function TableLayout({ tables, selectedTable, onTableSelect, mode }) {
   return (
     <div className="table-layout">
       <div className="table-grid">
-        {tables.map(table => (
+        {tableList.map(table => (
           <TableCard
             key={table.name}
             table={table}

@@ -5,7 +5,10 @@ import React from 'react'
  * Sidebar for selecting customer display profile
  */
 export function DeviceSelector({ devices, selectedDevice, onDeviceSelect, onCreateNew }) {
-  if (!devices || devices.length === 0) {
+  // Ensure devices is an array
+  const deviceList = Array.isArray(devices) ? devices : []
+  
+  if (deviceList.length === 0) {
     return (
       <aside className="cde-sidebar">
         <div className="cde-sidebar-header">
@@ -32,7 +35,7 @@ export function DeviceSelector({ devices, selectedDevice, onDeviceSelect, onCrea
       </div>
 
       <div className="cde-device-list">
-        {devices.map(device => (
+        {deviceList.map(device => (
           <button
             key={device.name}
             className={`cde-device-item ${selectedDevice === device.name ? 'active' : ''}`}
@@ -53,7 +56,7 @@ export function DeviceSelector({ devices, selectedDevice, onDeviceSelect, onCrea
 
       <div className="cde-sidebar-footer">
         <div className="cde-stats">
-          <small>{devices.length} profile(s)</small>
+          <small>{deviceList.length} profile(s)</small>
         </div>
       </div>
     </aside>

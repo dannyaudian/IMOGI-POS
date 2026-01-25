@@ -19,8 +19,12 @@ function WaiterContent({ initialState }) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   
   // Fetch data
-  const { data: tables, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(branch)
-  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
+  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(branch)
+  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
+  
+  // Ensure arrays are properly initialized
+  const tables = Array.isArray(tablesData) ? tablesData : []
+  const items = Array.isArray(itemsData) ? itemsData : []
 
   // Cart management
   const {
@@ -49,7 +53,7 @@ function WaiterContent({ initialState }) {
   }
 
   // Get unique categories
-  const categories = items 
+  const categories = items && items.length > 0
     ? [...new Set(items.map(item => item.item_group).filter(Boolean))]
     : []
 

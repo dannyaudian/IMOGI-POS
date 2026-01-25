@@ -13,15 +13,18 @@ export function OrderCart({
   onSendToKitchen,
   loading 
 }) {
+  // Ensure items is always an array
+  const cartItems = Array.isArray(items) ? items : []
+  
   const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.rate * item.qty), 0)
+    return cartItems.reduce((sum, item) => sum + (item.rate * item.qty), 0)
   }
 
   const getTotalItems = () => {
-    return items.reduce((sum, item) => sum + item.qty, 0)
+    return cartItems.reduce((sum, item) => sum + item.qty, 0)
   }
 
-  if (items.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="order-cart empty">
         <div className="cart-empty-state">
@@ -47,7 +50,7 @@ export function OrderCart({
       </div>
 
       <div className="cart-items">
-        {items.map((item, index) => (
+        {cartItems.map((item, index) => (
           <CartItem
             key={`${item.item_code}-${index}`}
             item={item}
@@ -70,7 +73,7 @@ export function OrderCart({
         <button
           className="btn-send-kitchen"
           onClick={onSendToKitchen}
-          disabled={loading || items.length === 0}
+          disabled={loading || cartItems.length === 0}
         >
           {loading ? 'Sending...' : 'Send to Kitchen'}
         </button>

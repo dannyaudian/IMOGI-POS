@@ -13,8 +13,12 @@ export function MenuCatalog({
   loading 
 }) {
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Ensure items and categories are arrays
+  const itemList = Array.isArray(items) ? items : []
+  const categoryList = Array.isArray(categories) ? categories : []
 
-  const filteredItems = items?.filter(item => {
+  const filteredItems = itemList.filter(item => {
     // Filter by category
     if (selectedCategory && item.item_group !== selectedCategory) {
       return false
@@ -30,7 +34,7 @@ export function MenuCatalog({
     }
 
     return true
-  }) || []
+  })
 
   return (
     <div className="menu-catalog">
@@ -52,7 +56,7 @@ export function MenuCatalog({
         >
           All
         </button>
-        {categories?.map(category => (
+        {categoryList.map(category => (
           <button
             key={category}
             className={`category-tab ${selectedCategory === category ? 'active' : ''}`}
