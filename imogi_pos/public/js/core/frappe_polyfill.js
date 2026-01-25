@@ -241,35 +241,26 @@
 
         const url = `/api/method/${method}`;
         
-        // Prepare body for Frappe API
-        // For frappe.client.* methods, arguments should be sent as top-level properties
-        // NOT nested under an 'args' key
-        let requestBody;
-        
-        if (method.startsWith('frappe.client.') && args) {
-            // Clean up null/undefined values in filters
-            if (args.filters && typeof args.filters === 'object') {
-                const cleanFilters = {};
-                Object.keys(args.filters).forEach(key => {
-                    const value = args.filters[key];
-                    if (value !== null && value !== undefined) {
-                        cleanFilters[key] = value;
-                    }
-                });
+        // Clean up null/undefined values in filters to prevent 400 errors
+        if (args && args.filters && typeof args.filters === 'object') {
+            const cleanFilters = {};
+            Object.keys(args.filters).forEach(key => {
+                const value = args.filters[key];
+                if (value !== null && value !== undefined) {
+                    cleanFilters[key] = value;
+                }
+            });
+            // Only update if we have valid filters
+            if (Object.keys(cleanFilters).length > 0) {
                 args.filters = cleanFilters;
+            } else {
+                // Remove empty filters object
+                delete args.filters;
             }
-            
-            // For frappe.client methods, send args as top-level properties
-            requestBody = args;
-        } else if (args) {
-            // For other methods, wrap in args key
-            requestBody = args;
-        } else {
-            requestBody = {};
         }
         
-        // When using Content-Type: application/json, send args directly as JSON object
-        // Frappe's API handler will parse the JSON body correctly
+        // Frappe v15 expects args to be sent directly as JSON body
+        // The server will automatically unwrap them
         const fetchOpts = {
             method: 'POST',
             headers: {
@@ -278,7 +269,7 @@
                 'X-Frappe-CSRF-Token': frappe.csrf_token || ''
             },
             credentials: 'include',
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(args || {})
         };
 
         // Show loading indicator if freeze is true
@@ -369,7 +360,7 @@
                 // Log detailed error information
                 console.error('=== frappe.call ERROR ===');
                 console.error('Method:', method);
-                console.error('Request body:', requestBody);
+                console.error('Request args:', args);
                 console.error('Error:', err);
                 console.error('Error status:', err.status);
                 console.error('=======================');
@@ -418,50 +409,26 @@
      * @returns {Promise} Promise with jQuery-compatible methods
      */
     function wrapPromiseWithJQueryMethods(promise) {
-        const originalThen = promise.then.bind(promise);
-        const originalCatch = promise.catch.bind(promise);
-        const originalFinally = promise.finally ? promise.finally.bind(promise) : null;
-
-        // Override .then() to return a wrapped promise
-        promise.then = function(onFulfilled, onRejected) {
-            const result = originalThen(onFulfilled, onRejected);
-            return wrapPromiseWithJQueryMethods(result);
-        };
-
-        // Override .catch() to return a wrapped promise
-        promise.catch = function(onRejected) {
-            const result = originalCatch(onRejected);
-            return wrapPromiseWithJQueryMethods(result);
-        };
-
-        // Override .finally() to return a wrapped promise
-        if (originalFinally) {
-            promise.finally = function(onFinally) {
-                const result = originalFinally(onFinally);
-                return wrapPromiseWithJQueryMethods(result);
-            };
-        }
-
-        // Add jQuery-compatible methods
+        // Add jQuery-compatible methods directly to the promise
+        // Don't override existing methods, just add the aliases
+        
         promise.fail = function(fn) {
-            return promise.catch(fn);
+            const result = this.catch(fn);
+            return wrapPromiseWithJQueryMethods(result);
         };
 
         promise.always = function(fn) {
-            // jQuery's .always() passes the result or error to the callback
-            // and doesn't suppress errors like .finally() does
-            if (originalFinally) {
-                return promise.finally(fn);
-            }
-            // Fallback for older browsers without .finally()
-            return promise.then(
-                (result) => { fn(result); return result; },
+            // jQuery's .always() is called regardless of success/failure
+            const result = this.then(
+                (value) => { fn(value); return value; },
                 (error) => { fn(error); throw error; }
             );
+            return wrapPromiseWithJQueryMethods(result);
         };
 
         promise.done = function(fn) {
-            return promise.then(fn);
+            const result = this.then(fn);
+            return wrapPromiseWithJQueryMethods(result);
         };
 
         return promise;
