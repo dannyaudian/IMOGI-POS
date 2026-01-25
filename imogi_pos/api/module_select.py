@@ -156,25 +156,25 @@ def get_user_branch_info():
             defaults = frappe.defaults.get_defaults()
             current_branch = defaults.get('company')
         
-        # If still no branch, get the first available company
+        # If still no branch, get the first available branch
         if not current_branch:
-            first_company = frappe.db.get_value('Company', filters={}, fieldname='name')
-            if first_company:
-                current_branch = first_company
+            first_branch = frappe.db.get_value('Branch', filters={}, fieldname='name')
+            if first_branch:
+                current_branch = first_branch
                 # Set it as user's default for next time
-                frappe.db.set_value('User', user, 'imogi_default_branch', first_company)
+                frappe.db.set_value('User', user, 'imogi_default_branch', first_branch)
                 frappe.db.commit()
         
-        # Get available branches (from Company doctype)
+        # Get available branches (from Branch doctype)
         available_branches = frappe.get_list(
-            'Company',
-            fields=['name', 'company_name'],
+            'Branch',
+            fields=['name', 'branch'],
             limit_page_length=0
         )
         
         # If no branches found, throw error
         if not available_branches:
-            frappe.throw(_('No branches (companies) configured in the system. Please contact administrator.'))
+            frappe.throw(_('No branches configured in the system. Please contact administrator.'))
         
         # If current branch is still None, use first available
         if not current_branch and available_branches:
@@ -194,7 +194,7 @@ def get_user_branch_info():
             if fallback_branch:
                 return {
                     'current_branch': fallback_branch,
-                    'available_branches': [{'name': fallback_branch, 'company_name': fallback_branch}]
+                    'available_branches': [{'name': fallback_branch, 'branch': fallback_branch}]
                 }
         except:
             pass

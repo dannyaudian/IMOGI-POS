@@ -1314,7 +1314,7 @@
     "fieldname": "imogi_default_branch",
     "fieldtype": "Link",
     "label": "Default Branch",
-    "options": "Company",
+    "options": "Branch",
     "insert_after": "email",
     "is_system_generated": 0,
     "module": "IMOGI POS",
