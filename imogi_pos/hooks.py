@@ -175,6 +175,7 @@ website_route_rules = [
     {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
     {"from_route": "/table_display", "to_route": "/restaurant/tables"},
     {"from_route": "/imogi-login", "to_route": "/shared/login"},
+    {"from_route": "/module-select", "to_route": "/shared/module-select"},
     {"from_route": "/device-select", "to_route": "/shared/device-select"},
     {"from_route": "/service-select", "to_route": "/shared/service-select"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},

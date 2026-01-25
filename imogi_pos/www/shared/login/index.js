@@ -11,7 +11,7 @@ frappe.ready(function() {
   const redirectStorageKey = 'login_redirect';
   const redirectSourceKey = 'login_redirect_source';
   const redirectParam = urlParams.get('redirect');
-  const fallbackRedirect = '/cashier-console';
+  const fallbackRedirect = '/module-select';  // Updated from /cashier-console
 
   // Save the redirect URL for after login and remember if it was explicit
   const initialRedirect = redirectParam || fallbackRedirect;

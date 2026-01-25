@@ -3,7 +3,7 @@ import { useFrappeGetDocList } from 'frappe-react-sdk'
 import './styles.css'
 
 // Dine In Modal Component
-function DineInModal({ onClose }) {
+function DineInModal({ onClose, onComplete }) {
   const [selectedZone, setSelectedZone] = useState('')
   const [error, setError] = useState('')
 
@@ -17,10 +17,16 @@ function DineInModal({ onClose }) {
   }, selectedZone ? undefined : false)
 
   const handleTableClick = (tableNumber) => {
-    localStorage.setItem('imogi_service_type', 'dine_in')
-    localStorage.setItem('imogi_table_number', tableNumber)
-    localStorage.setItem('imogi_table_zone', selectedZone)
-    window.location.href = '/kiosk?service=dine-in'
+    // Call parent callback instead of redirecting here
+    if (onComplete) {
+      onComplete(tableNumber, selectedZone)
+    } else {
+      // Fallback for backward compatibility
+      localStorage.setItem('imogi_service_type', 'dine_in')
+      localStorage.setItem('imogi_table_number', tableNumber)
+      localStorage.setItem('imogi_table_zone', selectedZone)
+      window.location.href = '/kiosk?service=dine-in'
+    }
   }
 
   return (
@@ -80,12 +86,35 @@ function DineInModal({ onClose }) {
 function App() {
   const [showDineInModal, setShowDineInModal] = useState(false)
 
+  // Get device type from localStorage or query params
+  const deviceType = localStorage.getItem('imogi_device_type') || 'kiosk'
+  
   const handleServiceClick = (service) => {
     if (service === 'dine_in') {
       setShowDineInModal(true)
     } else if (service === 'take_away') {
       localStorage.setItem('imogi_service_type', 'take_away')
-      window.location.href = '/kiosk?service=take-away'
+      
+      // Redirect based on device type
+      if (deviceType === 'cashier') {
+        window.location.href = '/cashier-console'
+      } else {
+        window.location.href = '/kiosk?service=take-away'
+      }
+    }
+  }
+
+  const handleDineInComplete = (tableNumber, zone) => {
+    // Store dine-in information
+    localStorage.setItem('imogi_service_type', 'dine_in')
+    localStorage.setItem('imogi_table_number', tableNumber)
+    localStorage.setItem('imogi_table_zone', zone)
+    
+    // Redirect based on device type
+    if (deviceType === 'cashier') {
+      window.location.href = '/cashier-console'
+    } else {
+      window.location.href = '/kiosk?service=dine-in'
     }
   }
 
@@ -137,7 +166,10 @@ function App() {
 
       {/* Dine In Modal */}
       {showDineInModal && (
-        <DineInModal onClose={() => setShowDineInModal(false)} />
+        <DineInModal 
+          onClose={() => setShowDineInModal(false)} 
+          onComplete={handleDineInComplete}
+        />
       )}
     </>
   )

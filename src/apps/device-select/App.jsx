@@ -25,9 +25,9 @@ function App() {
           className="device-link"
           onClick={(e) => {
             e.preventDefault()
-            handleDeviceClick('cashier', '/cashier-console')
+            handleDeviceClick('cashier', '/opening-balance?device=cashier&next=/service-select')
           }}
-          href="/cashier-console"
+          href="/opening-balance?device=cashier&next=/service-select"
         >
           Cashier
         </a>

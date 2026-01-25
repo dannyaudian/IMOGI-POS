@@ -1,50 +1,82 @@
-import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
-import { useAuth } from '@/shared/hooks/useAuth'
-import { NavBar, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
-import { useState, useEffect } from 'react'
-import { useFrappeGetDoc, useFrappeUpdateDoc } from 'frappe-react-sdk'
+import React, { useState, useEffect } from 'react'
+import { useFrappeGetDocList, useFrappeGetCall } from 'frappe-react-sdk'
+import './styles.css'
+import Header from './components/Header'
+import DeviceSelector from './components/DeviceSelector'
+import LayoutPreview from './components/LayoutPreview'
+import ConfigPanel from './components/ConfigPanel'
 
-function CustomerDisplayEditorContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Branch Manager', 'System Manager'])
-  
-  const posProfile = initialState.posProfile
-  const branch = initialState.branch
-  const branding = initialState.branding || {}
-  
-  // Fetch POS Profile settings
-  const { data: posProfileDoc, error: profileError, isLoading: profileLoading, mutate } = useFrappeGetDoc(
-    'POS Profile',
-    posProfile,
-    posProfile ? undefined : null
+function App() {
+  const [selectedDevice, setSelectedDevice] = useState(null)
+  const [devices, setDevices] = useState([])
+  const [config, setConfig] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saved, setSaved] = useState(false)
+  const [activeTab, setActiveTab] = useState('preview') // preview, layout, theme, advanced
+
+  // Fetch customer display devices
+  const { data: deviceList, isLoading: devicesLoading } = useFrappeGetDocList(
+    'Customer Display Device',
+    {
+      fields: ['name', 'device_name', 'location', 'status', 'display_type'],
+      limit_page_length: 0
+    }
   )
-  
-  const { updateDoc, loading: saving } = useFrappeUpdateDoc()
-  
-  // Editor state
-  const [settings, setSettings] = useState({
-    showLogo: true,
-    showImages: true,
-    fontSize: 'large',
-    theme: 'gradient',
-    autoScroll: true,
-    scrollSpeed: 3000,
-    showTotalPrice: true
-  })
 
-  // Load settings from POS Profile
+  // Fetch device config
+  const { data: deviceConfig, isLoading: configLoading } = useFrappeGetCall(
+    'imogi_pos.api.customer_display_editor.get_device_config',
+    { device: selectedDevice }
+  )
+
   useEffect(() => {
-    if (posProfileDoc) {
-      const customDisplaySettings = posProfileDoc.imogi_customer_display_settings
-      if (customDisplaySettings) {
-        try {
-          const parsed = JSON.parse(customDisplaySettings)
-          setSettings(prev => ({ ...prev, ...parsed }))
-        } catch (e) {
-          console.error('Failed to parse display settings:', e)
-        }
+    if (deviceList) {
+      setDevices(deviceList)
+      if (!selectedDevice && deviceList.length > 0) {
+        setSelectedDevice(deviceList[0].name)
       }
     }
-  }, [posProfileDoc])
+  }, [deviceList])
+
+  useEffect(() => {
+    if (deviceConfig && !configLoading) {
+      setConfig(deviceConfig.config || {})
+      setLoading(false)
+    }
+  }, [deviceConfig, configLoading])
+
+  const handleSaveConfig = () => {
+    frappe.call({
+      method: 'imogi_pos.api.customer_display_editor.save_device_config',
+      args: {
+        device: selectedDevice,
+        config: config
+      },
+      callback: (r) => {
+        if (r.message && r.message.success) {
+          frappe.show_alert({
+            message: 'Configuration saved successfully',
+            indicator: 'green'
+          }, 3)
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+        }
+      },
+      error: () => {
+        frappe.show_alert({
+          message: 'Error saving configuration',
+          indicator: 'red'
+        }, 3)
+      }
+    })
+  }
+
+  const handleConfigChange = (key, value) => {
+    setConfig(prev => ({
+      ...prev,
+      [key]: value
+    }))
+  }
 
   if (authLoading || profileLoading) {
     return <LoadingSpinner message="Loading editor..." />
