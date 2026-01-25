@@ -169,6 +169,7 @@ website_route_rules = [
     # Tools & Editors (admin/manager only)
     {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
     {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},  # Handle capital variant
     
     # Legacy/Deprecated Routes - redirect to new locations
     {"from_route": "/devices/customer-display-editor", "to_route": "/customer_display_editor"},

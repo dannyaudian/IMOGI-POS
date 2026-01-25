@@ -93,20 +93,35 @@
               const storedRedirect = localStorage.getItem(redirectStorageKey) || fallbackRedirect;
               const redirectSource = localStorage.getItem(redirectSourceKey) || 'default';
 
+              // Debug logging
+              console.log('Login redirect info:', {
+                storedRedirect,
+                redirectSource,
+                fallbackRedirect
+              });
+
               frappe.call({
                 method: 'imogi_pos.utils.auth_helpers.get_role_based_default_route',
                 callback: function(r) {
                   let redirectTo = storedRedirect;
                   try {
-                    // Use role-based routing if no explicit redirect
+                    console.log('Role-based route result:', r.message);
+                    console.log('Redirect source is explicit?', redirectSource === 'explicit');
+                    
+                    // Use role-based routing ONLY if no explicit redirect
                     if (redirectSource !== 'explicit' && r.message) {
+                      console.log('Using role-based redirect:', r.message);
                       redirectTo = r.message;
+                    } else if (redirectSource === 'explicit') {
+                      console.log('Using explicit redirect:', storedRedirect);
+                      redirectTo = storedRedirect;
                     }
 
                     if (!redirectTo) {
                       redirectTo = r.message || '/app';
                     }
 
+                    console.log('Final redirect URL:', redirectTo);
                     window.location.href = redirectTo;
                   } finally {
                     localStorage.removeItem(redirectStorageKey);
