@@ -180,5 +180,6 @@ website_route_rules = [
     {"from_route": "/so", "to_route": "/restaurant/self-order"},
 ]
 
-after_install = "imogi_pos.setup.install.after_install"
-after_migrate = "imogi_pos.setup.install.after_migrate"
+after_install = "imogi_pos.install.after_install"
+after_migrate = "imogi_pos.install.after_migrate"
+
