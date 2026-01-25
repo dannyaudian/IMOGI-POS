@@ -2,7 +2,7 @@
   const init = () => {
     const params = new URLSearchParams(window.location.search);
   const device = params.get('device') || 'kiosk';
-  const next = params.get('next') || '/service-select';
+  const next = params.get('next') || '/shared/module-select';
 
   const form = document.getElementById('opening-balance-form');
   const tbody = document.querySelector('#denomination-table tbody');

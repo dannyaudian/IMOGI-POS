@@ -18,7 +18,7 @@
     if (window.frappe && window.frappe.session) {
       window.frappe.session.user = '{{ frappe.session.user }}';
       window.frappe.session.csrf_token = '{{ frappe.session.csrf_token }}';
-      window.frappe.session.user_fullname = '{{ frappe.session.data.get("full_name") or frappe.session.user }}';
+      window.frappe.session.user_fullname = '{{ (frappe.session.data and frappe.session.data.get("full_name")) or frappe.session.user }}';
     }
   </script>
   

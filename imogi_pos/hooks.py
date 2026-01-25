@@ -153,31 +153,38 @@ on_login_fail = [
 
 # Website route redirects for new architecture
 website_route_rules = [
-    # Main www routes
-    {"from_route": "/counter/pos", "to_route": "/counter/pos"},
-    {"from_route": "/restaurant/tables", "to_route": "/restaurant/tables"},
-    {"from_route": "/restaurant/kitchen", "to_route": "/restaurant/kitchen"},
-    {"from_route": "/restaurant/waiter", "to_route": "/restaurant/waiter"},
-    {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},
-    {"from_route": "/devices/displays", "to_route": "/devices/displays"},
-    {"from_route": "/devices/customer-display-editor", "to_route": "/devices/customer-display-editor"},
-    {"from_route": "/devices/table-display-editor", "to_route": "/devices/table-display-editor"},
-    {"from_route": "/opening-balance", "to_route": "/opening-balance"},
+    # Entry Points
     {"from_route": "/shared/login", "to_route": "/shared/login"},
     {"from_route": "/shared/module-select", "to_route": "/shared/module-select"},
     
-    # Aliases and redirects
-    {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
-    {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},
-    {"from_route": "/kiosk", "to_route": "/restaurant/waiter?mode=kiosk"},
-    {"from_route": "/cashier-console", "to_route": "/counter/pos"},
-    {"from_route": "/customer-display", "to_route": "/devices/displays"},
-    {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
-    {"from_route": "/table_display", "to_route": "/restaurant/tables"},
+    # POS Applications (operational)
+    {"from_route": "/counter/pos", "to_route": "/counter/pos"},
+    {"from_route": "/restaurant/kitchen", "to_route": "/restaurant/kitchen"},
+    {"from_route": "/restaurant/waiter", "to_route": "/restaurant/waiter"},
+    {"from_route": "/restaurant/tables", "to_route": "/restaurant/tables"},
+    {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},
+    {"from_route": "/devices/displays", "to_route": "/devices/displays"},
+    
+    # Tools & Editors (admin/manager only)
+    {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
+    
+    # Legacy/Deprecated Routes - redirect to new locations
+    {"from_route": "/devices/customer-display-editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/devices/table-display-editor", "to_route": "/table_layout_editor"},
+    
+    # Friendly Aliases
     {"from_route": "/imogi-login", "to_route": "/shared/login"},
     {"from_route": "/module-select", "to_route": "/shared/module-select"},
-    {"from_route": "/customer-display-editor", "to_route": "/devices/customer-display-editor"},
-    {"from_route": "/table-display-editor", "to_route": "/devices/table-display-editor"},
+    {"from_route": "/cashier-console", "to_route": "/counter/pos"},
+    {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
+    {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},
+    {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
+    {"from_route": "/kiosk", "to_route": "/restaurant/waiter?mode=kiosk"},
+    {"from_route": "/table_display", "to_route": "/restaurant/tables"},
+    {"from_route": "/customer-display", "to_route": "/devices/displays"},
+    {"from_route": "/customer-display-editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/table-display-editor", "to_route": "/table_layout_editor"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},
 ]
 

@@ -2229,5 +2229,724 @@ All KOTs: Cancelled   → POS Order: Cancelled
 
 ---
 
+## 📄 ERPNext v15 Native Integration - POS Order & Invoice
+
+### POS Order DocType (Native ERPNext)
+
+IMOGI POS menggunakan **POS Order** sebagai intermediate document sebelum generate Sales Invoice.
+
+```python
+# POS Order Structure (ERPNext v15 Native)
+{
+    "doctype": "POS Order",
+    "name": "POS-ORD-00001",
+    
+    # Core Fields
+    "customer": "Walk-in Customer",
+    "pos_profile": "Restaurant Counter",
+    "company": "Your Company",
+    
+    # IMOGI Custom Fields
+    "imogi_branch": "Main Branch",
+    "imogi_pos_order": "POS-ORD-00001",  # Self reference for tracking
+    "order_type": "Dine In",  # Counter/Dine In/Take Away/Self-Order
+    "workflow_state": "Draft",  # Draft/Submitted/To Bill/Billed/Completed
+    
+    # Restaurant Fields
+    "table": "T1",
+    "floor": "Main Floor",
+    "guests": 2,
+    
+    # Customer Info (Optional)
+    "customer_full_name": "John Doe",
+    "customer_phone": "08123456789",
+    "customer_gender": "Male",
+    "customer_age": "25-35",
+    
+    # Items (Child Table)
+    "items": [
+        {
+            "item": "ITEM-001",
+            "item_name": "Nasi Goreng",
+            "qty": 2,
+            "rate": 25000,
+            "amount": 50000,
+            "warehouse": "Main Warehouse",
+            "notes": "Extra pedas",  # Item-specific notes
+            
+            # Kitchen tracking
+            "default_kitchen": "Main Kitchen",
+            "default_kitchen_station": "Hot Station",
+            
+            # Counter tracking (for KOT)
+            "counters": {
+                "sent": 2,      # Qty sent to kitchen
+                "ready": 0,     # Qty ready
+                "served": 0,    # Qty served
+                "cancelled": 0  # Qty cancelled
+            }
+        }
+    ],
+    
+    # Totals
+    "total": 50000,
+    "grand_total": 50000,
+    "outstanding_amount": 50000,
+    
+    # Audit Fields
+    "user": "waiter@example.com",
+    "creation": "2026-01-25 10:30:00",
+    "modified": "2026-01-25 10:35:00"
+}
+```
+
+### Sales Invoice DocType (Native ERPNext v15)
+
+```python
+# Sales Invoice Structure (is_pos=1)
+{
+    "doctype": "Sales Invoice",
+    "name": "SINV-00001",
+    
+    # POS Flag
+    "is_pos": 1,
+    
+    # Core Fields
+    "customer": "Walk-in Customer",
+    "pos_profile": "Restaurant Counter",
+    "company": "Your Company",
+    "posting_date": "2026-01-25",
+    "posting_time": "10:35:00",
+    
+    # IMOGI Links
+    "imogi_branch": "Main Branch",
+    "imogi_pos_order": "POS-ORD-00001",  # Link to POS Order
+    "imogi_pos_session": "POS-OPEN-00001",  # Link to session if enabled
+    
+    # Order Type
+    "order_type": "Dine In",
+    
+    # Items (Child Table - copied from POS Order)
+    "items": [
+        {
+            "item_code": "ITEM-001",
+            "item_name": "Nasi Goreng",
+            "qty": 2,
+            "rate": 25000,
+            "amount": 50000,
+            "warehouse": "Main Warehouse",
+            "description": "Nasi Goreng\nExtra pedas"  # Includes notes
+        }
+    ],
+    
+    # Payments (Child Table)
+    "payments": [
+        {
+            "mode_of_payment": "Cash",
+            "amount": 60000,
+            "base_amount": 60000
+        }
+    ],
+    
+    # Totals
+    "total": 50000,
+    "grand_total": 50000,
+    "paid_amount": 60000,
+    "change_amount": 10000,
+    "outstanding_amount": 0,
+    
+    # Stock Update
+    "update_stock": 1,  # Update stock on submit
+    
+    # Status
+    "docstatus": 1,  # 0=Draft, 1=Submitted, 2=Cancelled
+    "status": "Paid"
+}
+```
+
+### Generate Invoice API
+
+**Endpoint:** `imogi_pos.api.billing.generate_invoice`
+
+```python
+@frappe.whitelist()
+@require_permission("Sales Invoice", "create")
+def generate_invoice(
+    pos_order: str,
+    mode_of_payment: str,
+    amount: float,
+    customer_info: dict = None
+):
+    """
+    Creates Sales Invoice from POS Order
+    
+    Args:
+        pos_order: POS Order name (required)
+        mode_of_payment: Payment method (Cash/Card/QRIS/etc)
+        amount: Payment amount
+        customer_info: Optional customer metadata
+        
+    Returns:
+        dict: Sales Invoice document
+        
+    Process:
+        1. Validate POS Order exists and accessible
+        2. Validate POS Session (if required)
+        3. Check for template items (must be variants)
+        4. Build invoice items from order items
+        5. Create Sales Invoice (is_pos=1)
+        6. Add payment entry
+        7. Calculate totals & taxes
+        8. Check stock availability (if update_stock=1)
+        9. Submit invoice
+        10. Link invoice back to POS Order
+        11. Publish stock updates via realtime
+    """
+    
+    # 1. Get POS Order
+    order_doc = frappe.get_doc("POS Order", pos_order)
+    validate_branch_access(order_doc.branch)
+    
+    # 2. Validate POS Session
+    pos_session = validate_pos_session(order_doc.pos_profile)
+    
+    # 3. Validate no template items
+    for item in order_doc.items:
+        is_template = frappe.db.get_value("Item", item.item, "has_variants")
+        if is_template:
+            frappe.throw(_("Cannot invoice template item: {0}").format(item.item))
+    
+    # 4. Build invoice items
+    profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
+    mode = profile_doc.get("imogi_mode", "Counter")
+    invoice_items = build_invoice_items(order_doc, mode)
+    
+    # 5. Create Sales Invoice
+    invoice_data = {
+        "doctype": "Sales Invoice",
+        "is_pos": 1,
+        "pos_profile": order_doc.pos_profile,
+        "customer": order_doc.customer,
+        "imogi_branch": order_doc.branch,
+        "items": invoice_items,
+        "imogi_pos_order": pos_order,
+        "order_type": order_doc.order_type,
+        "update_stock": profile_doc.get("update_stock", 1)
+    }
+    
+    if pos_session:
+        invoice_data["imogi_pos_session"] = pos_session
+    
+    # Copy customer info if provided
+    if customer_info:
+        invoice_data.update(customer_info)
+    
+    # Copy table info for restaurant
+    if order_doc.table:
+        invoice_data["table"] = order_doc.table
+        invoice_data["floor"] = order_doc.floor
+    
+    invoice_doc = frappe.get_doc(invoice_data)
+    
+    # 6. Add payment
+    invoice_doc.append("payments", {
+        "mode_of_payment": mode_of_payment,
+        "amount": amount,
+        "base_amount": amount
+    })
+    
+    # 7. Calculate totals
+    invoice_doc.set_missing_values()
+    invoice_doc.calculate_taxes_and_totals()
+    
+    # Calculate change
+    change = amount - invoice_doc.grand_total
+    if change >= 0:
+        invoice_doc.change_amount = change
+        invoice_doc.paid_amount = amount
+    else:
+        frappe.throw(_("Payment amount is less than total"))
+    
+    # 8. Stock validation (if update_stock=1)
+    if invoice_doc.update_stock:
+        for item in invoice_doc.items:
+            warehouse = item.warehouse or profile_doc.warehouse
+            available = frappe.db.get_value(
+                "Bin",
+                {"item_code": item.item_code, "warehouse": warehouse},
+                "actual_qty"
+            ) or 0
+            
+            if item.qty > available:
+                allow_negative = frappe.db.get_single_value(
+                    "Stock Settings", "allow_negative_stock"
+                )
+                if not allow_negative:
+                    frappe.throw(
+                        _("Insufficient stock for {0}").format(item.item_code)
+                    )
+    
+    # 9. Submit invoice
+    invoice_doc.insert(ignore_permissions=True)
+    invoice_doc.submit()
+    
+    # 10. Link back to POS Order
+    frappe.db.set_value("POS Order", pos_order, {
+        "sales_invoice": invoice_doc.name,
+        "workflow_state": "Billed"
+    })
+    
+    # 11. Publish stock updates
+    notify_stock_update(invoice_doc, profile_doc)
+    
+    return invoice_doc.as_dict()
+```
+
+### Payment Processing Flow
+
+#### 1. **Cash Payment**
+
+```javascript
+// Frontend - Cash payment
+const handleCashPayment = async (amount) => {
+    const invoice = await frappe.call({
+        method: 'imogi_pos.api.billing.generate_invoice',
+        args: {
+            pos_order: orderName,
+            mode_of_payment: 'Cash',
+            amount: amount
+        }
+    })
+    
+    // Calculate change
+    const change = amount - invoice.message.grand_total
+    
+    // Show receipt with change
+    printReceipt(invoice.message, amount, change)
+}
+```
+
+**Backend Processing:**
+
+```python
+# Sales Invoice with cash payment
+{
+    "payments": [
+        {
+            "mode_of_payment": "Cash",
+            "amount": 60000,
+            "account": "Cash - Company"  # Auto from Mode of Payment
+        }
+    ],
+    "paid_amount": 60000,
+    "change_amount": 10000,  # 60000 - 50000
+    "outstanding_amount": 0,
+    "status": "Paid"
+}
+```
+
+#### 2. **QRIS/E-Wallet Payment**
+
+**Request Payment QR:**
+
+```python
+@frappe.whitelist()
+def request_payment(sales_invoice):
+    """
+    Create Payment Request with QRIS integration
+    
+    Process:
+        1. Get Sales Invoice
+        2. Check payment gateway enabled in POS Profile
+        3. Create Payment Request
+        4. Generate QRIS via Xendit Integration
+        5. Push to Customer Display (if enabled)
+        6. Return QR data for UI display
+    """
+    
+    # 1. Get invoice
+    invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
+    
+    # 2. Check gateway
+    pos_profile = frappe.db.get_value(
+        "POS Profile",
+        invoice_doc.pos_profile,
+        ["imogi_enable_payment_gateway", 
+         "imogi_payment_gateway_account",
+         "imogi_payment_timeout_seconds"],
+        as_dict=True
+    )
+    
+    if not pos_profile.imogi_enable_payment_gateway:
+        frappe.throw(_("Payment gateway not enabled"))
+    
+    # 3. Create Payment Request
+    payment_request = frappe.get_doc({
+        "doctype": "Payment Request",
+        "payment_gateway_account": pos_profile.imogi_payment_gateway_account,
+        "reference_doctype": "Sales Invoice",
+        "reference_name": sales_invoice,
+        "grand_total": invoice_doc.grand_total,
+        "currency": invoice_doc.currency,
+        "status": "Initiated"
+    })
+    payment_request.insert(ignore_permissions=True)
+    payment_request.submit()
+    
+    # 4. Generate QRIS (Xendit Integration)
+    qr_data = frappe.call(
+        'xendit_integration_imogi.api.qris.generate_dynamic_qr',
+        amount=invoice_doc.grand_total,
+        invoice=sales_invoice,
+        branch=invoice_doc.imogi_branch,
+        description=f"Payment for {sales_invoice}"
+    )
+    
+    # 5. Push to Customer Display
+    if invoice_doc.get("imogi_customer_display"):
+        publish_realtime(
+            f"customer_display:device:{invoice_doc.imogi_customer_display}",
+            {
+                "type": "payment_qr",
+                "qr_image": qr_data.qr_image,
+                "amount": invoice_doc.grand_total,
+                "sales_invoice": sales_invoice
+            }
+        )
+    
+    # 6. Return QR data
+    return {
+        "qr_image": qr_data.qr_image,
+        "qr_string": qr_data.qr_string,
+        "amount": invoice_doc.grand_total,
+        "expiry": qr_data.expires_at,
+        "payment_request": payment_request.name,
+        "xendit_id": qr_data.xendit_id
+    }
+```
+
+**Payment Callback (Webhook):**
+
+```python
+# Xendit webhook handler
+# xendit_integration_imogi/api/webhooks.py
+
+@frappe.whitelist(allow_guest=True)
+def qris_callback():
+    """
+    Handle QRIS payment callback from Xendit
+    
+    Process:
+        1. Verify webhook signature
+        2. Get Payment Request
+        3. Update Payment Request status
+        4. Create Payment Entry
+        5. Reconcile Sales Invoice
+        6. Update POS Order status
+        7. Notify realtime channels
+    """
+    
+    # 1. Verify signature
+    payload = frappe.request.get_json()
+    verify_webhook_signature(payload)
+    
+    # 2. Get Payment Request
+    xendit_id = payload.get("id")
+    pr = frappe.db.get_value(
+        "Payment Request",
+        {"xendit_qr_id": xendit_id}
+    )
+    
+    # 3. Update status
+    pr_doc = frappe.get_doc("Payment Request", pr)
+    pr_doc.status = "Paid"
+    pr_doc.save()
+    
+    # 4. Create Payment Entry
+    payment_entry = frappe.get_doc({
+        "doctype": "Payment Entry",
+        "payment_type": "Receive",
+        "party_type": "Customer",
+        "party": pr_doc.customer,
+        "paid_amount": pr_doc.grand_total,
+        "received_amount": pr_doc.grand_total,
+        "reference_no": xendit_id,
+        "reference_date": now_datetime(),
+        "references": [{
+            "reference_doctype": "Sales Invoice",
+            "reference_name": pr_doc.reference_name,
+            "allocated_amount": pr_doc.grand_total
+        }]
+    })
+    payment_entry.insert(ignore_permissions=True)
+    payment_entry.submit()
+    
+    # 5. Update Sales Invoice
+    invoice = frappe.get_doc("Sales Invoice", pr_doc.reference_name)
+    invoice.outstanding_amount = 0
+    invoice.status = "Paid"
+    invoice.save()
+    
+    # 6. Update POS Order
+    if invoice.imogi_pos_order:
+        frappe.db.set_value(
+            "POS Order",
+            invoice.imogi_pos_order,
+            "workflow_state",
+            "Completed"
+        )
+    
+    # 7. Notify
+    publish_realtime(f"payment:pr:{pr}", {
+        "status": "paid",
+        "payment_entry": payment_entry.name
+    })
+    
+    return {"status": "success"}
+```
+
+#### 3. **Multi-Payment Support**
+
+```python
+# Split payment (Cash + Card)
+{
+    "payments": [
+        {
+            "mode_of_payment": "Cash",
+            "amount": 30000
+        },
+        {
+            "mode_of_payment": "Credit Card",
+            "amount": 20000
+        }
+    ],
+    "paid_amount": 50000,
+    "change_amount": 0,
+    "outstanding_amount": 0
+}
+```
+
+### Stock Integration
+
+**Update Stock on Submit:**
+
+```python
+# When Sales Invoice is submitted with update_stock=1
+# ERPNext automatically creates Stock Ledger Entries
+
+# Stock Ledger Entry (auto-created)
+{
+    "doctype": "Stock Ledger Entry",
+    "item_code": "ITEM-001",
+    "warehouse": "Main Warehouse",
+    "actual_qty": -2,  # Negative for sales
+    "voucher_type": "Sales Invoice",
+    "voucher_no": "SINV-00001",
+    "posting_date": "2026-01-25",
+    "posting_time": "10:35:00"
+}
+
+# Bin Updated (Stock Balance)
+{
+    "item_code": "ITEM-001",
+    "warehouse": "Main Warehouse",
+    "actual_qty": 48,  # 50 - 2
+    "reserved_qty": 0,
+    "ordered_qty": 0
+}
+```
+
+**Realtime Stock Updates:**
+
+```python
+def notify_stock_update(invoice_doc, profile_doc):
+    """Publish stock updates to frontend"""
+    
+    warehouse = profile_doc.warehouse
+    
+    for item in invoice_doc.items:
+        actual_qty = frappe.db.get_value(
+            "Bin",
+            {"item_code": item.item_code, "warehouse": warehouse},
+            "actual_qty"
+        ) or 0
+        
+        # Publish to realtime channel
+        frappe.publish_realtime(
+            "stock_update",
+            {
+                "item_code": item.item_code,
+                "warehouse": warehouse,
+                "actual_qty": actual_qty,
+                "low_stock": actual_qty < LOW_STOCK_THRESHOLD
+            }
+        )
+```
+
+### POS Session Integration
+
+**POS Opening Entry:**
+
+```python
+# Native ERPNext POS Opening Entry
+{
+    "doctype": "POS Opening Entry",
+    "name": "POS-OPEN-00001",
+    "pos_profile": "Restaurant Counter",
+    "user": "cashier@example.com",
+    "period_start_date": "2026-01-25 08:00:00",
+    "status": "Open",
+    
+    # Opening Balance
+    "balance_details": [
+        {
+            "mode_of_payment": "Cash",
+            "opening_amount": 100000
+        }
+    ]
+}
+```
+
+**Link to Sales Invoice:**
+
+```python
+# When invoice is created
+{
+    "imogi_pos_session": "POS-OPEN-00001"  # Links to opening entry
+}
+```
+
+**POS Closing Entry:**
+
+```python
+# Native ERPNext POS Closing Entry
+{
+    "doctype": "POS Closing Entry",
+    "name": "POS-CLOSE-00001",
+    "pos_opening_entry": "POS-OPEN-00001",
+    "period_end_date": "2026-01-25 20:00:00",
+    "status": "Submitted",
+    
+    # Payments collected
+    "payment_reconciliation": [
+        {
+            "mode_of_payment": "Cash",
+            "opening_amount": 100000,
+            "expected_amount": 500000,  # From invoices
+            "closing_amount": 600000,   # Actual counted
+            "difference": 0
+        }
+    ],
+    
+    # Sales summary
+    "pos_transactions": [
+        {
+            "pos_invoice": "SINV-00001",
+            "grand_total": 50000,
+            "customer": "Walk-in Customer"
+        }
+        // ... more invoices
+    ]
+}
+```
+
+### Data Flow Summary
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Complete Order-to-Payment Flow                      │
+└─────────────────────────────────────────────────────────────────┘
+
+1. CREATE ORDER (Waiter/Cashier)
+   └─→ POS Order created (Draft)
+   └─→ Items added to order.items
+   └─→ Table occupied (if restaurant)
+
+2. SEND TO KITCHEN (Waiter only)
+   └─→ KOT Ticket created
+   └─→ Order state: Draft → Submitted
+   └─→ Items marked as "sent" in counters
+
+3. KITCHEN PROCESSES
+   └─→ KOT: Queued → In Progress → Ready → Served
+   └─→ Order state auto-updates based on KOT states
+
+4. READY FOR BILLING
+   └─→ Order state: Submitted → To Bill
+   └─→ Appears in Cashier Console
+
+5. GENERATE INVOICE (Cashier)
+   └─→ Sales Invoice created (is_pos=1)
+   └─→ Items copied from POS Order
+   └─→ Stock reserved (if update_stock=1)
+   └─→ Order state: To Bill → Billed
+
+6. PAYMENT PROCESSING
+   A. Cash:
+      └─→ Payment added to invoice.payments
+      └─→ Change calculated
+      └─→ Invoice submitted
+      └─→ Stock deducted
+   
+   B. QRIS:
+      └─→ Payment Request created
+      └─→ QRIS generated via Xendit
+      └─→ QR displayed to customer
+      └─→ Webhook receives payment
+      └─→ Payment Entry created
+      └─→ Invoice reconciled
+
+7. ORDER COMPLETED
+   └─→ Order state: Billed → Completed
+   └─→ Table freed (if restaurant)
+   └─→ Receipt printed
+   └─→ Stock updated
+   └─→ Session tracking updated
+
+8. SESSION CLOSING (End of day)
+   └─→ POS Closing Entry created
+   └─→ Cash counted & reconciled
+   └─→ Reports generated
+```
+
+### API Endpoints Reference
+
+```python
+# POS Order Management
+imogi_pos.api.orders.create_order()
+imogi_pos.api.orders.update_order()
+imogi_pos.api.orders.open_or_create_for_table()
+imogi_pos.api.orders.cancel_order()
+
+# Invoice Generation
+imogi_pos.api.billing.generate_invoice(
+    pos_order, mode_of_payment, amount, customer_info
+)
+
+# Payment
+imogi_pos.api.billing.request_payment(sales_invoice)
+imogi_pos.api.billing.submit_payment(
+    sales_invoice, mode_of_payment, amount_paid
+)
+
+# Order Listing
+imogi_pos.api.billing.list_orders_for_cashier(
+    pos_profile, branch, workflow_state, floor, order_type
+)
+
+# KOT
+imogi_pos.api.kot.create_kot_from_order(pos_order, send_to_kitchen)
+imogi_pos.api.kot.update_kot_status(kot_ticket, state)
+
+# Stock
+imogi_pos.api.billing.notify_stock_update(invoice_doc, profile_doc)
+
+# Session
+imogi_pos.api.pos_session.open_session(pos_profile, opening_amount)
+imogi_pos.api.pos_session.close_session(pos_opening_entry)
+```
+
+---
+
 **Last Updated:** January 25, 2026
 **Version:** 1.0

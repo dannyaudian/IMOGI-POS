@@ -76,7 +76,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "/module-select",
+        "link_to": "/shared/module-select",
         "type": "URL"
       },
       {
@@ -140,7 +140,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "/module-select",
+        "link_to": "/shared/module-select",
         "type": "URL"
       },
       {
@@ -189,7 +189,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "/module-select",
+        "link_to": "/shared/module-select",
         "type": "URL"
       },
       {
@@ -248,7 +248,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "/module-select",
+        "link_to": "/shared/module-select",
         "type": "URL"
       }
     ],

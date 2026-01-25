@@ -24,11 +24,9 @@ imogi_pos.workspace_shortcuts = {
         '/devices/displays',
         '/customer_display_editor',
         '/table_layout_editor',
-        '/opening-balance',
         '/imogi-login',
         '/shared/login',
-        '/shared/device-select',
-        '/shared/service-select'
+        '/shared/module-select'
     ],
     
     // Map shortcut labels to URLs for quick reference
@@ -39,7 +37,6 @@ imogi_pos.workspace_shortcuts = {
         'Customer Display': '/devices/displays',
         'Customer Display Editor': '/customer_display_editor',
         'Table Layout Editor': '/table_layout_editor',
-        'Opening Balance': '/opening-balance',
         'Waiter Order': '/restaurant/waiter',
         'Kiosk': '/restaurant/waiter?mode=kiosk'
     },

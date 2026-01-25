@@ -43,7 +43,7 @@ function App() {
         
         // Get redirect URL from query params or default
         const urlParams = new URLSearchParams(window.location.search)
-        const next = urlParams.get('next') || '/service-select'
+        const next = urlParams.get('next') || '/shared/module-select'
         
         // Redirect after successful login
         window.location.href = next
