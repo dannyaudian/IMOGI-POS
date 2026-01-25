@@ -10,12 +10,14 @@ frappe.ready(function () {
   const CURRENCY_SYMBOL    = window.CURRENCY_SYMBOL ?? 'Rp';
   const DOMAIN             = window.DOMAIN ?? 'Restaurant';
   const MODE               = window.MODE ?? 'Counter';
+  const ORDER_CUSTOMER_FLOW = window.ORDER_CUSTOMER_FLOW ?? 'Order First';
 
   // Debug: Log domain and mode
   console.log('POS Configuration:');
   console.log('  Domain:', DOMAIN, '(Restaurant/Retail/Service)');
   console.log('  Mode:', MODE, '(Table/Counter/Kiosk/Self-Order)');
   console.log('  Branch:', CURRENT_BRANCH_LABEL || CURRENT_BRANCH);
+  console.log('  Order Customer Flow:', ORDER_CUSTOMER_FLOW, '(Order First/Customer First)');
   console.log('  Full Mode Display:', DOMAIN + ' - ' + MODE);
 
   // ====== Early checks ======
@@ -162,17 +164,11 @@ frappe.ready(function () {
 
     refreshOrdersBtn?.addEventListener('click', loadOrders);
     
-    // Disable create order in Counter mode - orders should come from waiter interface
-    if (MODE === 'Counter') {
-      if (createOrderBtn) {
-        createOrderBtn.disabled = true;
-        createOrderBtn.title = 'Orders are created from the Waiter interface';
-        createOrderBtn.style.opacity = '0.5';
-        createOrderBtn.style.cursor = 'not-allowed';
-      }
-    } else {
-      createOrderBtn?.addEventListener('click', openCreateOrderDialog);
-    }
+    // Create Order button - enabled for all modes
+    // Note: In Counter mode, orders are created directly from cashier console
+    // Customer flow validation (Order First vs Customer First) is handled in openItemSelector()
+    createOrderBtn?.addEventListener('click', openItemSelector);
+    
     findCustomerBtn?.addEventListener('click', openCustomerSearch);
     generateInvoiceBtn?.addEventListener('click', generateInvoice);
     requestPaymentBtn?.addEventListener('click', requestPayment);
@@ -961,6 +957,23 @@ frappe.ready(function () {
     const modal = document.getElementById('item-selector-modal');
     if (!modal) return;
     
+    // Check if Customer First mode requires customer selection
+    if (ORDER_CUSTOMER_FLOW === 'Customer First') {
+      if (!selectedCustomer || selectedCustomer.name === 'Walk-in Customer') {
+        showError(__('Please select a customer first before creating an order. Click "Find / Create" button to search or add a customer.'));
+        // Highlight the Find Customer button
+        if (findCustomerBtn) {
+          findCustomerBtn.classList.add('btn-primary');
+          findCustomerBtn.style.animation = 'pulse 1s ease-in-out 3';
+          setTimeout(() => {
+            findCustomerBtn.classList.remove('btn-primary');
+            findCustomerBtn.style.animation = '';
+          }, 3000);
+        }
+        return;
+      }
+    }
+    
     modal.style.display = 'flex';
     cartItems = [];  // Reset cart
     loadItemsForSelector();
@@ -1202,16 +1215,12 @@ frappe.ready(function () {
 
   // Setup event listeners for item selector
   function setupItemSelectorListeners() {
-    const createBtn = document.getElementById('create-order');
+    // Note: create-order button listener is now in setupEventListeners()
     const closeBtn = document.getElementById('close-item-selector');
     const searchInput = document.getElementById('item-search');
     const categoryFilter = document.getElementById('category-filter');
     const submitBtn = document.getElementById('submit-order');
     const modalBackdrop = document.querySelector('.modal-backdrop');
-    
-    if (createBtn) {
-      createBtn.addEventListener('click', openItemSelector);
-    }
     
     if (closeBtn) {
       closeBtn.addEventListener('click', closeItemSelector);

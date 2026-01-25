@@ -101,6 +101,7 @@ def get_context(context):
             context.title = _("Cashier Console")
             context.domain = pos_profile_doc.get("imogi_pos_domain", "Restaurant")
             context.mode = pos_profile_doc.get("imogi_mode", "Counter")
+            context.order_customer_flow = pos_profile_doc.get("imogi_order_customer_flow", "Order First")
             context.show_header = cint(pos_profile_doc.get("imogi_show_header_on_pages", 1))
 
     except frappe.Redirect:

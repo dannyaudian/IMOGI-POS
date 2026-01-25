@@ -28,12 +28,27 @@
     "name": "POS Profile-imogi_mode"
   },
   {
+    "fieldname": "imogi_order_customer_flow",
+    "fieldtype": "Select",
+    "label": "Order Customer Flow",
+    "options": "Order First\nCustomer First",
+    "default": "Order First",
+    "description": "Determines whether orders can be created before selecting a customer (Order First) or customer must be selected before creating an order (Customer First)",
+    "insert_after": "imogi_mode",
+    "depends_on": "eval:doc.imogi_mode==\"Counter\"",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "POS Profile",
+    "doctype": "Custom Field",
+    "name": "POS Profile-imogi_order_customer_flow"
+  },
+  {
     "fieldname": "imogi_branch",
     "fieldtype": "Link",
     "label": "Branch",
     "options": "Branch",
     "description": "Default branch for this POS Profile",
-    "insert_after": "imogi_mode",
+    "insert_after": "imogi_order_customer_flow",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "POS Profile",

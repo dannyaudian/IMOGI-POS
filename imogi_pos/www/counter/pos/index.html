@@ -57,7 +57,7 @@
     background: var(--surface);
     border-bottom: 1px solid var(--line);
     box-shadow: var(--shadow-sm);
-    position: sticky; top:0; z-index:10;
+    position: sticky; top:0; z-index:100;
   }
   .page-title{margin:0;font-weight:700;font-size:18px}
   .header-left, .header-right{display:flex;align-items:center;gap:10px}
@@ -744,6 +744,7 @@
   window.CURRENCY_SYMBOL    = {{ (currency_symbol if currency_symbol else "Rp") | tojson }};
   window.DOMAIN             = {{ (domain if domain else "Restaurant") | tojson }};
   window.MODE               = {{ (mode if mode else "Counter") | tojson }};
+  window.ORDER_CUSTOMER_FLOW = {{ (order_customer_flow if order_customer_flow else "Order First") | tojson }};
 
   // Minor UX: toggle active class on tabs with keyboard support
   document.addEventListener('DOMContentLoaded', () => {

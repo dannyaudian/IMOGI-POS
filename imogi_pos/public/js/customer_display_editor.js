@@ -45,8 +45,12 @@ imogi_pos.customer_display_editor = {
         this.loadSettings()
             .then(() => {
                 this.renderUI();
+                // Note: bindEvents is called after loadProfiles completes
+                // to ensure the dropdown is populated before adding listeners
+                return this.loadProfiles();
+            })
+            .then(() => {
                 this.bindEvents();
-                this.loadProfiles();
             })
             .catch(err => {
                 console.error('Failed to initialize Customer Display Editor:', err);
@@ -109,10 +113,19 @@ imogi_pos.customer_display_editor = {
         return new Promise((resolve, reject) => {
             // Build filters - only include branch if it's available
             const filters = {};
-            const branch = this.settings.branch || CURRENT_BRANCH;
-            if (branch) {
-                filters.branch = branch;
+            const branch = this.settings.branch || (typeof CURRENT_BRANCH !== 'undefined' ? CURRENT_BRANCH : null);
+            
+            // Check if branch is configured
+            if (!branch) {
+                console.warn('No branch configured for Customer Display Editor');
+                this.showBranchError('No branch configured. Please create a Branch first in Setup > Branch, then assign it to your POS Profile.');
+                this.state.profiles = [];
+                this.populateProfileSelector();
+                resolve();
+                return;
             }
+            
+            filters.branch = branch;
             
             frappe.call({
                 method: 'frappe.client.get_list',
@@ -126,6 +139,11 @@ imogi_pos.customer_display_editor = {
                         this.state.profiles = response.message;
                         this.populateProfileSelector();
                         
+                        // Show info if no profiles found
+                        if (this.state.profiles.length === 0) {
+                            this.showInfo('No profiles found for branch "' + branch + '". Click "New Profile" to create one.');
+                        }
+                        
                         // Load first profile or selected one
                         if (this.settings.profile) {
                             this.loadProfile(this.settings.profile);
@@ -135,10 +153,16 @@ imogi_pos.customer_display_editor = {
                         
                         resolve();
                     } else {
+                        this.showError('Failed to load profiles: No response from server.');
                         reject(new Error('Failed to load profiles'));
                     }
                 },
-                error: reject
+                error: (err) => {
+                    const errorMsg = err?.message || err?.exc || 'Unknown error';
+                    this.showError('Failed to load profiles for branch "' + branch + '". Error: ' + errorMsg);
+                    console.error('Load profiles error:', err);
+                    reject(err);
+                }
             });
         });
     },
@@ -851,6 +875,36 @@ imogi_pos.customer_display_editor = {
         frappe.msgprint({
             title: __('Error'),
             indicator: 'red',
+            message: message
+        });
+    },
+    
+    /**
+     * Show branch configuration error with action button
+     * @param {String} message - Error message
+     */
+    showBranchError: function(message) {
+        frappe.msgprint({
+            title: __('Branch Not Configured'),
+            indicator: 'orange',
+            message: message,
+            primary_action: {
+                label: __('Go to Setup'),
+                action: function() {
+                    frappe.set_route('List', 'Branch');
+                }
+            }
+        });
+    },
+    
+    /**
+     * Show info message
+     * @param {String} message - Info message
+     */
+    showInfo: function(message) {
+        frappe.msgprint({
+            title: __('Info'),
+            indicator: 'blue',
             message: message
         });
     }
