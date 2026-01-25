@@ -144,13 +144,26 @@ def get_user_branch_info():
         if not user or user == 'Guest':
             frappe.throw(_('Please login to continue'))
         
-        # Get user's primary branch
-        user_doc = frappe.get_doc('User', user)
+        # Get user's primary branch with multiple fallbacks
         current_branch = frappe.db.get_value(
             'User',
             user,
             'imogi_default_branch'
-        ) or frappe.db.get_value('Company', filters={}, fieldname='name')
+        )
+        
+        # If no user branch set, try getting from defaults
+        if not current_branch:
+            defaults = frappe.defaults.get_defaults()
+            current_branch = defaults.get('company')
+        
+        # If still no branch, get the first available company
+        if not current_branch:
+            first_company = frappe.db.get_value('Company', filters={}, fieldname='name')
+            if first_company:
+                current_branch = first_company
+                # Set it as user's default for next time
+                frappe.db.set_value('User', user, 'imogi_default_branch', first_company)
+                frappe.db.commit()
         
         # Get available branches (from Company doctype)
         available_branches = frappe.get_list(
@@ -159,6 +172,14 @@ def get_user_branch_info():
             limit_page_length=0
         )
         
+        # If no branches found, throw error
+        if not available_branches:
+            frappe.throw(_('No branches (companies) configured in the system. Please contact administrator.'))
+        
+        # If current branch is still None, use first available
+        if not current_branch and available_branches:
+            current_branch = available_branches[0].name
+        
         return {
             'current_branch': current_branch,
             'available_branches': available_branches
@@ -166,10 +187,20 @@ def get_user_branch_info():
     
     except Exception as e:
         frappe.log_error(f'Error in get_user_branch_info: {str(e)}')
-        return {
-            'current_branch': frappe.defaults.get_defaults()['company'],
-            'available_branches': []
-        }
+        # Try one last fallback
+        try:
+            defaults = frappe.defaults.get_defaults()
+            fallback_branch = defaults.get('company')
+            if fallback_branch:
+                return {
+                    'current_branch': fallback_branch,
+                    'available_branches': [{'name': fallback_branch, 'company_name': fallback_branch}]
+                }
+        except:
+            pass
+        
+        # If all else fails, return error
+        frappe.throw(_('Unable to determine branch. Please contact administrator.'))
 
 
 @frappe.whitelist()

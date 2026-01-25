@@ -156,6 +156,7 @@ website_route_rules = [
     # Entry Points
     {"from_route": "/shared/login", "to_route": "/shared/login"},
     {"from_route": "/shared/module-select", "to_route": "/shared/module-select"},
+    {"from_route": "/shared/module_select", "to_route": "/shared/module-select"},  # Handle underscore variant
     
     # POS Applications (operational)
     {"from_route": "/counter/pos", "to_route": "/counter/pos"},
@@ -176,6 +177,7 @@ website_route_rules = [
     # Friendly Aliases
     {"from_route": "/imogi-login", "to_route": "/shared/login"},
     {"from_route": "/module-select", "to_route": "/shared/module-select"},
+    {"from_route": "/module_select", "to_route": "/shared/module-select"},  # Handle underscore variant
     {"from_route": "/cashier-console", "to_route": "/counter/pos"},
     {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
     {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},

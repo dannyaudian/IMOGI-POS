@@ -1309,5 +1309,18 @@
     "dt": "Customer",
     "doctype": "Custom Field",
     "name": "Customer-customer_age"
+  },
+  {
+    "fieldname": "imogi_default_branch",
+    "fieldtype": "Link",
+    "label": "Default Branch",
+    "options": "Company",
+    "insert_after": "user_type",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "User",
+    "doctype": "Custom Field",
+    "name": "User-imogi_default_branch",
+    "description": "Default branch/company for IMOGI POS module selection"
   }
 ]
