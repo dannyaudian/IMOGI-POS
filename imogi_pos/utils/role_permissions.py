@@ -481,7 +481,7 @@ def get_permissions_for_user(user=None):
     return get_user_permissions_context(user)
 
 
-def get_permission_query_conditions(doctype):
+def get_permission_query_conditions(user, doctype):
     """Get query conditions for list views based on user permissions.
     
     This is called by Frappe's permission system to filter list views.
@@ -489,13 +489,12 @@ def get_permission_query_conditions(doctype):
     Other users see only records from their assigned branch.
     
     Args:
+        user (str): User name (passed by Frappe)
         doctype (str): DocType name
         
     Returns:
         str: SQL condition string or None for no restrictions
     """
-    user = frappe.session.user
-    
     # Administrator sees everything
     if user == "Administrator":
         return None
