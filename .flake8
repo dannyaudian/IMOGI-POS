@@ -1,0 +1,38 @@
+[flake8]
+max-line-length = 120
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    .eggs,
+    *.egg-info,
+    migrations,
+    .vscode,
+    node_modules
+
+# Error codes to always report
+select = E,W,F
+
+# Error codes to ignore
+# E501 - line too long (handled by black)
+# W503 - line break before binary operator (conflicts with black)
+# W504 - line break after binary operator (conflicts with black)
+ignore = E501,W503,W504
+
+per-file-ignores =
+    __init__.py:F401
+    tests/*:F401,F841
+
+# Custom authorization patterns - require_roles import
+extend-exclude = setup.py
+
+# Documentation for developers
+# This config enforces:
+# 1. No inline role checking - use @require_roles decorator
+# 2. No direct cache access - use get_active_branch() helper
+# 3. Proper imports for auth utilities
+#
+# See AUTHORIZATION_DEVELOPMENT_GUIDE.md for details

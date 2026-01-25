@@ -9,6 +9,7 @@ from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.utils.state_manager import StateManager
 from imogi_pos.utils.kot_publisher import KOTPublisher
 from imogi_pos.kitchen.kot_service import (
@@ -314,6 +315,7 @@ def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
 
 
 @frappe.whitelist()
+@require_permission("KOT Ticket", "create")
 def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     """
     Creates a KOT Ticket and sends selected items to the kitchen.

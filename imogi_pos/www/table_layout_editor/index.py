@@ -6,10 +6,11 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.auth_helpers import get_active_branch
 from imogi_pos.utils.error_pages import set_setup_error
 
 
-@require_roles("Restaurant Manager", "System Manager")
+@require_roles("Branch Manager", "System Manager")
 def get_context(context):
     """Context builder for table layout editor page."""
     try:
@@ -25,6 +26,10 @@ def get_context(context):
 
         context.branding = get_branding_info(pos_profile)
         context.branch = get_current_branch(pos_profile)
+        # Table Layout Editor requires Table or Self-Order mode
+        mode_setting = pos_profile.get("imogi_mode", "Table") if pos_profile else "Table"
+        if mode_setting not in ["Table", "Self-Order"]:
+            frappe.throw(_(f"Table Layout Editor requires Table or Self-Order mode, got {mode_setting}"))
         context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
         context.title = _("Table Layout Editor")
 
@@ -99,7 +104,7 @@ def get_branding_info(pos_profile):
 
 
 def get_current_branch(pos_profile):
-    branch = frappe.cache().hget("imogi_pos_branch", frappe.session.user)
+    branch = get_active_branch()
     if not branch and pos_profile and pos_profile.get("imogi_branch"):
         branch = pos_profile.imogi_branch
     return branch

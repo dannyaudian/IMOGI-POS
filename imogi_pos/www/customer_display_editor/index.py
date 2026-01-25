@@ -6,10 +6,11 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.auth_helpers import get_active_branch
 from imogi_pos.utils.error_pages import set_setup_error
 
 
-@require_roles("Restaurant Manager", "System Manager")
+@require_roles("Branch Manager", "System Manager")
 def get_context(context):
     """Context builder for customer display editor page."""
     try:
@@ -96,7 +97,7 @@ def get_branding_info(pos_profile):
 
 
 def get_current_branch(pos_profile):
-    branch = frappe.cache().hget("imogi_pos_branch", frappe.session.user)
+    branch = get_active_branch()
     if not branch and pos_profile and pos_profile.get("imogi_branch"):
         branch = pos_profile.imogi_branch
     return branch

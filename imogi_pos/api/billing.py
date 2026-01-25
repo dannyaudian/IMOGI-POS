@@ -8,6 +8,8 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date, get_url, flt, cstr
 from frappe.realtime import publish_realtime
+from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.decorators import require_permission, require_role
 
 try:
     from erpnext.stock.stock_ledger import NegativeStockError
@@ -18,38 +20,20 @@ except Exception:  # pragma: no cover - fallback when erpnext isn't installed
 
 LOW_STOCK_THRESHOLD = 10
 
-def validate_branch_access(branch):
-    """
-    Validates that the current user has access to the specified branch.
-    
-    Args:
-        branch (str): Branch name
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access to the branch
-    """
-    if not frappe.has_permission("Branch", doc=branch):
-        frappe.throw(_("You don't have access to branch: {0}").format(branch), 
-                    frappe.PermissionError)
-
 def validate_pos_session(pos_profile, enforce_session=None):
     """
-    Validates if an active POS Session exists as required by the POS Profile.
+    Validates if an active POS Opening Entry exists as required by the POS Profile.
     
     Args:
         pos_profile (str): POS Profile name
         enforce_session (bool, optional): Override profile setting
     
     Returns:
-        str: POS Session name if active, None otherwise
+        str: POS Opening Entry name if active, None otherwise
     
     Raises:
         frappe.ValidationError: If session is required but not active
     """
-    # Skip validation completely if POS Session DocType is unavailable
-    if not frappe.db.exists("DocType", "POS Session"):
-        return None
-
     # Get POS Profile settings
     profile_doc = frappe.get_doc("POS Profile", pos_profile)
     
@@ -64,11 +48,11 @@ def validate_pos_session(pos_profile, enforce_session=None):
     # Get the scope (User/Device/POS Profile)
     scope = profile_doc.get("imogi_pos_session_scope", "User")
     
-    # Get active session
+    # Get active POS Opening Entry
     active_session = get_active_pos_session(scope)
     
     if not active_session and require_session:
-        frappe.throw(_("No active POS Session found. Please open a POS Session first."),
+        frappe.throw(_("No active POS Opening Entry found. Please open a session before proceeding."),
                     frappe.ValidationError)
 
     return active_session
@@ -784,6 +768,7 @@ def build_invoice_items(order_doc, mode):
     return invoice_items
 
 @frappe.whitelist()
+@require_permission("Sales Invoice", "create")
 def generate_invoice(
     pos_order: str | None = None, mode_of_payment=None, amount=None, customer_info=None
 ):
@@ -1261,19 +1246,16 @@ def prepare_invoice_draft(pos_order):
 
 @frappe.whitelist()
 def check_pos_session(pos_profile=None):
-    """Check whether POS Session feature is available and active."""
+    """Check whether POS Opening Entry is active for session management."""
 
-    exists = bool(frappe.db.exists("DocType", "POS Session"))
     active_session = None
-
-    if exists:
-        try:
-            active_session = get_active_pos_session()
-        except Exception:
-            active_session = None
+    try:
+        active_session = get_active_pos_session()
+    except Exception:
+        active_session = None
 
     return {
-        "exists": exists,
+        "exists": True,  # POS Opening Entry always exists in ERPNext
         "active": bool(active_session),
         "pos_session": active_session,
     }
@@ -1282,44 +1264,42 @@ def check_pos_session(pos_profile=None):
 @frappe.whitelist()
 def get_active_pos_session(context_scope=None):
     """
-    Gets the active POS Session for the current context.
+    Gets the active POS Opening Entry for the current context.
     
     Args:
-        context_scope (str, optional): Scope to check (User/Device/POS Profile)
+        context_scope (str, optional): Scope to check (User/POS Profile)
                                       Default is User
     
     Returns:
-        str: POS Session name if active, None otherwise
+        str: POS Opening Entry name if active, None otherwise
     """
-    if not frappe.db.exists("DocType", "POS Session"):
-        return None
-
     if not context_scope:
         context_scope = "User"
 
     user = frappe.session.user
 
-    filters = {"status": "Open"}
+    filters = {
+        "docstatus": 1,  # Submitted
+        "status": "Open"
+    }
 
     if context_scope == "User":
         # Session is tied to current user
         filters["user"] = user
-    elif context_scope == "Device":
-        # Identify device by request_ip (or any identifier stored on frappe.local)
-        device_id = getattr(getattr(frappe, "local", object()), "request_ip", None)
-        if not device_id:
-            return None
-        filters["device_id"] = device_id
     elif context_scope == "POS Profile":
         # Sessions shared per POS Profile
-        pos_profile = frappe.db.get_value("POS Profile", {"user": user}, "name")
+        pos_profile = frappe.db.get_value("POS Profile User", {"user": user}, "parent")
         if not pos_profile:
             return None
         filters["pos_profile"] = pos_profile
+    # Note: Device scope not supported with POS Opening Entry
+    elif context_scope == "Device":
+        # Fall back to User scope for Device
+        filters["user"] = user
     else:
         return None
 
-    active_session = frappe.db.get_value("POS Session", filters, "name")
+    active_session = frappe.db.get_value("POS Opening Entry", filters, "name")
     return active_session
 
 @frappe.whitelist()
@@ -1328,14 +1308,11 @@ def get_session_info(pos_session=None):
     Get detailed session information for display in UI.
     
     Args:
-        pos_session (str, optional): POS Session name. If not provided, gets active session.
+        pos_session (str, optional): POS Opening Entry name. If not provided, gets active session.
     
     Returns:
         dict: Session details including start time, sales summary, etc.
     """
-    if not frappe.db.exists("DocType", "POS Session"):
-        return None
-    
     # Get session
     if not pos_session:
         pos_session = get_active_pos_session()
@@ -1344,7 +1321,7 @@ def get_session_info(pos_session=None):
         return None
     
     try:
-        session_doc = frappe.get_doc("POS Session", pos_session)
+        session_doc = frappe.get_doc("POS Opening Entry", pos_session)
         
         # Calculate session duration
         from frappe.utils import time_diff_in_seconds, now_datetime
@@ -1397,25 +1374,25 @@ def close_session_request(pos_session, closing_amount=None):
     if not frappe.db.exists("DocType", "POS Closing Entry"):
         frappe.throw(_("POS Closing Entry doctype not available"))
     
-    if not frappe.db.exists("POS Session", pos_session):
-        frappe.throw(_("POS Session {0} not found").format(pos_session))
+    if not frappe.db.exists("POS Opening Entry", pos_session):
+        frappe.throw(_("POS Opening Entry {0} not found").format(pos_session))
     
     # Check if session already has closing entry
-    existing = frappe.db.exists("POS Closing Entry", {"pos_session": pos_session})
+    existing = frappe.db.exists("POS Closing Entry", {"pos_opening_entry": pos_session})
     if existing:
         frappe.throw(_("Closing Entry already exists for this session: {0}").format(existing))
     
     try:
         # Get session details
-        session_doc = frappe.get_doc("POS Session", pos_session)
+        session_doc = frappe.get_doc("POS Opening Entry", pos_session)
         
         # Create new POS Closing Entry
         closing_entry = frappe.new_doc("POS Closing Entry")
-        closing_entry.pos_session = pos_session
+        closing_entry.pos_opening_entry = pos_session
         closing_entry.user = session_doc.user
         closing_entry.pos_profile = session_doc.pos_profile
         closing_entry.company = session_doc.company
-        closing_entry.period_start_date = session_doc.posting_date
+        closing_entry.period_start_date = session_doc.period_start_date
         closing_entry.period_end_date = frappe.utils.nowdate()
         
         if closing_amount:
@@ -1588,89 +1565,137 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
     """
     from frappe.utils import today, getdate
     
-    # Get branch from POS Profile if not provided
-    if not branch:
-        if pos_profile:
-            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-        else:
-            pos_profile = frappe.db.get_value(
-                "POS Profile User", {"user": frappe.session.user}, "parent"
-            )
-            if not pos_profile:
-                frappe.throw(
-                    _("No POS Profile found for user: {0}").format(frappe.session.user)
-                )
-            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-    
-    if branch:
-        validate_branch_access(branch)
-    
-    # Default to current user if cashier not specified
-    if not cashier:
-        cashier = frappe.session.user
-    
-    # Default to today if date not specified
-    if not date:
-        date = today()
-    
-    # Validate date
     try:
-        date_obj = getdate(date)
-    except:
-        date_obj = getdate(today())
-    
-    # Build filters - pending orders ready for checkout
-    filters = {
-        "branch": branch,
-        "workflow_state": ["in", ["Draft", "Pending", "Ready", "Confirmed"]],  # Pending orders ready for checkout
-        "creation": [">=", date_obj],
-        "owner": cashier  # This cashier only
-    }
-    
-    # Query POS Orders
-    orders = frappe.get_all(
-        "POS Order",
-        filters=filters,
-        fields=[
-            "name",
-            "customer",
-            "order_type",
-            "queue_number",
-            "workflow_state",
-            "totals",
-            "creation",
-            "modified",
-            "owner"
-        ],
-        order_by="modified desc",
-        limit_page_length=limit
-    )
-    
-    # Fetch customer names and items for each order
-    for order in orders:
-        order["customer_name"] = (
-            frappe.db.get_value("Customer", order["customer"], "customer_name")
-            if order.get("customer")
-            else "Walk-in Customer"
+        frappe.logger().debug(f"list_counter_order_history called with: pos_profile={pos_profile}, branch={branch}, user={frappe.session.user}")
+        
+        # Get branch from POS Profile if not provided
+        if not branch:
+            if pos_profile:
+                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+                frappe.logger().debug(f"Got branch from POS Profile: {branch}")
+            else:
+                pos_profile = frappe.db.get_value(
+                    "POS Profile User", {"user": frappe.session.user}, "parent"
+                )
+                frappe.logger().debug(f"Got POS Profile from user: {pos_profile}")
+                if not pos_profile:
+                    error_msg = _("No POS Profile configured for user: {0}. Please contact your system administrator to assign a POS Profile.").format(frappe.session.user)
+                    frappe.log_error(
+                        f"No POS Profile found for user: {frappe.session.user}",
+                        "list_counter_order_history - No POS Profile"
+                    )
+                    frappe.throw(error_msg, frappe.ValidationError)
+                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+                frappe.logger().debug(f"Got branch from POS Profile: {branch}")
+        
+        # If still no branch, throw error
+        if not branch:
+            error_msg = _("No branch configured for POS Profile: {0}. Please contact your system administrator to configure a branch.").format(pos_profile)
+            frappe.log_error(
+                f"No branch found for POS Profile: {pos_profile}",
+                "list_counter_order_history - No Branch"
+            )
+            frappe.throw(error_msg, frappe.ValidationError)
+        
+        frappe.logger().debug(f"Validating branch access for: {branch}")
+        # Validate branch access - will throw clear error if no access
+        validate_branch_access(branch)
+        
+        # Default to current user if cashier not specified
+        if not cashier:
+            cashier = frappe.session.user
+        
+        # Default to today if date not specified
+        if not date:
+            date = today()
+        
+        # Validate date
+        try:
+            date_obj = getdate(date)
+        except:
+            date_obj = getdate(today())
+        
+        frappe.logger().debug(f"Querying orders with filters: branch={branch}, date={date_obj}, cashier={cashier}")
+        
+        # Build filters - pending orders ready for checkout
+        filters = {
+            "branch": branch,
+            "workflow_state": ["in", ["Draft", "Pending", "Ready", "Confirmed"]],  # Pending orders ready for checkout
+            "creation": [">=", date_obj],
+            "owner": cashier  # This cashier only
+        }
+        
+        # Query POS Orders
+        orders = frappe.get_all(
+            "POS Order",
+            filters=filters,
+            fields=[
+                "name",
+                "customer",
+                "order_type",
+                "queue_number",
+                "workflow_state",
+                "totals",
+                "creation",
+                "modified",
+                "owner"
+            ],
+            order_by="modified desc",
+            limit_page_length=limit
         )
         
-        order_items = frappe.get_all(
-            "POS Order Item",
-            filters={"parent": order["name"]},
-            fields=["item", "qty", "rate", "amount", "notes"],
-            order_by="idx",
-        )
-        
-        # Attach item info from Item doctype
-        for item in order_items:
-            details = frappe.db.get_value(
-                "Item", item["item"], ["item_name", "image"], as_dict=True
-            ) or {}
+        # Fetch customer names and items for each order
+        for order in orders:
+            order["customer_name"] = (
+                frappe.db.get_value("Customer", order["customer"], "customer_name")
+                if order.get("customer")
+                else "Walk-in Customer"
+            )
             
-            item["item_name"] = details.get("item_name") or item.get("item")
-            item["image"] = details.get("image")
-            item["rate"] = flt(item.get("rate"))
+            order_items = frappe.get_all(
+                "POS Order Item",
+                filters={"parent": order["name"]},
+                fields=["item", "qty", "rate", "amount", "notes"],
+                order_by="idx",
+            )
+            
+            # Attach item info from Item doctype
+            for item in order_items:
+                details = frappe.db.get_value(
+                    "Item", item["item"], ["item_name", "image"], as_dict=True
+                ) or {}
+                
+                item["item_name"] = details.get("item_name") or item.get("item")
+                item["image"] = details.get("image")
+                item["rate"] = flt(item.get("rate"))
+            
+            order["items"] = order_items
         
-        order["items"] = order_items
+        frappe.logger().debug(f"Returning {len(orders)} orders from list_counter_order_history")
+        return orders
     
-    return orders
+    except frappe.PermissionError as e:
+        # Log detailed error for admin debugging
+        frappe.log_error(
+            f"Permission denied in list_counter_order_history\nUser: {frappe.session.user}\nRoles: {', '.join(frappe.get_roles())}\nBranch: {branch if 'branch' in locals() else 'N/A'}\nPOS Profile: {pos_profile if 'pos_profile' in locals() else 'N/A'}\nError: {str(e)}",
+            "list_counter_order_history - Permission Denied"
+        )
+        # Re-throw with clear message for user
+        frappe.throw(
+            _("Access denied. {0}").format(str(e)),
+            frappe.PermissionError
+        )
+    except frappe.ValidationError as e:
+        # Validation errors (missing config) - throw to user
+        frappe.throw(str(e), frappe.ValidationError)
+    except Exception as e:
+        # Log unexpected errors
+        frappe.log_error(
+            f"Unexpected error in list_counter_order_history\nUser: {frappe.session.user}\nBranch: {branch if 'branch' in locals() else 'N/A'}\nError: {str(e)}",
+            "list_counter_order_history - Unexpected Error"
+        )
+        # Throw user-friendly error
+        frappe.throw(
+            _("Failed to load orders. Please try again or contact your system administrator. Error: {0}").format(str(e)),
+            frappe.ValidationError
+        )

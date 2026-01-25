@@ -968,8 +968,9 @@
   },
   {
     "fieldname": "imogi_pos_session",
-    "fieldtype": "Data",
-    "label": "POS Session",
+    "fieldtype": "Link",
+    "label": "POS Opening Entry",
+    "options": "POS Opening Entry",
     "read_only": 1,
     "insert_after": "imogi_branch",
     "is_system_generated": 0,

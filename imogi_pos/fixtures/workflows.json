@@ -12,7 +12,7 @@
       {
         "state": "Queued",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -22,7 +22,7 @@
       {
         "state": "In Progress",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -32,7 +32,7 @@
       {
         "state": "Ready",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -42,7 +42,7 @@
       {
         "state": "Served",
         "doc_status": 1,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -52,7 +52,7 @@
       {
         "state": "Cancelled",
         "doc_status": 2,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -65,7 +65,7 @@
         "state": "Queued",
         "action": "Start Preparing",
         "next_state": "In Progress",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -83,7 +83,7 @@
         "state": "In Progress",
         "action": "Mark as Ready",
         "next_state": "Ready",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -101,7 +101,7 @@
         "state": "In Progress",
         "action": "Mark as Served",
         "next_state": "Served",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -119,7 +119,7 @@
         "state": "Ready",
         "action": "Mark as Served",
         "next_state": "Served",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -137,7 +137,7 @@
         "state": "Queued",
         "action": "Cancel",
         "next_state": "Cancelled",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -146,7 +146,7 @@
         "state": "In Progress",
         "action": "Cancel",
         "next_state": "Cancelled",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -155,7 +155,7 @@
         "state": "In Progress",
         "action": "Return to Queue",
         "next_state": "Queued",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -173,7 +173,7 @@
         "state": "Ready",
         "action": "Return to Kitchen",
         "next_state": "In Progress",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -202,7 +202,7 @@
       {
         "state": "Draft",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -212,7 +212,7 @@
       {
         "state": "In Progress",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -222,7 +222,7 @@
       {
         "state": "Ready",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -232,7 +232,7 @@
       {
         "state": "Served",
         "doc_status": 0,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -242,7 +242,7 @@
       {
         "state": "Closed",
         "doc_status": 1,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -252,7 +252,7 @@
       {
         "state": "Cancelled",
         "doc_status": 2,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -262,7 +262,7 @@
       {
         "state": "Returned",
         "doc_status": 2,
-        "allow_edit": "Restaurant Manager",
+        "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
         "update_value": "",
@@ -275,7 +275,7 @@
         "state": "Draft",
         "action": "Send to Kitchen",
         "next_state": "In Progress",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -284,7 +284,7 @@
         "state": "In Progress",
         "action": "Mark as Ready",
         "next_state": "Ready",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -293,7 +293,7 @@
         "state": "In Progress",
         "action": "Mark as Served",
         "next_state": "Served",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -302,7 +302,7 @@
         "state": "Ready",
         "action": "Mark as Served",
         "next_state": "Served",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -311,7 +311,7 @@
         "state": "Served",
         "action": "Close Order",
         "next_state": "Closed",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -320,7 +320,7 @@
         "state": "Draft",
         "action": "Cancel",
         "next_state": "Cancelled",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -329,7 +329,7 @@
         "state": "Ready",
         "action": "Return to Kitchen",
         "next_state": "In Progress",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
@@ -338,7 +338,7 @@
         "state": "Served",
         "action": "Return",
         "next_state": "Returned",
-        "allowed": "Restaurant Manager",
+        "allowed": "Branch Manager",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"

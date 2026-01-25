@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, flt, cstr, cint
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.api.queue import get_next_queue_number
 from imogi_pos.api.pricing import get_price_list_rate_maps
 from frappe.exceptions import TimestampMismatchError
@@ -158,6 +159,7 @@ def validate_item_is_sales_item(doc, method=None):
 
 
 @frappe.whitelist()
+@require_permission("POS Order", "write")
 def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     """Append a new item row to an existing POS Order and recalculate totals."""
 
@@ -398,6 +400,7 @@ def get_next_available_table(branch):
     return str(min(numbers))
 
 @frappe.whitelist()
+@require_permission("POS Order", "create")
 def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.

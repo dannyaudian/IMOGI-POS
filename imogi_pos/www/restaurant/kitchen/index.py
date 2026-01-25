@@ -7,10 +7,11 @@ from imogi_pos.utils.branding import (
 )
 from imogi_pos.utils.restaurant_settings import get_default_branch
 from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.auth_helpers import get_active_branch
 from imogi_pos.utils.error_pages import set_setup_error
 
 
-@require_roles("Kitchen Staff", "Restaurant Manager", "System Manager")
+@require_roles("Kitchen Staff", "Branch Manager", "System Manager")
 def get_context(context):
     """Context builder for kitchen display page."""
     try:
@@ -30,6 +31,10 @@ def get_context(context):
         if not branch:
             branch = get_default_branch()
         context.branch = branch
+        # Kitchen Display works with restaurant modes
+        mode_setting = pos_profile.get("imogi_mode", "Table") if pos_profile else "Table"
+        if mode_setting not in ["Table", "Kiosk", "Self-Order"]:
+            frappe.throw(_(f"Kitchen Display requires a Restaurant mode POS Profile (Table/Kiosk/Self-Order), got {mode_setting}"))
         context.domain = pos_profile.get("imogi_pos_domain", "Restaurant") if pos_profile else "Restaurant"
         context.title = _("Kitchen Display")
 
@@ -104,7 +109,7 @@ def get_branding_info(pos_profile):
 
 
 def get_current_branch(pos_profile):
-    branch = frappe.cache().hget("imogi_pos_branch", frappe.session.user)
+    branch = get_active_branch()
     if not branch and pos_profile and pos_profile.get("imogi_branch"):
         branch = pos_profile.imogi_branch
     return branch

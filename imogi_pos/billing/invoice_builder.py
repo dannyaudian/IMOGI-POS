@@ -40,17 +40,15 @@ def build_sales_invoice_from_pos_order(
     # Get the POS Profile
     pos_profile = frappe.get_doc("POS Profile", pos_order.pos_profile)
     
-    # Get active POS session if required
-    pos_session = None
-    if frappe.db.exists("DocType", "POS Session") and frappe.db.get_value(
+    # Get active POS Opening Entry if required
+    pos_opening = None
+    if frappe.db.get_value(
         "POS Profile", pos_order.pos_profile, "imogi_require_pos_session"
     ):
-        pos_session = get_active_pos_session(pos_order.pos_profile)
-        if not pos_session:
+        pos_opening = get_active_pos_opening(pos_order.pos_profile)
+        if not pos_opening:
             frappe.throw(
-                _(
-                    "No active POS Session found. Please open a session before creating an invoice."
-                )
+                _("No active POS Opening Entry found. Please open a session before creating an invoice.")
             )
     
     # Determine notes handling based on POS Profile settings and order type
@@ -81,9 +79,9 @@ def build_sales_invoice_from_pos_order(
         if table_floor:
             si.imogi_floor = table_floor
     
-    # Link to POS session if active
-    if pos_session:
-        si.imogi_pos_session = pos_session
+    # Link to POS Opening Entry if active
+    if pos_opening:
+        si.imogi_pos_session = pos_opening  # Using existing field name for backward compatibility
     
     # Set standard POS fields
     si.pos_profile = pos_order.pos_profile
@@ -168,39 +166,35 @@ def build_sales_invoice_from_pos_order(
     return si.name
 
 
-def get_active_pos_session(pos_profile: str) -> Optional[str]:
+def get_active_pos_opening(pos_profile: str) -> Optional[str]:
     """
-    Get active POS Session for the given profile.
+    Get active POS Opening Entry for the given profile.
     
     Args:
         pos_profile: POS Profile name
         
     Returns:
-        Name of the active POS Session or None
+        Name of the active POS Opening Entry or None
     """
-    if not frappe.db.exists("DocType", "POS Session"):
-        return None
-
     scope = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_session_scope") or "User"
     
     filters = {
         "pos_profile": pos_profile,
-        "user": frappe.session.user,
+        "docstatus": 1,  # Submitted
         "status": "Open"
     }
     
     # Apply scope-specific filters
-    if scope == "Device":
-        # Get current device ID (implementation depends on how you track devices)
-        device_id = frappe.local.request_ip if hasattr(frappe.local, "request_ip") else None
-        if device_id:
-            filters["device_id"] = device_id
+    if scope == "User":
+        filters["user"] = frappe.session.user
     elif scope == "POS Profile":
         # Just filter by profile (already included above)
         pass
+    # Note: Device scope is harder to implement with POS Opening Entry
+    # as it doesn't have device_id field by default
     
-    active_session = frappe.db.get_value("POS Session", filters, "name")
-    return active_session
+    active_opening = frappe.db.get_value("POS Opening Entry", filters, "name")
+    return active_opening
 
 
 def _should_include_notes_in_description(

@@ -40,21 +40,31 @@ frappe.ui.form.on('POS Profile', {
                     return;
                 }
                 
-                // Check if there's an active session first
+                // Check if there's an active POS Opening Entry first
                 frappe.call({
-                    method: 'imogi_pos.api.billing.get_active_pos_session',
+                    method: 'frappe.client.get_list',
+                    args: {
+                        doctype: 'POS Opening Entry',
+                        filters: {
+                            pos_profile: frm.doc.name,
+                            user: frappe.session.user,
+                            docstatus: 1,
+                            status: 'Open'
+                        },
+                        limit: 1
+                    },
                     callback: function(r) {
-                        if (r.message) {
+                        if (r.message && r.message.length > 0) {
                             // Has active session, go to POS
                             window.location.href = redirect_url;
                         } else {
                             // No active session, prompt to create one
                             frappe.msgprint({
                                 title: __('No Active Session'),
-                                message: __('Please open a POS Session first via POS Opening Entry'),
+                                message: __('Please open a POS Opening Entry first before accessing the POS.'),
                                 indicator: 'orange',
                                 primary_action: {
-                                    label: __('Create Session'),
+                                    label: __('Create Opening Entry'),
                                     action: function() {
                                         frappe.new_doc('POS Opening Entry', {
                                             pos_profile: frm.doc.name

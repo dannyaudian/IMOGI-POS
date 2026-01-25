@@ -10,6 +10,7 @@ from frappe.utils import cint
 from imogi_pos.utils.currency import get_currency_symbol
 from imogi_pos.api.queue import get_next_queue_number
 from imogi_pos.utils.auth_decorators import allow_guest_if_configured
+from imogi_pos.utils.auth_helpers import get_active_branch
 from imogi_pos.utils.error_pages import set_setup_error
 
 
@@ -32,9 +33,13 @@ def get_context(context):
     context.setup_error = False
     context.pos_profile = pos_profile
     
-    # Check if domain is valid
-    domain = pos_profile.get("imogi_pos_domain", "Restaurant")
-    context.domain = domain
+    # Check if mode is valid for this page
+    mode_setting = pos_profile.get("imogi_mode", "Table")
+    # Waiter/Kiosk page accepts Table, Kiosk, and Self-Order modes
+    if mode_setting not in ["Table", "Kiosk", "Self-Order"]:
+        frappe.throw(_(f"This POS Profile mode ({mode_setting}) is not compatible with Restaurant operations. Please use Counter POS instead."))
+    
+    context.domain = pos_profile.get("imogi_pos_domain", "Restaurant")
     
     
     # Get branding information
@@ -194,7 +199,7 @@ def get_branding_info(pos_profile):
 def get_current_branch(pos_profile):
     """Get current branch from context or POS Profile."""
     # First check if branch is stored in session
-    branch = frappe.cache().hget("imogi_pos_branch", frappe.session.user)
+    branch = get_active_branch()
     
     # If not in session, check POS Profile
     if not branch and pos_profile and pos_profile.get("imogi_branch"):

@@ -14,7 +14,8 @@ app_license = "MIT"
 app_include_js = [
     '/assets/imogi_pos/js/escpos_printing.js',
     '/assets/imogi_pos/js/workspace_shortcuts.js?v=2.0',
-    '/assets/imogi_pos/js/workspace_shortcuts_init.js?v=2.0'
+    '/assets/imogi_pos/js/workspace_shortcuts_init.js?v=2.0',
+    '/assets/imogi_pos/js/core/permission-manager.js'
 ]
 app_include_css = []
 
@@ -86,6 +87,21 @@ doc_events = {
         "on_update": "imogi_pos.api.pricing.publish_item_price_update",
         "on_trash": "imogi_pos.api.pricing.publish_item_price_update",
     },
+}
+
+# Permission controller for custom permission logic
+permission_query_conditions = {
+    "POS Order": "imogi_pos.utils.role_permissions.get_permission_query_conditions",
+    "Sales Invoice": "imogi_pos.utils.role_permissions.get_permission_query_conditions",
+    "KOT Ticket": "imogi_pos.utils.role_permissions.get_permission_query_conditions",
+    "Restaurant Table": "imogi_pos.utils.role_permissions.get_permission_query_conditions",
+}
+
+has_permission = {
+    "POS Order": "imogi_pos.utils.role_permissions.has_doctype_permission",
+    "Sales Invoice": "imogi_pos.utils.role_permissions.has_doctype_permission",
+    "KOT Ticket": "imogi_pos.utils.role_permissions.has_doctype_permission",
+    "Restaurant Table": "imogi_pos.utils.role_permissions.has_doctype_permission",
 }
 
 fixtures = [

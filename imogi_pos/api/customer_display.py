@@ -9,20 +9,7 @@ from frappe.utils import now_datetime, cint, get_datetime, random_string
 from frappe.realtime import publish_realtime
 import json
 import hashlib
-
-def validate_branch_access(branch):
-    """
-    Validates that the current user has access to the specified branch.
-    
-    Args:
-        branch (str): Branch name
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access to the branch
-    """
-    if not frappe.has_permission("Branch", doc=branch):
-        frappe.throw(_("You don't have access to branch: {0}").format(branch), 
-                    frappe.PermissionError)
+from imogi_pos.utils.permissions import validate_branch_access
 
 def get_device_by_id(device_id):
     """

@@ -7,6 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.decorators import require_permission
 
 def check_restaurant_domain(pos_profile=None):
     """
@@ -180,6 +181,7 @@ def get_table_layout(floor):
     }
 
 @frappe.whitelist()
+@require_permission("Table Layout Profile", "write")
 def save_table_layout(floor, layout_json, profile_name=None, title=None):
     """
     Saves a table layout for a specific floor.

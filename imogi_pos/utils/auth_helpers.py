@@ -8,6 +8,13 @@ in the IMOGI POS system.
 import frappe
 from frappe import _
 
+# Import permission utilities to avoid duplication
+from imogi_pos.utils.permissions import (
+    has_privileged_access,
+    validate_api_permission,
+    validate_branch_access,
+)
+
 
 def get_user_pos_profile(user=None, allow_fallback=True):
     """
@@ -66,7 +73,10 @@ def get_user_role_context(user=None):
             "roles": list,
             "is_guest": bool,
             "is_admin": bool,
-            "is_manager": bool,
+            "is_area_manager": bool,
+            "is_branch_manager": bool,
+            "is_manager": bool,  # Area Manager or Branch Manager
+            "is_finance_controller": bool,
             "is_cashier": bool,
             "is_waiter": bool,
             "is_kitchen_staff": bool
@@ -78,12 +88,19 @@ def get_user_role_context(user=None):
     is_guest = user == "Guest"
     roles = [] if is_guest else frappe.get_roles(user)
     
+    is_area_manager = "Area Manager" in roles
+    is_branch_manager = "Branch Manager" in roles
+    is_finance_controller = "Finance Controller" in roles
+    
     return {
         "user": user,
         "roles": roles,
         "is_guest": is_guest,
         "is_admin": "System Manager" in roles,
-        "is_manager": "Restaurant Manager" in roles or "System Manager" in roles,
+        "is_area_manager": is_area_manager,
+        "is_branch_manager": is_branch_manager,
+        "is_manager": is_area_manager or is_branch_manager,  # Either type of manager
+        "is_finance_controller": is_finance_controller,
         "is_cashier": "Cashier" in roles,
         "is_waiter": "Waiter" in roles,
         "is_kitchen_staff": "Kitchen Staff" in roles,
@@ -94,7 +111,7 @@ def validate_pos_profile_access(pos_profile, user=None):
     """
     Validate that user has access to specified POS Profile.
     
-    Checks if user is assigned to the profile or has manager role.
+    Checks if user is assigned to the profile or has privileged access (System Manager).
     
     Args:
         pos_profile: POS Profile name
@@ -106,11 +123,13 @@ def validate_pos_profile_access(pos_profile, user=None):
     if not user:
         user = frappe.session.user
     
-    # Admins and managers have access to all profiles
-    if "System Manager" in frappe.get_roles(user) or "Restaurant Manager" in frappe.get_roles(user):
+    # Privileged users (System Manager, Administrator) have access to all profiles
+    if has_privileged_access(user):
         return
     
-    # Check if user is assigned to this profile
+    # For non-privileged users, check if assigned to this profile
+    # Note: Branch Manager and Area Manager should be able to access any profile
+    # in their branch/area via ERPNext permission system, not this check
     assigned = frappe.db.exists("POS Profile User", {
         "parent": pos_profile,
         "user": user
@@ -119,29 +138,6 @@ def validate_pos_profile_access(pos_profile, user=None):
     if not assigned:
         frappe.throw(
             _("You don't have access to POS Profile: {0}").format(pos_profile),
-            frappe.PermissionError
-        )
-
-
-def validate_branch_access(branch, user=None):
-    """
-    Validate that user has access to specified branch.
-    
-    Uses Frappe's permission system to check branch access.
-    
-    Args:
-        branch: Branch name
-        user: User email. If None, uses current session user.
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access
-    """
-    if not user:
-        user = frappe.session.user
-    
-    if not frappe.has_permission("Branch", doc=branch, user=user):
-        frappe.throw(
-            _("You don't have access to branch: {0}").format(branch),
             frappe.PermissionError
         )
 
@@ -183,7 +179,8 @@ def set_active_branch(branch, user=None):
     """
     Set active branch for user.
     
-    Validates access and persists to user defaults.
+    Validates that user can access the branch before setting as default.
+    Uses ERPNext permission system to check access.
     
     Args:
         branch: Branch name
@@ -193,7 +190,7 @@ def set_active_branch(branch, user=None):
         str: Branch name if successful
     
     Raises:
-        frappe.PermissionError: If user doesn't have access
+        frappe.PermissionError: If user doesn't have access to branch
     """
     if not user:
         user = frappe.session.user
@@ -201,10 +198,19 @@ def set_active_branch(branch, user=None):
     if not branch:
         return None
     
-    # Validate access
-    validate_branch_access(branch, user)
+    # Validate access to the branch using standard ERPNext permissions
+    # Note: validate_branch_access() checks current user, so we need to
+    # temporarily change session for other users (use with caution)
+    try:
+        validate_branch_access(branch, throw=True)
+    except frappe.PermissionError:
+        # Re-raise with proper context
+        frappe.throw(
+            _("You don't have access to Branch: {0}").format(branch),
+            frappe.PermissionError
+        )
     
-    # Set as default
+    # Set as default for the user
     frappe.defaults.set_user_default("imogi_branch", branch, user)
     
     return branch
@@ -212,7 +218,7 @@ def set_active_branch(branch, user=None):
 
 def validate_active_session(pos_profile):
     """
-    Validate that user has an active POS Session if required.
+    Validate that user has an active POS Opening Entry if required.
     
     Checks POS Profile setting and ensures open session exists.
     
@@ -220,15 +226,11 @@ def validate_active_session(pos_profile):
         pos_profile: POS Profile name
     
     Returns:
-        str: Session name if exists, None if not required
+        str: POS Opening Entry name if exists, None if not required
     
     Raises:
         frappe.ValidationError: If session required but not found
     """
-    # Check if POS Session DocType exists
-    if not frappe.db.exists("DocType", "POS Session"):
-        return None
-    
     # Get profile settings
     profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
     require_session = profile_doc.get("imogi_require_pos_session", 0)
@@ -239,26 +241,26 @@ def validate_active_session(pos_profile):
     # Determine session scope
     scope = profile_doc.get("imogi_pos_session_scope", "User")
     filters = {
+        "docstatus": 1,  # Submitted
         "status": "Open",
         "pos_profile": pos_profile
     }
     
     if scope == "User":
         filters["user"] = frappe.session.user
-    elif scope == "Device":
-        filters["device_id"] = frappe.local.request_ip
+    # POS Profile scope doesn't add user filter
     
-    # Check for open session
-    session = frappe.db.get_value("POS Session", filters, "name")
+    # Check for open POS Opening Entry
+    opening_entry = frappe.db.get_value("POS Opening Entry", filters, "name")
     
     # If no session and enforcement is enabled, throw error
-    if not session and profile_doc.get("imogi_enforce_session_on_cashier"):
+    if not opening_entry and profile_doc.get("imogi_enforce_session_on_cashier"):
         frappe.throw(
-            _("No active POS Session found. Please open a session before proceeding."),
+            _("No active POS Opening Entry found. Please open a session before proceeding."),
             frappe.ValidationError
         )
     
-    return session
+    return opening_entry
 
 
 def get_role_based_default_route(user=None):
@@ -282,11 +284,17 @@ def get_role_based_default_route(user=None):
     roles = frappe.get_roles(user)
     
     # Priority-based routing
-    if "System Manager" in roles or "Restaurant Manager" in roles:
+    if "System Manager" in roles:
         return "/app"  # ERPNext desk
     
-    if "Kiosk Manager" in roles:
-        return "/kiosk"
+    if "Area Manager" in roles:
+        return "/app/dashboard-view/area-performance"
+    
+    if "Branch Manager" in roles:
+        return "/app/dashboard-view/branch-performance"
+    
+    if "Finance Controller" in roles:
+        return "/app/query-report/financial-summary"
     
     if "Cashier" in roles:
         return "/counter/pos"

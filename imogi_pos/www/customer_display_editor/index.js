@@ -7,5 +7,10 @@ frappe.ready(function() {
         frappe.msgprint(__('Page not available for this domain'));
         return;
     }
-    console.log('Customer Display Editor ready');
+    
+    if (imogi_pos.customer_display_editor) {
+        imogi_pos.customer_display_editor.init();
+    } else {
+        console.error('Customer Display Editor module not loaded');
+    }
 });

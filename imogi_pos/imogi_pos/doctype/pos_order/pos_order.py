@@ -27,10 +27,10 @@ class POSOrder(Document):
             sync_customer_fields_to_order(self)
     
     def validate_domain(self):
-        """Validate that the POS Profile has the right domain"""
-        domain = frappe.db.get_value("POS Profile", self.pos_profile, "imogi_pos_domain")
-        if self.table and domain != "Restaurant":
-            frappe.throw(_("Table can only be set for Restaurant domain POS Profiles"))
+        """Validate that the POS Profile has the right mode for table orders"""
+        mode = frappe.db.get_value("POS Profile", self.pos_profile, "imogi_mode")
+        if self.table and mode not in ["Table", "Kiosk", "Self-Order"]:
+            frappe.throw(_("Table can only be set for Restaurant mode POS Profiles (Table/Kiosk/Self-Order)"))
     
     def set_last_edited_by(self):
         """Copy modified_by to last_edited_by for easier tracking"""

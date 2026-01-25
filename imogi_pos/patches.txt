@@ -21,4 +21,6 @@ imogi_pos.patches.v2_0.migrate_customer_fields_simplification
 imogi_pos.patches.v2_0.migrate_branding_consolidation
 
 # v2.0 - Fix POS Session Scope Field Issue - January 2026
-imogi_pos.patches.remove_pos_session_scope_field
+# Removed: imogi_pos.patches.remove_pos_session_scope_field
+# Reason: POS Session doctype no longer used, migrated to POS Opening Entry
+

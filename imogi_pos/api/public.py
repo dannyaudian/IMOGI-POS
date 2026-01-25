@@ -12,6 +12,10 @@ from imogi_pos.utils.branding import (
     HEADER_BG_COLOR,
 )
 from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.auth_helpers import (
+    get_user_role_context,
+    get_role_based_default_route,
+)
 
 __all__ = [
     "health",
@@ -179,34 +183,27 @@ def check_session():
     """Check if the current session is valid.
 
     Returns:
-        dict: Session information with validity flag.
+        dict: Session information with validity flag and redirect URL.
     """
 
-    user = getattr(frappe.session, "user", "Guest")
-    if user and user != "Guest":
-        return {
-            "valid": True,
-            "user": user,
-        }
-
+    user = frappe.session.user
+    is_authenticated = user and user != "Guest"
+    
     return {
-        "valid": False,
-        "user": "Guest",
+        "valid": is_authenticated,
+        "user": user,
+        "redirect": get_role_based_default_route(user) if is_authenticated else None,
     }
 
 
 def _get_role_based_redirect(roles):
-    """Return the default landing page based on the provided roles."""
-
-    roles = roles or []
-
-    if "Kiosk Manager" in roles:
-        return "/kiosk"
-
-    if any(role in roles for role in ("POS Manager", "Cashier")):
-        return "/create-order"
-
-    return None
+    """Return the default landing page based on the provided roles.
+    
+    DEPRECATED: Use get_role_based_default_route() from auth_helpers instead.
+    This function is kept for backwards compatibility only.
+    """
+    # For backwards compatibility, delegate to centralized function
+    return get_role_based_default_route()
 
 
 @frappe.whitelist()
@@ -221,14 +218,16 @@ def get_current_user_info():
     if not user or user == "Guest":
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
-    roles = frappe.get_roles(user)
+    # Use centralized function for role context
+    role_context = get_user_role_context(user)
     user_doc = frappe.get_doc("User", user)
+    
     return {
         "user": user,
         "full_name": user_doc.full_name,
         "email": user_doc.email,
-        "roles": roles,
-        "default_redirect": _get_role_based_redirect(roles),
+        "roles": role_context['roles'],
+        "default_redirect": get_role_based_default_route(user),
     }
 
 
@@ -263,6 +262,10 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
     from frappe.utils import flt, now, nowdate
     from frappe import _
     import frappe, json
+    from imogi_pos.utils.permissions import validate_api_permission
+
+    # Authorize API call - user must have permission to create Cashier Device Session
+    validate_api_permission("Cashier Device Session")
 
     user = frappe.session.user
 
@@ -428,7 +431,7 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
 
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_cashier_device_sessions(limit=5, device=None):
     """Retrieve recent cashier device sessions for the current user.
 
@@ -439,6 +442,10 @@ def get_cashier_device_sessions(limit=5, device=None):
     Returns:
         list[dict]: List of session records.
     """
+    from imogi_pos.utils.permissions import validate_api_permission
+
+    # Authorize API call - user must have permission to read Cashier Device Session
+    validate_api_permission("Cashier Device Session")
 
     user = frappe.session.user
     filters = {"user": user, "device": device or "POS"}

@@ -92,7 +92,7 @@ The fixtures will automatically be loaded after migration due to the `after_migr
 3. **Set up Kitchen Stations**: For restaurant operations, configure printers and item routing
 4. **Configure Tables and Floor Layout**: Use the Table Layout Editor
 5. **Assign User Roles**: Assign appropriate roles (Restaurant Manager, Cashier, Waiter, Kitchen Staff)
-6. **Manage Promo Codes**: Restaurant Manager and POS Manager roles can configure promotional codes from **IMOGI POS → Promotions → Promo Codes** on the Desk workspace.
+6. **Manage Promo Codes**: Branch Manager and Area Manager roles can configure promotional codes from **IMOGI POS → Promotions → Promo Codes** on the Desk workspace.
 
 ## Item Option Fields
 

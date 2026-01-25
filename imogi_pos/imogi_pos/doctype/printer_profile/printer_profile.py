@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from imogi_pos.utils.permissions import validate_api_permission, validate_branch_access
 
 
 class PrinterProfile(Document):
@@ -56,9 +57,14 @@ class PrinterProfile(Document):
 @frappe.whitelist()
 def get_printer_profiles(branch=None, printer_type=None, active_only=True):
 	"""Get list of printer profiles with optional filters"""
+	# Authorize API call
+	validate_api_permission("Printer Profile")
+	
 	filters = {}
 	
 	if branch:
+		# Validate user has access to this branch
+		validate_branch_access(branch, "Branch")
 		filters["branch"] = branch
 	
 	if printer_type:
@@ -80,5 +86,12 @@ def get_printer_config(printer_profile):
 	if not printer_profile:
 		return None
 	
+	# Authorize API call
+	validate_api_permission("Printer Profile")
+	
+	# Get printer profile and validate branch access
 	doc = frappe.get_doc("Printer Profile", printer_profile)
+	if doc.get("branch"):
+		validate_branch_access(doc.get("branch"), "Branch")
+	
 	return doc.get_printer_config()

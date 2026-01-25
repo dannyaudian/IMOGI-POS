@@ -9,6 +9,8 @@ import frappe
 from imogi_pos.utils.kitchen_routing import (
     get_menu_category_kitchen_station_by_category,
 )
+from imogi_pos.utils.auth_decorators import allow_guest_if_configured
+from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
 
 
 # Channel keywords that mean "all channels"
@@ -70,7 +72,7 @@ def _channel_matches(entry_channel, requested_channel):
     return entry == requested
 
 
-@frappe.whitelist(allow_guest=True)
+@allow_guest_if_configured()
 def get_item_options(item, menu_channel=None):
     """Get available options for an item using native Item Variants.
 
@@ -218,6 +220,9 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     """
     from frappe.utils import flt, cint
     
+    # Authorize API call
+    validate_api_permission("Item")
+    
     # Get POS Profile if not provided
     if not pos_profile:
         pos_profile = frappe.db.get_value(
@@ -226,9 +231,16 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
         if not pos_profile:
             frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
     
+    # Validate user has access to this POS Profile
+    validate_branch_access(pos_profile, "POS Profile")
+    
     # Get branch from POS Profile if not provided
     if not branch:
         branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    
+    # Additional branch validation for safety
+    if branch:
+        validate_branch_access(branch, "Branch")
     
     # Get item price list from POS Profile
     price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")

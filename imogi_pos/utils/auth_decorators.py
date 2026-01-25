@@ -72,7 +72,7 @@ def require_roles(*roles):
         *roles: Variable number of role names (strings)
     
     Example:
-        @require_roles("Cashier", "Restaurant Manager", "System Manager")
+        @require_roles("Cashier", "Branch Manager", "System Manager")
         def get_context(context):
             # User has one of the required roles
             pass
@@ -208,15 +208,4 @@ def require_branch_access(branch_param="branch"):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            from imogi_pos.utils.auth_helpers import validate_branch_access
-            
-            # Get branch from request
-            branch = frappe.form_dict.get(branch_param)
-            
-            if branch:
-                validate_branch_access(branch)
-            
-            args, kwargs = _get_context_from_call(func, args, kwargs)
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+            from imogi_pos.utils.permissions import validate_branch_access

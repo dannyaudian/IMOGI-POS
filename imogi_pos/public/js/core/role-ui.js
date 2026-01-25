@@ -10,7 +10,7 @@ Usage:
         RoleUI.init();
         
         // Show element only for managers
-        RoleUI.showIfRoles('#admin-panel', ['Restaurant Manager', 'System Manager']);
+        RoleUI.showIfRoles('#admin-panel', ['Branch Manager', 'Area Manager', 'System Manager']);
         
         // Hide element for guests
         RoleUI.hideIfGuest('.logged-in-only');
@@ -60,7 +60,10 @@ class RoleUI {
                 roles: roles,
                 is_guest: isGuest,
                 is_admin: roles.includes('System Manager'),
-                is_manager: roles.includes('Restaurant Manager') || roles.includes('System Manager'),
+                is_manager: roles.includes('Branch Manager') || roles.includes('Area Manager') || roles.includes('System Manager'),
+                is_area_manager: roles.includes('Area Manager'),
+                is_branch_manager: roles.includes('Branch Manager'),
+                is_finance_controller: roles.includes('Finance Controller'),
                 is_cashier: roles.includes('Cashier'),
                 is_waiter: roles.includes('Waiter'),
                 is_kitchen_staff: roles.includes('Kitchen Staff')
@@ -244,8 +247,6 @@ class RoleUI {
         // Role-based routing priority
         if (context.is_manager) {
             window.location.href = defaultPath;
-        } else if (context.roles.includes('Kiosk Manager')) {
-            window.location.href = '/kiosk';
         } else if (context.is_cashier) {
             window.location.href = '/counter/pos';
         } else if (context.is_waiter) {

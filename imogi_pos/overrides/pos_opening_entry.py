@@ -24,10 +24,10 @@ class CustomPOSOpeningEntry(POSOpeningEntry):
         # We'll let the frontend handle where to go
         pass
     
-    @frappe.whitelist()
     def get_redirect_url(self):
         """
         Menentukan redirect URL berdasarkan POS Profile mode
+        Tidak di-expose sebagai API - redirect handled by frontend
         """
         if not self.pos_profile:
             return "/counter/pos"
@@ -57,27 +57,29 @@ def get_custom_redirect_url(doc, method=None):
     if doc.docstatus == 1:  # Submitted
         pos_profile = frappe.get_cached_doc("POS Profile", doc.pos_profile) if doc.pos_profile else None
         
-        if pos_profile and pos_profile.get("imogi_pos_domain"):
-            domain = pos_profile.get("imogi_pos_domain")
+        if pos_profile:
+            mode = pos_profile.get("imogi_mode", "Counter")
             
-            # Set custom redirect message
-            if domain == "Restaurant":
+            # Redirect berdasarkan operation mode
+            if mode == "Table":
                 redirect_url = "/restaurant/waiter"
                 message = "POS Session opened. Redirecting to Restaurant POS..."
-            elif domain == "Counter":
+            elif mode == "Counter":
                 redirect_url = "/counter/pos"
                 message = "POS Session opened. Redirecting to Counter POS..."
+            elif mode == "Kiosk":
+                redirect_url = "/restaurant/waiter?mode=kiosk"
+                message = "POS Session opened. Redirecting to Kiosk Mode..."
+            elif mode == "Self-Order":
+                redirect_url = "/restaurant/self-order"
+                message = "POS Session opened. Redirecting to Self-Order..."
             else:
                 redirect_url = "/counter/pos"
                 message = "POS Session opened. Redirecting to POS..."
             
             # Store redirect info in cache untuk diambil oleh frontend
-            frappe.cache().hset(
-                f"pos_opening_redirect_{doc.name}", 
-                "redirect_url", 
-                redirect_url,
-                expires_in_sec=30
-            )
+            cache_key = f"pos_opening_redirect_{doc.name}"
+            frappe.cache().set_value(cache_key, redirect_url, expires_in_sec=30)
             
             frappe.msgprint(
                 msg=message,

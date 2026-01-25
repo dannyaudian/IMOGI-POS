@@ -6,20 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 import re
-
-def validate_branch_access(branch):
-    """
-    Validates that the current user has access to the specified branch.
-    
-    Args:
-        branch (str): Branch name
-    
-    Raises:
-        frappe.PermissionError: If user doesn't have access to the branch
-    """
-    if not frappe.has_permission("Branch", doc=branch):
-        frappe.throw(_("You don't have access to branch: {0}").format(branch), 
-                    frappe.PermissionError)
+from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
 
 def normalize_phone_number(phone):
     """

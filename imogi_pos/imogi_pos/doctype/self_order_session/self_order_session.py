@@ -7,6 +7,7 @@ import uuid
 import secrets
 import string
 from datetime import datetime, timedelta
+from imogi_pos.utils.permissions import has_privileged_access
 
 class SelfOrderSession(Document):
     """
@@ -136,16 +137,20 @@ class SelfOrderSession(Document):
 
 def get_permission_query_conditions(user):
     """
-    Return additional conditions for permission query based on user
+    Return additional conditions for permission query based on user.
+    
+    Administrators and System Managers can see all sessions.
+    Other users only see sessions in their assigned branches.
     """
     if not user:
         user = frappe.session.user
         
-    if user == "Administrator" or user == "Guest":
+    # Privileged users can see all sessions
+    if has_privileged_access(user):
         return ""
         
-    # For non-admin, non-guest users, only show sessions in their branches
-    # based on user permissions
+    # For non-privileged users, only show sessions in their branches
+    # based on branch permissions
     if frappe.permissions.has_permission("Branch"):
         return """(`tabSelf Order Session`.branch in 
             (select distinct bp.`branch` from `tabBranch Permission` bp 

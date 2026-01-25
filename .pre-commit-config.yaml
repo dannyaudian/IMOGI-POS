@@ -1,0 +1,53 @@
+repos:
+  # Prevent direct cache access in www/ files
+  - repo: local
+    hooks:
+      - id: no-frappe-cache-hget
+        name: No direct frappe.cache().hget() in www/ files
+        entry: 'grep -r "frappe\.cache()\.hget" imogi_pos/www/ && exit 1 || exit 0'
+        language: system
+        stages: [commit]
+        pass_filenames: false
+        fail_fast: true
+
+      - id: no-inline-frappe-get-roles
+        name: No inline frappe.get_roles() in www/ files (use @require_roles decorator)
+        entry: 'bash -c "grep -rn \"frappe\.get_roles()\" imogi_pos/www/ | grep -v \"#\" && exit 1 || exit 0"'
+        language: system
+        stages: [commit]
+        pass_filenames: false
+        fail_fast: true
+
+      - id: require-auth-imports
+        name: Ensure auth imports in pages that check permissions
+        entry: 'bash -c "python3 scripts/validate_auth_imports.py"'
+        language: system
+        stages: [commit]
+        pass_filenames: false
+
+  # Python linting
+  - repo: https://github.com/PyCQA/flake8
+    rev: '6.1.0'
+    hooks:
+      - id: flake8
+        name: flake8 - Python linting
+        args: ['--config=.flake8']
+        stages: [commit]
+        exclude: ^(build|dist|\.eggs|migrations)/
+
+  # Black - Code formatter
+  - repo: https://github.com/psf/black
+    rev: '23.12.1'
+    hooks:
+      - id: black
+        name: black - Python code formatter
+        stages: [commit]
+
+  # isort - Import sorting
+  - repo: https://github.com/PyCQA/isort
+    rev: '5.13.2'
+    hooks:
+      - id: isort
+        name: isort - Sort Python imports
+        args: ['--profile', 'black']
+        stages: [commit]

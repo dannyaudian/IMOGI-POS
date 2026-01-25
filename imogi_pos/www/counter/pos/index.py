@@ -8,7 +8,7 @@ from imogi_pos.utils.auth_helpers import get_user_pos_profile
 from imogi_pos.utils.error_pages import set_setup_error
 
 
-@require_roles("Cashier", "Restaurant Manager", "System Manager")
+@require_roles("Cashier", "Branch Manager", "System Manager")
 def get_context(context):
     """Get context for cashier console page."""
     try:
@@ -42,27 +42,21 @@ def get_context(context):
         
         # Check active session without throwing error
         if context.require_pos_session and context.enforce_session_on_cashier:
-            # Check if POS Session exists
-            if not frappe.db.exists("DocType", "POS Session"):
-                context.has_active_session = True
-                context.active_pos_session = None
-                context.session_info = None
+            # Check for active session using POS Opening Entry
+            active_session = check_active_pos_session(pos_profile)
+            context.has_active_session = bool(active_session)
+            context.active_pos_session = active_session.get("name") if active_session else None
+            
+            # Get session info for display
+            if active_session:
+                context.session_info = get_session_info(active_session.get("name"))
             else:
-                # Check for active session
-                active_session = check_active_pos_session(pos_profile)
-                context.has_active_session = bool(active_session)
-                context.active_pos_session = active_session.get("name") if active_session else None
-                
-                # Get session info for display
-                if active_session:
-                    context.session_info = get_session_info(active_session.get("name"))
-                else:
-                    context.session_info = None
-                
-                if not active_session:
-                    set_setup_error(context, "session", page_name=_("Cashier Console"))
-                    context.title = _("Cashier Console")
-                    return context
+                context.session_info = None
+            
+            if not active_session:
+                set_setup_error(context, "session", page_name=_("Cashier Console"))
+                context.title = _("Cashier Console")
+                return context
         else:
             context.has_active_session = True
             context.active_pos_session = None
@@ -152,36 +146,37 @@ def get_pos_profile():
 
 
 def check_active_pos_session(pos_profile_name):
-    """Check if there's an active POS session for the user and profile."""
+    """Check if there's an active POS Opening Entry for the user and profile."""
     try:
         filters = {
             "user": frappe.session.user,
             "pos_profile": pos_profile_name,
+            "docstatus": 1,  # Submitted
             "status": "Open"
         }
         
         session = frappe.get_all(
-            "POS Session",
+            "POS Opening Entry",
             filters=filters,
-            fields=["name", "pos_opening_shift", "creation"],
+            fields=["name", "period_start_date", "creation"],
             order_by="creation desc",
             limit=1
         )
         
         return session[0] if session else None
     except Exception as e:
-        frappe.log_error(f"Error checking active POS session: {str(e)}")
+        frappe.log_error(f"Error checking active POS Opening Entry: {str(e)}")
         return None
 
 def get_session_info(pos_session_name):
-    """Get session information for display."""
+    """Get POS Opening Entry information for display."""
     try:
         from frappe.utils import time_diff_in_seconds, now_datetime
         
-        session_doc = frappe.get_doc("POS Session", pos_session_name)
+        session_doc = frappe.get_doc("POS Opening Entry", pos_session_name)
         
         # Calculate session duration
-        start_time = session_doc.get("posting_date") or session_doc.get("creation")
+        start_time = session_doc.get("period_start_date") or session_doc.get("creation")
         duration_seconds = time_diff_in_seconds(now_datetime(), start_time)
         duration_hours = duration_seconds / 3600
         

@@ -79,7 +79,7 @@ Each component specifies required roles in its `index.py`:
 ```python
 from imogi_pos.utils.auth_decorators import require_roles
 
-@require_roles("Cashier", "Restaurant Manager", "System Manager")
+@require_roles("Cashier", "Branch Manager", "System Manager")
 def get_context(context):
     # Page logic
     pass
@@ -93,13 +93,13 @@ JavaScript utility for conditional rendering:
 <script src="/assets/imogi_pos/js/core/role-ui.js"></script>
 
 // Hide elements for non-managers
-RoleUI.showIfRoles('#admin-panel', ['Restaurant Manager', 'System Manager']);
+RoleUI.showIfRoles('#admin-panel', ['Branch Manager', 'System Manager']);
 
 // Show only for authenticated users
 RoleUI.showIfAuthenticated('.logged-in-features');
 
 // Auto-process elements with data attributes
-<div data-roles="Restaurant Manager,System Manager">Admin Only</div>
+<div data-roles="Branch Manager,System Manager">Admin Only</div>
 <div data-auth="required">Logged In Only</div>
 ```
 
@@ -109,11 +109,11 @@ Users are automatically routed based on their primary role:
 
 | Role | Default Route |
 |------|--------------|
-| System Manager / Restaurant Manager | `/app` (ERPNext Desk) |
+| System Manager / Area Manager / Branch Manager | `/app` (ERPNext Desk) |
+| Finance Controller | `/app/query-report/financial-summary` |
 | Cashier | `/counter/pos` |
 | Waiter | `/restaurant/waiter` |
 | Kitchen Staff | `/restaurant/kitchen` |
-| Kiosk Manager | `/kiosk` |
 | Guest (with guest access enabled) | Configured entry point |
 
 ## Migration from Old Structure

@@ -196,6 +196,7 @@ frappe.ready(function () {
     };
 
     console.debug('[loadOrders] Loading pending orders with args:', args);
+    console.debug('[loadOrders] User Domain:', DOMAIN, 'Mode:', MODE);
 
     frappe.call({
       method: 'imogi_pos.api.billing.list_counter_order_history',
@@ -204,6 +205,7 @@ frappe.ready(function () {
     .then((r) => {
       const payload = (r && r.message) || [];
       console.debug('[loadOrders] received', payload);
+      console.debug('[loadOrders] Number of orders:', Array.isArray(payload) ? payload.length : 0);
       // Ensure item metadata is properly structured
       allOrders = Array.isArray(payload) ? payload.map(order => ({
         ...order,
@@ -221,13 +223,21 @@ frappe.ready(function () {
     })
     .fail((err) => {
       console.error('[loadOrders] error', err);
+      console.error('[loadOrders] error details:', {
+        message: err?.message,
+        exc: err?.exc,
+        _server_messages: err?._server_messages
+      });
       const errorMsg = err?._server_messages || err?.message || 'Unknown error';
       showError(__('Failed to load orders: ') + errorMsg);
       allOrders = [];
       currentOrders = [];
       renderOrders();
     })
-    .always(hideLoading);
+    .always(() => {
+      console.debug('[loadOrders] Request completed, hiding loading indicator');
+      hideLoading();
+    });
   }
 
   function applySearchTo(source) {
