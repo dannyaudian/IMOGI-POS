@@ -1,4 +1,13 @@
-import frappe\nfrom frappe import _\nfrom imogi_pos.utils.branding import get_brand_context\nfrom imogi_pos.utils.react_helpers import add_react_context\nfrom imogi_pos.utils.error_pages import set_setup_error\nfrom imogi_pos.utils.auth_decorators import require_roles\n\n\n@require_roles("Kitchen Staff", "Branch Manager", "System Manager")\ndef get_context(context):
+import frappe
+from frappe import _
+from imogi_pos.utils.branding import get_brand_context
+from imogi_pos.utils.react_helpers import add_react_context
+from imogi_pos.utils.error_pages import set_setup_error
+from imogi_pos.utils.auth_decorators import require_roles
+
+
+@require_roles("Kitchen Staff", "Branch Manager", "System Manager")
+def get_context(context):
     """Context builder for Kitchen Display page."""
     try:
         # Get branding info

@@ -1,4 +1,11 @@
-import frappe\nfrom frappe import _\nfrom imogi_pos.utils.branding import get_brand_context\nfrom imogi_pos.utils.react_helpers import add_react_context\nfrom imogi_pos.utils.error_pages import set_setup_error\n\n\ndef get_context(context):
+import frappe
+from frappe import _
+from imogi_pos.utils.branding import get_brand_context
+from imogi_pos.utils.react_helpers import add_react_context
+from imogi_pos.utils.error_pages import set_setup_error
+
+
+def get_context(context):
     """Context builder for Login page."""
     try:
         # Get branding info
