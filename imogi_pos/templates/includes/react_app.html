@@ -1,67 +1,71 @@
-{% extends "templates/web.html" %}
-
-{# 
-  Reusable template for React apps in IMOGI POS
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title or 'IMOGI POS' }}</title>
   
-  Usage in your index.html:
-  {% extends "imogi_pos/templates/includes/react_app.html" %}
-#}
+  {# Set CSRF token for frappe-react-sdk #}
+  <script>
+    window.csrf_token = '{{ frappe.session.csrf_token }}';
+    window.frappe_csrf_token = '{{ frappe.session.csrf_token }}';
+  </script>
+  
+  {# React App CSS (auto-loaded from manifest.json) #}
+  {% if react_bundle_css %}
+  <link rel="stylesheet" href="{{ react_bundle_css }}">
+  {% endif %}
+  
+  {# Branding CSS variables #}
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body, #root {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    :root {
+      --primary-color: {{ branding.primary_color if branding else '#667eea' }};
+      --accent-color: {{ branding.accent_color if branding else '#764ba2' }};
+      --header-bg: {{ branding.header_bg if branding else '#ffffff' }};
+    }
+  </style>
+</head>
 
-{% block base_scripts %}
-{# Override to prevent Frappe from loading default scripts that cause 404 errors #}
-{% endblock %}
-
-{% block head_include %}
-{# Override to prevent Frappe from preloading scripts that don't exist #}
-{% endblock %}
-
-{% block style %}
-{% if not setup_error %}
-<!-- React App CSS (auto-loaded from manifest.json) -->
-{% if react_bundle_css %}
-<link rel="stylesheet" href="{{ react_bundle_css }}">
-{% endif %}
-<style>
-  :root {
-    --primary-color: {{ branding.primary_color if branding else '#667eea' }};
-    --accent-color: {{ branding.accent_color if branding else '#764ba2' }};
-    --header-bg: {{ branding.header_bg if branding else '#ffffff' }};
-  }
-</style>
-{% endif %}
-{% endblock %}
-
-{% block content %}
-{% if setup_error %}
-{% include "imogi_pos/templates/includes/error_page.html" %}
-{% else %}
-<div id="root"></div>
-{% endif %}
-{% endblock %}
-
-{% block script %}
-{% if not setup_error %}
-{% if react_bundle_error %}
-<!-- React bundle not found -->
-<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
-  <h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
-  <p style="margin-bottom: 1rem;">{{ react_bundle_error }}</p>
-  <div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
-    <div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
-    <div>VITE_APP={{ react_app_name }} npx vite build</div>
+<body>
+  {% if setup_error %}
+  {# Error page #}
+  <div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto;">
+    <h3>Setup Error</h3>
+    <p>{{ setup_error }}</p>
   </div>
-</div>
-{% else %}
-<script>
-  // Pass initial state to React app (auto-generated from Python context)
-  window.__INITIAL_STATE__ = {{ react_initial_state | safe }};
+  {% elif react_bundle_error %}
+  {# React bundle not found #}
+  <div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
+    <h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
+    <p style="margin-bottom: 1rem;">{{ react_bundle_error }}</p>
+    <div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
+      <div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
+      <div>VITE_APP={{ react_app_name }} npx vite build</div>
+    </div>
+  </div>
+  {% else %}
+  {# React app root #}
+  <div id="root"></div>
   
-  // Set CSRF token for frappe-react-sdk
-  window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
-</script>
-
-<!-- React App Bundle (auto-loaded from manifest.json) -->
-<script type="module" src="{{ react_bundle_js }}"></script>
-{% endif %}
-{% endif %}
-{% endblock %}
+  {# Pass initial state to React #}
+  <script>
+    window.__INITIAL_STATE__ = {{ react_initial_state | safe }};
+  </script>
+  
+  {# React App Bundle (auto-loaded from manifest.json) #}
+  <script type="module" src="{{ react_bundle_js }}"></script>
+  {% endif %}
+</body>
+</html>
