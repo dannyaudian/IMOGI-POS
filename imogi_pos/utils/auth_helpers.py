@@ -103,12 +103,15 @@ def get_user_role_context(user=None):
         except Exception:
             full_name = user
     
-    # Get user defaults - wrap in try/except for safety
+    # Get user defaults - simplified to avoid serialization issues
     defaults = {}
     if not is_guest:
         try:
-            # frappe.defaults.get_defaults() returns defaults for current user
-            defaults = dict(frappe.defaults.get_defaults() or {})
+            raw_defaults = frappe.defaults.get_defaults() or {}
+            # Only include string/number/bool values to ensure JSON serializable
+            for key, value in raw_defaults.items():
+                if isinstance(value, (str, int, float, bool, type(None))):
+                    defaults[key] = value
         except Exception:
             defaults = {}
     
