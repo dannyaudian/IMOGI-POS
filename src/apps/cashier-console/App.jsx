@@ -1,7 +1,14 @@
+import { useState } from 'react'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useOrderHistory } from '@/shared/api/imogi-api'
-import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
+import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { OrderListSidebar } from './components/OrderListSidebar'
+import { OrderDetailPanel } from './components/OrderDetailPanel'
+import { ActionButtons } from './components/ActionButtons'
+import { PaymentView } from './components/PaymentView'
+import { SplitBillView } from './components/SplitBillView'
+import './App.css'
 
 function CounterPOSContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager'])
@@ -14,6 +21,12 @@ function CounterPOSContent({ initialState }) {
   const orderType = posMode === 'Table' ? 'Dine In' : 'Counter'
   
   const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(branch, posProfile, orderType)
+  
+  // State management
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split
+  const [showPayment, setShowPayment] = useState(false)
+  const [showSplit, setShowSplit] = useState(false)
 
   if (authLoading) {
     return <LoadingSpinner message="Authenticating..." />
@@ -23,67 +36,112 @@ function CounterPOSContent({ initialState }) {
     return <ErrorMessage error={authError || 'Access denied'} />
   }
 
-  // Mode indicator
-  const modeLabel = posMode === 'Table' ? 'Table/Waiter Mode' : 'Counter Mode'
-  const modeIcon = posMode === 'Table' ? '🍴' : '💵'
+  // Event handlers
+  const handleSelectOrder = (order) => {
+    setSelectedOrder(order)
+    setViewMode('orders')
+    setShowPayment(false)
+    setShowSplit(false)
+  }
+
+  const handleNewOrder = () => {
+    alert('New Order - Feature coming soon!\nThis will open the item catalog.')
+  }
+
+  const handlePrintBill = () => {
+    if (!selectedOrder) return
+    alert(`Printing bill for order: ${selectedOrder.name}`)
+    // Implement print functionality
+  }
+
+  const handleSplitBill = () => {
+    if (!selectedOrder) return
+    setShowSplit(true)
+    setShowPayment(false)
+    setViewMode('split')
+  }
+
+  const handleRequestPayment = () => {
+    if (!selectedOrder) return
+    setShowPayment(true)
+    setShowSplit(false)
+    setViewMode('payment')
+  }
+
+  const handlePaymentComplete = (paymentData) => {
+    console.log('Payment completed:', paymentData)
+    alert(`Payment successful!\nChange: ${paymentData.change}`)
+    setShowPayment(false)
+    setViewMode('orders')
+  }
+
+  const handleSplitConfirm = (splits, method) => {
+    console.log('Split confirmed:', { splits, method })
+    alert(`Split bill confirmed: ${splits.length} bills using ${method} method`)
+    setShowSplit(false)
+    setViewMode('orders')
+  }
   
   return (
-    <div className="imogi-app" data-pos-mode={posMode}>
-      <AppHeader title={`Cashier Console - ${modeLabel}`} user={user} />
-      
-      <main className="imogi-main">
-        <div className="mode-indicator" style={{ 
-          padding: '0.5rem 1rem', 
-          background: posMode === 'Table' ? '#e3f2fd' : '#fff3e0',
-          borderRadius: '4px',
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
-          <span style={{ fontSize: '1.5rem' }}>{modeIcon}</span>
-          <strong>{modeLabel}</strong>
-          <span style={{ marginLeft: 'auto', color: '#666' }}>Showing {orderType} orders only</span>
-        </div>
+    <div className="cashier-console" data-pos-mode={posMode}>
+      <div className="cashier-console-layout">
+        <OrderListSidebar
+          orders={orders || []}
+          selectedOrder={selectedOrder}
+          onSelectOrder={handleSelectOrder}
+          posMode={posMode}
+        />
         
-        <div className="grid grid-2">
-          <Card title="Recent Orders">
-            {ordersLoading && <LoadingSpinner message="Loading orders..." />}
-            {ordersError && <ErrorMessage error={ordersError} />}
-            {orders && (
-              <div>
-                <p><strong>Total orders:</strong> {orders.length}</p>
-                <p><strong>Branch:</strong> {branch}</p>
-                <p><strong>Mode:</strong> {posMode}</p>
-                <p><strong>Order Type Filter:</strong> {orderType}</p>
-                {orders.length > 0 && orders[0].table_name && (
-                  <p><strong>Table:</strong> {orders[0].table_name}</p>
-                )}
+        <div className="cashier-console-main">
+          <ActionButtons
+            selectedOrder={selectedOrder}
+            viewMode={viewMode}
+            onViewChange={setViewMode}
+            onNewOrder={handleNewOrder}
+            onPrintBill={handlePrintBill}
+            onSplitBill={handleSplitBill}
+            onRequestPayment={handleRequestPayment}
+          />
+          
+          <div className="cashier-console-content">
+            {viewMode === 'orders' && !showPayment && !showSplit && (
+              <OrderDetailPanel order={selectedOrder} posMode={posMode} />
+            )}
+            
+            {viewMode === 'catalog' && (
+              <div className="catalog-panel">
+                <div className="empty-state">
+                  <i className="fa fa-shopping-cart empty-icon"></i>
+                  <h3>Item Catalog</h3>
+                  <p>Menu catalog view coming soon</p>
+                </div>
               </div>
             )}
-          </Card>
-          
-          <Card title="Quick Actions">
-            <div className="flex" style={{ flexDirection: 'column', gap: '0.5rem' }}>
-              <button className="btn-primary">New Order</button>
-              <button className="btn-secondary">View Menu</button>
-              <button className="btn-secondary">Customer List</button>
-            </div>
-          </Card>
+            
+            {showPayment && (
+              <PaymentView
+                order={selectedOrder}
+                onClose={() => {
+                  setShowPayment(false)
+                  setViewMode('orders')
+                }}
+                onPaymentComplete={handlePaymentComplete}
+              />
+            )}
+            
+            {showSplit && (
+              <SplitBillView
+                order={selectedOrder}
+                onClose={() => {
+                  setShowSplit(false)
+                  setViewMode('orders')
+                }}
+                onSplitConfirm={handleSplitConfirm}
+              />
+            )}
+          </div>
         </div>
-        
-        <Card title="System Status" className="mt-4">
-          <ul>
-            <li>✅ React app successfully loaded</li>
-            <li>✅ Session sharing with ERPNext</li>
-            <li>✅ Shared API hooks functional</li>
-            <li>✅ Authentication & role checking active</li>
-            <li>✅ POS Mode detection ({posMode})</li>
-            <li>✅ Order type filtering ({orderType})</li>
-            <li>⏳ Build complete order management UI</li>
-          </ul>
-        </Card>
-      </main>
+      </div>
     </div>
   )
 }
