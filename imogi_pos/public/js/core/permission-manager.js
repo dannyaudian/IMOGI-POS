@@ -8,6 +8,16 @@
  * - Form section visibility
  */
 
+// Wrap everything to ensure frappe is available
+(function() {
+    'use strict';
+    
+    // Wait for frappe to be available
+    if (typeof frappe === 'undefined') {
+        console.warn('PermissionManager: frappe not available, skipping initialization');
+        return;
+    }
+
 class PermissionManager {
     constructor() {
         this.initialized = false;
@@ -330,6 +340,8 @@ if (typeof frappe !== 'undefined') {
     } else if (document.readyState === 'loading') {
         // Native Frappe desk - DOM not ready yet
         document.addEventListener('DOMContentLoaded', initPermissions);
+
+})(); // End of IIFE wrapper
     } else {
         // DOM already ready
         initPermissions();

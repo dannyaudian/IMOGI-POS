@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk'
+import { useFrappeGetDocList } from 'frappe-react-sdk'
 import './styles.css'
 
 function App() {
@@ -11,24 +11,25 @@ function App() {
   const [saved, setSaved] = useState(false)
   const [activeTab, setActiveTab] = useState('preview')
 
-  // Fetch customer display devices
-  const { data: deviceList, isLoading: devicesLoading, mutate: mutateDevices } = useFrappeGetDocList(
-    'Customer Display Device',
+  // Fetch customer display profiles
+  const { data: profileList, isLoading: devicesLoading, mutate: mutateDevices } = useFrappeGetDocList(
+    'Customer Display Profile',
     {
-      fields: ['name', 'device_name', 'location', 'status', 'display_type'],
+      fields: ['name', 'profile_name', 'branch', 'description', 'is_active'],
+      filters: [['is_active', '=', 1]],
       limit_page_length: 0
     }
   )
 
-  // Load devices
+  // Load profiles
   useEffect(() => {
-    if (deviceList) {
-      setDevices(deviceList)
-      if (!selectedDevice && deviceList.length > 0) {
-        setSelectedDevice(deviceList[0].name)
+    if (profileList) {
+      setDevices(profileList)
+      if (!selectedDevice && profileList.length > 0) {
+        setSelectedDevice(profileList[0].name)
       }
     }
-  }, [deviceList, selectedDevice])
+  }, [profileList, selectedDevice])
 
   // Load config when device changes
   useEffect(() => {
@@ -50,10 +51,7 @@ function App() {
       },
       error: () => {
         setLoading(false)
-        frappe.show_alert({
-          message: 'Error loading device config',
-          indicator: 'red'
-        }, 3)
+        frappe.show_alert({ message: 'Error loading config', indicator: 'red' }, 3)
       }
     })
   }
@@ -64,11 +62,12 @@ function App() {
     setSaving(true)
     frappe.call({
       method: 'imogi_pos.api.customer_display_editor.save_device_config',
-      args: {
+      args: { 
         device: selectedDevice,
         config: config
       },
       callback: (r) => {
+        setSaving(false)
         if (r.message && r.message.success) {
           frappe.show_alert({
             message: 'Configuration saved successfully',
@@ -76,15 +75,15 @@ function App() {
           }, 3)
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
+          mutateDevices()
         }
-        setSaving(false)
       },
-      error: () => {
+      error: (err) => {
+        setSaving(false)
         frappe.show_alert({
           message: 'Error saving configuration',
           indicator: 'red'
         }, 3)
-        setSaving(false)
       }
     })
   }
@@ -121,10 +120,18 @@ function App() {
     frappe.call({
       method: 'imogi_pos.api.customer_display_editor.test_device_display',
       args: { device: selectedDevice },
-      callback: () => {
+      callback: (r) => {
+        if (r.message && r.message.success) {
+          frappe.show_alert({
+            message: 'Test message sent to display',
+            indicator: 'blue'
+          }, 3)
+        }
+      },
+      error: () => {
         frappe.show_alert({
-          message: 'Test message sent to display',
-          indicator: 'blue'
+          message: 'Error sending test message',
+          indicator: 'red'
         }, 3)
       }
     })
@@ -137,29 +144,19 @@ function App() {
     }))
   }
 
-  if (devicesLoading) {
-    return (
-      <div className="cde-container">
+  return (
+    <div className="cde-container">
+      {devicesLoading ? (
         <div className="cde-loading">
           <div className="spinner"></div>
           <p>Loading Customer Display Editor...</p>
         </div>
-      </div>
-    )
-  }
-
-  if (!devices || devices.length === 0) {
-    return (
-      <div className="cde-container">
+      ) : !devices || devices.length === 0 ? (
         <div className="cde-empty">
-          <h2>No Customer Display Devices</h2>
-          <p>Create a Customer Display Device to get started.</p>
+          <h2>No Customer Display Profiles</h2>
+          <p>Create a Customer Display Profile to get started.</p>
         </div>
-      </div>
-    )
-  }
-
-  return (
+      ) : (
     <div className="cde-app">
       {/* Header */}
       <div className="cde-header">
@@ -196,7 +193,7 @@ function App() {
       <div className="cde-main">
         {/* Sidebar - Device Selector */}
         <aside className="cde-sidebar">
-          <h3>Devices</h3>
+          <h3>Display Profiles</h3>
           <div className="cde-device-list">
             {devices.map(device => (
               <button
@@ -204,10 +201,9 @@ function App() {
                 className={`cde-device-item ${selectedDevice === device.name ? 'active' : ''}`}
                 onClick={() => setSelectedDevice(device.name)}
               >
-                <div className="cde-device-name">{device.device_name || device.name}</div>
-                <div className="cde-device-location">{device.location || 'No location'}</div>
-                <div className={`cde-device-status ${device.status || 'unknown'}`}>
-                  {device.status || 'Unknown'}
+                <div className="cde-device-name">{device.profile_name || device.name}</div>
+                <div className="cde-device-status online">
+                  {device.branch}
                 </div>
               </button>
             ))}

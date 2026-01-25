@@ -338,12 +338,21 @@ imogi_pos.cashier_console = {
         // Show loading indicator
         this.showLoading(true);
         
+        // Determine order_type filter based on posMode
+        let orderTypeFilter = null;
+        if (this.settings.posMode === 'Counter') {
+            orderTypeFilter = 'Counter';
+        } else if (this.settings.posMode === 'Table') {
+            orderTypeFilter = 'Dine In';
+        }
+        
         frappe.call({
             method: 'imogi_pos.api.billing.list_orders_for_cashier',
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
-                workflow_state: this.state.filterStatus
+                workflow_state: this.state.filterStatus,
+                order_type: orderTypeFilter
             },
             callback: (response) => {
                 this.showLoading(false);
@@ -446,10 +455,18 @@ imogi_pos.cashier_console = {
      * Render the main UI
      */
     renderUI: function() {
+        // Determine mode label and icon
+        const modeLabel = this.settings.posMode === 'Table' ? 'Table/Waiter' : 'Counter';
+        const modeIcon = this.settings.posMode === 'Table' ? 'fa-utensils' : 'fa-cash-register';
+        
         this.container.innerHTML = `
-            <div class="cashier-console-layout">
+            <div class="cashier-console-layout" data-pos-mode="${this.settings.posMode}">
                 <div class="cashier-console-sidebar">
                     <div class="filter-bar">
+                        <div class="mode-indicator">
+                            <i class="fa ${modeIcon}"></i>
+                            <span>${modeLabel} Mode</span>
+                        </div>
                         <div class="search-container">
                             <input type="text" id="order-search" placeholder="Search orders..." class="search-input">
                             <button id="search-btn" class="search-button">
@@ -1288,12 +1305,18 @@ imogi_pos.cashier_console = {
      * Create a new order
      */
     createNewOrder: function() {
+        // Determine order_type based on posMode
+        let orderType = 'Counter';
+        if (this.settings.posMode === 'Table') {
+            orderType = 'Dine In';
+        }
+        
         frappe.call({
             method: 'imogi_pos.api.orders.create_staff_order',
             args: {
                 pos_profile: this.settings.posProfile,
                 branch: this.settings.branch,
-                order_type: 'Counter'
+                order_type: orderType
             },
             callback: (response) => {
                 if (response.message && response.message.name) {

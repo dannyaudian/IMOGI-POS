@@ -13,13 +13,32 @@ def get_context(context):
         # Get branding info
         branding = get_brand_context()
         
+        # Get current user's POS Profile
+        pos_profile = frappe.db.get_value(
+            "POS Profile User", 
+            {"user": frappe.session.user},
+            "parent"
+        )
+        
+        # Get POS Profile details including mode
+        pos_mode = "Counter"  # Default
+        branch = None
+        
+        if pos_profile:
+            profile_details = frappe.get_cached_doc("POS Profile", pos_profile)
+            pos_mode = profile_details.get("imogi_mode") or "Counter"
+            branch = profile_details.get("imogi_branch")
+        
         context.setup_error = False
         context.branding = branding
         context.title = _("Cashier Console")
         
         # Add React bundle URLs and initial state (auto-loads from manifest.json)
         add_react_context(context, 'cashier-console', {
-            'branding': branding
+            'branding': branding,
+            'pos_profile': pos_profile,
+            'pos_mode': pos_mode,
+            'branch': branch
         })
 
         return context

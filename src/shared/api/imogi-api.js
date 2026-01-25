@@ -46,13 +46,19 @@ export async function callImogiAPI(method, args = {}) {
 /**
  * Billing API hooks
  */
-export function useOrderHistory(branch, posProfile) {
+export function useOrderHistory(branch, posProfile, orderType = null) {
+  const params = { branch, pos_profile: posProfile }
+  if (orderType) {
+    params.order_type = orderType
+  }
+  
   return useFrappeGetCall(
-    'imogi_pos.api.billing.list_counter_order_history',
-    { branch, pos_profile: posProfile },
-    `order-history-${branch}-${posProfile}`,
+    'imogi_pos.api.billing.list_orders_for_cashier',
+    params,
+    `order-history-${branch}-${posProfile}-${orderType || 'all'}`,
     {
-      revalidateOnFocus: false
+      revalidateOnFocus: false,
+      refreshInterval: 30000 // Auto refresh every 30 seconds
     }
   )
 }

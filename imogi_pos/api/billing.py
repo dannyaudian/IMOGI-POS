@@ -1105,7 +1105,7 @@ def generate_invoice(
 
 @frappe.whitelist()
 @require_permission("POS Order", "read")
-def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, floor=None):
+def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, floor=None, order_type=None):
     """
     Lists POS Orders that are ready for billing in the cashier console.
     
@@ -1114,6 +1114,7 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         branch (str, optional): Branch filter
         workflow_state (str, optional): Workflow state filter (Ready/Served)
         floor (str, optional): Floor filter
+        order_type (str, optional): Order type filter (Counter/Dine In/Take Away)
     
     Returns:
         list: POS Orders with summarized details
@@ -1150,6 +1151,8 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
     filters = {"branch": branch, "workflow_state": ["in", workflow_state]}
     if floor:
         filters["floor"] = floor
+    if order_type:
+        filters["order_type"] = order_type
 
     # Query POS Orders
     orders = frappe.get_all(
@@ -1178,6 +1181,13 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             if order.get("customer")
             else "Walk-in Customer"
         )
+        
+        # Get table name if order has a table
+        if order.get("table"):
+            order["table_name"] = frappe.db.get_value("Table", order["table"], "table_name") or order["table"]
+        else:
+            order["table_name"] = None
+            
         order_items = frappe.get_all(
             "POS Order Item",
             filters={"parent": order["name"]},
