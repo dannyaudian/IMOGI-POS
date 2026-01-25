@@ -293,6 +293,8 @@ def get_role_based_default_route(user=None):
     Get default route based on user's roles.
     
     Returns appropriate landing page URL based on user's primary role.
+    With multi-module architecture, POS users should go to module-select
+    instead of being forced to specific module.
     
     Args:
         user: User email. If None, uses current session user.
@@ -308,7 +310,7 @@ def get_role_based_default_route(user=None):
     
     roles = frappe.get_roles(user)
     
-    # Priority-based routing
+    # Priority-based routing for management/admin roles
     if "System Manager" in roles:
         return "/app"  # ERPNext desk
     
@@ -316,19 +318,14 @@ def get_role_based_default_route(user=None):
         return "/app/dashboard-view/area-performance"
     
     if "Branch Manager" in roles:
-        return "/app/dashboard-view/branch-performance"
+        return "/module-select"  # Branch managers can access multiple modules
     
     if "Finance Controller" in roles:
         return "/app/query-report/financial-summary"
     
-    if "Cashier" in roles:
-        return "/counter/pos"
-    
-    if "Waiter" in roles:
-        return "/restaurant/waiter"
-    
-    if "Kitchen Staff" in roles:
-        return "/restaurant/kitchen"
+    # POS operational roles → Module Select (multi-module support)
+    if any(role in roles for role in ["Cashier", "Waiter", "Kitchen Staff", "Kiosk"]):
+        return "/module-select"
     
     # Default to desk
     return "/app"

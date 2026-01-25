@@ -41,6 +41,7 @@ def get_available_modules(branch=None):
                 'requires_roles': ['Waiter', 'Branch Manager', 'System Manager'],
                 'requires_session': False,
                 'requires_opening': False,
+                'requires_active_cashier': True,
                 'order': 2
             },
             'kitchen': {
@@ -63,6 +64,7 @@ def get_available_modules(branch=None):
                 'requires_roles': ['Kiosk', 'Branch Manager', 'System Manager'],
                 'requires_session': False,
                 'requires_opening': False,
+                'requires_active_cashier': True,
                 'order': 4
             },
             'self-order': {
@@ -74,6 +76,7 @@ def get_available_modules(branch=None):
                 'requires_roles': ['Guest', 'Waiter', 'Branch Manager', 'System Manager'],
                 'requires_session': False,
                 'requires_opening': False,
+                'requires_active_cashier': True,
                 'order': 5
             },
             'table-display': {
@@ -256,3 +259,63 @@ def set_user_branch(branch):
     except Exception as e:
         frappe.log_error(f'Error in set_user_branch: {str(e)}')
         frappe.throw(_('Error setting branch. Please try again.'))
+
+
+@frappe.whitelist()
+def check_active_cashiers(branch=None):
+    """
+    Check if there are any active cashier POS sessions.
+    Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
+    """
+    try:
+        # Get current branch if not provided
+        if not branch:
+            branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+            if not branch:
+                branch = frappe.defaults.get_defaults().get('company')
+        
+        # Query active POS Opening Entries for Cashier module
+        active_cashier_sessions = frappe.get_list(
+            'POS Opening Entry',
+            filters={
+                'status': 'Open',
+                'docstatus': 1,
+                'company': branch,
+                'period_start_date': ['>=', frappe.utils.today()]
+            },
+            fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation'],
+            order_by='creation desc'
+        )
+        
+        # Filter to only cashier sessions (check POS Profile has imogi_enable_cashier = 1)
+        cashier_sessions = []
+        for session in active_cashier_sessions:
+            pos_profile = frappe.get_cached_doc('POS Profile', session.get('pos_profile'))
+            if pos_profile.get('imogi_enable_cashier'):
+                cashier_sessions.append({
+                    'pos_opening_entry': session.get('name'),
+                    'pos_profile': session.get('pos_profile'),
+                    'user': session.get('user'),
+                    'opening_balance': session.get('opening_balance', 0),
+                    'timestamp': session.get('creation')
+                })
+        
+        has_active = len(cashier_sessions) > 0
+        
+        return {
+            'has_active_cashier': has_active,
+            'active_sessions': cashier_sessions,
+            'total_cashiers': len(cashier_sessions),
+            'message': 'Active cashier found' if has_active else 'No active cashier sessions. Please ask a cashier to open a POS session first.',
+            'branch': branch
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in check_active_cashiers: {str(e)}')
+        return {
+            'has_active_cashier': False,
+            'active_sessions': [],
+            'total_cashiers': 0,
+            'message': 'Error checking cashier sessions',
+            'error': str(e)
+        }

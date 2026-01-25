@@ -744,3 +744,149 @@ def print_kot(pos_order=None, kot_ticket=None, kitchen_station=None, copies=1, r
         frappe.throw(_("Failed to print KOT: {0}").format(str(e)), frappe.ValidationError)
 
 
+@frappe.whitelist()
+def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None):
+    """
+    Get all KOT orders for kitchen display.
+    
+    Kitchen display receives orders from ALL sources in the POS Profile:
+    - Counter 1, 2, 3 (multiple cashiers)
+    - Kiosk 1, 2 (self-service)
+    - Self Order (QR code)
+    - Waiter stations
+    
+    Filter by POS Profile (preferred) OR branch, NOT by device/session.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name - preferred filter
+        branch (str, optional): Branch name - fallback if no POS Profile
+        station (str, optional): Kitchen Station to filter by
+        status (str, optional): KOT status filter (Pending, In Progress, Completed)
+    
+    Returns:
+        dict: {
+            'orders': List of KOT orders with items,
+            'filter_by': 'pos_profile' or 'branch',
+            'total_pending': count,
+            'total_in_progress': count
+        }
+    """
+    try:
+        # Determine filter method
+        filter_by = 'pos_profile' if pos_profile else 'branch'
+        
+        # Base filters for KOT Ticket
+        filters = {
+            'docstatus': ['!=', 2]  # Not cancelled
+        }
+        
+        # Add status filter if provided
+        if status:
+            filters['status'] = status
+        else:
+            # Default: show Pending and In Progress only
+            filters['status'] = ['in', ['Pending', 'In Progress']]
+        
+        # Add station filter if provided
+        if station:
+            filters['kitchen_station'] = station
+        
+        # Get POS Orders filtered by POS Profile or Branch
+        pos_order_filters = {}
+        if pos_profile:
+            pos_order_filters['pos_profile'] = pos_profile
+        elif branch:
+            pos_order_filters['branch'] = branch
+            validate_branch_access(branch)
+        else:
+            frappe.throw(_('Please provide either pos_profile or branch parameter'))
+        
+        # Get POS Orders matching the profile/branch
+        pos_orders = frappe.get_all(
+            'POS Order',
+            filters=pos_order_filters,
+            fields=['name'],
+            pluck='name'
+        )
+        
+        if not pos_orders:
+            return {
+                'orders': [],
+                'filter_by': filter_by,
+                'total_pending': 0,
+                'total_in_progress': 0,
+                'message': 'No orders found for this POS Profile/Branch'
+            }
+        
+        # Add POS Order filter to KOT filters
+        filters['pos_order'] = ['in', pos_orders]
+        
+        # Get KOT Tickets
+        kot_tickets = frappe.get_all(
+            'KOT Ticket',
+            filters=filters,
+            fields=[
+                'name',
+                'pos_order',
+                'kitchen_station',
+                'status',
+                'creation',
+                'modified',
+                'ticket_number'
+            ],
+            order_by='creation asc'
+        )
+        
+        # Enrich with POS Order and items data
+        orders = []
+        for ticket in kot_tickets:
+            # Get POS Order details
+            pos_order_doc = frappe.get_doc('POS Order', ticket.pos_order)
+            
+            # Get KOT Items
+            kot_items = frappe.get_all(
+                'KOT Ticket Item',
+                filters={'parent': ticket.name},
+                fields=[
+                    'item_code',
+                    'item_name',
+                    'quantity',
+                    'status',
+                    'notes',
+                    'customizations'
+                ]
+            )
+            
+            orders.append({
+                'ticket_name': ticket.name,
+                'ticket_number': ticket.ticket_number,
+                'pos_order': ticket.pos_order,
+                'table_number': pos_order_doc.get('table_number'),
+                'customer': pos_order_doc.get('customer'),
+                'kitchen_station': ticket.kitchen_station,
+                'status': ticket.status,
+                'created_at': ticket.creation,
+                'updated_at': ticket.modified,
+                'items': kot_items,
+                'source_module': pos_order_doc.get('imogi_source_module', 'Unknown')
+            })
+        
+        # Count by status
+        total_pending = sum(1 for o in orders if o['status'] == 'Pending')
+        total_in_progress = sum(1 for o in orders if o['status'] == 'In Progress')
+        
+        return {
+            'orders': orders,
+            'filter_by': filter_by,
+            'pos_profile': pos_profile,
+            'branch': branch,
+            'station': station,
+            'total_pending': total_pending,
+            'total_in_progress': total_in_progress,
+            'total_orders': len(orders)
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in get_kitchen_orders: {str(e)}')
+        frappe.throw(_('Error fetching kitchen orders: {0}').format(str(e)))
+

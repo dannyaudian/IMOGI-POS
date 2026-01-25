@@ -92,6 +92,51 @@ body {
   gap: var(--spacing-md);
 }
 
+/* Header Selectors */
+.header-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.header-select {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  min-width: 150px;
+  transition: all 0.2s ease;
+}
+
+.header-select:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.header-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.header-select option {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
 .user-name {
   font-weight: 600;
   font-size: 0.95rem;
@@ -360,6 +405,106 @@ body {
   margin: 0;
 }
 
+/* POS Sessions Overview */
+.pos-sessions-overview {
+  background: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--border-color);
+  margin-top: var(--spacing-md);
+}
+
+.pos-sessions-overview h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.sessions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--light-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.session-chip:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+  border-color: #3498db;
+  transform: translateY(-2px);
+}
+
+.session-chip.active {
+  background: linear-gradient(135deg, var(--primary-color), #ff8a00);
+  border-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+.session-chip.active:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.session-chip i {
+  font-size: 1.1rem;
+}
+
+.session-user {
+  font-weight: 600;
+}
+
+.session-time {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.session-chip.active .session-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.session-badge-active {
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sessions-note {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: var(--spacing-md) 0 0 0;
+  padding: var(--spacing-sm);
+  background-color: rgba(52, 152, 219, 0.05);
+  border-left: 3px solid #3498db;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  line-height: 1.5;
+}
+
+.sessions-note i {
+  color: #3498db;
+  margin-top: 2px;
+}
+
 /* Module Grid */
 .modules-grid {
   display: grid;
@@ -417,6 +562,43 @@ body {
   background-color: var(--primary-color);
 }
 
+/* Module Locked State */
+.module-card.module-locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f8f9fa;
+}
+
+.module-card.module-locked:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-color);
+}
+
+.module-card.module-locked::before {
+  background-color: #bdc3c7;
+}
+
+.module-card.module-locked:hover::before {
+  height: 4px;
+  background-color: #bdc3c7;
+}
+
+.module-lock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+}
+
 /* Module Colors */
 .module-card.color-cashier {
   --module-color: #3498db;
@@ -468,6 +650,7 @@ body {
   background: linear-gradient(135deg, var(--module-color, var(--primary-color)), rgba(254, 156, 43, 0.1));
   color: white;
   font-size: 1.5rem;
+  position: relative;
 }
 
 .module-content {
@@ -491,15 +674,46 @@ body {
   line-height: 1.4;
 }
 
+.module-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
 .module-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 12px;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   width: fit-content;
+}
+
+.module-badge i {
+  font-size: 0.75rem;
+}
+
+.badge-success {
+  background-color: rgba(39, 174, 96, 0.15);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.badge-warning {
+  background-color: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(243, 156, 18, 0.3);
+}
+
+.badge-info {
+  background-color: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.3);
 }
 
 .badge-session {

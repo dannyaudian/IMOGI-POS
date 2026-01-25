@@ -22,6 +22,7 @@ class CustomPOSProfile(POSProfile):
         super().validate()
         self.clear_hidden_fields()
         self.validate_session_scope()
+        self.validate_module_compatibility()
     
     def clear_hidden_fields(self):
         """
@@ -151,12 +152,13 @@ class CustomPOSProfile(POSProfile):
         """
         Validate session scope field has valid value.
         
-        Note: Device scope is not fully supported with native POS Opening Entry
-        as it doesn't have a device_id field. Use User or POS Profile scope instead.
+        Options:
+        - User: Each user has their own POS session (recommended for individual accountability)
+        - POS Profile: All users share one session per POS Profile (shared cash drawer)
         """
         if self.get("imogi_require_pos_session"):
             scope = self.get("imogi_pos_session_scope")
-            valid_values = ["User", "Device", "POS Profile"]
+            valid_values = ["User", "POS Profile"]
             
             # Check if scope is set
             if not scope:
@@ -168,11 +170,58 @@ class CustomPOSProfile(POSProfile):
                     _("Session Scope must be one of: {0}").format(", ".join(valid_values)),
                     frappe.ValidationError
                 )
-            
-            # Warn if Device scope is selected (not fully supported)
-            if scope == "Device":
-                frappe.msgprint(
-                    _("Device scope is not fully supported with POS Opening Entry. Consider using User or POS Profile scope instead."),
-                    indicator="orange",
-                    title=_("Warning")
-                )
+    
+    def validate_module_compatibility(self):
+        """
+        Validate that enabled modules are compatible with each other.
+        
+        Rules:
+        1. Cashier (Counter) is MANDATORY - required for payment and session closing
+        2. All modules are compatible with each other and support both Dine-In & Takeaway:
+           - Cashier: Customer orders at counter, cashier processes payment immediately
+           - Waiter: Waiter takes order (table or counter), cashier processes payment at Cashier module
+           - Kiosk: Self-service ordering kiosk
+           - Self-Order: QR code ordering via customer's phone
+           - Kitchen: Displays KOT for kitchen staff
+           - Customer Display: Shows order and payment details to customer
+        
+        Note: Dine-In vs Takeaway is determined at ORDER level, not MODULE level.
+        Any module can create both dine-in and takeaway orders.
+        """
+        # Rule 1: Cashier is MANDATORY
+        if not self.get('imogi_enable_cashier'):
+            frappe.throw(
+                _("Cashier (Counter) module must be enabled in every POS Profile.<br><br>"
+                  "<b>Reason:</b> Cashier module is required for:<br>"
+                  "• Payment processing (cash, card, QRIS)<br>"
+                  "• POS Session opening and closing<br>"
+                  "• Order reconciliation and reporting<br>"
+                  "• Handling exceptions from Kiosk/Self-Order<br><br>"
+                  "<b>Note:</b> All modules support both Dine-In and Take-Away orders.<br>"
+                  "Order type is selected when creating the order, not determined by module."),
+                frappe.ValidationError,
+                title=_("Cashier Module Required")
+            )
+        
+        # Optional: Log enabled modules for debugging
+        enabled_modules = []
+        module_flags = {
+            'Cashier': self.get('imogi_enable_cashier'),
+            'Waiter': self.get('imogi_enable_waiter'),
+            'Kiosk': self.get('imogi_enable_kiosk'),
+            'Self-Order': self.get('imogi_enable_self_order'),
+            'Kitchen': self.get('imogi_enable_kitchen'),
+            'Customer Display': self.get('imogi_enable_customer_display')
+        }
+        
+        for module_name, is_enabled in module_flags.items():
+            if is_enabled:
+                enabled_modules.append(module_name)
+        
+        # Info message about enabled modules (only show in UI, not in tests)
+        if len(enabled_modules) > 1 and frappe.flags.in_test != True:
+            frappe.msgprint(
+                _("POS Profile will support: {0}").format(", ".join(enabled_modules)),
+                indicator="blue",
+                title=_("Enabled Modules")
+            )

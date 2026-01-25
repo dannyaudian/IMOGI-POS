@@ -163,8 +163,7 @@ website_route_rules = [
     {"from_route": "/devices/table-display-editor", "to_route": "/devices/table-display-editor"},
     {"from_route": "/opening-balance", "to_route": "/opening-balance"},
     {"from_route": "/shared/login", "to_route": "/shared/login"},
-    {"from_route": "/shared/device-select", "to_route": "/shared/device-select"},
-    {"from_route": "/shared/service-select", "to_route": "/shared/service-select"},
+    {"from_route": "/shared/module-select", "to_route": "/shared/module-select"},
     
     # Aliases and redirects
     {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
@@ -176,8 +175,6 @@ website_route_rules = [
     {"from_route": "/table_display", "to_route": "/restaurant/tables"},
     {"from_route": "/imogi-login", "to_route": "/shared/login"},
     {"from_route": "/module-select", "to_route": "/shared/module-select"},
-    {"from_route": "/device-select", "to_route": "/shared/device-select"},
-    {"from_route": "/service-select", "to_route": "/shared/service-select"},
     {"from_route": "/customer-display-editor", "to_route": "/devices/customer-display-editor"},
     {"from_route": "/table-display-editor", "to_route": "/devices/table-display-editor"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},

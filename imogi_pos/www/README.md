@@ -23,8 +23,7 @@ www/
 │
 ├── shared/             # Shared components across all types
 │   ├── login/          # Authentication
-│   ├── device-select/  # Device selection
-│   └── service-select/ # Service type selection
+│   └── module-select/  # Multi-module selection
 │
 ├── retail/             # Retail domain (placeholder - Q2 2026)
 │   ├── pos/
@@ -47,8 +46,7 @@ www/
 - `/counter/pos` - Cashier console
 - `/devices/displays` - Customer display
 - `/shared/login` - Login page
-- `/shared/device-select` - Device selector
-- `/shared/service-select` - Service selector
+- `/shared/module-select` - Multi-module selector
 
 ### Legacy URLs (Redirected)
 Old paths automatically redirect to new structure:
