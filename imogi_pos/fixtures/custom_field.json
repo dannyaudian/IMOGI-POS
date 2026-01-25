@@ -1315,12 +1315,14 @@
     "fieldtype": "Link",
     "label": "Default Branch",
     "options": "Company",
-    "insert_after": "user_type",
+    "insert_after": "email",
     "is_system_generated": 0,
     "module": "IMOGI POS",
     "dt": "User",
     "doctype": "Custom Field",
     "name": "User-imogi_default_branch",
-    "description": "Default branch/company for IMOGI POS module selection"
+    "description": "Default branch/company for IMOGI POS module selection",
+    "in_list_view": 1,
+    "in_standard_filter": 1
   }
 ]
