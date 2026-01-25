@@ -57,6 +57,7 @@ def get_user_pos_profile(user=None, allow_fallback=True):
     return None
 
 
+@frappe.whitelist()
 def get_user_role_context(user=None):
     """
     Get comprehensive role context for user.
@@ -70,6 +71,7 @@ def get_user_role_context(user=None):
     Returns:
         dict: {
             "user": str,
+            "full_name": str,
             "roles": list,
             "is_guest": bool,
             "is_admin": bool,
@@ -79,7 +81,8 @@ def get_user_role_context(user=None):
             "is_finance_controller": bool,
             "is_cashier": bool,
             "is_waiter": bool,
-            "is_kitchen_staff": bool
+            "is_kitchen_staff": bool,
+            "defaults": dict
         }
     """
     if not user:
@@ -92,8 +95,19 @@ def get_user_role_context(user=None):
     is_branch_manager = "Branch Manager" in roles
     is_finance_controller = "Finance Controller" in roles
     
+    # Get user's full name
+    full_name = user
+    if not is_guest:
+        full_name = frappe.db.get_value("User", user, "full_name") or user
+    
+    # Get user defaults
+    defaults = {}
+    if not is_guest:
+        defaults = frappe.defaults.get_user_defaults(user) or {}
+    
     return {
         "user": user,
+        "full_name": full_name,
         "roles": roles,
         "is_guest": is_guest,
         "is_admin": "System Manager" in roles,
@@ -104,6 +118,7 @@ def get_user_role_context(user=None):
         "is_cashier": "Cashier" in roles,
         "is_waiter": "Waiter" in roles,
         "is_kitchen_staff": "Kitchen Staff" in roles,
+        "defaults": defaults,
     }
 
 

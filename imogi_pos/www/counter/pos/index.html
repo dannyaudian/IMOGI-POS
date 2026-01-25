@@ -308,6 +308,23 @@
     display: flex;
     flex-direction: column;
   }
+  /* Small modal dialog - for Find Customer, etc. */
+  .modal-dialog.modal-dialog-small {
+    width: auto;
+    max-width: 500px;
+    min-width: 320px;
+    height: auto;
+    margin: 1.75rem auto;
+  }
+  .modal-dialog.modal-dialog-small .modal-body {
+    display: block;
+    overflow: visible;
+    padding: 1rem;
+  }
+  .modal-dialog.modal-dialog-small .modal-content {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+  }
   .modal-header {
     display: flex;
     justify-content: space-between;

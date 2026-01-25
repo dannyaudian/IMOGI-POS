@@ -435,8 +435,20 @@ def check_display_status(branch):
     if not branch:
         return {"online": False}
     
-    # Validate branch access
-    validate_branch_access(branch)
+    try:
+        # Validate branch access (skip for now if Branch doctype doesn't exist)
+        if frappe.db.exists("DocType", "Branch"):
+            validate_branch_access(branch)
+    except frappe.DoesNotExistError:
+        # Branch doctype may not exist in this setup
+        pass
+    except frappe.PermissionError:
+        # User doesn't have branch access
+        return {"online": False, "error": "No branch access"}
+    
+    # Check if Customer Display Device doctype exists
+    if not frappe.db.exists("DocType", "Customer Display Device"):
+        return {"online": False, "error": "Customer Display not configured"}
     
     # Check if there's an active display device for this branch
     devices = frappe.get_all(

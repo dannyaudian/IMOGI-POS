@@ -724,7 +724,7 @@ frappe.ready(function () {
      ========================= */
   function openCustomerSearch() {
     const modalHtml = `
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-dialog-small">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">${__('Find Customer')}</h5>

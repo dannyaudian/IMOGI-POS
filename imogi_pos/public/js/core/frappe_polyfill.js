@@ -670,41 +670,150 @@
             this.opts.fields.forEach(field => {
                 const wrapper = document.createElement('div');
                 wrapper.style.marginBottom = '12px';
+                wrapper.setAttribute('data-fieldname', field.fieldname || '');
+                
+                // Handle Section Break and Column Break
+                if (field.fieldtype === 'Section Break') {
+                    if (field.label) {
+                        wrapper.innerHTML = `<hr style="margin:16px 0 8px;border:none;border-top:1px solid #ddd;"><strong style="font-size:0.9rem;color:#666;">${field.label}</strong>`;
+                    }
+                    body.appendChild(wrapper);
+                    return;
+                }
+                
+                if (field.fieldtype === 'Column Break') {
+                    // Just a spacer in simple dialog
+                    body.appendChild(wrapper);
+                    return;
+                }
                 
                 if (field.fieldtype === 'HTML') {
-                    wrapper.innerHTML = field.options || '';
-                } else {
-                    const label = document.createElement('label');
-                    label.textContent = field.label || field.fieldname;
-                    label.style.display = 'block';
-                    label.style.marginBottom = '4px';
-                    label.style.fontWeight = '500';
-                    wrapper.appendChild(label);
+                    wrapper.innerHTML = typeof field.options === 'string' ? field.options : '';
+                    body.appendChild(wrapper);
+                    return;
+                }
+                
+                // Create label for other field types
+                const label = document.createElement('label');
+                label.textContent = field.label || field.fieldname;
+                label.style.display = 'block';
+                label.style.marginBottom = '4px';
+                label.style.fontWeight = '500';
+                if (field.reqd) {
+                    label.innerHTML += ' <span style="color:red;">*</span>';
+                }
+                wrapper.appendChild(label);
 
-                    let input;
-                    if (field.fieldtype === 'Select') {
-                        input = document.createElement('select');
-                        const options = Array.isArray(field.options) 
-                            ? field.options 
-                            : (field.options || '').split('\n');
-                        options.forEach(opt => {
-                            const option = document.createElement('option');
+                let input;
+                
+                if (field.fieldtype === 'Select') {
+                    input = document.createElement('select');
+                    // Handle options as array or newline-separated string
+                    let options = [];
+                    if (Array.isArray(field.options)) {
+                        options = field.options;
+                    } else if (typeof field.options === 'string') {
+                        options = field.options.split('\n').filter(o => o.trim());
+                    }
+                    options.forEach(opt => {
+                        const option = document.createElement('option');
+                        // Handle option as object {value, label} or string
+                        if (typeof opt === 'object' && opt !== null) {
+                            option.value = opt.value || opt.name || '';
+                            option.textContent = opt.label || opt.value || opt.name || '';
+                        } else {
                             option.value = opt;
                             option.textContent = opt;
-                            input.appendChild(option);
-                        });
-                    } else if (field.fieldtype === 'Text') {
-                        input = document.createElement('textarea');
-                        input.rows = 3;
-                    } else {
-                        input = document.createElement('input');
-                        input.type = field.fieldtype === 'Int' || field.fieldtype === 'Float' || field.fieldtype === 'Currency' ? 'number' : 'text';
-                    }
-                    input.name = field.fieldname;
-                    input.value = field.default || '';
-                    input.style.cssText = 'width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;';
-                    wrapper.appendChild(input);
+                        }
+                        input.appendChild(option);
+                    });
+                } else if (field.fieldtype === 'Text' || field.fieldtype === 'Small Text' || field.fieldtype === 'Long Text' || field.fieldtype === 'Code') {
+                    input = document.createElement('textarea');
+                    input.rows = field.fieldtype === 'Small Text' ? 2 : 4;
+                } else if (field.fieldtype === 'Check') {
+                    // Checkbox field
+                    const checkWrapper = document.createElement('div');
+                    checkWrapper.style.display = 'flex';
+                    checkWrapper.style.alignItems = 'center';
+                    checkWrapper.style.gap = '8px';
+                    
+                    input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.style.cssText = 'width:auto;margin:0;';
+                    input.checked = field.default ? true : false;
+                    
+                    // Move label after checkbox
+                    wrapper.removeChild(label);
+                    checkWrapper.appendChild(input);
+                    checkWrapper.appendChild(label);
+                    label.style.marginBottom = '0';
+                    wrapper.appendChild(checkWrapper);
+                } else if (field.fieldtype === 'Link') {
+                    // Link field - simplified as text input with autocomplete placeholder
+                    // Full Link field behavior requires server-side autocomplete
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.placeholder = `Search ${field.options || 'record'}...`;
+                    input.setAttribute('data-doctype', field.options || '');
+                } else if (field.fieldtype === 'Date') {
+                    input = document.createElement('input');
+                    input.type = 'date';
+                } else if (field.fieldtype === 'Datetime') {
+                    input = document.createElement('input');
+                    input.type = 'datetime-local';
+                } else if (field.fieldtype === 'Time') {
+                    input = document.createElement('input');
+                    input.type = 'time';
+                } else if (field.fieldtype === 'Int') {
+                    input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = '1';
+                } else if (field.fieldtype === 'Float' || field.fieldtype === 'Currency' || field.fieldtype === 'Percent') {
+                    input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                } else if (field.fieldtype === 'Password') {
+                    input = document.createElement('input');
+                    input.type = 'password';
+                } else if (field.fieldtype === 'Color') {
+                    input = document.createElement('input');
+                    input.type = 'color';
+                } else if (field.fieldtype === 'Read Only' || field.fieldtype === 'Data (Read Only)') {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.readOnly = true;
+                    input.style.backgroundColor = '#f5f5f5';
+                } else {
+                    // Default: Data field (text input)
+                    input = document.createElement('input');
+                    input.type = 'text';
                 }
+                
+                // Set common attributes if input was created
+                if (input && field.fieldtype !== 'Check') {
+                    input.name = field.fieldname;
+                    input.value = field.default !== undefined ? field.default : '';
+                    input.style.cssText = 'width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;';
+                    if (field.reqd) {
+                        input.required = true;
+                    }
+                    if (field.read_only) {
+                        input.readOnly = true;
+                        input.style.backgroundColor = '#f5f5f5';
+                    }
+                    wrapper.appendChild(input);
+                } else if (input && field.fieldtype === 'Check') {
+                    input.name = field.fieldname;
+                }
+                
+                // Add description if provided
+                if (field.description) {
+                    const desc = document.createElement('small');
+                    desc.textContent = field.description;
+                    desc.style.cssText = 'color:#888;font-size:0.85rem;display:block;margin-top:4px;';
+                    wrapper.appendChild(desc);
+                }
+                
                 body.appendChild(wrapper);
             });
 
@@ -727,7 +836,14 @@
             this.values = {};
             this.modal.querySelectorAll('input, select, textarea').forEach(el => {
                 if (el.name) {
-                    this.values[el.name] = el.value;
+                    // Handle checkbox specially
+                    if (el.type === 'checkbox') {
+                        this.values[el.name] = el.checked ? 1 : 0;
+                    } else if (el.type === 'number') {
+                        this.values[el.name] = el.value ? parseFloat(el.value) : 0;
+                    } else {
+                        this.values[el.name] = el.value;
+                    }
                 }
             });
         }
@@ -740,8 +856,52 @@
         set_values(vals) {
             Object.entries(vals).forEach(([key, value]) => {
                 const el = this.modal.querySelector(`[name="${key}"]`);
-                if (el) el.value = value;
+                if (el) {
+                    if (el.type === 'checkbox') {
+                        el.checked = value ? true : false;
+                    } else {
+                        el.value = value;
+                    }
+                }
             });
+        }
+
+        /**
+         * Get a specific field element
+         * @param {string} fieldname - Field name
+         * @returns {HTMLElement|null} Field wrapper element
+         */
+        get_field(fieldname) {
+            return this.modal ? this.modal.querySelector(`[data-fieldname="${fieldname}"]`) : null;
+        }
+
+        /**
+         * Set value for a specific field
+         * @param {string} fieldname - Field name
+         * @param {*} value - Value to set
+         */
+        set_value(fieldname, value) {
+            const el = this.modal ? this.modal.querySelector(`[name="${fieldname}"]`) : null;
+            if (el) {
+                if (el.type === 'checkbox') {
+                    el.checked = value ? true : false;
+                } else {
+                    el.value = value;
+                }
+            }
+        }
+
+        /**
+         * Get value of a specific field
+         * @param {string} fieldname - Field name
+         * @returns {*} Field value
+         */
+        get_value(fieldname) {
+            const el = this.modal ? this.modal.querySelector(`[name="${fieldname}"]`) : null;
+            if (!el) return null;
+            if (el.type === 'checkbox') return el.checked ? 1 : 0;
+            if (el.type === 'number') return el.value ? parseFloat(el.value) : 0;
+            return el.value;
         }
 
         show() {
