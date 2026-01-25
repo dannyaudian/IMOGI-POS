@@ -232,7 +232,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
             frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
     
     # Validate user has access to this POS Profile
-    validate_branch_access(pos_profile, "POS Profile")
+    validate_api_permission("POS Profile", doc=pos_profile)
     
     # Get branch from POS Profile if not provided
     if not branch:
@@ -240,7 +240,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     
     # Additional branch validation for safety
     if branch:
-        validate_branch_access(branch, "Branch")
+        validate_branch_access(branch)
     
     # Get item price list from POS Profile
     price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
