@@ -143,17 +143,70 @@ def build_sales_invoice_from_pos_order(
         if item_details.tax_template:
             si_item.item_tax_template = item_details.tax_template
     
-    # Add payment if provided
+    # Save the invoice first to calculate totals
+    si.set_missing_values()
+    si.calculate_taxes_and_totals()
+    si.save()
+    
+    # Add payment if provided, with validation
     if payment_method and payment_amount:
+        from frappe.utils import flt
+        payment_amount = flt(payment_amount)
+        grand_total = flt(si.grand_total or 0)
+        
+        # Validate payment amount
+        if payment_amount < grand_total:
+            frappe.throw(
+                f"Payment amount ({frappe.format_value(payment_amount)}) "
+                f"is less than invoice total ({frappe.format_value(grand_total)})",
+                frappe.ValidationError
+            )
+        
+        # Warn if overpayment
+        if payment_amount > grand_total * 1.1:  # Allow 10% buffer
+            frappe.msgprint(
+                f"Payment amount ({frappe.format_value(payment_amount)}) "
+                f"exceeds invoice total ({frappe.format_value(grand_total)})",
+                indicator="yellow",
+                title="Overpayment Alert"
+            )
+        
+        # Add payment record
         si.append("payments", {
             "mode_of_payment": payment_method,
             "amount": payment_amount
         })
-    
-    # Save the invoice
-    si.set_missing_values()
-    si.calculate_taxes_and_totals()
-    si.save()
+        
+        # Log payment for audit trail
+        try:
+            from imogi_pos.utils.audit_log import log_payment
+            change_amount = 0
+            if payment_method in ("Cash", "Tunai"):
+                change_amount = payment_amount - grand_total
+            
+            log_payment(
+                invoice_name=pos_order.name,
+                payment_method=payment_method,
+                amount=payment_amount,
+                change_amount=change_amount if change_amount > 0 else 0,
+                user=frappe.session.user,
+                branch=pos_order.imogi_branch if hasattr(pos_order, 'imogi_branch') else None
+            )
+        except Exception as e:
+            frappe.log_error(f"Failed to log payment: {str(e)}", "Payment Audit Log")
+        
+        # Calculate and record change for cash payments
+        if payment_method in ("Cash", "Tunai"):
+            change_amount = payment_amount - grand_total
+            if change_amount > 0:
+                # Add custom field to track change if it doesn't exist
+                if hasattr(si, "imogi_change_amount"):
+                    si.imogi_change_amount = change_amount
+                frappe.msgprint(
+                    f"Change amount: {frappe.format_value(change_amount, df={'fieldtype': 'Currency'})}",
+                    indicator="green",
+                    title="Change Amount"
+                )
     
     # Update the POS Order with the invoice reference
     frappe.db.set_value("POS Order", pos_order.name, "sales_invoice", si.name)

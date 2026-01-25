@@ -1052,6 +1052,21 @@ def generate_invoice(
 
         try:
             invoice_doc.submit()
+            
+            # Log invoice creation for audit trail
+            from imogi_pos.utils.audit_log import log_operation
+            log_operation(
+                doctype="Sales Invoice",
+                action="submit",
+                doc_name=invoice_doc.name,
+                details={
+                    "items_count": len(invoice_doc.items),
+                    "total_amount": invoice_doc.grand_total,
+                    "pos_profile": invoice_doc.pos_profile,
+                    "branch": invoice_doc.imogi_branch if hasattr(invoice_doc, 'imogi_branch') else None
+                },
+                branch=invoice_doc.imogi_branch if hasattr(invoice_doc, 'imogi_branch') else None
+            )
         except NegativeStockError:
             if allow_out_of_stock_orders:
                 if not getattr(invoice_doc, "flags", None):
@@ -1089,6 +1104,7 @@ def generate_invoice(
         frappe.throw(_("Failed to generate invoice: {0}").format(str(e)))
 
 @frappe.whitelist()
+@require_permission("POS Order", "read")
 def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, floor=None):
     """
     Lists POS Orders that are ready for billing in the cashier console.
@@ -1262,13 +1278,14 @@ def check_pos_session(pos_profile=None):
 
 
 @frappe.whitelist()
-def get_active_pos_session(context_scope=None):
+def get_active_pos_session(context_scope=None, device_id=None):
     """
     Gets the active POS Opening Entry for the current context.
     
     Args:
-        context_scope (str, optional): Scope to check (User/POS Profile)
+        context_scope (str, optional): Scope to check (User/POS Profile/Device)
                                       Default is User
+        device_id (str, optional): Device ID for Device scope
     
     Returns:
         str: POS Opening Entry name if active, None otherwise
@@ -1292,10 +1309,21 @@ def get_active_pos_session(context_scope=None):
         if not pos_profile:
             return None
         filters["pos_profile"] = pos_profile
-    # Note: Device scope not supported with POS Opening Entry
     elif context_scope == "Device":
-        # Fall back to User scope for Device
-        filters["user"] = user
+        # Get device ID from request header or parameter
+        if not device_id:
+            device_id = frappe.local.request.headers.get("X-Device-ID") if hasattr(frappe.local, 'request') else None
+        
+        if device_id:
+            # Filter by device_id if available
+            filters["device_id"] = device_id
+        else:
+            # Fallback to User scope for Device if device_id not provided
+            frappe.log_error(
+                f"No device_id found for device-scope session, falling back to user scope",
+                "Device Session Warning"
+            )
+            filters["user"] = user
     else:
         return None
 
@@ -1359,6 +1387,7 @@ def get_session_info(pos_session=None):
         return None
 
 @frappe.whitelist()
+@require_permission("POS Opening Entry", "write")
 def close_session_request(pos_session, closing_amount=None):
     """
     Prepare data for closing a POS Session.

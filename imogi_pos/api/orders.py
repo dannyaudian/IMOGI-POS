@@ -91,9 +91,10 @@ def _apply_native_pricing_rules_to_item(item_dict, customer=None, price_list=Non
                 "Native Pricing Applied"
             )
     except Exception as e:
-        frappe.log_error(f"Error applying native pricing rules: {str(e)}", "Native Pricing Error")
-    
-    return item_dict
+        error_msg = f"Error applying native pricing rules to item {item_code}: {str(e)}"
+        frappe.log_error(error_msg, "Native Pricing Error")
+        # Notify user about the error but still proceed with standard rate
+        return item_dict
 
 
 def _apply_customer_metadata(customer, details):
@@ -160,6 +161,8 @@ def validate_item_is_sales_item(doc, method=None):
 
 @frappe.whitelist()
 @require_permission("POS Order", "write")
+@frappe.whitelist()
+@require_permission("POS Order Item", "create")
 def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     """Append a new item row to an existing POS Order and recalculate totals."""
 
@@ -401,6 +404,8 @@ def get_next_available_table(branch):
 
 @frappe.whitelist()
 @require_permission("POS Order", "create")
+@frappe.whitelist()
+@require_permission("POS Order", "create")
 def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.
@@ -606,6 +611,18 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                 row.discount_percentage = item.get("discount_percentage")
             if item.get("discount_amount"):
                 row.discount_amount = item.get("discount_amount")
+                # Log discount for audit trail
+                try:
+                    from imogi_pos.utils.audit_log import log_discount_applied
+                    log_discount_applied(
+                        invoice_name=order_doc.name,
+                        discount_amount=item.get("discount_amount"),
+                        reason="Pricing rule applied",
+                        user=frappe.session.user,
+                        branch=order_doc.imogi_branch if hasattr(order_doc, 'imogi_branch') else None
+                    )
+                except Exception as e:
+                    frappe.log_error(f"Failed to log discount: {str(e)}", "Discount Audit Log")
             validate_item_is_sales_item(row)
 
     # Validate customer before inserting the order
@@ -935,6 +952,7 @@ def save_order(pos_order, items=None, customer=None, guests=None, table=None, **
 
 
 @frappe.whitelist()
+@require_permission("POS Order", "cancel")
 def cancel_order(pos_order):
     """
     Cancel a POS Order and free its table.
@@ -958,6 +976,20 @@ def cancel_order(pos_order):
     # Update workflow state
     order_doc.workflow_state = "Cancelled"
     order_doc.save()
+    
+    # Log order cancellation for audit trail
+    try:
+        from imogi_pos.utils.audit_log import log_void_transaction
+        total_amount = sum(item.amount for item in order_doc.items) if hasattr(order_doc, 'items') else 0
+        log_void_transaction(
+            invoice_name=order_doc.name,
+            total_amount=total_amount,
+            reason="POS Order cancelled",
+            user=frappe.session.user,
+            branch=order_doc.branch if hasattr(order_doc, 'branch') else None
+        )
+    except Exception as e:
+        frappe.log_error(f"Failed to log order cancellation: {str(e)}", "Order Cancellation Audit Log")
     
     # Free the table if assigned
     if order_doc.table:

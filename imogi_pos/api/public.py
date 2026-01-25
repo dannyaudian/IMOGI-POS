@@ -11,7 +11,8 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.utils.auth_helpers import (
     get_user_role_context,
     get_role_based_default_route,
@@ -250,6 +251,7 @@ def check_permission(doctype, perm_type="read"):
 
 
 @frappe.whitelist()
+@require_permission("Cashier Device Session", "create")
 def record_opening_balance(device_type, opening_balance, denominations=None):
     """Record the opening balance for a user's device session.
 
@@ -418,6 +420,19 @@ def record_opening_balance(device_type, opening_balance, denominations=None):
 
     je.insert(ignore_permissions=True)
     je.submit()
+
+    # Log opening balance for audit trail
+    try:
+        from imogi_pos.utils.audit_log import log_opening_balance
+        log_opening_balance(
+            session_name=doc.name,
+            amount=opening_balance,
+            account=petty_cash_account,
+            user=user,
+            branch=None  # Opening balance is device-level, not branch-specific
+        )
+    except Exception as e:
+        frappe.log_error(f"Failed to log opening balance: {str(e)}", "Opening Balance Audit Log")
 
     # Simpan relasi JE pada sesi (jika field tersedia)
     if doc.meta.get_field("journal_entry"):

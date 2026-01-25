@@ -92,6 +92,8 @@ const IMOGINav = {
 
     /**
      * Load active branch from localStorage or server
+    /**
+     * Load active branch from localStorage or server
      * @returns {Promise} Promise resolving with active branch
      */
     loadActiveBranch: function() {
@@ -109,17 +111,27 @@ const IMOGINav = {
                 return resolve(this.activeBranch);
             }
 
-            // Lastly, fetch from server
-            frappe.call({
-                method: 'imogi_pos.api.public.get_active_branch',
-                callback: (response) => {
-                    if (response.message) {
-                        this.activeBranch = response.message;
-                        localStorage.setItem('imogi_active_branch', this.activeBranch);
+            // Lastly, fetch from server (with error handling)
+            if (typeof frappe !== 'undefined' && frappe.call) {
+                frappe.call({
+                    method: 'imogi_pos.api.public.get_active_branch',
+                    silent: true, // Don't show error toast for this background fetch
+                    callback: (response) => {
+                        if (response && response.message) {
+                            this.activeBranch = response.message;
+                            localStorage.setItem('imogi_active_branch', this.activeBranch);
+                        }
+                        resolve(this.activeBranch);
+                    },
+                    error: () => {
+                        // Failed to fetch from server, resolve with null
+                        console.warn('Could not fetch active branch from server');
+                        resolve(null);
                     }
-                    resolve(this.activeBranch);
-                }
-            });
+                });
+            } else {
+                resolve(null);
+            }
         });
     },
 
@@ -142,18 +154,29 @@ const IMOGINav = {
                 return resolve(this.activeProfile);
             }
 
+            // Check if frappe.call is available
+            if (typeof frappe === 'undefined' || !frappe.call) {
+                console.warn('Frappe not available, cannot fetch POS profile from server');
+                return resolve(null);
+            }
+
             // Lastly, fetch from server
             frappe.call({
                 method: 'imogi_pos.api.public.get_default_pos_profile',
                 args: {
                     branch: this.activeBranch
                 },
+                silent: true, // Don't show error toast for this
                 callback: (response) => {
-                    if (response.message) {
+                    if (response && response.message) {
                         this.activeProfile = response.message;
                         localStorage.setItem('imogi_active_pos_profile', this.activeProfile);
                     }
                     resolve(this.activeProfile);
+                },
+                error: (err) => {
+                    console.warn('Could not fetch POS profile from server:', err);
+                    resolve(null);
                 }
             });
         });
@@ -165,17 +188,28 @@ const IMOGINav = {
      */
     loadBrandingAssets: function() {
         return new Promise((resolve) => {
+            // Check if frappe.call is available
+            if (typeof frappe === 'undefined' || !frappe.call) {
+                console.warn('Frappe not available, cannot fetch branding from server');
+                return resolve();
+            }
+
             frappe.call({
                 method: 'imogi_pos.api.public.get_branding_assets',
                 args: {
                     pos_profile: this.activeProfile,
                     branch: this.activeBranch
                 },
+                silent: true, // Don't show error toast for this
                 callback: (response) => {
-                    if (response.message) {
+                    if (response && response.message) {
                         this.branding = response.message;
                         this.applyBrandingStyles();
                     }
+                    resolve();
+                },
+                error: (err) => {
+                    console.warn('Could not fetch branding from server:', err);
                     resolve();
                 }
             });

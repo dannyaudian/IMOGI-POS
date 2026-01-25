@@ -653,6 +653,7 @@ def return_kot_ticket_to_kitchen(kot_ticket):
 
 
 @frappe.whitelist()
+@require_permission("KOT Ticket", "write")
 def cancel_kot_ticket(kot_ticket):
     """Cancel a KOT Ticket."""
 
