@@ -340,13 +340,13 @@ if (typeof frappe !== 'undefined') {
     } else if (document.readyState === 'loading') {
         // Native Frappe desk - DOM not ready yet
         document.addEventListener('DOMContentLoaded', initPermissions);
-
-})(); // End of IIFE wrapper
     } else {
         // DOM already ready
         initPermissions();
     }
 }
+
+})(); // End of IIFE wrapper
 
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {

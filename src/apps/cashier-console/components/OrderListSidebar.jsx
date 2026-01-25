@@ -9,8 +9,24 @@ export function OrderListSidebar({
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('Ready')
 
-  const modeLabel = posMode === 'Table' ? 'Table/Waiter' : 'Counter'
-  const modeIcon = posMode === 'Table' ? 'fa-utensils' : 'fa-cash-register'
+  // Explicitly define mode-specific labels and icons
+  const MODE_CONFIG = {
+    'Counter': {
+      label: 'Counter Mode',
+      icon: 'fa-cash-register',
+      color: '#ff9800'
+    },
+    'Table': {
+      label: 'Table/Waiter Mode',
+      icon: 'fa-utensils',
+      color: '#2196f3'
+    }
+  }
+
+  const currentMode = posMode || 'Counter' // Default to Counter if not specified
+  const modeConfig = MODE_CONFIG[currentMode] || MODE_CONFIG['Counter']
+  const modeLabel = modeConfig.label
+  const modeIcon = modeConfig.icon
 
   // Filter orders
   const filteredOrders = orders.filter(order => {
@@ -98,12 +114,20 @@ export function OrderListSidebar({
             >
               <div className="order-card-header">
                 <span className="order-card-number">{order.name}</span>
-                {order.table_name && (
-                  <span className="order-card-badge">
-                    <i className="fa fa-utensils"></i>
-                    {order.table_name}
-                  </span>
-                )}
+                <div className="order-card-badges">
+                  {order.table_name && (
+                    <span className="order-card-badge badge-table">
+                      <i className="fa fa-utensils"></i>
+                      {order.table_name}
+                    </span>
+                  )}
+                  {!order.table_name && currentMode === 'Counter' && (
+                    <span className="order-card-badge badge-counter">
+                      <i className="fa fa-cash-register"></i>
+                      Counter
+                    </span>
+                  )}
+                </div>
               </div>
               
               <div className="order-card-info">

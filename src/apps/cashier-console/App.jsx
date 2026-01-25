@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useOrderHistory } from '@/shared/api/imogi-api'
@@ -8,6 +8,8 @@ import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { ActionButtons } from './components/ActionButtons'
 import { PaymentView } from './components/PaymentView'
 import { SplitBillView } from './components/SplitBillView'
+import { VariantPickerModal } from './components/VariantPickerModal'
+import { CatalogView } from './components/CatalogView'
 import './App.css'
 
 function CounterPOSContent({ initialState }) {
@@ -15,10 +17,17 @@ function CounterPOSContent({ initialState }) {
   
   const branch = initialState.branch || 'Default'
   const posProfile = initialState.pos_profile || 'Default'
-  const posMode = initialState.pos_mode || 'Counter'
   
-  // Determine order type based on mode
-  const orderType = posMode === 'Table' ? 'Dine In' : 'Counter'
+  // Explicitly validate and set POS mode (Counter or Table)
+  const validModes = ['Counter', 'Table']
+  const posMode = validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter'
+  
+  // Map mode to order type
+  const MODE_TO_ORDER_TYPE = {
+    'Counter': 'Counter',
+    'Table': 'Dine In'
+  }
+  const orderType = MODE_TO_ORDER_TYPE[posMode]
   
   const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(branch, posProfile, orderType)
   
@@ -27,6 +36,24 @@ function CounterPOSContent({ initialState }) {
   const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split
   const [showPayment, setShowPayment] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
+  const [showVariantPicker, setShowVariantPicker] = useState(false)
+  const [variantPickerContext, setVariantPickerContext] = useState(null)
+
+  // Listen for variant selection events from OrderDetailPanel
+  useEffect(() => {
+    const handleSelectVariant = (event) => {
+      const { itemRow, itemCode } = event.detail
+      setVariantPickerContext({
+        mode: 'convert',
+        templateName: itemCode,
+        orderItemRow: itemRow
+      })
+      setShowVariantPicker(true)
+    }
+
+    window.addEventListener('selectVariant', handleSelectVariant)
+    return () => window.removeEventListener('selectVariant', handleSelectVariant)
+  }, [selectedOrder])
 
   if (authLoading) {
     return <LoadingSpinner message="Authenticating..." />
@@ -45,7 +72,83 @@ function CounterPOSContent({ initialState }) {
   }
 
   const handleNewOrder = () => {
-    alert('New Order - Feature coming soon!\nThis will open the item catalog.')
+    setViewMode('catalog')
+    setShowPayment(false)
+    setShowSplit(false)
+  }
+
+  const handleCatalogItemSelect = (item) => {
+    const hasVariants = item.has_variants === 1 || item.has_variants === true
+    
+    if (hasVariants) {
+      // Show variant picker for template items
+      setVariantPickerContext({
+        mode: 'add',
+        templateName: item.name,
+        orderItemRow: null
+      })
+      setShowVariantPicker(true)
+    } else {
+      // Add regular item directly
+      addItemToOrder(item.name)
+    }
+  }
+
+  const handleVariantSelect = async (variantName, mode) => {
+    if (mode === 'convert' && variantPickerContext?.orderItemRow) {
+      // Convert template to variant
+      await convertTemplateToVariant(variantPickerContext.orderItemRow, variantName)
+    } else {
+      // Add variant to order
+      await addItemToOrder(variantName)
+    }
+    setShowVariantPicker(false)
+    setVariantPickerContext(null)
+  }
+
+  const addItemToOrder = async (itemName) => {
+    if (!selectedOrder) {
+      alert('Please select an order first or create a new one')
+      return
+    }
+
+    try {
+      // Call API to add item to order
+      await frappe.call({
+        method: 'imogi_pos.api.orders.add_item_to_order',
+        args: {
+          order_name: selectedOrder.name,
+          item_code: itemName,
+          qty: 1
+        }
+      })
+
+      alert('Item added to order successfully')
+      // Refresh order data
+      // Note: In production, you'd want to refetch the order or update optimistically
+    } catch (err) {
+      alert('Failed to add item: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const convertTemplateToVariant = async (orderItemRow, variantName) => {
+    if (!selectedOrder) return
+
+    try {
+      await frappe.call({
+        method: 'imogi_pos.api.variants.choose_variant_for_order_item',
+        args: {
+          pos_order: selectedOrder.name,
+          order_item_row: orderItemRow,
+          variant_item: variantName
+        }
+      })
+
+      alert('Template converted to variant successfully')
+      // Refresh order data
+    } catch (err) {
+      alert('Failed to convert: ' + (err.message || 'Unknown error'))
+    }
   }
 
   const handlePrintBill = () => {
@@ -109,13 +212,10 @@ function CounterPOSContent({ initialState }) {
             )}
             
             {viewMode === 'catalog' && (
-              <div className="catalog-panel">
-                <div className="empty-state">
-                  <i className="fa fa-shopping-cart empty-icon"></i>
-                  <h3>Item Catalog</h3>
-                  <p>Menu catalog view coming soon</p>
-                </div>
-              </div>
+              <CatalogView
+                posProfile={posProfile}
+                onSelectItem={handleCatalogItemSelect}
+              />
             )}
             
             {showPayment && (
@@ -142,6 +242,18 @@ function CounterPOSContent({ initialState }) {
           </div>
         </div>
       </div>
+      
+      {/* Variant Picker Modal */}
+      <VariantPickerModal
+        isOpen={showVariantPicker}
+        onClose={() => {
+          setShowVariantPicker(false)
+          setVariantPickerContext(null)
+        }}
+        templateName={variantPickerContext?.templateName}
+        mode={variantPickerContext?.mode || 'add'}
+        onSelectVariant={handleVariantSelect}
+      />
     </div>
   )
 }

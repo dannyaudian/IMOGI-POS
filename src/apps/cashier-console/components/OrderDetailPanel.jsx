@@ -9,6 +9,10 @@ export function OrderDetailPanel({ order, posMode }) {
     )
   }
 
+  const currentMode = posMode || 'Counter'
+  const isTableMode = currentMode === 'Table'
+  const isCounterMode = currentMode === 'Counter'
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -35,10 +39,16 @@ export function OrderDetailPanel({ order, posMode }) {
         <div>
           <h3>{order.name}</h3>
           <div className="order-meta">
-            {order.table_name && (
+            {isTableMode && order.table_name && (
               <span className="order-meta-item">
                 <i className="fa fa-utensils"></i>
                 Table: {order.table_name}
+              </span>
+            )}
+            {isCounterMode && (
+              <span className="order-meta-item">
+                <i className="fa fa-cash-register"></i>
+                Counter Order
               </span>
             )}
             <span className="order-meta-item">
@@ -74,19 +84,44 @@ export function OrderDetailPanel({ order, posMode }) {
           <h4>Order Items</h4>
           {order.items && order.items.length > 0 ? (
             <div className="order-items-list">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="order-item">
-                  <div className="order-item-name">{item.item_name}</div>
-                  <div className="order-item-qty">{item.qty}</div>
-                  <div className="order-item-price">{formatCurrency(item.rate)}</div>
-                  <div className="order-item-total">{formatCurrency(item.amount)}</div>
-                  {item.notes && (
-                    <div className="order-item-notes">
-                      <i className="fa fa-comment"></i> {item.notes}
+              {order.items.map((item, idx) => {
+                const isTemplate = item.has_variants === 1 || item.has_variants === true
+                
+                return (
+                  <div key={idx} className={`order-item ${isTemplate ? 'template-item' : ''}`}>
+                    <div className="order-item-name">
+                      {item.item_name}
+                      {isTemplate && (
+                        <span className="template-badge">
+                          <i className="fa fa-list"></i> Template
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div className="order-item-qty">{item.qty}</div>
+                    <div className="order-item-price">{formatCurrency(item.rate)}</div>
+                    <div className="order-item-total">{formatCurrency(item.amount)}</div>
+                    
+                    {isTemplate && (
+                      <div className="order-item-actions">
+                        <button 
+                          className="select-variant-btn"
+                          onClick={() => window.dispatchEvent(new CustomEvent('selectVariant', { 
+                            detail: { itemRow: item.name, itemCode: item.item_code } 
+                          }))}
+                        >
+                          <i className="fa fa-edit"></i> Select Variant
+                        </button>
+                      </div>
+                    )}
+                    
+                    {item.notes && (
+                      <div className="order-item-notes">
+                        <i className="fa fa-comment"></i> {item.notes}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="no-items">No items in this order</div>
