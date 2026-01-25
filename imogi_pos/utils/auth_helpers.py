@@ -98,12 +98,19 @@ def get_user_role_context(user=None):
     # Get user's full name
     full_name = user
     if not is_guest:
-        full_name = frappe.db.get_value("User", user, "full_name") or user
+        try:
+            full_name = frappe.db.get_value("User", user, "full_name") or user
+        except Exception:
+            full_name = user
     
-    # Get user defaults
+    # Get user defaults - wrap in try/except for safety
     defaults = {}
     if not is_guest:
-        defaults = frappe.defaults.get_user_defaults(user) or {}
+        try:
+            # frappe.defaults.get_defaults() returns defaults for current user
+            defaults = dict(frappe.defaults.get_defaults() or {})
+        except Exception:
+            defaults = {}
     
     return {
         "user": user,
