@@ -113,9 +113,6 @@ def get_available_modules(branch=None):
         # Get user roles
         user_roles = frappe.get_roles(user)
         
-        # Get user roles
-        user_roles = frappe.get_roles(user)
-        
         # Filter modules based on user roles
         available_modules = []
         for module_type, config in MODULE_CONFIGS.items():
@@ -130,6 +127,7 @@ def get_available_modules(branch=None):
                     'icon': config['icon'],
                     'requires_session': config.get('requires_session', False),
                     'requires_opening': config.get('requires_opening', False),
+                    'requires_active_cashier': config.get('requires_active_cashier', False),
                     'order': config.get('order', 99)
                 })
         
@@ -158,59 +156,58 @@ def get_user_branch_info():
         user_roles = frappe.get_roles(user)
         is_system_manager = 'System Manager' in user_roles
         
-        # Get user's primary branch with multiple fallbacks
+        # Get user's primary branch from custom field
         current_branch = None
-        
-        # Try getting from User custom field (if exists)
         if frappe.db.has_column('User', 'imogi_default_branch'):
             current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
         
-        # If no user branch set, try getting from defaults
-        if not current_branch:
-            try:
-                defaults = frappe.defaults.get_defaults()
-                current_branch = defaults.get('company') or defaults.get('default_company')
-            except:
-                pass
-        
-        # Try getting available branches/companies
+        # Get available branches from Branch doctype
         available_branches = []
         
-        # First try Branch doctype (if exists)
-        if frappe.db.exists('DocType', 'Branch'):
-            try:
-                available_branches = frappe.get_list(
-                    'Branch',
-                    fields=['name', 'branch_name as branch'],
-                    limit_page_length=0
-                )
-            except:
-                pass
+        # Check if Branch doctype exists
+        if not frappe.db.exists('DocType', 'Branch'):
+            frappe.throw(_('Branch DocType does not exist. Please create Branch master first.'))
         
-        # If no Branch doctype or no data, fallback to Company
-        if not available_branches:
-            try:
-                available_branches = frappe.get_list(
-                    'Company',
-                    fields=['name', 'company_name as branch'],
-                    limit_page_length=0
-                )
-            except:
-                pass
+        try:
+            branch_list = frappe.get_list(
+                'Branch',
+                fields=['name', 'branch_name as branch'],
+                limit_page_length=0
+            )
+            if branch_list:
+                available_branches = branch_list
+        except Exception as e:
+            frappe.log_error(f'Error fetching branches: {str(e)}')
+            frappe.throw(_('Error loading branches. Please check Branch DocType configuration.'))
         
-        # If still no branches, create a default one for System Manager
+        # If no branches found, throw error
         if not available_branches:
             if is_system_manager:
-                available_branches = [{'name': 'Default', 'branch': 'Default Branch'}]
-                current_branch = 'Default'
+                frappe.throw(_('No branches configured. Please create at least one Branch.'))
             else:
                 frappe.throw(_('No branches configured in the system. Please contact administrator.'))
         
+        # Verify current branch exists in available branches
+        if current_branch:
+            branch_names = [b.get('name') for b in available_branches]
+            if current_branch not in branch_names:
+                # Current branch from user doesn't exist in available list
+                # Use first available instead
+                current_branch = available_branches[0].get('name')
+                
+                # Update user's default branch
+                if frappe.db.has_column('User', 'imogi_default_branch'):
+                    try:
+                        frappe.db.set_value('User', user, 'imogi_default_branch', current_branch)
+                        frappe.db.commit()
+                    except:
+                        pass
+        
         # If current branch is still None, use first available
         if not current_branch and available_branches:
-            current_branch = available_branches[0].name
+            current_branch = available_branches[0].get('name')
             
-            # Try to set it as user's default for next time (if field exists)
+            # Set it as user's default for next time
             if frappe.db.has_column('User', 'imogi_default_branch'):
                 try:
                     frappe.db.set_value('User', user, 'imogi_default_branch', current_branch)
@@ -225,34 +222,12 @@ def get_user_branch_info():
     
     except Exception as e:
         frappe.log_error(f'Error in get_user_branch_info: {str(e)}')
-        
-        # For System Manager, provide default fallback
-        user_roles = frappe.get_roles(frappe.session.user)
-        if 'System Manager' in user_roles:
-            return {
-                'current_branch': 'Default',
-                'available_branches': [{'name': 'Default', 'branch': 'Default Branch'}]
-            }
-        
-        # Try one last fallback for other users
-        try:
-            defaults = frappe.defaults.get_defaults()
-            fallback_branch = defaults.get('company') or defaults.get('default_company')
-            if fallback_branch:
-                return {
-                    'current_branch': fallback_branch,
-                    'available_branches': [{'name': fallback_branch, 'branch': fallback_branch}]
-                }
-        except:
-            pass
-        
-        # If all else fails, return error
         frappe.throw(_('Unable to determine branch. Please contact administrator.'))
 
 
 @frappe.whitelist()
 def get_active_pos_opening(branch=None):
-    """Get the active POS opening entry for the current user."""
+    """Get the active POS opening entry for the current user at specified branch."""
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
@@ -260,54 +235,80 @@ def get_active_pos_opening(branch=None):
                 'pos_opening_entry': None,
                 'pos_profile_name': None,
                 'opening_balance': 0,
-                'timestamp': None
+                'timestamp': None,
+                'company': None
             }
         
-        # If no branch provided, get default
+        # If no branch provided, get default from user
         if not branch:
-            # Try custom field first
             if frappe.db.has_column('User', 'imogi_default_branch'):
                 branch = frappe.db.get_value('User', user, 'imogi_default_branch')
             
-            # Fallback to defaults
             if not branch:
-                try:
-                    defaults = frappe.defaults.get_defaults()
-                    branch = defaults.get('company') or defaults.get('default_company') or 'Default'
-                except:
-                    branch = 'Default'
+                return {
+                    'pos_opening_entry': None,
+                    'pos_profile_name': None,
+                    'opening_balance': 0,
+                    'timestamp': None,
+                    'company': None
+                }
         
-        # Get active POS opening entry (most recent one submitted today)
-        from datetime import datetime, timedelta
+        # Get active POS opening entry for this user and branch (most recent one submitted today)
+        from datetime import datetime
         today = datetime.now().date()
         
+        # Find POS Profile(s) for this branch
+        pos_profiles = frappe.get_list(
+            'POS Profile',
+            filters={'imogi_branch': branch},
+            fields=['name', 'company'],
+            limit_page_length=0
+        )
+        
+        if not pos_profiles:
+            return {
+                'pos_opening_entry': None,
+                'pos_profile_name': None,
+                'opening_balance': 0,
+                'timestamp': None,
+                'company': None
+            }
+        
+        # Get company from first POS Profile
+        company = pos_profiles[0].get('company')
+        profile_names = [p.get('name') for p in pos_profiles]
+        
+        # Get active POS opening entry
         pos_opening = frappe.db.get_list(
             'POS Opening Entry',
             filters={
                 'docstatus': 1,  # Submitted
-                'company': branch
+                'user': user,
+                'pos_profile': ['in', profile_names],
+                'period_start_date': ['>=', str(today)]
             },
-            fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation'],
+            fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation', 'company'],
             order_by='creation desc',
             limit_page_length=1
         )
         
         if pos_opening:
             entry = pos_opening[0]
-            pos_profile = frappe.get_doc('POS Profile', entry.get('pos_profile'))
             
             return {
                 'pos_opening_entry': entry.get('name'),
                 'pos_profile_name': entry.get('pos_profile'),
                 'opening_balance': entry.get('opening_balance', 0),
-                'timestamp': entry.get('creation')
+                'timestamp': entry.get('creation'),
+                'company': entry.get('company')
             }
         
         return {
             'pos_opening_entry': None,
             'pos_profile_name': None,
             'opening_balance': 0,
-            'timestamp': None
+            'timestamp': None,
+            'company': company  # Return company from POS Profile even if no opening
         }
     
     except Exception as e:
@@ -316,7 +317,8 @@ def get_active_pos_opening(branch=None):
             'pos_opening_entry': None,
             'pos_profile_name': None,
             'opening_balance': 0,
-            'timestamp': None
+            'timestamp': None,
+            'company': None
         }
 
 
@@ -348,15 +350,42 @@ def set_user_branch(branch):
 @frappe.whitelist()
 def check_active_cashiers(branch=None):
     """
-    Check if there are any active cashier POS sessions.
+    Check if there are any active cashier POS sessions at specified branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
     """
     try:
         # Get current branch if not provided
         if not branch:
-            branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+            if frappe.db.has_column('User', 'imogi_default_branch'):
+                branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+            
             if not branch:
-                branch = frappe.defaults.get_defaults().get('company')
+                return {
+                    'has_active_cashier': False,
+                    'active_sessions': [],
+                    'total_cashiers': 0,
+                    'message': 'No branch configured for user',
+                    'branch': None
+                }
+        
+        # Find POS Profiles for this branch
+        pos_profiles = frappe.get_list(
+            'POS Profile',
+            filters={'imogi_branch': branch},
+            fields=['name', 'company'],
+            limit_page_length=0
+        )
+        
+        if not pos_profiles:
+            return {
+                'has_active_cashier': False,
+                'active_sessions': [],
+                'total_cashiers': 0,
+                'message': f'No POS Profiles configured for branch {branch}',
+                'branch': branch
+            }
+        
+        profile_names = [p.get('name') for p in pos_profiles]
         
         # Query active POS Opening Entries for Cashier module
         active_cashier_sessions = frappe.get_list(
@@ -364,7 +393,7 @@ def check_active_cashiers(branch=None):
             filters={
                 'status': 'Open',
                 'docstatus': 1,
-                'company': branch,
+                'pos_profile': ['in', profile_names],
                 'period_start_date': ['>=', frappe.utils.today()]
             },
             fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation'],
@@ -401,6 +430,81 @@ def check_active_cashiers(branch=None):
             'active_sessions': [],
             'total_cashiers': 0,
             'message': 'Error checking cashier sessions',
+            'error': str(e)
+        }
+
+
+@frappe.whitelist()
+def get_pos_sessions_today(branch=None):
+    """
+    Get all POS sessions opened today at specified branch.
+    Used for session selector in module select UI.
+    """
+    try:
+        # Get current branch if not provided
+        if not branch:
+            if frappe.db.has_column('User', 'imogi_default_branch'):
+                branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+            
+            if not branch:
+                return {
+                    'sessions': [],
+                    'total': 0,
+                    'branch': None
+                }
+        
+        # Find POS Profiles for this branch
+        pos_profiles = frappe.get_list(
+            'POS Profile',
+            filters={'imogi_branch': branch},
+            fields=['name', 'company'],
+            limit_page_length=0
+        )
+        
+        if not pos_profiles:
+            return {
+                'sessions': [],
+                'total': 0,
+                'branch': branch
+            }
+        
+        profile_names = [p.get('name') for p in pos_profiles]
+        
+        # Get all POS Opening Entries opened today
+        sessions = frappe.get_list(
+            'POS Opening Entry',
+            filters={
+                'docstatus': 1,  # Submitted
+                'pos_profile': ['in', profile_names],
+                'period_start_date': ['>=', frappe.utils.today()]
+            },
+            fields=['name', 'pos_profile', 'user', 'opening_balance', 'period_start_date', 'status'],
+            order_by='period_start_date desc'
+        )
+        
+        session_list = []
+        for session in sessions:
+            session_list.append({
+                'name': session.get('name'),
+                'pos_profile': session.get('pos_profile'),
+                'user': session.get('user'),
+                'opening_balance': session.get('opening_balance', 0),
+                'period_start_date': session.get('period_start_date'),
+                'status': session.get('status')
+            })
+        
+        return {
+            'sessions': session_list,
+            'total': len(session_list),
+            'branch': branch
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in get_pos_sessions_today: {str(e)}')
+        return {
+            'sessions': [],
+            'total': 0,
+            'branch': branch,
             'error': str(e)
         }
 

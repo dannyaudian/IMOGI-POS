@@ -247,3 +247,40 @@ def check_permission(doctype, perm_type="read"):
 
     return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
 
+
+@frappe.whitelist()
+def set_user_branch(branch):
+    """Set user's current branch preference for IMOGI POS module selection.
+    
+    Args:
+        branch (str): Branch name to set as default
+        
+    Returns:
+        dict: Success status and message
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == 'Guest':
+            frappe.throw(_('Please login to continue'))
+        
+        # Verify branch exists
+        if not frappe.db.exists('Branch', branch):
+            frappe.throw(_('Branch {0} does not exist').format(branch))
+        
+        # Update user's default branch
+        if frappe.db.has_column('User', 'imogi_default_branch'):
+            frappe.db.set_value('User', user, 'imogi_default_branch', branch)
+            frappe.db.commit()
+        else:
+            frappe.throw(_('User default branch field not configured'))
+        
+        return {
+            'success': True,
+            'message': _('Branch changed to {0}').format(branch),
+            'branch': branch
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in set_user_branch: {str(e)}')
+        frappe.throw(_('Error setting branch. Please try again.'))
+

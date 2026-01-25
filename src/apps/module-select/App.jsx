@@ -130,10 +130,10 @@ function App() {
         <p>{error || 'No branch configured for your account.'}</p>
         {frappe?.session?.user === 'Administrator' || (moduleData?.roles && moduleData.roles.includes('System Manager')) ? (
           <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-            <p>As a System Manager, you can:</p>
+            <p>As a System Manager, please:</p>
             <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
-              <li>Create a <a href="/app/company" style={{ color: '#667eea' }}>Company</a></li>
-              <li>Or create a custom <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a> (if Branch DocType exists)</li>
+              <li>Create at least one <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a></li>
+              <li>Assign the branch to your <a href="/app/user" style={{ color: '#667eea' }}>User</a> profile (Default Branch field)</li>
               <li>Then refresh this page</li>
             </ul>
           </div>

@@ -15,17 +15,30 @@ function POSInfoCard({ posData, isLoading }) {
       <div className="pos-info-card no-opening">
         <div className="status-badge inactive">No Active POS</div>
         <p className="pos-message">No POS session opened yet</p>
+        {posData?.company && (
+          <div className="pos-detail">
+            <label>Company</label>
+            <p className="pos-value">{posData.company}</p>
+          </div>
+        )}
         <p className="pos-hint">Open a POS session in Cashier Console</p>
       </div>
     )
   }
 
-  const { pos_opening_entry, pos_profile_name, opening_balance, timestamp } = posData
+  const { pos_opening_entry, pos_profile_name, opening_balance, timestamp, company } = posData
 
   return (
     <div className="pos-info-card active">
       <div className="status-badge active">Active</div>
       
+      {company && (
+        <div className="pos-detail">
+          <label>Company</label>
+          <p className="pos-value">{company}</p>
+        </div>
+      )}
+
       <div className="pos-detail">
         <label>Profile</label>
         <p className="pos-value">{pos_profile_name}</p>

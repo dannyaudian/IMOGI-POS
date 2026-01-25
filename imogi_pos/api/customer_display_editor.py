@@ -23,20 +23,45 @@ def get_available_devices():
     profiles = frappe.get_all(
         'Customer Display Profile',
         filters={'is_active': 1},
-        fields=['name', 'profile_name', 'branch', 'description'],
+        fields=['name', 'profile_name', 'branch', 'description', 'layout_type', 
+                'grid_columns', 'grid_rows', 'override_brand', 'brand_logo',
+                'brand_logo_dark', 'brand_name', 'brand_color_primary',
+                'brand_color_accent', 'brand_header_bg'],
         order_by='profile_name'
     )
     
     # Format for compatibility with frontend
     devices = []
     for profile in profiles:
+        # Get blocks separately
+        profile_doc = frappe.get_doc('Customer Display Profile', profile.name)
+        
+        # Build config
+        config = {
+            'layout_type': profile.layout_type or 'Grid',
+            'grid_columns': profile.grid_columns or 3,
+            'grid_rows': profile.grid_rows or 2,
+            'override_brand': profile.override_brand or 0,
+            'brand_logo': profile.brand_logo,
+            'brand_logo_dark': profile.brand_logo_dark,
+            'brand_name': profile.brand_name,
+            'brand_color_primary': profile.brand_color_primary,
+            'brand_color_accent': profile.brand_color_accent,
+            'brand_header_bg': profile.brand_header_bg,
+            'blocks': [block.as_dict() for block in profile_doc.get('blocks', [])]
+        }
+        
         devices.append({
             'name': profile.name,
-            'device_name': profile.profile_name,
-            'location': profile.branch,
+            'profile_name': profile.profile_name,
+            'device_name': profile.profile_name,  # Alias for compatibility
+            'branch': profile.branch,
+            'location': profile.branch,  # Alias for compatibility
+            'is_active': True,
             'status': 'active',
             'display_type': 'profile',
-            'description': profile.description
+            'description': profile.description,
+            'config': config
         })
     
     return {
@@ -333,6 +358,84 @@ def get_display_templates():
         'templates': templates,
         'total': len(templates)
     }
+
+
+@frappe.whitelist()
+def create_profile(profile_name, branch, template_id=None, config=None):
+    """
+    Create a new Customer Display Profile
+    
+    Args:
+        profile_name (str): Name for the new profile
+        branch (str): Branch for the profile
+        template_id (str, optional): Template ID to use
+        config (dict, optional): Initial configuration
+    
+    Returns:
+        dict: New profile details
+    """
+    if not frappe.has_permission('Customer Display Profile', 'create'):
+        frappe.throw(_('No permission to create Customer Display Profile'))
+    
+    if not profile_name:
+        frappe.throw(_('Profile name is required'))
+    
+    if not branch:
+        frappe.throw(_('Branch is required'))
+    
+    # Check if profile name already exists
+    if frappe.db.exists('Customer Display Profile', profile_name):
+        frappe.throw(_('Profile with this name already exists'))
+    
+    try:
+        # Create new profile document
+        new_doc = frappe.new_doc('Customer Display Profile')
+        new_doc.profile_name = profile_name
+        new_doc.branch = branch
+        new_doc.is_active = 1
+        
+        # Apply template if provided
+        if template_id:
+            templates = get_display_templates()
+            template = next((t for t in templates.get('templates', []) if t['id'] == template_id), None)
+            if template and template.get('config'):
+                config = template['config']
+        
+        # Apply config if provided
+        if config:
+            if isinstance(config, str):
+                config = json.loads(config)
+            
+            new_doc.layout_type = config.get('layout_type', 'Grid')
+            new_doc.grid_columns = config.get('grid_columns', 3)
+            new_doc.grid_rows = config.get('grid_rows', 2)
+            new_doc.override_brand = config.get('override_brand', 0)
+            new_doc.brand_logo = config.get('brand_logo')
+            new_doc.brand_logo_dark = config.get('brand_logo_dark')
+            new_doc.brand_name = config.get('brand_name')
+            new_doc.brand_color_primary = config.get('brand_color_primary')
+            new_doc.brand_color_accent = config.get('brand_color_accent')
+            new_doc.brand_header_bg = config.get('brand_header_bg')
+            
+            if 'blocks' in config and isinstance(config['blocks'], list):
+                for block_data in config['blocks']:
+                    new_doc.append('blocks', block_data)
+        
+        new_doc.insert(ignore_permissions=True)
+        
+        return {
+            'success': True,
+            'profile': {
+                'name': new_doc.name,
+                'profile_name': new_doc.profile_name,
+                'branch': new_doc.branch,
+                'is_active': new_doc.is_active
+            },
+            'message': _('Profile created successfully')
+        }
+    except Exception as e:
+        frappe.log_error(f'Error creating profile: {str(e)}')
+        frappe.throw(_(f'Error creating profile: {str(e)}'))
 
 
 @frappe.whitelist()

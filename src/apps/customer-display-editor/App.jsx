@@ -11,7 +11,8 @@ import {
   useSaveDisplayConfig,
   useResetDisplayConfig,
   useTestDisplay,
-  useDuplicateProfile
+  useDuplicateProfile,
+  useCreateProfile
 } from '../../shared/api/imogi-api'
 import { useAuth } from '../../shared/hooks/useAuth'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
@@ -47,6 +48,7 @@ function App() {
   const { trigger: resetConfig } = useResetDisplayConfig()
   const { trigger: testDisplay } = useTestDisplay()
   const { trigger: duplicateProfile } = useDuplicateProfile()
+  const { trigger: createProfile, isMutating: creating } = useCreateProfile()
   
   // Extract profiles array from API response
   const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
@@ -87,12 +89,39 @@ function App() {
   }
 
   // Handle template selection
-  const handleTemplateSelect = (template) => {
-    if (template && template.config) {
-      setConfig(template.config)
-      setHasChanges(true)
+  const handleTemplateSelect = async (data) => {
+    if (!data) {
+      setShowTemplateSelector(false)
+      return
     }
-    setShowTemplateSelector(false)
+
+    const { template, profile_name, branch } = data
+
+    try {
+      const result = await createProfile({
+        profile_name,
+        branch,
+        template_id: template?.id,
+        config: template?.config
+      })
+
+      if (result.success) {
+        frappe.show_alert({
+          message: 'Profile created successfully',
+          indicator: 'green'
+        })
+        
+        // Refresh profiles and select the new one
+        await refreshProfiles()
+        setSelectedDevice(result.profile.name)
+        setShowTemplateSelector(false)
+      }
+    } catch (error) {
+      frappe.show_alert({
+        message: error.message || 'Failed to create profile',
+        indicator: 'red'
+      })
+    }
   }
 
   // Save configuration
@@ -210,8 +239,9 @@ function App() {
     return (
       <div className="cde-container">
         <TemplateSelector
-          templates={templates}
+          templates={templates?.templates || []}
           onTemplateSelect={handleTemplateSelect}
+          onCancel={() => setShowTemplateSelector(false)}
         />
       </div>
     )
@@ -231,10 +261,25 @@ function App() {
       <main className="cde-main">
         {!selectedDevice ? (
           <div className="cde-empty-content">
-            <div className="cde-empty-icon">📱</div>
+            <div className="cde-empty-illustration">
+              <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="80" fill="#EEF2FF" />
+                <rect x="60" y="40" width="80" height="120" rx="8" fill="white" stroke="#6366f1" strokeWidth="3" />
+                <rect x="70" y="55" width="60" height="40" rx="4" fill="#6366f1" fillOpacity="0.1" />
+                <rect x="70" y="100" width="60" height="6" rx="3" fill="#6366f1" fillOpacity="0.3" />
+                <rect x="70" y="112" width="40" height="6" rx="3" fill="#6366f1" fillOpacity="0.2" />
+                <circle cx="100" cy="145" r="3" fill="#6366f1" />
+              </svg>
+            </div>
             <h2>Welcome to Customer Display Editor</h2>
-            <p>Select a profile from the sidebar or create a new one to get started</p>
-            <button className="cde-btn-primary" onClick={handleCreateNew}>
+            <p className="cde-empty-subtitle">Configure and manage your customer-facing displays</p>
+            <p className="cde-empty-description">
+              Select a profile from the sidebar or create a new one to start customizing your display settings
+            </p>
+            <button className="cde-btn-primary cde-btn-large" onClick={handleCreateNew}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
               Create New Profile
             </button>
           </div>

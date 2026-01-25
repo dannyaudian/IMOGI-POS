@@ -4,15 +4,35 @@ function BranchSelector({ currentBranch, branches, onBranchChange }) {
   const handleChange = (e) => {
     const branch = e.target.value
     onBranchChange(branch)
-    // Store in localStorage and frappe session
+    // Store in localStorage
     localStorage.setItem('imogi_selected_branch', branch)
+    
+    // Update user preference in backend
     frappe.call({
       method: 'imogi_pos.api.public.set_user_branch',
       args: { branch },
-      callback: () => {
-        window.location.reload()
+      callback: (r) => {
+        if (r.message && r.message.success) {
+          // Reload to apply new branch context
+          window.location.reload()
+        }
+      },
+      error: (err) => {
+        console.error('Failed to update branch:', err)
+        frappe.msgprint({
+          title: 'Error',
+          message: 'Failed to update branch. Please try again.',
+          indicator: 'red'
+        })
       }
     })
+  }
+
+  // Get display name for current branch
+  const getCurrentBranchDisplay = () => {
+    if (!currentBranch || !branches) return currentBranch
+    const branch = branches.find(b => b.name === currentBranch)
+    return branch ? (branch.branch || branch.name) : currentBranch
   }
 
   return (
@@ -22,14 +42,20 @@ function BranchSelector({ currentBranch, branches, onBranchChange }) {
         onChange={handleChange}
         className="branch-dropdown"
       >
-        <option value="">Select Branch...</option>
+        {(!currentBranch || currentBranch === '') && (
+          <option value="">Select Branch...</option>
+        )}
         {branches && branches.map((branch) => (
           <option key={branch.name} value={branch.name}>
-            {branch.name}
+            {branch.branch || branch.name}
           </option>
         ))}
       </select>
-      <p className="branch-note">Current: <strong>{currentBranch}</strong></p>
+      {currentBranch && (
+        <p className="branch-note">
+          Current: <strong>{getCurrentBranchDisplay()}</strong>
+        </p>
+      )}
     </div>
   )
 }

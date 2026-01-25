@@ -192,6 +192,10 @@ export function useDuplicateProfile() {
   return useImogiAPI('imogi_pos.api.customer_display_editor.duplicate_profile')
 }
 
+export function useCreateProfile() {
+  return useImogiAPI('imogi_pos.api.customer_display_editor.create_profile')
+}
+
 /**
  * Table Management API (untuk restaurant)
  */
