@@ -987,12 +987,14 @@ frappe.ready(function () {
 
   function loadItemsForSelector() {
     const itemGrid = document.getElementById('item-grid');
+    const categoryPills = document.getElementById('category-pills');
     if (!itemGrid) return;
     
+    // Show loading spinner
     itemGrid.innerHTML = `
-      <div class="loading-items" style="text-align:center; padding:40px;">
-        <div style="font-size:24px; margin-bottom:8px;">⏳</div>
-        <div>Loading items...</div>
+      <div class="loading-items">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading items...</div>
       </div>`;
     
     frappe.call({
@@ -1006,13 +1008,40 @@ frappe.ready(function () {
       if (r && r.message) {
         itemsData = r.message;
         renderItems();
+        
+        // Populate category pills
+        if (itemsData.categories && categoryPills) {
+          const pills = ['<div class="category-pill active" data-category="">All</div>'];
+          itemsData.categories.forEach(cat => {
+            pills.push(`<div class="category-pill" data-category="${escapeAttr(cat.name)}">${escapeHtml(cat.category_name || cat.name)}</div>`);
+          });
+          categoryPills.innerHTML = pills.join('');
+          
+          // Add click handlers to category pills
+          categoryPills.querySelectorAll('.category-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+              // Update active state
+              categoryPills.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+              pill.classList.add('active');
+              
+              // Update category filter and re-render
+              const categoryFilter = document.getElementById('category-filter');
+              if (categoryFilter) {
+                categoryFilter.value = pill.dataset.category || '';
+              }
+              renderItems();
+            });
+          });
+        }
+        
+        // Also populate dropdown for compatibility
         populateCategories();
       } else {
         itemGrid.innerHTML = `
-          <div class="loading-items" style="text-align:center; padding:40px;">
-            <div style="font-size:24px; margin-bottom:8px;">📦</div>
-            <div style="font-weight:600; margin-bottom:4px;">No items found</div>
-            <div style="font-size:12px; color:var(--muted);">Check your POS Profile item configuration</div>
+          <div class="no-items-state">
+            <div class="no-items-state-icon">📦</div>
+            <div class="no-items-state-title">No items found</div>
+            <div style="font-size:12px; margin-top:4px;">Check your POS Profile item configuration</div>
           </div>`;
       }
     })
@@ -1020,20 +1049,21 @@ frappe.ready(function () {
       console.error('Failed to load items:', err);
       const errorMsg = err?.message || err?.exc || 'Server error. Please try again later.';
       itemGrid.innerHTML = `
-        <div class="loading-items" style="text-align:center; padding:40px;">
-          <div style="font-size:24px; margin-bottom:8px;">❌</div>
-          <div style="font-weight:600; margin-bottom:4px;">Failed to load items</div>
-          <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Please try again.</div>
-          <button class="btn btn-primary retry-load-items" style="font-size:13px;">
-            🔄 Retry
+        <div class="error-state">
+          <div class="error-state-icon">⚠️</div>
+          <div class="error-state-title">Failed to load items</div>
+          <div class="error-state-message">${escapeHtml(errorMsg)}</div>
+          <button class="btn btn-primary retry-load-items">
+            <i class="fa fa-refresh"></i> Try Again
           </button>
         </div>`;
+      
       // Add retry click handler
       const retryBtn = itemGrid.querySelector('.retry-load-items');
       if (retryBtn) {
         retryBtn.addEventListener('click', loadItemsForSelector);
       }
-      showError(__('Server error. Please try again later.'));
+      showError('Failed to load items. Please try again.');
     });
   }
 
@@ -1073,23 +1103,45 @@ frappe.ready(function () {
     }
     
     if (filtered.length === 0) {
-      itemGrid.innerHTML = '<div class="loading-items">No items found.</div>';
+      itemGrid.innerHTML = `
+        <div class="no-items-state">
+          <div class="no-items-state-icon">🔍</div>
+          <div class="no-items-state-title">No items found</div>
+          <div style="font-size:13px; margin-top:4px;">Try adjusting your search or category filter</div>
+        </div>`;
       return;
     }
     
     const html = filtered.map(item => {
       const inStock = item.in_stock !== false;
       const stockClass = inStock ? '' : ' out-of-stock';
-      const stockText = item.actual_qty != null ? `Stock: ${item.actual_qty}` : 'Available';
+      let stockBadge = '';
+      
+      if (item.actual_qty != null) {
+        if (item.actual_qty <= 0) {
+          stockBadge = '<div class="item-card-stock">Out of Stock</div>';
+        } else if (item.actual_qty <= 10) {
+          stockBadge = `<div class="item-card-stock low-stock">Low: ${item.actual_qty}</div>`;
+        } else {
+          stockBadge = `<div class="item-card-stock in-stock">In Stock</div>`;
+        }
+      }
+      
       const imageUrl = item.image || '/assets/imogi_pos/images/placeholder-item.png';
+      const hasImage = item.image ? '' : ' placeholder';
       
       return `
         <div class="item-card${stockClass}" data-item-code="${escapeAttr(item.item_code)}" data-rate="${item.rate || 0}">
-          <img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(item.item_name)}" class="item-card-image" 
-               onerror="this.src='/assets/imogi_pos/images/placeholder-item.png'">
+          ${item.image ? 
+            `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(item.item_name)}" class="item-card-image" 
+                 onerror="this.parentElement.querySelector('.item-card-image').classList.add('placeholder'); this.style.display='none'; const placeholder = document.createElement('div'); placeholder.className='item-card-image placeholder'; placeholder.innerHTML='🍽️'; this.parentElement.insertBefore(placeholder, this);">` :
+            `<div class="item-card-image placeholder">🍽️</div>`
+          }
           <div class="item-card-name" title="${escapeAttr(item.item_name)}">${escapeHtml(item.item_name)}</div>
-          <div class="item-card-price">${CURRENCY_SYMBOL} ${formatNumber(item.rate || 0)}</div>
-          <div class="item-card-stock">${escapeHtml(stockText)}</div>
+          <div class="item-card-meta">
+            <div class="item-card-price">${CURRENCY_SYMBOL} ${formatNumber(item.rate || 0)}</div>
+            ${stockBadge}
+          </div>
         </div>
       `;
     }).join('');
@@ -1155,27 +1207,48 @@ frappe.ready(function () {
   function renderCart() {
     const cartItemsEl = document.getElementById('cart-items');
     const submitBtn = document.getElementById('submit-order');
+    const cartCountEl = document.getElementById('cart-count');
     
     if (!cartItemsEl) return;
     
+    // Update cart count badge
+    if (cartCountEl) {
+      cartCountEl.textContent = cartItems.length;
+      cartCountEl.style.display = cartItems.length > 0 ? 'inline' : 'none';
+    }
+    
     if (cartItems.length === 0) {
-      cartItemsEl.innerHTML = '<div class="empty-cart">No items added yet</div>';
+      cartItemsEl.innerHTML = `
+        <div class="empty-cart">
+          <div class="empty-cart-icon">🛒</div>
+          <div class="empty-cart-text">Tap items to add to order</div>
+        </div>`;
       if (submitBtn) submitBtn.disabled = true;
     } else {
-      const html = cartItems.map(item => `
+      const html = cartItems.map(item => {
+        const imageUrl = itemsData.items.find(i => i.item_code === item.item_code)?.image || '/assets/imogi_pos/images/placeholder-item.png';
+        
+        return `
         <div class="cart-item">
+          <img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(item.item_name)}" class="cart-item-image"
+               onerror="this.style.display='none'">
           <div class="cart-item-details">
-            <div class="cart-item-name">${escapeHtml(item.item_name)}</div>
+            <div class="cart-item-name" title="${escapeAttr(item.item_name)}">${escapeHtml(item.item_name)}</div>
             <div class="cart-item-price">${CURRENCY_SYMBOL} ${formatNumber(item.rate)} × ${item.qty}</div>
           </div>
-          <div class="cart-item-qty">
-            <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="minus">−</button>
-            <span class="qty-value">${item.qty}</span>
-            <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="plus">+</button>
+          <div class="cart-item-actions">
+            <div class="cart-item-qty">
+              <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="minus">−</button>
+              <span class="qty-value">${item.qty}</span>
+              <button class="qty-btn" data-item="${escapeAttr(item.item_code)}" data-action="plus">+</button>
+            </div>
+            <div class="cart-item-remove" data-item="${escapeAttr(item.item_code)}" title="Remove">
+              <i class="fa fa-trash"></i>
+            </div>
           </div>
-          <div class="cart-item-remove" data-item="${escapeAttr(item.item_code)}" title="Remove">×</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
       
       cartItemsEl.innerHTML = html;
       if (submitBtn) submitBtn.disabled = false;

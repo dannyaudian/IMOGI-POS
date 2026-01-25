@@ -948,35 +948,53 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>{{ _("Create New Order - Select Items") }}</h3>
-          <button class="modal-close" id="close-item-selector" aria-label="{{ _('Close') }}">×</button>
-        </div>
-        
-        <div class="modal-toolbar">
-          <input type="text" id="item-search" class="search-input" placeholder="{{ _('Search items...') }}">
-          <select id="category-filter" class="btn">
-            <option value="">{{ _("All Categories") }}</option>
-          </select>
+          <h3>
+            <span class="back-icon" id="close-item-selector" title="{{ _('Back') }}">
+              <i class="fa fa-arrow-left"></i>
+            </span>
+            {{ _("Create New Order") }}
+          </h3>
           <div class="order-type-selector">
-            <label style="font-size:13px;margin-right:8px;">{{ _("Type") }}:</label>
+            <span class="type-label">{{ _("Type") }}:</span>
             <label><input type="radio" name="order-type" value="Takeaway" checked> {{ _("Takeaway") }}</label>
             <label><input type="radio" name="order-type" value="Dine-in"> {{ _("Dine-in") }}</label>
           </div>
         </div>
         
+        <div class="modal-toolbar">
+          <input type="text" id="item-search" class="search-input" placeholder="{{ _('Search items by name or code...') }}">
+          <select id="category-filter" class="btn" style="display:none;">
+            <option value="">{{ _("All Categories") }}</option>
+          </select>
+        </div>
+        
+        <div class="category-pills" id="category-pills">
+          <div class="category-pill active" data-category="">{{ _("All") }}</div>
+        </div>
+        
         <div class="modal-body">
-          <div class="item-grid" id="item-grid">
-            <div class="loading-items">{{ _("Loading items...") }}</div>
+          <div class="item-grid-wrapper">
+            <div class="item-grid" id="item-grid">
+              <div class="loading-items">
+                <div class="spinner"></div>
+                <div class="loading-text">{{ _("Loading items...") }}</div>
+              </div>
+            </div>
           </div>
           
           <div class="cart-panel">
-            <h4>{{ _("Current Order") }}</h4>
+            <div class="cart-panel-header">
+              <h4>{{ _("Current Order") }} <span class="cart-count" id="cart-count">0</span></h4>
+            </div>
             <div id="cart-items" class="cart-items">
-              <div class="empty-cart">{{ _("No items added yet") }}</div>
+              <div class="empty-cart">
+                <div class="empty-cart-icon">🛒</div>
+                <div class="empty-cart-text">{{ _("Tap items to add to order") }}</div>
+              </div>
             </div>
             <div class="cart-totals">
-              <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="cart-subtotal">0.00</span></div>
-              <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="cart-total">0.00</span></div>
+              <div class="total-row"><span>{{ _("Subtotal") }}</span><span id="cart-subtotal">0</span></div>
+              <div class="grand-total total-row"><span>{{ _("Total") }}</span><span id="cart-total">0</span></div>
             </div>
             <button id="submit-order" class="btn btn-primary btn-block" disabled>
               {{ _("Submit Order") }}
