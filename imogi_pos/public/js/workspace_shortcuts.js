@@ -178,8 +178,8 @@ imogi_pos.workspace_shortcuts = {
                 return;
             }
             
-            // Clean up the href
-            let clean_href = href.toString().replace(/^/app/, '');
+            // Clean up the href - remove /app prefix if present
+            let clean_href = href.toString().replace(/^\/app\//, '/').replace(/^\/app$/, '/');
             
             // Double-check cleaned href is valid
             if (clean_href && clean_href !== 'null' && clean_href !== 'undefined' && self.is_www_page(clean_href)) {

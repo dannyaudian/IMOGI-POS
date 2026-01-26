@@ -5,6 +5,8 @@ from imogi_pos.utils.react_helpers import add_react_context
 from imogi_pos.utils.error_pages import set_setup_error
 from imogi_pos.utils.auth_decorators import require_roles
 
+# Prevent Frappe from caching this page
+no_cache = 1
 
 def get_context(context):
     """Context builder for Module Select page."""
