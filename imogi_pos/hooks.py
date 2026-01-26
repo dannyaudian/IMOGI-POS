@@ -141,6 +141,10 @@ whitelisted_methods = {
     ]
 }
 
+override_whitelisted_methods = {
+    "frappe.desk.desktop.get_desktop_page": "imogi_pos.utils.desktop.get_desktop_page"
+}
+
 # Security: Add security headers to all responses
 after_request = [
     "imogi_pos.utils.security.add_security_headers"
@@ -193,4 +197,3 @@ website_route_rules = [
 
 after_install = "imogi_pos.install.after_install"
 after_migrate = "imogi_pos.install.after_migrate"
-
