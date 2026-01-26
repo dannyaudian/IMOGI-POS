@@ -689,6 +689,11 @@
                 .toLowerCase()
                 .replace(/ /g, '-')
                 .replace(/[^\w-]/g, '');
+        },
+        // No-op setup for Frappe desk compatibility
+        setup: function() {
+            // Polyfill: Does nothing in custom apps
+            // Frappe desk expects this to exist
         }
     };
 
@@ -1623,7 +1628,9 @@
      */
     window.frappe.session._markReady = function() {
         frappe.session._ready = true;
-        frappe.session._readyCallbacks.forEach(fn => {
+        // Ensure _readyCallbacks exists
+        const callbacks = frappe.session._readyCallbacks || [];
+        callbacks.forEach(fn => {
             try { fn(); } catch(e) { console.error('Session ready callback error:', e); }
         });
         frappe.session._readyCallbacks = [];

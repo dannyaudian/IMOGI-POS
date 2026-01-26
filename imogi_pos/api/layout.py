@@ -32,7 +32,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 from imogi_pos.utils.decorators import require_permission
 
 def check_restaurant_domain(pos_profile=None):
@@ -128,7 +128,7 @@ def get_table_layout(floor):
     
     # Get branch from floor to validate access
     branch = floor_doc.branch
-    validate_branch_access(branch)
+    check_branch_access(branch)
     
     # Check restaurant domain
     check_restaurant_domain()
@@ -274,7 +274,7 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     
     # Get branch from floor to validate access
     branch = floor_doc.branch
-    validate_branch_access(branch)
+    check_branch_access(branch)
     
     # Check restaurant domain
     check_restaurant_domain()
@@ -404,7 +404,7 @@ def get_tables(pos_profile=None, branch=None):
         return []
     
     # Validate branch access
-    validate_branch_access(effective_branch)
+    check_branch_access(effective_branch)
     
     # Get all tables for this branch through their floors
     # NOTE: Using frappe.get_all instead of SQL to avoid field issues
@@ -470,7 +470,7 @@ def update_table_status(table, status, order=None):
     # Validate branch access via floor
     floor_branch = frappe.db.get_value("Restaurant Floor", table_doc.floor, "branch")
     if floor_branch:
-        validate_branch_access(floor_branch)
+        check_branch_access(floor_branch)
     
     # Check restaurant domain
     check_restaurant_domain()
@@ -567,7 +567,7 @@ def get_table_status(floor=None, tables=None):
     if floor:
         floor_doc = frappe.get_doc("Restaurant Floor", floor)
         branch = floor_doc.branch
-        validate_branch_access(branch)
+        check_branch_access(branch)
         
         if not tables:
             tables = frappe.get_all("Restaurant Table", 
@@ -583,7 +583,7 @@ def get_table_status(floor=None, tables=None):
         # Validate branch access if not already validated by floor
         if not floor:
             branch = frappe.db.get_value("Restaurant Floor", table_doc.floor, "branch")
-            validate_branch_access(branch)
+            check_branch_access(branch)
         
         # Get current order if any
         current_order = table_doc.current_pos_order

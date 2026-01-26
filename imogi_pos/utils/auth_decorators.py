@@ -15,6 +15,14 @@ from functools import wraps
 import inspect
 
 
+# Import from centralized permission manager (ERPNext v15+ compatible)
+from imogi_pos.utils.permission_manager import (
+    is_privileged_user,
+    check_any_role,
+    check_pos_profile_access,
+    check_branch_access
+)
+
 def _get_context_from_call(func, args, kwargs):
     """
     Helper to ensure context is properly passed to decorated functions.

@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 import re
-from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.permission_manager import check_branch_access, check_doctype_permission
 
 def normalize_phone_number(phone):
     """
@@ -302,7 +302,7 @@ def attach_customer_to_order_or_invoice(customer, pos_order=None, sales_invoice=
         # Attach to POS Order
         if pos_order:
             pos_order_doc = frappe.get_doc("POS Order", pos_order)
-            validate_branch_access(pos_order_doc.branch)
+            check_branch_access(pos_order_doc.branch)
             
             # Update customer
             pos_order_doc.customer = customer
@@ -314,7 +314,7 @@ def attach_customer_to_order_or_invoice(customer, pos_order=None, sales_invoice=
         # Attach to Sales Invoice
         if sales_invoice:
             invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
-            validate_branch_access(invoice_doc.branch)
+            check_branch_access(invoice_doc.branch)
             
             # Ensure invoice is not already submitted
             if invoice_doc.docstatus == 1:

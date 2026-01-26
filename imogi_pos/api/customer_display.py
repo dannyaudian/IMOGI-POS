@@ -9,7 +9,7 @@ from frappe.utils import now_datetime, cint, get_datetime, random_string
 from frappe.realtime import publish_realtime
 import json
 import hashlib
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 
 
 # ===== REALTIME DISPLAY UPDATES (Phase 2) =====
@@ -306,7 +306,7 @@ def register_display_device(device_name, branch, profile=None):
     Returns:
         dict: Device information including pairing code
     """
-    validate_branch_access(branch)
+    check_branch_access(branch)
     
     # Generate a unique device ID if not found by name
     device_id = None
@@ -378,7 +378,7 @@ def link_display_to_order(device_id, pos_order=None, sales_invoice=None):
     device = get_device_by_id(device_id)
     
     # Validate branch access
-    validate_branch_access(device.branch)
+    check_branch_access(device.branch)
     
     # Validate device status
     if device.status not in ["Online", "Paired"]:
@@ -485,7 +485,7 @@ def get_customer_display_config(device_id=None, pairing_code=None):
     if device_id:
         try:
             device = get_device_by_id(device_id)
-            validate_branch_access(device.branch)
+            check_branch_access(device.branch)
             
             # Get profile configuration
             profile_config = {}
@@ -573,7 +573,7 @@ def post_display_heartbeat(device_id):
         device = get_device_by_id(device_id)
         
         # Validate branch access
-        validate_branch_access(device.branch)
+        check_branch_access(device.branch)
         
         # Update heartbeat
         current_time = now_datetime()
@@ -700,7 +700,7 @@ def check_display_status(branch):
     try:
         # Validate branch access (skip for now if Branch doctype doesn't exist)
         if frappe.db.exists("DocType", "Branch"):
-            validate_branch_access(branch)
+            check_branch_access(branch)
     except frappe.DoesNotExistError:
         # Branch doctype may not exist in this setup
         pass

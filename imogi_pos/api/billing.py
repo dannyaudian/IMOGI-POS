@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint, add_to_date, get_url, flt, cstr
 from frappe.realtime import publish_realtime
-from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.permission_manager import check_branch_access, check_doctype_permission
 from imogi_pos.utils.decorators import require_permission, require_role
 
 try:
@@ -793,7 +793,7 @@ def generate_invoice(
 
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Optionally merge transient customer metadata
     customer_details = {}
@@ -1135,7 +1135,7 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
             branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     
     if branch:
-        validate_branch_access(branch)
+        check_branch_access(branch)
 
     # Treat explicit 'All' workflow_state as no filter
     if workflow_state == "All":
@@ -1225,7 +1225,7 @@ def prepare_invoice_draft(pos_order):
 
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Get POS Profile to determine mode (Table/Counter/Kiosk)
     profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
@@ -1467,7 +1467,7 @@ def request_payment(sales_invoice):
 
     # Get Sales Invoice details
     invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
-    validate_branch_access(invoice_doc.branch)
+    check_branch_access(invoice_doc.branch)
     
     # Get POS Profile for payment settings
     pos_profile = frappe.db.get_value("POS Profile", invoice_doc.pos_profile, 
@@ -1635,7 +1635,7 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
         
         frappe.logger().debug(f"Validating branch access for: {branch}")
         # Validate branch access - will throw clear error if no access
-        validate_branch_access(branch)
+        check_branch_access(branch)
         
         # Default to current user if cashier not specified
         if not cashier:

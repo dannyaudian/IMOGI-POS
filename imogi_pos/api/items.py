@@ -10,7 +10,7 @@ from imogi_pos.utils.kitchen_routing import (
     get_menu_category_kitchen_station_by_category,
 )
 from imogi_pos.utils.auth_decorators import allow_guest_if_configured
-from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.permission_manager import check_branch_access, check_doctype_permission
 
 
 # Channel keywords that mean "all channels"
@@ -221,7 +221,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     from frappe.utils import flt, cint
     
     # Authorize API call
-    validate_api_permission("Item")
+    check_doctype_permission("Item")
     
     # Get POS Profile if not provided
     if not pos_profile:
@@ -232,7 +232,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
             frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
     
     # Validate user has access to this POS Profile
-    validate_api_permission("POS Profile", doc=pos_profile)
+    check_doctype_permission("POS Profile", doc=pos_profile)
     
     # Get branch from POS Profile if not provided
     if not branch:
@@ -240,7 +240,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     
     # Additional branch validation for safety
     if branch:
-        validate_branch_access(branch)
+        check_branch_access(branch)
     
     # Get item price list from POS Profile
     price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")

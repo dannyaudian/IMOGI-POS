@@ -341,13 +341,18 @@ class PermissionManager {
     }
 }
 
-// Create global instance (idempotent)
-window.PermissionManager = window.PermissionManager || new PermissionManager();
+// Expose the class to window first
+if (typeof window.PermissionManager === 'undefined') {
+    window.PermissionManager = PermissionManager;
+}
+
+// Create global instance (idempotent) - now using the class from window
+window.permissionManager = window.permissionManager || new window.PermissionManager();
 
 // Auto-initialize in Frappe desk / web context
 if (typeof frappe !== 'undefined') {
     const initPermissions = () => {
-        const pm = window.PermissionManager;
+        const pm = window.permissionManager;
         if (!pm || typeof pm.init !== 'function') return;
 
         pm.init()

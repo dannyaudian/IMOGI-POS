@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint, now_datetime, get_url
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 import json
 import os
 import base64
@@ -148,7 +148,7 @@ def get_printer_config(pos_profile=None, job_type="receipt"):
     if pos_profile:
         profile_doc = frappe.get_doc("POS Profile", pos_profile)
         if profile_doc.get("imogi_branch"):
-            validate_branch_access(profile_doc.imogi_branch)
+            check_branch_access(profile_doc.imogi_branch)
         
         # Get printer settings from POS Profile
         config = {
@@ -248,7 +248,7 @@ def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_f
     try:
         # Get KOT details
         kot_doc = frappe.get_doc("KOT Ticket", kot_ticket)
-        validate_branch_access(kot_doc.branch)
+        check_branch_access(kot_doc.branch)
         
         # Get the POS Order for additional context
         pos_order = frappe.get_doc("POS Order", kot_doc.pos_order)
@@ -325,7 +325,7 @@ def get_customer_bill_html(pos_order, pos_profile=None):
 
     try:
         order_doc = frappe.get_doc("POS Order", pos_order)
-        validate_branch_access(order_doc.branch)
+        check_branch_access(order_doc.branch)
 
         if not pos_profile:
             pos_profile = order_doc.pos_profile
@@ -336,7 +336,7 @@ def get_customer_bill_html(pos_order, pos_profile=None):
         if pos_profile:
             profile_doc = frappe.get_doc("POS Profile", pos_profile)
             if profile_doc.get("imogi_branch"):
-                validate_branch_access(profile_doc.imogi_branch)
+                check_branch_access(profile_doc.imogi_branch)
             print_format = profile_doc.get("imogi_customer_bill_format")
             if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
                 hide_notes = True
@@ -380,7 +380,7 @@ def print_customer_bill(pos_order, print_format=None):
     try:
         # Get POS Order details
         order_doc = frappe.get_doc("POS Order", pos_order)
-        validate_branch_access(order_doc.branch)
+        check_branch_access(order_doc.branch)
 
         # Get print format name if not provided
         if not print_format and order_doc.pos_profile:
@@ -454,7 +454,7 @@ def print_receipt(sales_invoice, print_format=None):
     try:
         # Get Sales Invoice details
         invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
-        validate_branch_access(invoice_doc.branch)
+        check_branch_access(invoice_doc.branch)
         
         # Get print format name if not provided
         if not print_format and invoice_doc.pos_profile:
@@ -505,7 +505,7 @@ def get_queue_ticket_html(sales_invoice, pos_profile=None):
 
     try:
         invoice_doc = frappe.get_doc("Sales Invoice", sales_invoice)
-        validate_branch_access(invoice_doc.branch)
+        check_branch_access(invoice_doc.branch)
 
         if not pos_profile:
             pos_profile = invoice_doc.pos_profile
@@ -514,7 +514,7 @@ def get_queue_ticket_html(sales_invoice, pos_profile=None):
         if pos_profile:
             profile_doc = frappe.get_doc("POS Profile", pos_profile)
             if profile_doc.get("imogi_branch"):
-                validate_branch_access(profile_doc.imogi_branch)
+                check_branch_access(profile_doc.imogi_branch)
             print_format = profile_doc.get("imogi_queue_format")
 
         if not print_format:
@@ -588,7 +588,7 @@ def print_queue_ticket(queue_no, pos_profile=None, print_format=None):
             
             # Validate branch access if available
             if profile_doc.get("imogi_branch"):
-                validate_branch_access(profile_doc.imogi_branch)
+                check_branch_access(profile_doc.imogi_branch)
         
         if not print_format:
             print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_queue_format")

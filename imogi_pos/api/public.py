@@ -26,7 +26,7 @@ from imogi_pos.utils.branding import (
     ACCENT_COLOR,
     HEADER_BG_COLOR,
 )
-from imogi_pos.utils.permissions import validate_branch_access, validate_api_permission
+from imogi_pos.utils.permission_manager import check_branch_access, check_doctype_permission
 from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.utils.auth_helpers import (
     get_user_role_context,
@@ -271,7 +271,7 @@ def set_active_branch(branch):
     if not branch:
         return None
 
-    validate_branch_access(branch)
+    check_branch_access(branch)
     frappe.defaults.set_user_default("imogi_branch", branch)
     return branch
 

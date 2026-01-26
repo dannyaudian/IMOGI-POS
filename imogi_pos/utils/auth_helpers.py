@@ -3,16 +3,20 @@ Authentication helper functions.
 
 Centralized utilities for authentication, authorization, and user context
 in the IMOGI POS system.
+
+NOTE: This module is deprecated. Use imogi_pos.utils.permission_manager instead.
 """
 
 import frappe
 from frappe import _
 
-# Import permission utilities to avoid duplication
-from imogi_pos.utils.permissions import (
-    has_privileged_access,
-    validate_api_permission,
-    validate_branch_access,
+# Import from centralized permission manager (ERPNext v15+ compatible)
+from imogi_pos.utils.permission_manager import (
+    is_privileged_user,
+    check_doctype_permission,
+    check_branch_access,
+    check_pos_profile_access,
+    get_user_permissions
 )
 
 

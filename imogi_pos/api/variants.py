@@ -9,7 +9,7 @@ from frappe.utils import cint, flt
 from imogi_pos.api.billing import get_bom_capacity_summary
 from imogi_pos.api.items import _channel_matches
 from imogi_pos.api.pricing import get_price_list_rate_maps
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 
 def get_order_branch(pos_order):
     """
@@ -485,7 +485,7 @@ def choose_variant_for_order_item(pos_order, order_item_row, selected_attributes
 
     # Get order details for branch validation
     branch = get_order_branch(pos_order)
-    validate_branch_access(branch)
+    check_branch_access(branch)
     
     # Get the current order item
     order_item = frappe.get_doc("POS Order Item", order_item_row)

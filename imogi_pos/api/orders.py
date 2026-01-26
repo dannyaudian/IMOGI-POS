@@ -7,7 +7,7 @@ import copy
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, flt, cstr, cint
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.api.queue import get_next_queue_number
 from imogi_pos.api.pricing import get_price_list_rate_maps
@@ -181,7 +181,7 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     """
 
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
 
     state = getattr(order_doc, "workflow_state", None)
     if state in WORKFLOW_CLOSED_STATES:
@@ -420,7 +420,7 @@ def get_next_available_table(pos_profile=None, branch=None):
     if not effective_branch:
         frappe.throw(_("No branch specified or configured"), frappe.ValidationError)
     
-    validate_branch_access(effective_branch)
+    check_branch_access(effective_branch)
     tables = frappe.get_all(
         "Restaurant Table",
         filters={"branch": effective_branch, "status": "Available"},
@@ -507,7 +507,7 @@ def create_order(order_type, pos_profile=None, branch=None, table=None, customer
     if not effective_pos_profile:
         frappe.throw(_("POS Profile is required"), frappe.ValidationError)
     
-    validate_branch_access(effective_branch)
+    check_branch_access(effective_branch)
     ensure_update_stock_enabled(effective_pos_profile)
 
     if not selling_price_list:
@@ -789,7 +789,7 @@ def open_or_create_for_table(table, floor, pos_profile):
     if not branch:
         frappe.throw(_("Branch not configured in POS Profile"), frappe.ValidationError)
 
-    validate_branch_access(branch)
+    check_branch_access(branch)
 
     table_doc = frappe.get_doc("Restaurant Table", table)
 
@@ -801,7 +801,7 @@ def open_or_create_for_table(table, floor, pos_profile):
             table_doc.set_status("Available")
         else:
             existing_order = frappe.get_doc("POS Order", table_doc.current_pos_order)
-            validate_branch_access(existing_order.branch)
+            check_branch_access(existing_order.branch)
             return existing_order.as_dict()
 
     return create_order("Dine-in", branch, pos_profile, table)
@@ -825,7 +825,7 @@ def switch_table(pos_order, from_table, to_table):
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Validate that the from_table matches the order's current table
     if order_doc.table != from_table:
@@ -883,7 +883,7 @@ def merge_tables(target_table, source_tables):
 
     target_order = frappe.get_doc("POS Order", target_order_name)
     check_restaurant_domain(target_order.pos_profile)
-    validate_branch_access(target_order.branch)
+    check_branch_access(target_order.branch)
 
     target_table_doc = frappe.get_doc("Restaurant Table", target_table)
 
@@ -933,7 +933,7 @@ def merge_tables(target_table, source_tables):
 def update_order_status(pos_order, status):
     """Update an order's workflow state and free its table when completed."""
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
 
     order_doc.db_set("workflow_state", status, update_modified=False)
     order_doc.workflow_state = status
@@ -964,7 +964,7 @@ def save_order(pos_order, items=None, customer=None, guests=None, table=None, **
         items = frappe.parse_json(items)
     
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Check if order is in a closed state
     if order_doc.workflow_state in WORKFLOW_CLOSED_STATES:
@@ -1046,7 +1046,7 @@ def cancel_order(pos_order):
         dict: Success status and message
     """
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Check if order can be cancelled
     if order_doc.workflow_state in ["Billed", "Completed"]:
@@ -1108,7 +1108,7 @@ def set_order_type(pos_order, order_type):
     """
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # If changing to or from Dine-in, check restaurant domain
     if order_type == "Dine-in" or order_doc.order_type == "Dine-in":
@@ -1146,7 +1146,7 @@ def create_counter_order(pos_profile, branch, items, customer=None, order_type="
     from imogi_pos.api.pricing import calculate_order_totals
     
     # Validate access
-    validate_branch_access(branch)
+    check_branch_access(branch)
     ensure_update_stock_enabled(pos_profile)
     
     # Parse items if string
@@ -1376,7 +1376,7 @@ def create_table_order(pos_profile=None, branch=None, customer=None, waiter=None
             frappe.throw(_("Table is required for Dine-in orders"))
         
         # Validate branch access
-        validate_branch_access(effective_branch)
+        check_branch_access(effective_branch)
         
         # Get POS Profile for branch if not already set
         if not effective_pos_profile:

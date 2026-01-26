@@ -1,10 +1,21 @@
 # -*- coding: utf-8 -*-
-"""Decorator utilities for IMOGI POS API endpoints."""
+"""
+Decorator utilities for IMOGI POS API endpoints.
+
+NOTE: This module is kept for backward compatibility.
+New code should use imogi_pos.utils.permission_manager directly.
+"""
 
 import frappe
 from frappe import _
 from functools import wraps
-from imogi_pos.utils.permissions import validate_api_permission, has_privileged_access
+from imogi_pos.utils.permission_manager import (
+    check_doctype_permission,
+    check_any_role as check_roles,
+    is_privileged_user,
+    check_pos_profile_access,
+    check_branch_access
+)
 
 
 def require_permission(doctype, perm_type="read", validate_branch=False):
@@ -34,14 +45,15 @@ def require_permission(doctype, perm_type="read", validate_branch=False):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            # Skip check for privileged users
-            if not has_privileged_access():
+            # Skip check for privileged users (Admin/System Manager)
+            if not is_privileged_user():
                 # Validate permission with informative error message
-                validate_api_permission(doctype, perm_type=perm_type, throw=True)
+                # Uses centralized check_doctype_permission() which calls native frappe.has_permission()
+                check_doctype_permission(doctype, perm_type=perm_type, throw=True)
                 
                 # Validate branch access if required
                 if validate_branch:
-                    from imogi_pos.utils.permissions import validate_branch_access
+                    from imogi_pos.utils.permission_manager import check_branch_access
                     import inspect
                     
                     # Extract branch parameter from function signature
@@ -61,7 +73,7 @@ def require_permission(doctype, perm_type="read", validate_branch=False):
                     
                     # Validate if branch was found
                     if branch:
-                        validate_branch_access(branch, throw=True)
+                        check_branch_access(branch, throw=True)
             
             return fn(*args, **kwargs)
         return wrapper
@@ -88,14 +100,15 @@ def require_any_permission(*doctypes, perm_type="read"):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            # Skip check for privileged users
-            if has_privileged_access():
+            # Skip check for privileged users (Admin/System Manager)
+            if is_privileged_user():
                 return fn(*args, **kwargs)
             
             # Check if user has permission on any of the specified DocTypes
+            # Uses centralized permission_manager which calls native frappe.has_permission()
             has_any_permission = False
             for doctype in doctypes:
-                if validate_api_permission(doctype, perm_type=perm_type, throw=False):
+                if check_doctype_permission(doctype, perm_type=perm_type, throw=False):
                     has_any_permission = True
                     break
             
@@ -142,17 +155,24 @@ def require_role(*roles):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            # Skip check for privileged users
-            if has_privileged_access():
+            # Skip check for privileged users (Admin/System Manager)
+            if is_privileged_user():
                 return fn(*args, **kwargs)
             
-            # Check if user has any of the required roles
-            user_roles = frappe.get_roles(frappe.session.user)
-            has_required_role = any(role in user_roles for role in roles)
+            # Check if user has any of the required roles using centralized check_any_role()
+            # This uses native frappe.get_roles() with session.ready() guarantee
+            try:
+                check_roles(list(roles), throw=True)
+            except frappe.PermissionError:
+                user = frappe.session.user
+                user_roles = frappe.get_roles(user)
+                has_required_role = False
+            else:
+                has_required_role = True
             
             if not has_required_role:
                 user = frappe.session.user
-                user_roles_str = ", ".join(user_roles)
+                user_roles_str = ", ".join(frappe.get_roles(user))
                 
                 error_msg = _(
                     "Access Denied: This operation requires one of these roles: {0}\n"
@@ -231,9 +251,9 @@ def require_config_access(config_doctype, perm_type="write"):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             # Skip check for privileged users (ERPNext v15 standard)
-            if not has_privileged_access():
+            if not is_privileged_user():
                 # Use centralized permission validation
-                validate_api_permission(config_doctype, perm_type=perm_type, throw=True)
+                check_doctype_permission(config_doctype, perm_type=perm_type, throw=True)
             
             return fn(*args, **kwargs)
         return wrapper
@@ -268,7 +288,7 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             # Skip check for privileged users
-            if has_privileged_access():
+            if is_privileged_user():
                 return fn(*args, **kwargs)
             
             user = frappe.session.user

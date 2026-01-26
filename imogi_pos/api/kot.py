@@ -8,7 +8,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, cint
 from frappe.realtime import publish_realtime
-from imogi_pos.utils.permissions import validate_branch_access
+from imogi_pos.utils.permission_manager import check_branch_access
 from imogi_pos.utils.decorators import require_permission, require_role
 from imogi_pos.utils.state_manager import StateManager
 from imogi_pos.utils.kot_publisher import KOTPublisher
@@ -142,7 +142,7 @@ def get_kitchens_and_stations(branch=None):
         branch = None
 
     if branch:
-        validate_branch_access(branch)
+        check_branch_access(branch)
 
     kitchen_filters = {"is_active": 1}
     if branch:
@@ -350,7 +350,7 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
     # Get POS Order details
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_restaurant_domain(order_doc.pos_profile)
-    validate_branch_access(order_doc.branch)
+    check_branch_access(order_doc.branch)
     
     # Validate items for templates
     for row_name in item_rows:
@@ -546,7 +546,7 @@ def update_kot_item_state(kot_item, state):
     pos_order = frappe.get_doc("POS Order", kot_ticket.pos_order)
 
     check_restaurant_domain(pos_order.pos_profile)
-    validate_branch_access(pos_order.branch)
+    check_branch_access(pos_order.branch)
 
     # Use service logic to perform the update and emit realtime events
     return service_update_kot_item_state(kot_item, state)
@@ -589,7 +589,7 @@ def _apply_ticket_state_change(kot_ticket, state):
     pos_order = frappe.get_doc("POS Order", ticket_doc.pos_order)
 
     check_restaurant_domain(pos_order.pos_profile)
-    validate_branch_access(pos_order.branch)
+    check_branch_access(pos_order.branch)
 
     service = KOTService()
     result = service.update_kot_ticket_state(kot_ticket, state)
@@ -729,7 +729,7 @@ def print_kot(pos_order=None, kot_ticket=None, kitchen_station=None, copies=1, r
     
     # Validate permissions
     check_restaurant_domain(pos_order_doc.pos_profile)
-    validate_branch_access(pos_order_doc.branch)
+    check_branch_access(pos_order_doc.branch)
     
     # Determine kitchen station if not provided
     if not kitchen_station:
@@ -802,7 +802,7 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
             pos_order_filters['pos_profile'] = pos_profile
         elif branch:
             pos_order_filters['branch'] = branch
-            validate_branch_access(branch)
+            check_branch_access(branch)
         else:
             frappe.throw(_('Please provide either pos_profile or branch parameter'))
         
