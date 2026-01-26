@@ -15,6 +15,7 @@ function KitchenContent({ initialState }) {
   // Use centralized POS context
   const { posProfile, branch } = useImogiPOS()
   
+  // Fallback to initialState for backward compatibility
   const kitchen = initialState.kitchen || 'Main Kitchen'
   const defaultStation = initialState.station || null
   

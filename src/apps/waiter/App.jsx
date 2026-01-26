@@ -12,20 +12,20 @@ function WaiterContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
   
   // Use centralized POS context (with initialState fallback)
-  const { posProfile: contextPosProfile, branch: contextBranch, mode: contextMode } = useImogiPOS()
+  const { posProfile, branch, mode: posMode } = useImogiPOS()
   
   // Fallback to initialState for backward compatibility
-  const branch = contextBranch || initialState.branch || 'Default'
-  const posProfile = contextPosProfile || initialState.pos_profile || 'Default'
-  const mode = contextMode || initialState.mode || 'Dine-in' // Dine-in or Counter
+  const effectiveBranch = branch || initialState.branch || 'Default'
+  const effectivePosProfile = posProfile || initialState.pos_profile || 'Default'
+  const mode = posMode || initialState.mode || 'Dine-in' // Dine-in or Counter
   
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   
-  // Fetch data - now uses POS Profile-derived branch
-  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(branch)
-  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
+  // Fetch data
+  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(effectiveBranch)
+  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(effectiveBranch, effectivePosProfile)
   
   // Ensure arrays are properly initialized
   const tables = Array.isArray(tablesData) ? tablesData : []
@@ -47,7 +47,7 @@ function WaiterContent({ initialState }) {
     loading: orderLoading,
     error: orderError,
     createAndSendToKitchen
-  } = useTableOrder(branch)
+  } = useTableOrder(effectiveBranch)
 
   if (authLoading) {
     return <LoadingSpinner message="Authenticating..." />

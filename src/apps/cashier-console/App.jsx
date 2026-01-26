@@ -16,24 +16,25 @@ import './App.css'
 function CounterPOSContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   
-  // Use centralized POS context (with initialState fallback)
-  const { posProfile: contextPosProfile, branch: contextBranch, mode: contextMode } = useImogiPOS()
+  // Use centralized POS context
+  const { posProfile, branch, mode: posMode } = useImogiPOS()
   
-  const branch = contextBranch || initialState.branch || 'Default'
-  const posProfile = contextPosProfile || initialState.pos_profile || 'Default'
+  // Fallback to initialState for backward compatibility
+  const effectiveBranch = branch || initialState.branch || 'Default'
+  const effectivePosProfile = posProfile || initialState.pos_profile || 'Default'
   
   // Explicitly validate and set POS mode (Counter or Table)
   const validModes = ['Counter', 'Table']
-  const posMode = validModes.includes(contextMode || initialState.pos_mode) ? (contextMode || initialState.pos_mode) : 'Counter'
+  const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
   
   // Map mode to order type
   const MODE_TO_ORDER_TYPE = {
     'Counter': 'Counter',
     'Table': 'Dine In'
   }
-  const orderType = MODE_TO_ORDER_TYPE[posMode]
+  const orderType = MODE_TO_ORDER_TYPE[mode]
   
-  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(branch, posProfile, orderType)
+  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(effectiveBranch, effectivePosProfile, orderType)
   
   // State management
   const [selectedOrder, setSelectedOrder] = useState(null)

@@ -13,12 +13,13 @@ from datetime import datetime
 
 
 @frappe.whitelist()
-def get_pending_orders(branch=None, table=None, waiter=None, from_date=None, to_date=None):
+def get_pending_orders(pos_profile=None, branch=None, table=None, waiter=None, from_date=None, to_date=None):
     """
     Get list of orders pending payment
     
     Args:
-        branch: Filter by branch
+        pos_profile: POS Profile name (PREFERRED - primary filter)
+        branch: Filter by branch (DEPRECATED - use pos_profile)
         table: Filter by specific table
         waiter: Filter by waiter
         from_date: Filter orders from date
@@ -28,12 +29,20 @@ def get_pending_orders(branch=None, table=None, waiter=None, from_date=None, to_
         List of pending orders with summary info
     """
     try:
+        # Deprecation warning
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: get_pending_orders(branch=...) is deprecated. Use pos_profile parameter instead.")
+        
         filters = {
             "docstatus": ["<", 2],  # Not cancelled
             "status": ["in", ["Draft", "Submitted"]],
         }
         
-        if branch:
+        # Priority 1: Filter by POS Profile if provided
+        if pos_profile:
+            filters["pos_profile"] = pos_profile
+        # Priority 2: Fallback to branch (deprecated)
+        elif branch:
             filters["branch"] = branch
         if table:
             filters["table"] = table

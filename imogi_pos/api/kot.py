@@ -897,26 +897,40 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
 
 
 @frappe.whitelist()
-def get_active_kots(kitchen=None, station=None):
+def get_active_kots(pos_profile=None, kitchen=None, station=None, branch=None):
     """
     Get active KOTs for Kitchen Display System.
     Returns KOTs that are not Served or Cancelled.
     
     Args:
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary filter)
         kitchen (str, optional): Kitchen name to filter
         station (str, optional): Station name to filter
+        branch (str, optional): Branch name (DEPRECATED - use pos_profile)
     
     Returns:
         list: Active KOT documents with items
     """
     try:
+        # Deprecation warning
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: get_active_kots(branch=...) is deprecated. Use pos_profile parameter instead.")
+        
         filters = {
             "workflow_state": ["not in", ["Served", "Cancelled"]],
             "docstatus": 1
         }
         
-        if kitchen:
+        # Priority: pos_profile > kitchen > branch (deprecated)
+        if pos_profile:
+            # Get branch from POS Profile and filter KOTs by that branch
+            pos_branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+            if pos_branch:
+                filters["branch"] = pos_branch
+        elif kitchen:
             filters["kitchen"] = kitchen
+        elif branch:
+            filters["branch"] = branch
         
         if station:
             filters["station"] = station

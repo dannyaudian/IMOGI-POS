@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FrappeProvider } from 'frappe-react-sdk'
+import { ImogiPOSProvider, useImogiPOS } from '../../shared/providers/ImogiPOSProvider'
+import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import {
   OrderList,
   OrderDetails,
@@ -19,9 +21,7 @@ import {
   usePaymentMethods
 } from '../../shared/api/imogi-api'
 import { useAuth } from '../../shared/hooks/useAuth'
-import { usePOSProfile } from '../../shared/hooks/usePOSProfile'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
-import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import './cashier.css'
 
 /**
@@ -30,11 +30,13 @@ import './cashier.css'
  */
 function CashierApp() {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
+  
+  // Use centralized POS context
+  const { posProfile, branch } = useImogiPOS()
   const { cashier, branch: sessionBranch } = useCashierSession()
   
-  // Use centralized POS Profile management
-  const { currentProfile: posProfile, branch: profileBranch } = usePOSProfile()
-  const branch = profileBranch || sessionBranch
+  // Use POS context branch or session branch
+  const effectiveBranch = branch || sessionBranch
   
   // Order state
   const [selectedOrderName, setSelectedOrderName] = useState(null)
@@ -56,9 +58,9 @@ function CashierApp() {
   }
 
   // Fetch data
-  const { data: ordersData, isLoading: ordersLoading, mutate: refreshOrders } = usePendingOrders(branch, filters)
+  const { data: ordersData, isLoading: ordersLoading, mutate: refreshOrders } = usePendingOrders(effectiveBranch, filters)
   const { data: orderDetailsData, isLoading: detailsLoading } = useOrderDetails(selectedOrderName)
-  const { data: paymentMethodsData } = usePaymentMethods(branch)
+  const { data: paymentMethodsData } = usePaymentMethods(effectiveBranch)
 
   // Payment processor
   const { 

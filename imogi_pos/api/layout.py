@@ -377,25 +377,40 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     }
 
 @frappe.whitelist()
-def get_tables(branch):
+def get_tables(pos_profile=None, branch=None):
     """
     Gets all tables for a specific branch for the waiter app.
     Returns a simple list of tables with their current status.
     
     Args:
-        branch (str): Branch name
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
+        branch (str, optional): Branch name (DEPRECATED - use pos_profile)
     
     Returns:
         list: List of tables with basic information
     """
+    # Deprecation warning
+    if branch and not pos_profile:
+        frappe.log("DEPRECATION WARNING: get_tables(branch=...) is deprecated. Use pos_profile parameter instead.")
+    
+    # Determine effective branch
+    effective_branch = None
+    if pos_profile:
+        effective_branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    elif branch:
+        effective_branch = branch
+    
+    if not effective_branch:
+        return []
+    
     # Validate branch access
-    validate_branch_access(branch)
+    validate_branch_access(effective_branch)
     
     # Get all tables for this branch through their floors
     # NOTE: Using frappe.get_all instead of SQL to avoid field issues
     floors = frappe.get_all(
         "Restaurant Floor",
-        filters={"branch": branch},
+        filters={"branch": effective_branch},
         fields=["name"],
         pluck="name"
     )
