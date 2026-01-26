@@ -22,13 +22,21 @@ export function useImogiAPI(method, onSuccess, onError) {
 /**
  * Call IMOGI POS API dengan fetch
  * Alternative untuk component yang tidak menggunakan hooks
+ * 
+ * NOTE: Consider using frappe.call() instead for consistency with polyfill
+ * and better error handling. This function is kept for backward compatibility.
  */
 export async function callImogiAPI(method, args = {}) {
+  // Use standardized CSRF token from polyfill
+  const csrfToken = window.FRAPPE_CSRF_TOKEN || 
+                    (typeof frappe !== 'undefined' && frappe.csrf_token) || 
+                    '';
+  
   const response = await fetch('/api/method/' + method, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Frappe-CSRF-Token': window.FRAPPE_CSRF_TOKEN || '',
+      'X-Frappe-CSRF-Token': csrfToken,
     },
     credentials: 'include',
     body: JSON.stringify(args),

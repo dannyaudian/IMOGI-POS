@@ -7,7 +7,7 @@ from functools import wraps
 from imogi_pos.utils.permissions import validate_api_permission, has_privileged_access
 
 
-def require_permission(doctype, perm_type="read"):
+def require_permission(doctype, perm_type="read", validate_branch=False):
     """Decorator to require specific permission for API endpoint.
     
     Administrator and System Manager bypass this check.
@@ -16,12 +16,19 @@ def require_permission(doctype, perm_type="read"):
     Args:
         doctype (str): DocType to check permission for
         perm_type (str): Permission type (read, write, create, delete, etc.)
+        validate_branch (bool): If True, extract and validate branch parameter
     
     Example:
         @frappe.whitelist()
         @require_permission("POS Order", "write")
         def update_order(order_name):
             # User has write permission on POS Order
+            pass
+            
+        @frappe.whitelist()
+        @require_permission("POS Order", "read", validate_branch=True)
+        def get_orders(branch, pos_profile):
+            # User has read permission on POS Order AND branch access
             pass
     """
     def decorator(fn):
@@ -31,6 +38,30 @@ def require_permission(doctype, perm_type="read"):
             if not has_privileged_access():
                 # Validate permission with informative error message
                 validate_api_permission(doctype, perm_type=perm_type, throw=True)
+                
+                # Validate branch access if required
+                if validate_branch:
+                    from imogi_pos.utils.permissions import validate_branch_access
+                    import inspect
+                    
+                    # Extract branch parameter from function signature
+                    sig = inspect.signature(fn)
+                    branch = None
+                    
+                    # Try to get branch from kwargs first
+                    if 'branch' in kwargs:
+                        branch = kwargs['branch']
+                    else:
+                        # Try to get from positional args
+                        param_names = list(sig.parameters.keys())
+                        if 'branch' in param_names:
+                            branch_idx = param_names.index('branch')
+                            if branch_idx < len(args):
+                                branch = args[branch_idx]
+                    
+                    # Validate if branch was found
+                    if branch:
+                        validate_branch_access(branch, throw=True)
             
             return fn(*args, **kwargs)
         return wrapper

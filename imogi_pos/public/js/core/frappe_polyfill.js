@@ -13,7 +13,20 @@
 
     // If Frappe Desk is already loaded, don't override core APIs.
     // Only patch missing helpers (like frappe.ready) then exit.
-    if (typeof window.frappe !== 'undefined' && typeof window.frappe.provide === 'function') {
+    // Check multiple indicators to ensure we're in Desk context:
+    // 1. frappe.provide exists (core Frappe function)
+    // 2. frappe.app exists (Frappe Desk app object)
+    // 3. frappe.session.user is already set by Frappe
+    const isFrappeDeskLoaded = (
+        typeof window.frappe !== 'undefined' && 
+        typeof window.frappe.provide === 'function' &&
+        (typeof window.frappe.app !== 'undefined' || 
+         (window.frappe.session && window.frappe.session.user && window.frappe.boot && window.frappe.boot.user))
+    );
+    
+    if (isFrappeDeskLoaded) {
+        console.log('Frappe Desk detected - using native APIs, only patching missing helpers');
+        
         // Minimal frappe.ready for Desk contexts that don't define it
         if (typeof window.frappe.ready !== 'function') {
             window.frappe.ready = function(fn) {
@@ -31,6 +44,14 @@
             window.__ = function(txt) {
                 return txt;
             };
+        }
+        
+        // Mark session as ready immediately in Desk context
+        if (!window.frappe.session._ready) {
+            window.frappe.session._ready = true;
+            window.frappe.session._readyCallbacks = [];
+            window.frappe.session.ready = function(fn) { if (fn) fn(); };
+            window.frappe.session._markReady = function() {};
         }
 
         return;
@@ -270,11 +291,9 @@
         // Check if method is read-only (no args or empty args)
         const isReadOnly = !args || Object.keys(args).length === 0;
         
-        // Get CSRF token from multiple possible locations
-        const csrfToken = frappe.csrf_token || 
-                         window.csrf_token || 
-                         document.querySelector('meta[name="csrf-token"]')?.content || 
-                         '';
+        // Get CSRF token from single source: window.FRAPPE_CSRF_TOKEN
+        // This is set by server templates and polyfill getter below
+        const csrfToken = window.FRAPPE_CSRF_TOKEN || frappe.csrf_token || '';
         
         let fetchOpts;
         
@@ -1536,22 +1555,35 @@
 
     /**
      * frappe.csrf_token - CSRF token for API calls
-     * Try to get it from window global, meta tag, or cookie
+     * Single source of truth: window.FRAPPE_CSRF_TOKEN
+     * Getter automatically sets it from meta tag or cookie if not already set
      */
     Object.defineProperty(window.frappe, 'csrf_token', {
         get: function() {
-            // Try window global first (set by page templates)
+            // Return cached value if already set
             if (window.FRAPPE_CSRF_TOKEN) {
                 return window.FRAPPE_CSRF_TOKEN;
             }
-            // Try meta tag
+            
+            // Try to get from meta tag
             const meta = document.querySelector('meta[name="csrf_token"]');
             if (meta) {
-                return meta.getAttribute('content');
+                window.FRAPPE_CSRF_TOKEN = meta.getAttribute('content');
+                return window.FRAPPE_CSRF_TOKEN;
             }
-            // Try cookie
+            
+            // Fallback to cookie
             const match = document.cookie.match(/csrf_token=([^;]+)/);
-            return match ? match[1] : '';
+            if (match) {
+                window.FRAPPE_CSRF_TOKEN = match[1];
+                return window.FRAPPE_CSRF_TOKEN;
+            }
+            
+            return '';
+        },
+        set: function(value) {
+            // Allow manual setting of CSRF token
+            window.FRAPPE_CSRF_TOKEN = value;
         }
     });
 
@@ -1567,7 +1599,34 @@
     window.frappe.session = window.frappe.session || {
         user: null,
         sid: null,
-        user_fullname: null
+        user_fullname: null,
+        // Add ready state to prevent race conditions
+        _ready: false,
+        _readyCallbacks: []
+    };
+
+    /**
+     * frappe.session.ready - Execute callback when session is fully loaded
+     * Prevents race condition where user is set but roles are still loading
+     */
+    window.frappe.session.ready = function(callback) {
+        if (typeof callback !== 'function') return;
+        if (frappe.session._ready) {
+            callback();
+        } else {
+            frappe.session._readyCallbacks.push(callback);
+        }
+    };
+
+    /**
+     * Mark session as ready and trigger callbacks
+     */
+    window.frappe.session._markReady = function() {
+        frappe.session._ready = true;
+        frappe.session._readyCallbacks.forEach(fn => {
+            try { fn(); } catch(e) { console.error('Session ready callback error:', e); }
+        });
+        frappe.session._readyCallbacks = [];
     };
 
     /**
@@ -1653,10 +1712,15 @@
                         frappe.boot.user.defaults = ctx.defaults || {};
                         frappe.user.name = ctx.user;
                         frappe.user.full_name = ctx.full_name;
+                        
+                        // Mark session as ready after roles are loaded
+                        frappe.session._markReady();
                     }
                 }).catch((err) => {
                     // Silently ignore if API not available
                     console.debug('IMOGI POS: Could not fetch user context:', err);
+                    // Mark as ready anyway to prevent infinite waiting
+                    frappe.session._markReady();
                 });
             };
             
@@ -1672,6 +1736,10 @@
                     initUserContext();
                 }
             }
+        } else {
+            // Mark session as ready immediately if no boot data needed
+            // (Guest user or Desk context where Frappe already provides boot data)
+            setTimeout(() => frappe.session._markReady(), 0);
         }
     })();
 

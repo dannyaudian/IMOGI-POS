@@ -155,7 +155,7 @@ def allow_guest_if_configured(setting_field="imogi_allow_guest_access", setting_
     return decorator
 
 
-def require_pos_profile(allow_fallback=True):
+def require_pos_profile(allow_fallback=False):
     """
     Decorator to ensure user has an assigned POS Profile.
     
@@ -163,12 +163,18 @@ def require_pos_profile(allow_fallback=True):
     attempts to get default profile for the domain. Throws error if no profile found.
     
     Args:
-        allow_fallback: If True, tries to get default profile when user has none
+        allow_fallback: If True, tries to get default profile when user has none.
+                       Default is False to enforce explicit assignment (consistent with runtime access).
     
     Example:
-        @require_pos_profile()
+        @require_pos_profile()  # Strict: requires explicit assignment
         def get_context(context):
-            # User has POS Profile access
+            # User must be in POS Profile User table
+            pass
+            
+        @require_pos_profile(allow_fallback=True)  # Lenient: allows default profile
+        def get_context(context):
+            # User can use default profile if not explicitly assigned
             pass
     """
     def decorator(func):

@@ -14,7 +14,14 @@ def has_privileged_access(user=None):
         bool: True if user is Administrator or System Manager
     """
     if not user:
+        # Null safety: check if session and user exist
+        if not hasattr(frappe, 'session') or not frappe.session:
+            return False
         user = frappe.session.user
+        
+    # Additional null check
+    if not user:
+        return False
     
     if user == "Administrator":
         return True
