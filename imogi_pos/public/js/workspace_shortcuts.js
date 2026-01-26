@@ -61,69 +61,65 @@ imogi_pos.workspace_shortcuts = {
     setup_capture_phase_handler: function() {
         const self = this;
         
+        // Helper: Resolve URL from click target (safe extraction)
+        function resolveTargetUrl(event) {
+            // Priority 1: Check if clicked on or inside an <a> tag
+            const anchor = event.target.closest && event.target.closest('a');
+            if (anchor) {
+                const href = anchor.getAttribute('href') || anchor.href;
+                if (href && href !== '#' && href !== 'javascript:void(0)') {
+                    return href;
+                }
+            }
+            
+            // Priority 2: Check shortcut-widget-box for data attributes
+            const shortcutBox = event.target.closest && event.target.closest('.shortcut-widget-box');
+            if (shortcutBox) {
+                // Try various data attributes
+                const linkTo = shortcutBox.getAttribute('data-link-to') || 
+                              shortcutBox.getAttribute('data-link') ||
+                              shortcutBox.getAttribute('data-url') ||
+                              shortcutBox.getAttribute('data-route');
+                
+                if (linkTo && linkTo !== 'null' && linkTo !== 'undefined' && linkTo !== '') {
+                    return linkTo;
+                }
+                
+                // Fallback: text mapping
+                const shortcutText = (shortcutBox.innerText || shortcutBox.textContent || '').trim();
+                const mappedUrl = self.shortcut_urls[shortcutText];
+                if (mappedUrl) {
+                    return mappedUrl;
+                }
+            }
+            
+            return null;
+        }
+        
         // Capture phase handler - intercepts BEFORE bubbling phase
         const captureHandler = function(e) {
-            // Find the shortcut widget box if we clicked on child element
-            let target = e.target;
-            let shortcutBox = null;
+            const url = resolveTargetUrl(e);
             
-            // Traverse up to find shortcut-widget-box
-            while (target && target.parentElement) {
-                if (target.classList && target.classList.contains('shortcut-widget-box')) {
-                    shortcutBox = target;
-                    break;
-                }
-                target = target.parentElement;
+            // If no URL found, don't hijack - let browser handle normally
+            if (!url) {
+                return;
             }
             
-            if (!shortcutBox) return;
-            
-            // Get the shortcut text and link-to attribute
-            const shortcutText = (shortcutBox.innerText || shortcutBox.textContent || '').trim();
-            let linkTo = shortcutBox.getAttribute('data-link-to') || 
-                        shortcutBox.querySelector('[data-link-to]')?.getAttribute('data-link-to');
-            
-            console.debug('IMOGI POS: Shortcut clicked:', {
-                text: shortcutText,
-                linkTo: linkTo,
-                element: shortcutBox
-            });
-            
-            // Check if we have a direct link-to attribute
-            if (linkTo && linkTo !== 'null' && linkTo !== 'undefined' && self.is_www_page(linkTo)) {
-                console.log('IMOGI POS: Intercepting shortcut click (link-to) to:', linkTo);
-                
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                
-                window.location.href = linkTo;
-                return false;
+            // Only intercept IMOGI POS www pages
+            if (!self.is_www_page(url)) {
+                return;
             }
             
-            // Check if the shortcut text maps to a known URL
-            const shortcutUrl = self.shortcut_urls[shortcutText];
+            console.log('IMOGI POS: Intercepting shortcut click to www page:', url);
             
-            if (shortcutUrl || self.is_www_page_text(shortcutText)) {
-                const urlToNavigate = shortcutUrl || self.extract_url_from_text(shortcutText);
-                
-                // Validate URL is not null/undefined before navigating
-                if (urlToNavigate && urlToNavigate !== 'null' && urlToNavigate !== 'undefined') {
-                    console.log('IMOGI POS: Intercepting shortcut click (text mapping) to:', {
-                        text: shortcutText,
-                        url: urlToNavigate
-                    });
-                    
-                    // Prevent Frappe's router from handling this
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    
-                    // Navigate directly to www page
-                    window.location.href = urlToNavigate;
-                    return false;
-                }
-            }
+            // Prevent default ONLY when we have a valid URL to navigate to
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            // Navigate to www page (use window.location, not frappe.set_route)
+            window.location.assign(url);
+            return false;
         };
         
         // Attach at CAPTURE phase (third parameter = true)

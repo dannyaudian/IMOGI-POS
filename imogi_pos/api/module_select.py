@@ -228,13 +228,26 @@ def get_user_branch_info():
                 except:
                     pass
         
+        # Final validation before return
+        if not current_branch:
+            frappe.log_error(
+                f'Unable to set current_branch for user {user}. '
+                f'available_branches: {available_branches}, '
+                f'imogi_default_branch: {frappe.db.get_value("User", user, "imogi_default_branch") if frappe.db.has_column("User", "imogi_default_branch") else "N/A"}',
+                'IMOGI POS: Branch Config Error'
+            )
+            frappe.throw(_('Unable to determine branch. User has no default branch configured and no branches are available.'))
+        
         return {
             'current_branch': current_branch,
             'available_branches': available_branches
         }
     
     except Exception as e:
-        frappe.log_error(f'Error in get_user_branch_info: {str(e)}')
+        # Enhanced error logging with traceback
+        import traceback
+        error_msg = f'Error in get_user_branch_info: {str(e)}\n{traceback.format_exc()}'
+        frappe.log_error(error_msg, 'IMOGI POS: Branch Info Error')
         frappe.throw(_('Unable to determine branch. Please contact administrator.'))
 
 
