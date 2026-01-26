@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useKOTList } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
@@ -12,8 +13,14 @@ import './kitchen.css'
 function KitchenContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Kitchen Staff', 'Branch Manager', 'System Manager'])
   
-  // Use centralized POS context
-  const { posProfile, branch } = useImogiPOS()
+  // POS Profile guard - kitchen doesn't require opening, just profile
+  const {
+    isLoading: guardLoading,
+    guardPassed,
+    posProfile,
+    branch,
+    redirectToModuleSelect
+  } = usePOSProfileGuard({ requiresOpening: false })
   
   // Fallback to initialState for backward compatibility
   const kitchen = initialState.kitchen || 'Main Kitchen'
@@ -60,8 +67,14 @@ function KitchenContent({ initialState }) {
   // Subscribe to realtime updates
   useKOTRealtime(kitchen, selectedStation, handleRealtimeEvent)
 
-  if (authLoading) {
-    return <LoadingSpinner message="Authenticating..." />
+  // Show loading while checking auth and guard
+  if (authLoading || guardLoading) {
+    return <LoadingSpinner message="Loading Kitchen Display..." />
+  }
+  
+  // Wait for guard to pass
+  if (!guardPassed) {
+    return <LoadingSpinner message="Verifying access..." />
   }
 
   if (authError || !hasAccess) {

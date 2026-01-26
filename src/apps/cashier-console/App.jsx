@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
+import { POSOpeningModal } from '@/shared/components/POSOpeningModal'
 import { OrderListSidebar } from './components/OrderListSidebar'
 import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { ActionButtons } from './components/ActionButtons'
@@ -16,8 +18,21 @@ import './App.css'
 function CounterPOSContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   
-  // Use centralized POS context
-  const { posProfile, branch, mode: posMode } = useImogiPOS()
+  // POS Profile guard - this module requires opening
+  const {
+    isLoading: guardLoading,
+    guardPassed,
+    posProfile,
+    profileData,
+    branch,
+    posOpening,
+    showOpeningModal,
+    handleOpeningSuccess,
+    handleOpeningCancel
+  } = usePOSProfileGuard({ requiresOpening: true })
+  
+  // Use centralized POS context as fallback
+  const { mode: contextMode } = useImogiPOS()
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || 'Default'
@@ -25,6 +40,7 @@ function CounterPOSContent({ initialState }) {
   
   // Explicitly validate and set POS mode (Counter or Table)
   const validModes = ['Counter', 'Table']
+  const posMode = profileData?.mode || contextMode
   const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
   
   // Map mode to order type
@@ -34,7 +50,8 @@ function CounterPOSContent({ initialState }) {
   }
   const orderType = MODE_TO_ORDER_TYPE[mode]
   
-  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(effectiveBranch, effectivePosProfile, orderType)
+  // useOrderHistory now takes posProfile as primary param
+  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(effectivePosProfile, effectiveBranch, orderType)
   
   // State management
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -60,8 +77,28 @@ function CounterPOSContent({ initialState }) {
     return () => window.removeEventListener('selectVariant', handleSelectVariant)
   }, [selectedOrder])
 
-  if (authLoading) {
-    return <LoadingSpinner message="Authenticating..." />
+  // Show loading while checking auth and guard
+  if (authLoading || guardLoading) {
+    return <LoadingSpinner message="Loading Cashier Console..." />
+  }
+  
+  // Show POS Opening Modal if guard requires it
+  if (showOpeningModal) {
+    return (
+      <POSOpeningModal
+        isOpen={true}
+        onClose={handleOpeningCancel}
+        onSuccess={handleOpeningSuccess}
+        posProfile={effectivePosProfile}
+        required={true}
+        redirectOnCancel="/shared/module-select"
+      />
+    )
+  }
+  
+  // Wait for guard to pass
+  if (!guardPassed) {
+    return <LoadingSpinner message="Verifying POS session..." />
   }
 
   if (authError || !hasAccess) {

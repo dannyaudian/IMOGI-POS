@@ -12,6 +12,20 @@
 (function() {
     'use strict';
     
+    // Fail-safe shim: Ensure frappe.ready exists to prevent crashes from legacy code
+    // This polyfill makes frappe.ready() work in both Desk and Website contexts
+    if (typeof frappe !== 'undefined' && typeof frappe.ready !== 'function') {
+        frappe.ready = function(fn) {
+            if (typeof frappe.after_ajax === 'function') {
+                return frappe.after_ajax(fn);
+            }
+            if (document.readyState === 'loading') {
+                return document.addEventListener('DOMContentLoaded', fn);
+            }
+            setTimeout(fn, 0);
+        };
+    }
+    
     // Wait for frappe to be available
     if (typeof frappe === 'undefined') {
         console.warn('PermissionManager: frappe not available, skipping initialization');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useTables, useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
@@ -11,21 +12,28 @@ import './waiter.css'
 function WaiterContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
   
-  // Use centralized POS context (with initialState fallback)
-  const { posProfile, branch, mode: posMode } = useImogiPOS()
+  // POS Profile guard - waiter doesn't require opening, just profile
+  const {
+    isLoading: guardLoading,
+    guardPassed,
+    posProfile,
+    profileData,
+    branch,
+    redirectToModuleSelect
+  } = usePOSProfileGuard({ requiresOpening: false })
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || 'Default'
   const effectivePosProfile = posProfile || initialState.pos_profile || 'Default'
-  const mode = posMode || initialState.mode || 'Dine-in' // Dine-in or Counter
+  const mode = profileData?.mode || initialState.mode || 'Dine-in' // Dine-in or Counter
   
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   
-  // Fetch data
-  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(effectiveBranch)
-  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(effectiveBranch, effectivePosProfile)
+  // Fetch data - using pos_profile as primary param
+  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(effectivePosProfile, effectiveBranch)
+  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(effectivePosProfile, effectiveBranch)
   
   // Ensure arrays are properly initialized
   const tables = Array.isArray(tablesData) ? tablesData : []
@@ -49,8 +57,14 @@ function WaiterContent({ initialState }) {
     createAndSendToKitchen
   } = useTableOrder(effectiveBranch)
 
-  if (authLoading) {
-    return <LoadingSpinner message="Authenticating..." />
+  // Show loading while checking auth and guard
+  if (authLoading || guardLoading) {
+    return <LoadingSpinner message="Loading Waiter App..." />
+  }
+  
+  // Wait for guard to pass
+  if (!guardPassed) {
+    return <LoadingSpinner message="Verifying access..." />
   }
 
   if (authError || !hasAccess) {

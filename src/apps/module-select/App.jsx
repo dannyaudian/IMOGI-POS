@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
+import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
 import { usePOSProfile } from '../../shared/hooks/usePOSProfile'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
@@ -21,6 +22,10 @@ function App() {
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // POS Opening Modal state
+  const [showOpeningModal, setShowOpeningModal] = useState(false)
+  const [pendingModule, setPendingModule] = useState(null)
 
   // Fetch available modules based on POS Profile (with branch fallback for compatibility)
   const { data: moduleData, isLoading: modulesLoading } = useFrappeGetCall(
@@ -29,7 +34,7 @@ function App() {
   )
 
   // Fetch current POS opening entry - now uses pos_profile as primary
-  const { data: posData, isLoading: posLoading } = useFrappeGetCall(
+  const { data: posData, isLoading: posLoading, mutate: refetchPosData } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
     { pos_profile: currentProfile },
     currentProfile ? undefined : false
@@ -48,6 +53,23 @@ function App() {
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
+  
+  // Listen for POS session opened events (from POSOpeningModal)
+  useEffect(() => {
+    const handleSessionOpened = (event) => {
+      // Refresh POS data
+      refetchPosData()
+      
+      // If there was a pending module, navigate to it
+      if (pendingModule) {
+        navigateToModule(pendingModule, event.detail)
+        setPendingModule(null)
+      }
+    }
+    
+    window.addEventListener('posSessionOpened', handleSessionOpened)
+    return () => window.removeEventListener('posSessionOpened', handleSessionOpened)
+  }, [pendingModule, refetchPosData])
 
   // Calculate POS opening status
   const posOpeningStatus = {
@@ -56,11 +78,37 @@ function App() {
     user: posData?.user,
     openingBalance: posData?.opening_balance
   }
+  
+  // Navigate to module with proper query params
+  const navigateToModule = (module, posSessionData = null) => {
+    let url = module.base_url || module.url
+    const params = new URLSearchParams()
+    
+    // Add pos_profile to query params
+    if (currentProfile) {
+      params.set('pos_profile', currentProfile)
+    }
+    
+    // Add pos_opening_entry if available
+    const openingEntry = posSessionData?.pos_opening_entry || posData?.pos_opening_entry
+    if (openingEntry && module.requires_opening) {
+      params.set('pos_opening_entry', openingEntry)
+    }
+    
+    // Build final URL
+    const queryString = params.toString()
+    if (queryString) {
+      url = `${url}${url.includes('?') ? '&' : '?'}${queryString}`
+    }
+    
+    window.location.href = url
+  }
 
   const handleModuleClick = async (module) => {
     // Store current selection in localStorage (now POS Profile based)
     if (currentProfile) {
       localStorage.setItem('imogi_selected_pos_profile', currentProfile)
+      localStorage.setItem('imogi_active_pos_profile', currentProfile)
     }
     if (selectedBranch) {
       localStorage.setItem('imogi_selected_branch', selectedBranch)
@@ -98,25 +146,32 @@ function App() {
     if (module.requires_opening) {
       // Check if POS opening exists
       if (!posData || !posData.pos_opening_entry) {
-        // No POS opening entry - redirect to create one
-        const posProfile = posData?.pos_profile_name || 'default'
-        frappe.msgprint({
-          title: 'POS Opening Required',
-          message: 'Please open a POS session before accessing this module.',
-          indicator: 'orange',
-          primary_action: {
-            label: 'Open POS Session',
-            action: function() {
-              window.location.href = `/app/pos-opening-entry/new?pos_profile=${posProfile}`
-            }
-          }
-        })
+        // No POS opening entry - show modal to create one
+        setPendingModule(module)
+        setShowOpeningModal(true)
         return
       }
     }
     
     // Navigate to module
-    window.location.href = module.url
+    navigateToModule(module)
+  }
+  
+  // Handle POS Opening Modal success
+  const handleOpeningSuccess = (result) => {
+    setShowOpeningModal(false)
+    
+    // Navigate to pending module if any
+    if (pendingModule) {
+      navigateToModule(pendingModule, result)
+      setPendingModule(null)
+    }
+  }
+  
+  // Handle POS Opening Modal close
+  const handleOpeningClose = () => {
+    setShowOpeningModal(false)
+    setPendingModule(null)
   }
 
   if (loading || profileLoading) {
@@ -309,6 +364,15 @@ function App() {
       <footer className="module-select-footer">
         <p>&copy; 2025 IMOGI Restaurant POS. All rights reserved.</p>
       </footer>
+      
+      {/* POS Opening Modal */}
+      <POSOpeningModal
+        isOpen={showOpeningModal}
+        onClose={handleOpeningClose}
+        onSuccess={handleOpeningSuccess}
+        posProfile={currentProfile}
+        required={false}
+      />
     </div>
   )
 }

@@ -4,7 +4,10 @@ no_cache = 1
 
 def get_context(context):
     """
-    Cashier Payment - Table Service Payment Processing
+    Cashier Payment - DEPRECATED
+    
+    This module has been merged into Cashier Console (/counter/pos).
+    This handler now redirects to /counter/pos with appropriate filter.
     """
     context.no_cache = 1
     
@@ -13,24 +16,18 @@ def get_context(context):
         frappe.local.flags.redirect_location = '/login'
         raise frappe.Redirect
     
-    # Check if user has cashier permissions
-    # You can add role-based checks here if needed
-    # if not frappe.has_permission('POS Invoice', 'create'):
-    #     frappe.throw('You do not have permission to access Cashier Console')
+    # Get user's default POS Profile
+    pos_profile = None
+    if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+        pos_profile = frappe.db.get_value('User', frappe.session.user, 'imogi_default_pos_profile')
     
-    context.title = 'Cashier Payment - IMOGI POS'
-    context.include_js = []
-    context.include_css = []
+    if not pos_profile:
+        pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
     
-    # Get user info
-    context.user = frappe.session.user
-    context.user_fullname = frappe.session.user_fullname or frappe.session.user
+    # Redirect to /counter/pos with filter=pending query param
+    redirect_url = '/counter/pos?filter=pending'
+    if pos_profile:
+        redirect_url += f'&pos_profile={pos_profile}'
     
-    # Get user's default branch if set
-    context.default_branch = frappe.db.get_value(
-        'User', 
-        frappe.session.user, 
-        'default_branch'
-    )
-    
-    return context
+    frappe.local.flags.redirect_location = redirect_url
+    raise frappe.Redirect

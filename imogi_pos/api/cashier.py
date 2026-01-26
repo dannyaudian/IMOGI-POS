@@ -13,6 +13,170 @@ from datetime import datetime
 
 
 @frappe.whitelist()
+def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, notes=None):
+    """
+    Create a new POS Opening Entry from React UI.
+    
+    This API allows creating POS Opening Entry without leaving the React app,
+    used by POSOpeningModal component.
+    
+    Args:
+        pos_profile (str): POS Profile name (required)
+        opening_amount (float): Opening cash amount (default 0)
+        mode_of_payment (str): Mode of payment for opening (optional)
+        notes (str): Additional notes (optional)
+    
+    Returns:
+        dict: Created POS Opening Entry details
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == 'Guest':
+            frappe.throw(_('Please login to continue'))
+        
+        # Validate POS Profile
+        if not pos_profile:
+            frappe.throw(_('POS Profile is required'))
+        
+        if not frappe.db.exists('POS Profile', pos_profile):
+            frappe.throw(_('POS Profile {0} does not exist').format(pos_profile))
+        
+        profile_data = frappe.db.get_value(
+            'POS Profile',
+            pos_profile,
+            ['disabled', 'company', 'imogi_branch'],
+            as_dict=True
+        )
+        
+        if profile_data.get('disabled'):
+            frappe.throw(_('POS Profile {0} is disabled').format(pos_profile))
+        
+        # Check if user has access to this POS Profile
+        user_roles = frappe.get_roles(user)
+        is_privileged = 'System Manager' in user_roles or 'Administrator' in user_roles
+        
+        if not is_privileged:
+            has_access = frappe.db.exists('POS Profile User', {
+                'parent': pos_profile,
+                'user': user
+            })
+            if not has_access:
+                frappe.throw(_('You do not have access to POS Profile {0}').format(pos_profile))
+        
+        # Check for existing open session today
+        today = datetime.now().date()
+        existing_opening = frappe.db.get_list(
+            'POS Opening Entry',
+            filters={
+                'docstatus': 1,
+                'user': user,
+                'pos_profile': pos_profile,
+                'period_start_date': ['>=', str(today)],
+                'status': 'Open'
+            },
+            limit_page_length=1
+        )
+        
+        if existing_opening:
+            frappe.throw(_('You already have an open POS session for {0} today. Please close it first.').format(pos_profile))
+        
+        # Create POS Opening Entry
+        opening_entry = frappe.new_doc('POS Opening Entry')
+        opening_entry.pos_profile = pos_profile
+        opening_entry.user = user
+        opening_entry.company = profile_data.get('company')
+        opening_entry.period_start_date = frappe.utils.now()
+        
+        # Add opening balance if provided
+        if opening_amount and opening_amount > 0:
+            # Get default mode of payment
+            if not mode_of_payment:
+                # Try to get from POS Profile payments
+                default_mop = frappe.db.get_value(
+                    'POS Payment Method',
+                    {'parent': pos_profile, 'default': 1},
+                    'mode_of_payment'
+                )
+                if not default_mop:
+                    # Fallback to Cash
+                    default_mop = 'Cash'
+                mode_of_payment = default_mop
+            
+            opening_entry.append('balance_details', {
+                'mode_of_payment': mode_of_payment,
+                'opening_amount': float(opening_amount)
+            })
+        
+        # Set custom fields if they exist
+        if frappe.db.has_column('POS Opening Entry', 'imogi_notes'):
+            opening_entry.imogi_notes = notes
+        
+        opening_entry.insert(ignore_permissions=True)
+        opening_entry.submit()
+        
+        frappe.db.commit()
+        
+        return {
+            'success': True,
+            'pos_opening_entry': opening_entry.name,
+            'pos_profile': pos_profile,
+            'user': user,
+            'opening_balance': float(opening_amount or 0),
+            'company': profile_data.get('company'),
+            'branch': profile_data.get('imogi_branch'),
+            'timestamp': str(opening_entry.period_start_date),
+            'message': _('POS session opened successfully')
+        }
+    
+    except frappe.ValidationError:
+        raise
+    except Exception as e:
+        frappe.log_error(f'Error in create_pos_opening: {str(e)}')
+        frappe.db.rollback()
+        frappe.throw(_('Error creating POS opening. Please try again.'))
+
+
+@frappe.whitelist()
+def get_pos_payment_methods(pos_profile):
+    """
+    Get available payment methods for a POS Profile.
+    Used by POSOpeningModal to populate mode of payment dropdown.
+    
+    Args:
+        pos_profile (str): POS Profile name
+    
+    Returns:
+        list: Available payment methods
+    """
+    try:
+        if not pos_profile:
+            return []
+        
+        # Get payment methods from POS Profile
+        methods = frappe.get_all(
+            'POS Payment Method',
+            filters={'parent': pos_profile},
+            fields=['mode_of_payment', 'default'],
+            order_by='idx'
+        )
+        
+        if not methods:
+            # Fallback to all enabled payment methods
+            methods = frappe.get_all(
+                'Mode of Payment',
+                filters={'enabled': 1},
+                fields=['name as mode_of_payment'],
+                limit_page_length=20
+            )
+        
+        return methods
+    
+    except Exception as e:
+        frappe.log_error(f'Error in get_pos_payment_methods: {str(e)}')
+        return []
+
+
+@frappe.whitelist()
 def get_pending_orders(pos_profile=None, branch=None, table=None, waiter=None, from_date=None, to_date=None):
     """
     Get list of orders pending payment

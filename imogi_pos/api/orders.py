@@ -398,12 +398,32 @@ def ensure_update_stock_enabled(pos_profile):
 
 
 @frappe.whitelist()
-def get_next_available_table(branch):
-    """Return the lowest-numbered available table for a branch."""
-    validate_branch_access(branch)
+def get_next_available_table(pos_profile=None, branch=None):
+    """
+    Return the lowest-numbered available table for a branch.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name (PREFERRED)
+        branch (str, optional): Branch name (DEPRECATED)
+    """
+    # Deprecation warning
+    if branch and not pos_profile:
+        frappe.log("DEPRECATION WARNING: get_next_available_table(branch=...) is deprecated. Use pos_profile parameter instead.")
+    
+    # Determine effective branch
+    effective_branch = None
+    if pos_profile:
+        effective_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
+    elif branch:
+        effective_branch = branch
+    
+    if not effective_branch:
+        frappe.throw(_("No branch specified or configured"), frappe.ValidationError)
+    
+    validate_branch_access(effective_branch)
     tables = frappe.get_all(
         "Restaurant Table",
-        filters={"branch": branch, "status": "Available"},
+        filters={"branch": effective_branch, "status": "Available"},
         pluck="name",
     )
 
@@ -428,7 +448,7 @@ def get_next_available_table(branch):
 
 @frappe.whitelist()
 @require_permission("POS Order", "create")
-def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
+def create_order(order_type, pos_profile=None, branch=None, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.
     
@@ -444,8 +464,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     
     Args:
         order_type (str): Order type (Dine-in/Takeaway/Kiosk/POS)
-        branch (str): Branch name
-        pos_profile (str): POS Profile name
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
+        branch (str, optional): Branch name (DEPRECATED - use pos_profile)
         table (str, optional): Restaurant Table name.
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
@@ -457,11 +477,41 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         dict: Created POS Order details
 
     """
-    validate_branch_access(branch)
-    ensure_update_stock_enabled(pos_profile)
+    # Deprecation warning
+    if branch and not pos_profile:
+        frappe.log("DEPRECATION WARNING: create_order(branch=...) is deprecated. Use pos_profile parameter instead.")
+    
+    # Determine effective branch and POS profile
+    effective_branch = None
+    effective_pos_profile = pos_profile
+    
+    if pos_profile:
+        # Get branch from POS Profile
+        effective_branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+        effective_pos_profile = pos_profile
+    elif branch:
+        # Legacy: use branch directly
+        effective_branch = branch
+        # Try to find a POS Profile for this branch
+        profiles = frappe.get_all(
+            "POS Profile",
+            filters={"imogi_branch": branch, "disabled": 0},
+            limit_page_length=1
+        )
+        if profiles:
+            effective_pos_profile = profiles[0].name
+    
+    if not effective_branch:
+        frappe.throw(_("Branch is required (derived from POS Profile or explicit)"), frappe.ValidationError)
+    
+    if not effective_pos_profile:
+        frappe.throw(_("POS Profile is required"), frappe.ValidationError)
+    
+    validate_branch_access(effective_branch)
+    ensure_update_stock_enabled(effective_pos_profile)
 
     if not selling_price_list:
-        selling_price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
+        selling_price_list = frappe.db.get_value("POS Profile", effective_pos_profile, "selling_price_list")
 
     # For restaurant-specific features like table assignment
     table_doc = None
@@ -473,13 +523,13 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             raise frappe.ValidationError(message)
 
     if table:
-        check_restaurant_domain(pos_profile)
+        check_restaurant_domain(effective_pos_profile)
         table_doc = frappe.get_doc("Restaurant Table", table)
 
         # Table must belong to branch and be available
-        if table_doc.branch != branch:
+        if table_doc.branch != effective_branch:
             _safe_throw(
-                _("Table {0} does not belong to branch {1}").format(table, branch)
+                _("Table {0} does not belong to branch {1}").format(table, effective_branch)
             )
 
         # Resolve any lingering order linked to this table. In concurrent
@@ -499,7 +549,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
             )
     elif order_type == "Dine-in":
         # Allow Dine-in orders without specifying a table, but ensure Restaurant domain
-        check_restaurant_domain(pos_profile)
+        check_restaurant_domain(effective_pos_profile)
 
     # Normalise optional customer metadata
     customer_details = {}
@@ -583,8 +633,8 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
     order_doc.update(
         {
             "order_type": order_type,
-            "branch": branch,
-            "pos_profile": pos_profile,
+            "branch": effective_branch,
+            "pos_profile": effective_pos_profile,
             "table": table,
             "customer": customer,
             "workflow_state": "Draft",
@@ -597,7 +647,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
         order_doc.floor = table_doc.floor
 
     if order_type in {"Kiosk", "POS"}:
-        order_doc.queue_number = get_next_queue_number(branch)
+        order_doc.queue_number = get_next_queue_number(effective_branch)
 
     if service_type:
         order_doc.service_type = service_type
@@ -615,7 +665,7 @@ def create_order(order_type, branch, pos_profile, table=None, customer=None, ite
                     items=items,
                     customer=customer,
                     price_list=selling_price_list,
-                    pos_profile=pos_profile,
+                    pos_profile=effective_pos_profile,
                 )
                 
                 if pricing_result.get("has_pricing_rules"):
@@ -1268,14 +1318,15 @@ def create_counter_order(pos_profile, branch, items, customer=None, order_type="
 
 
 @frappe.whitelist()
-def create_table_order(branch, customer, waiter, items, table=None, mode="Dine-in", notes=""):
+def create_table_order(pos_profile=None, branch=None, customer=None, waiter=None, items=None, table=None, mode="Dine-in", notes=""):
     """
     Create a POS Order for table service (Waiter App).
     Does not generate invoice - that happens at Cashier when customer pays.
     
     Args:
-        branch (str): Branch name
-        customer (str): Customer name (can be "Walk-in Customer")
+        pos_profile (str, optional): POS Profile name (PREFERRED)
+        branch (str, optional): Branch name (DEPRECATED)
+        customer (str, optional): Customer name (defaults to "Walk-in Customer")
         waiter (str): Waiter user email
         items (list): List of order items with item_code, qty, rate, notes, station
         table (str, optional): Restaurant table name (required for Dine-in)
@@ -1286,14 +1337,31 @@ def create_table_order(branch, customer, waiter, items, table=None, mode="Dine-i
         dict: Created order details
     """
     try:
+        # Deprecation warning
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: create_table_order(branch=...) is deprecated. Use pos_profile parameter instead.")
+        
         # Parse items if JSON string
         if isinstance(items, str):
             import json
             items = json.loads(items)
         
+        # Determine effective branch and pos_profile
+        effective_branch = None
+        effective_pos_profile = pos_profile
+        
+        if pos_profile:
+            effective_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
+        elif branch:
+            effective_branch = branch
+            # Find POS Profile for this branch
+            profiles = frappe.get_all("POS Profile", filters={"imogi_branch": branch, "disabled": 0}, limit=1)
+            if profiles:
+                effective_pos_profile = profiles[0].name
+        
         # Validate inputs
-        if not branch:
-            frappe.throw(_("Branch is required"))
+        if not effective_branch:
+            frappe.throw(_("Branch is required or must be derived from POS Profile"))
         
         if not customer:
             customer = "Walk-in Customer"
@@ -1308,20 +1376,21 @@ def create_table_order(branch, customer, waiter, items, table=None, mode="Dine-i
             frappe.throw(_("Table is required for Dine-in orders"))
         
         # Validate branch access
-        validate_branch_access(branch)
+        validate_branch_access(effective_branch)
         
-        # Get POS Profile for branch
-        pos_profile = frappe.db.get_value("POS Profile", {"branch": branch, "disabled": 0}, "name")
-        if not pos_profile:
-            frappe.throw(_("No active POS Profile found for branch {0}").format(branch))
+        # Get POS Profile for branch if not already set
+        if not effective_pos_profile:
+            effective_pos_profile = frappe.db.get_value("POS Profile", {"imogi_branch": effective_branch, "disabled": 0}, "name")
+            if not effective_pos_profile:
+                frappe.throw(_("No active POS Profile found for branch {0}").format(effective_branch))
         
         # Get POS Profile details
-        pos_profile_doc = frappe.get_doc("POS Profile", pos_profile)
+        pos_profile_doc = frappe.get_doc("POS Profile", effective_pos_profile)
         
         # Create POS Order
         order_doc = frappe.new_doc("POS Order")
-        order_doc.branch = branch
-        order_doc.pos_profile = pos_profile
+        order_doc.branch = effective_branch
+        order_doc.pos_profile = effective_pos_profile
         order_doc.customer = customer
         order_doc.order_type = mode
         order_doc.table = table if mode == "Dine-in" else None

@@ -46,8 +46,12 @@ export async function callImogiAPI(method, args = {}) {
 /**
  * Billing API hooks
  */
-export function useOrderHistory(branch, posProfile, orderType = null) {
-  const params = { branch, pos_profile: posProfile }
+export function useOrderHistory(posProfile, branch = null, orderType = null) {
+  // pos_profile is now primary, branch is optional for backward compatibility
+  const params = { pos_profile: posProfile }
+  if (branch) {
+    params.branch = branch  // Deprecated: for backward compatibility only
+  }
   if (orderType) {
     params.order_type = orderType
   }
@@ -55,7 +59,7 @@ export function useOrderHistory(branch, posProfile, orderType = null) {
   return useFrappeGetCall(
     'imogi_pos.api.billing.list_orders_for_cashier',
     params,
-    `order-history-${branch}-${posProfile}-${orderType || 'all'}`,
+    `order-history-${posProfile}-${orderType || 'all'}`,
     {
       revalidateOnFocus: false,
       refreshInterval: 30000 // Auto refresh every 30 seconds
@@ -78,16 +82,19 @@ export function useSubmitOrder() {
 /**
  * Kitchen API hooks
  */
-export function useKOTList(kitchen, station = null) {
+export function useKOTList(kitchen, station = null, posProfile = null) {
   const params = { kitchen }
   if (station) {
     params.station = station
+  }
+  if (posProfile) {
+    params.pos_profile = posProfile
   }
   
   return useFrappeGetCall(
     'imogi_pos.api.kot.get_active_kots',
     params,
-    `kot-list-${kitchen}-${station || 'all'}`,
+    `kot-list-${kitchen}-${station || 'all'}-${posProfile || 'default'}`,
     {
       refreshInterval: 5000, // Auto refresh every 5 seconds
       revalidateOnFocus: true
@@ -110,11 +117,12 @@ export function useSendToKitchen() {
 /**
  * Items & Variants API
  */
-export function useItems(branch, posProfile) {
+export function useItems(posProfile, branch = null) {
+  // pos_profile is now primary, branch derived from profile on server
   return useFrappeGetCall(
     'imogi_pos.api.items.get_items',
-    { branch, pos_profile: posProfile },
-    `items-${branch}-${posProfile}`,
+    { pos_profile: posProfile, branch },
+    `items-${posProfile}`,
     {
       revalidateOnFocus: false
     }
@@ -199,11 +207,12 @@ export function useCreateProfile() {
 /**
  * Table Management API (untuk restaurant)
  */
-export function useTables(branch) {
+export function useTables(posProfile, branch = null) {
+  // pos_profile is primary, branch derived from profile on server
   return useFrappeGetCall(
     'imogi_pos.api.layout.get_tables',
-    { branch },
-    `tables-${branch}`,
+    { pos_profile: posProfile, branch },
+    `tables-${posProfile}`,
     {
       refreshInterval: 10000, // Auto refresh tiap 10 detik
       revalidateOnFocus: true
@@ -218,13 +227,17 @@ export function useUpdateTableStatus() {
 /**
  * Cashier API (Phase 2)
  */
-export function usePendingOrders(branch = null, filters = {}) {
-  const params = { branch, ...filters }
+export function usePendingOrders(posProfile = null, branch = null, filters = {}) {
+  // pos_profile is primary for POS Profile-first architecture
+  const params = { pos_profile: posProfile, ...filters }
+  if (branch) {
+    params.branch = branch  // Deprecated: for backward compatibility
+  }
   
   return useFrappeGetCall(
     'imogi_pos.api.cashier.get_pending_orders',
     params,
-    `pending-orders-${branch || 'all'}`,
+    `pending-orders-${posProfile || 'all'}`,
     {
       refreshInterval: 10000, // Auto refresh every 10 seconds
       revalidateOnFocus: true
@@ -255,11 +268,12 @@ export function useCompleteOrder() {
   return useImogiAPI('imogi_pos.api.cashier.complete_order')
 }
 
-export function usePaymentMethods(branch = null) {
+export function usePaymentMethods(posProfile = null, branch = null) {
+  // pos_profile is primary, branch is deprecated fallback
   return useFrappeGetCall(
     'imogi_pos.api.cashier.get_payment_methods',
-    { branch },
-    `payment-methods-${branch || 'all'}`,
+    { pos_profile: posProfile, branch },
+    `payment-methods-${posProfile || 'all'}`,
     {
       revalidateOnFocus: false,
       refreshInterval: 60000 // Refresh every minute

@@ -21,26 +21,17 @@ from imogi_pos.utils.role_permissions import (
 MODULE_CONFIGS = {
     'cashier': {
         'name': 'Cashier Console',
-        'description': 'Counter/Retail mode - Quick service',
+        'description': 'Counter/Retail mode - Quick service & payment',
         'type': 'cashier',
         'icon': 'fa-cash-register',
-        'url': '/counter',
+        'url': '/counter/pos',
         'requires_roles': ['Cashier'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': True,
         'requires_opening': True,
         'order': 1
     },
-    'cashier-payment': {
-        'name': 'Cashier Payment',
-        'description': 'Table service payment processing',
-        'type': 'cashier-payment',
-        'icon': 'fa-money-bill-wave',
-        'url': '/cashier-payment',
-        'requires_roles': ['Cashier'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
-        'requires_session': False,
-        'requires_opening': False,
-        'order': 2
-    },
+    # NOTE: cashier-payment module deprecated - merged into cashier (counter/pos)
+    # Use /counter/pos?filter=pending for payment-only view
     'waiter': {
         'name': 'Waiter Order',
         'description': 'Table service order taking',
@@ -50,7 +41,8 @@ MODULE_CONFIGS = {
         'requires_roles': ['Waiter'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': False,
         'requires_opening': False,
-        'order': 3
+        'requires_pos_profile': True,
+        'order': 2
     },
     'kitchen': {
         'name': 'Kitchen Display',
@@ -61,7 +53,8 @@ MODULE_CONFIGS = {
         'requires_roles': ['Kitchen Staff'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': False,
         'requires_opening': False,
-        'order': 4
+        'requires_pos_profile': True,
+        'order': 3
     },
     'self-order': {
         'name': 'Self-Order Kiosk',
@@ -73,7 +66,7 @@ MODULE_CONFIGS = {
         'requires_session': False,
         'requires_opening': False,
         'requires_active_cashier': True,
-        'order': 5
+        'order': 4
     },
     'table-display': {
         'name': 'Table Display',
@@ -84,7 +77,8 @@ MODULE_CONFIGS = {
         'requires_roles': ['Waiter'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': False,
         'requires_opening': False,
-        'order': 6
+        'requires_pos_profile': True,
+        'order': 5
     },
     'customer-display': {
         'name': 'Customer Display',
@@ -95,7 +89,7 @@ MODULE_CONFIGS = {
         'requires_roles': ['Guest', 'Waiter'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': False,
         'requires_opening': False,
-        'order': 7
+        'order': 6
     }
     # NOTE: Table Layout Editor is a separate standalone app
     # Not included in Module Select (accessed via /table_layout_editor directly)
@@ -103,18 +97,35 @@ MODULE_CONFIGS = {
 
 
 @frappe.whitelist()
-def get_available_modules(branch=None):
-    """Get list of available modules based on user's roles and permissions."""
+def get_available_modules(pos_profile=None, branch=None):
+    """Get list of available modules based on user's roles and permissions.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary param)
+        branch (str, optional): Branch name (DEPRECATED - for backward compatibility)
+    
+    Returns:
+        dict: Available modules list with metadata
+    """
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
             frappe.throw(_('Please login to continue'))
+        
+        # Deprecation warning
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: get_available_modules(branch=...) is deprecated. Use pos_profile parameter instead.")
         
         # Get user roles
         user_roles = frappe.get_roles(user)
         
         # Administrator or System Manager sees all modules
         is_admin = user == "Administrator" or "System Manager" in user_roles
+        
+        # Derive branch from pos_profile if provided
+        derived_branch = branch
+        if pos_profile and not branch:
+            derived_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
         
         # Filter modules based on user roles
         available_modules = []
@@ -124,14 +135,23 @@ def get_available_modules(branch=None):
             # Admin bypass: show all modules
             # Regular users: check if they have any of the required roles
             if is_admin or any(role in user_roles for role in required_roles):
+                module_url = config['url']
+                
+                # Append pos_profile to URL as query param for modules that need it
+                if pos_profile and config.get('requires_pos_profile') or config.get('requires_opening'):
+                    separator = '&' if '?' in module_url else '?'
+                    module_url = f"{module_url}{separator}pos_profile={pos_profile}"
+                
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],
                     'description': config['description'],
-                    'url': config['url'],
+                    'url': module_url,
+                    'base_url': config['url'],  # Original URL without query params
                     'icon': config['icon'],
                     'requires_session': config.get('requires_session', False),
                     'requires_opening': config.get('requires_opening', False),
+                    'requires_pos_profile': config.get('requires_pos_profile', False),
                     'requires_active_cashier': config.get('requires_active_cashier', False),
                     'order': config.get('order', 99)
                 })
@@ -142,7 +162,9 @@ def get_available_modules(branch=None):
         return {
             'modules': available_modules,
             'user': user,
-            'roles': user_roles
+            'roles': user_roles,
+            'pos_profile': pos_profile,
+            'branch': derived_branch
         }
     
     except Exception as e:
@@ -455,30 +477,44 @@ def set_user_branch(branch):
 
 
 @frappe.whitelist()
-def check_active_cashiers(branch=None):
+def check_active_cashiers(pos_profile=None, branch=None):
     """
     Check if there are any active cashier POS sessions at specified branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name (PREFERRED)
+        branch (str, optional): Branch name (DEPRECATED)
     """
     try:
-        # Get current branch if not provided
-        if not branch:
+        # Deprecation warning
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: check_active_cashiers(branch=...) is deprecated. Use pos_profile parameter instead.")
+        
+        # Determine effective branch
+        effective_branch = None
+        if pos_profile:
+            effective_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
+        elif branch:
+            effective_branch = branch
+        else:
+            # Fallback to user's default
             if frappe.db.has_column('User', 'imogi_default_branch'):
-                branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
-            
-            if not branch:
-                return {
-                    'has_active_cashier': False,
-                    'active_sessions': [],
-                    'total_cashiers': 0,
-                    'message': 'No branch configured for user',
-                    'branch': None
-                }
+                effective_branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+        
+        if not effective_branch:
+            return {
+                'has_active_cashier': False,
+                'active_sessions': [],
+                'total_cashiers': 0,
+                'message': 'No branch configured for user',
+                'branch': None
+            }
         
         # Find POS Profiles for this branch
         pos_profiles = frappe.get_list(
             'POS Profile',
-            filters={'imogi_branch': branch},
+            filters={'imogi_branch': effective_branch},
             fields=['name', 'company'],
             limit_page_length=0
         )
@@ -488,8 +524,8 @@ def check_active_cashiers(branch=None):
                 'has_active_cashier': False,
                 'active_sessions': [],
                 'total_cashiers': 0,
-                'message': f'No POS Profiles configured for branch {branch}',
-                'branch': branch
+                'message': f'No POS Profiles configured for branch {effective_branch}',
+                'branch': effective_branch
             }
         
         profile_names = [p.get('name') for p in pos_profiles]
@@ -527,7 +563,7 @@ def check_active_cashiers(branch=None):
             'active_sessions': cashier_sessions,
             'total_cashiers': len(cashier_sessions),
             'message': 'Active cashier found' if has_active else 'No active cashier sessions. Please ask a cashier to open a POS session first.',
-            'branch': branch
+            'branch': effective_branch
         }
     
     except Exception as e:
