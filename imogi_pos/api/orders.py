@@ -161,10 +161,24 @@ def validate_item_is_sales_item(doc, method=None):
 
 @frappe.whitelist()
 @require_permission("POS Order", "write")
-@frappe.whitelist()
 @require_permission("POS Order Item", "create")
 def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
-    """Append a new item row to an existing POS Order and recalculate totals."""
+    """
+    Append a new item row to an existing POS Order and recalculate totals.
+    
+    PERMISSION REQUIREMENTS:
+    - Requires 'write' permission on POS Order
+    - Requires 'create' permission on POS Order Item
+    - Role 'Cashier' has READ-ONLY access by default (cannot add items)
+    - Use roles: Waiter, Branch Manager, or custom role with write permissions
+    
+    Args:
+        pos_order: POS Order name
+        item: Item code or dict with item details
+        qty: Quantity (default 1)
+        rate: Price override (optional)
+        item_options: Additional options like variant selection
+    """
 
     order_doc = frappe.get_doc("POS Order", pos_order)
     validate_branch_access(order_doc.branch)
@@ -270,6 +284,11 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
             or getattr(order_doc, "imogi_base_price_list", None)
         )
 
+        # PERFORMANCE NOTE: get_price_list_rate_maps is called for each add_item_to_order request.
+        # If adding items frequently (e.g., quick successive clicks), consider:
+        # 1. Caching price list rates at session level
+        # 2. Batch item additions in frontend before calling API
+        # 3. Pre-loading price lists when order is opened
         rate_maps = get_price_list_rate_maps(
             [item_code],
             price_list=order_price_list,
@@ -365,10 +384,15 @@ def check_restaurant_domain(pos_profile):
 
 
 def ensure_update_stock_enabled(pos_profile):
-    """Ensure the POS Profile is configured to update stock."""
+    """
+    Ensure the POS Profile is configured to update stock.
+    
+    IMPORTANT: This check prevents order creation if POS Profile's 'Update Stock' is disabled.
+    If orders fail silently in UI, verify this setting in POS Profile master.
+    """
     if not frappe.db.get_value("POS Profile", pos_profile, "update_stock"):
         frappe.throw(
-            _("POS Profile {0} is not configured to update stock").format(pos_profile),
+            _("Cannot create order: POS Profile '{0}' must have 'Update Stock' enabled. Please update the POS Profile settings.").format(pos_profile),
             frappe.ValidationError,
         )
 
@@ -404,11 +428,19 @@ def get_next_available_table(branch):
 
 @frappe.whitelist()
 @require_permission("POS Order", "create")
-@frappe.whitelist()
-@require_permission("POS Order", "create")
 def create_order(order_type, branch, pos_profile, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order.
+    
+    PERMISSION REQUIREMENTS:
+    - Requires 'create' permission on POS Order
+    - Role 'Cashier' has READ-ONLY access by default (cannot create orders)
+    - Use roles: Waiter, Branch Manager, or custom role with create permissions
+    
+    COMMON ISSUE: If UI shows "permission denied" or clicks do nothing:
+    1. Check user has Waiter/Branch Manager role (not just Cashier)
+    2. Verify POS Profile has 'update_stock' enabled
+    3. Check browser console for permission errors
     
     Args:
         order_type (str): Order type (Dine-in/Takeaway/Kiosk/POS)

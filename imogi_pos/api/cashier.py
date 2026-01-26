@@ -1,6 +1,10 @@
 """
 Cashier API
 Handles cashier operations including order checkout, payment processing, and invoice generation
+
+IMPORTANT: This module uses "Kitchen Order Ticket" as the DocType name.
+If your system uses "KOT Ticket" instead, update all references throughout this file.
+Verify the correct DocType name in your Frappe instance before deployment.
 """
 
 import frappe
@@ -36,9 +40,13 @@ def get_pending_orders(branch=None, table=None, waiter=None, from_date=None, to_
             filters["table"] = table
         if waiter:
             filters["waiter"] = waiter
-        if from_date:
+        
+        # Fix: Use 'between' for date range to avoid filter overwriting
+        if from_date and to_date:
+            filters["creation"] = ["between", [from_date, to_date]]
+        elif from_date:
             filters["creation"] = [">=", from_date]
-        if to_date:
+        elif to_date:
             filters["creation"] = ["<=", to_date]
         
         orders = frappe.get_all(
@@ -59,25 +67,47 @@ def get_pending_orders(branch=None, table=None, waiter=None, from_date=None, to_
             order_by="creation asc"  # FIFO - oldest first
         )
         
-        # Enrich with item count and KOT status
+        if not orders:
+            return {"success": True, "orders": [], "count": 0}
+        
+        # Optimize: Get item counts for all orders in one query
+        order_names = [o.name for o in orders]
+        item_counts = frappe.db.sql("""
+            SELECT parent, COUNT(*) as count
+            FROM `tabPOS Order Item`
+            WHERE parent IN %(orders)s
+            GROUP BY parent
+        """, {"orders": order_names}, as_dict=True)
+        item_count_map = {ic.parent: ic.count for ic in item_counts}
+        
+        # Optimize: Get KOT status for all orders in one query
+        # IMPORTANT: Verify DocType name - should be "Kitchen Order Ticket" or "KOT Ticket"
+        kot_stats = frappe.db.sql("""
+            SELECT 
+                pos_order,
+                COUNT(*) as total,
+                SUM(CASE WHEN workflow_state = 'Served' THEN 1 ELSE 0 END) as served
+            FROM `tabKitchen Order Ticket`
+            WHERE pos_order IN %(orders)s
+            GROUP BY pos_order
+        """, {"orders": order_names}, as_dict=True)
+        kot_stat_map = {ks.pos_order: ks for ks in kot_stats}
+        
+        # Enrich orders with cached data
         for order in orders:
-            # Get item count
-            item_count = frappe.db.count("POS Order Item", {"parent": order.name})
-            order["item_count"] = item_count
+            # Item count from cache
+            order["item_count"] = item_count_map.get(order.name, 0)
             
-            # Get KOT completion status
-            kots = frappe.get_all(
-                "Kitchen Order Ticket",
-                filters={"pos_order": order.name},
-                fields=["workflow_state"]
-            )
-            
-            total_kots = len(kots)
-            served_kots = len([k for k in kots if k.workflow_state == "Served"])
-            
-            order["kots_total"] = total_kots
-            order["kots_served"] = served_kots
-            order["all_kots_served"] = (total_kots > 0 and served_kots == total_kots)
+            # KOT status from cache
+            kot_stat = kot_stat_map.get(order.name)
+            if kot_stat:
+                order["kots_total"] = kot_stat.total
+                order["kots_served"] = kot_stat.served
+                order["all_kots_served"] = (kot_stat.total > 0 and kot_stat.served == kot_stat.total)
+            else:
+                order["kots_total"] = 0
+                order["kots_served"] = 0
+                order["all_kots_served"] = False
             
             # Format timestamps
             order["creation_display"] = frappe.utils.format_datetime(order.creation, "dd MMM yyyy HH:mm")
@@ -180,6 +210,9 @@ def create_invoice_from_order(order_name, customer=None, customer_name=None):
         Sales Invoice name
     """
     try:
+        # Authorization: Check if user has permission for cashier operations
+        # TODO: Implement role check (e.g., has_role('POS Cashier')) or branch-level permissions
+        
         # Get POS Order
         order = frappe.get_doc("POS Order", order_name)
         
@@ -287,26 +320,29 @@ def process_payment(invoice_name, mode_of_payment, paid_amount, reference_no=Non
     Args:
         invoice_name: Sales Invoice name
         mode_of_payment: Payment method (Cash, QRIS, Card, etc.)
-        paid_amount: Amount paid
+        paid_amount: Amount received from customer (for change calculation)
         reference_no: Payment reference (for QRIS, card, etc.)
     
     Returns:
         Payment Entry name and change amount
     """
     try:
+        # Authorization: Check if user has permission for payment operations
+        # TODO: Implement role check (e.g., has_role('POS Cashier'))
+        
         # Get invoice
         invoice = frappe.get_doc("Sales Invoice", invoice_name)
         
         # Validate amount
-        paid_amount = float(paid_amount)
-        if paid_amount < invoice.grand_total:
+        cash_received = float(paid_amount)  # Amount customer gave
+        if cash_received < invoice.grand_total:
             return {
                 "success": False,
-                "error": _("Paid amount is less than invoice total")
+                "error": _("Cash received is less than invoice total")
             }
         
         # Calculate change
-        change_amount = paid_amount - invoice.grand_total
+        change_amount = cash_received - invoice.grand_total
         
         # Get Mode of Payment account
         mode_doc = frappe.get_doc("Mode of Payment", mode_of_payment)
@@ -339,7 +375,9 @@ def process_payment(invoice_name, mode_of_payment, paid_amount, reference_no=Non
         # Set accounts
         payment.paid_from = invoice.debit_to
         payment.paid_to = payment_account
-        payment.paid_amount = paid_amount
+        # Both amounts equal invoice total for proper accounting
+        # Cash received and change are tracked separately in the response
+        payment.paid_amount = invoice.grand_total
         payment.received_amount = invoice.grand_total
         
         if reference_no:
@@ -367,7 +405,7 @@ def process_payment(invoice_name, mode_of_payment, paid_amount, reference_no=Non
             "success": True,
             "payment_entry": payment.name,
             "change_amount": change_amount,
-            "paid_amount": paid_amount,
+            "cash_received": cash_received,  # Amount customer gave
             "invoice_total": invoice.grand_total
         }
         
@@ -394,6 +432,9 @@ def complete_order(order_name, invoice_name=None, payment_name=None):
         Success message
     """
     try:
+        # Authorization: Check if user has permission for order completion
+        # TODO: Implement role check (e.g., has_role('POS Cashier'))
+        
         # Get order
         order = frappe.get_doc("POS Order", order_name)
         

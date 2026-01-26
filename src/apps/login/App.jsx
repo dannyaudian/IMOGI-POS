@@ -15,7 +15,9 @@ function App() {
   useEffect(() => {
     const loadBranding = async () => {
       try {
-        const response = await fetch('/api/method/imogi_pos.api.public.get_branding')
+        const response = await fetch('/api/method/imogi_pos.api.public.get_branding', {
+          credentials: 'include'
+        })
         if (response.ok) {
           const data = await response.json()
           if (data.message) {

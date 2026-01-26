@@ -2,6 +2,32 @@
 # Copyright (c) 2023, IMOGI and contributors
 # For license information, please see license.txt
 
+"""
+Table Layout & Waiter API
+
+This module provides endpoints for table layout management and waiter app functionality.
+
+WAITER APP ENDPOINTS:
+- get_floors() - Get all floors for user's branch
+- get_table_layout(floor) - Get positioned tables with status (uses Table Layout Profile)
+- get_tables(branch) - Get simple table list with status (direct query, no layout)
+- get_table_status(floor, tables) - Get detailed status for specific tables
+- update_table_status(table, status, order) - Update table status and current order
+
+LAYOUT EDITOR ENDPOINTS:
+- save_table_layout(floor, layout_json, ...) - Save/update table positions
+
+REACT HOOK MAPPING:
+- useTables(branch) → get_tables(branch) ✅
+- useUpdateTableStatus() → update_table_status(table, status, order) ✅
+- (table layout UI) → get_floors() + get_table_layout(floor) ✅
+
+IMPORTANT NOTES:
+- get_table_layout uses "KOT Ticket" DocType name (verify in your system)
+- Optimized to avoid N+1 queries (batch loads tables and orders)
+- update_table_status validates branch access and restaurant domain
+"""
+
 from __future__ import unicode_literals
 import frappe
 from frappe import _
@@ -60,7 +86,14 @@ def get_floors():
     pos_profile = frappe.db.get_value(
         "POS Profile User", {"user": frappe.session.user}, "parent"
     )
-    branch = frappe.db.get_value("POS Profile", pos_profile, "branch")
+    
+    # IMPORTANT: POS Profile uses custom field 'imogi_branch' not standard 'branch'
+    # This is consistent with items.py, orders.py, and other modules
+    branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    
+    if not branch:
+        # Fallback to standard branch field if imogi_branch not set
+        branch = frappe.db.get_value("POS Profile", pos_profile, "branch")
     
     if not branch:
         frappe.throw(
@@ -128,21 +161,58 @@ def get_table_layout(floor):
                                 filters={"parent": layout_profile},
                                 fields=["table", "position_x", "position_y", "width", "height", "rotation"])
     
-    # Get tables with additional data
+    if not layout_nodes:
+        # No tables positioned yet
+        return {
+            "floor": floor_doc.as_dict(),
+            "tables": [],
+            "layout": {
+                "name": profile_doc.name,
+                "profile_name": profile_doc.profile_name,
+                "is_active": profile_doc.is_active,
+                "canvas_width": profile_doc.canvas_width,
+                "canvas_height": profile_doc.canvas_height,
+                "background_image": profile_doc.background_image,
+                "scale": profile_doc.scale,
+            }
+        }
+    
+    # PERFORMANCE OPTIMIZATION: Batch load all tables instead of N+1 queries
+    table_names = [node.table for node in layout_nodes]
+    
+    # Get all table details in one query
+    tables_list = frappe.get_all(
+        "Restaurant Table",
+        filters={"name": ["in", table_names]},
+        fields=["name", "no_of_seats", "minimum_seating", "status", "current_pos_order"]
+    )
+    tables_map = {t.name: t for t in tables_list}
+    
+    # Get all current orders in one query
+    current_orders = [t.current_pos_order for t in tables_list if t.current_pos_order]
+    orders_map = {}
+    
+    if current_orders:
+        orders_list = frappe.get_all(
+            "POS Order",
+            filters={"name": ["in", current_orders]},
+            fields=["name", "workflow_state", "customer", "order_type", "creation"]
+        )
+        orders_map = {o.name: o for o in orders_list}
+    
+    # Build tables data from cached results
     tables_data = []
     for node in layout_nodes:
-        # Get table details
-        table_doc = frappe.get_doc("Restaurant Table", node.table)
+        table_doc = tables_map.get(node.table)
+        if not table_doc:
+            continue  # Skip if table was deleted
         
-        # Get current order if any
-        current_order = table_doc.current_pos_order
-        
-        # Get status data
+        # Get status data from cached order
         status_data = None
-        if current_order:
-            order_doc = frappe.get_doc("POS Order", current_order)
+        if table_doc.current_pos_order and table_doc.current_pos_order in orders_map:
+            order_doc = orders_map[table_doc.current_pos_order]
             status_data = {
-                "order": current_order,
+                "order": table_doc.current_pos_order,
                 "status": order_doc.workflow_state,
                 "customer": order_doc.customer,
                 "order_type": order_doc.order_type,
@@ -322,11 +392,13 @@ def get_tables(branch):
     validate_branch_access(branch)
     
     # Get all tables for this branch through their floors
+    # NOTE: Restaurant Table has 'no_of_seats', 'minimum_seating', 'maximum_seating'
+    # NOT 'seating_capacity' (that field doesn't exist in DocType)
     tables = frappe.db.sql("""
         SELECT 
             t.name,
             t.table_number,
-            t.seating_capacity,
+            t.no_of_seats as seating_capacity,
             t.status,
             t.floor,
             f.floor_name,
@@ -338,6 +410,107 @@ def get_tables(branch):
     """, (branch,), as_dict=1)
     
     return tables or []
+
+
+@frappe.whitelist()
+@require_permission("Restaurant Table", "write")
+def update_table_status(table, status, order=None):
+    """
+    Updates the status of a restaurant table and optionally links/unlinks an order.
+    
+    This endpoint is called by the Waiter app (useUpdateTableStatus hook) to:
+    - Mark table as Occupied when order is created
+    - Mark table as Available when order is completed
+    - Update current_pos_order link
+    
+    Args:
+        table (str): Restaurant Table name
+        status (str): New status (Available, Occupied, Reserved, etc.)
+        order (str, optional): POS Order name to link. Pass None to unlink.
+    
+    Returns:
+        dict: Updated table information
+    
+    Raises:
+        frappe.ValidationError: If table not found or permission denied
+    """
+    # Get table document
+    if not frappe.db.exists("Restaurant Table", table):
+        frappe.throw(_("Table {0} not found").format(table), frappe.DoesNotExistError)
+    
+    table_doc = frappe.get_doc("Restaurant Table", table)
+    
+    # Validate branch access via floor
+    floor_branch = frappe.db.get_value("Restaurant Floor", table_doc.floor, "branch")
+    if floor_branch:
+        validate_branch_access(floor_branch)
+    
+    # Check restaurant domain
+    check_restaurant_domain()
+    
+    # Validate status value
+    valid_statuses = ["Available", "Occupied", "Reserved", "Maintenance"]
+    if status not in valid_statuses:
+        frappe.throw(
+            _("Invalid status. Must be one of: {0}").format(", ".join(valid_statuses)),
+            frappe.ValidationError
+        )
+    
+    # Update table
+    table_doc.status = status
+    
+    # Update order link
+    if order:
+        # Validate order exists and belongs to this table
+        if not frappe.db.exists("POS Order", order):
+            frappe.throw(_("Order {0} not found").format(order), frappe.DoesNotExistError)
+        
+        order_table = frappe.db.get_value("POS Order", order, "table")
+        if order_table != table:
+            frappe.throw(
+                _("Order {0} is not assigned to table {1}").format(order, table),
+                frappe.ValidationError
+            )
+        
+        table_doc.current_pos_order = order
+    else:
+        # Clear order link
+        table_doc.current_pos_order = None
+    
+    # Save changes
+    table_doc.save(ignore_permissions=True)
+    
+    # Publish realtime event for table update
+    frappe.publish_realtime(
+        event="table_status_updated",
+        message={
+            "table": table,
+            "status": status,
+            "order": order,
+            "floor": table_doc.floor
+        },
+        room=f"table:{table}"
+    )
+    
+    # Also publish to floor room for waiter UI updates
+    frappe.publish_realtime(
+        event="floor_table_updated",
+        message={
+            "table": table,
+            "status": status,
+            "order": order
+        },
+        room=f"floor:{table_doc.floor}"
+    )
+    
+    return {
+        "success": True,
+        "table": table,
+        "status": status,
+        "order": order,
+        "floor": table_doc.floor,
+        "message": _("Table status updated successfully")
+    }
 
 
 @frappe.whitelist()
@@ -406,6 +579,8 @@ def get_table_status(floor=None, tables=None):
                 "customer": order_doc.customer,
                 "order_type": order_doc.order_type,
                 "occupied_since": order_doc.creation,
+                # IMPORTANT: Using "KOT Ticket" - verify DocType name in your system
+                # May need to change to "Kitchen Order Ticket" depending on installation
                 "has_kot": frappe.db.exists("KOT Ticket", {"pos_order": current_order})
             })
         

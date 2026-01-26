@@ -23,10 +23,21 @@ export function useAuth(requiredRoles = []) {
   )
 
   useEffect(() => {
+    // Only redirect to login for auth errors (401/403), not server errors (500)
     if (currentUser === 'Guest' || !currentUser) {
-      // Redirect ke login page
-      const currentPath = window.location.pathname
-      window.location.href = `/shared/login?redirect=${encodeURIComponent(currentPath)}`
+      // Check if this is an actual auth issue vs server error
+      if (!userError || userError.httpStatus === 401 || userError.httpStatus === 403) {
+        // Redirect ke login page only for auth issues
+        const currentPath = window.location.pathname
+        window.location.href = `/shared/login?redirect=${encodeURIComponent(currentPath)}`
+        return
+      }
+    }
+
+    // If we have a server error (500), don't treat it as permission issue
+    if (userError && userError.httpStatus >= 500) {
+      setError(`Server error (${userError.httpStatus}): ${userError.message || 'Internal server error'}. Please contact administrator.`)
+      setHasAccess(false)
       return
     }
 
@@ -40,18 +51,20 @@ export function useAuth(requiredRoles = []) {
         setHasAccess(false)
       } else {
         setHasAccess(true)
+        setError(null)
       }
-    } else {
+    } else if (userData) {
       setHasAccess(true)
+      setError(null)
     }
-  }, [currentUser, userData, requiredRoles])
+  }, [currentUser, userData, userError, requiredRoles])
 
   return {
     user: currentUser,
     userData,
     loading: authLoading || userLoading,
     hasAccess,
-    error: error || userError
+    error: error || (userError && userError.httpStatus < 500 ? userError : null)
   }
 }
 
