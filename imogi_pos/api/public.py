@@ -584,14 +584,16 @@ def _get_available_pos_profiles(user, is_privileged):
                 filters={'disabled': 0},
                 fields=['name', 'imogi_branch', 'imogi_pos_domain', 'imogi_mode', 
                         'company', 'imogi_enable_cashier', 'imogi_enable_kot',
-                        'imogi_enable_waiter', 'imogi_enable_kitchen']
+                        'imogi_enable_waiter', 'imogi_enable_kitchen'],
+                ignore_permissions=True
             )
         else:
             # Regular user: only profiles from POS Profile User table
             profile_names = frappe.get_all(
                 'POS Profile User',
                 filters={'user': user},
-                pluck='parent'
+                pluck='parent',
+                ignore_permissions=True
             )
             
             if not profile_names:
@@ -602,7 +604,8 @@ def _get_available_pos_profiles(user, is_privileged):
                 filters={'name': ['in', profile_names], 'disabled': 0},
                 fields=['name', 'imogi_branch', 'imogi_pos_domain', 'imogi_mode',
                         'company', 'imogi_enable_cashier', 'imogi_enable_kot',
-                        'imogi_enable_waiter', 'imogi_enable_kitchen']
+                        'imogi_enable_waiter', 'imogi_enable_kitchen'],
+                ignore_permissions=True
             )
     except Exception as e:
         frappe.log_error(f'Error fetching available POS Profiles for {user}: {str(e)}')

@@ -42,13 +42,54 @@ function App() {
   }
 
   // API Hooks
-  const { data: profilesData, isLoading: loadingProfiles, mutate: refreshProfiles } = useCustomerDisplayProfiles()
+  const { data: profilesData, isLoading: loadingProfiles, error: profilesError, mutate: refreshProfiles } = useCustomerDisplayProfiles()
   const { data: templates, isLoading: loadingTemplates } = useDisplayTemplates()
   const { trigger: saveConfig, isMutating: saving } = useSaveDisplayConfig()
   const { trigger: resetConfig } = useResetDisplayConfig()
   const { trigger: testDisplay } = useTestDisplay()
   const { trigger: duplicateProfile } = useDuplicateProfile()
   const { trigger: createProfile, isMutating: creating } = useCreateProfile()
+  
+  // Handle API errors with graceful degradation
+  if (profilesError) {
+    return (
+      <div className="cde-error" style={{ padding: '2rem', textAlign: 'center' }}>
+        <h3>Failed to Load Profiles</h3>
+        <p style={{ color: '#d32f2f' }}>
+          {profilesError.message || 'Unable to fetch Customer Display Profiles'}
+        </p>
+        <button 
+          onClick={() => window.location.reload()}
+          style={{ 
+            marginTop: '1rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+  
+  // Handle backend permission errors (graceful error response)
+  if (profilesData && profilesData.success === false) {
+    return (
+      <div className="cde-error" style={{ padding: '2rem', textAlign: 'center' }}>
+        <h3>Permission Denied</h3>
+        <p style={{ color: '#d32f2f', marginBottom: '0.5rem' }}>
+          {profilesData.message}
+        </p>
+        <p style={{ fontSize: '0.875rem', color: '#666' }}>
+          Please contact your system administrator to grant you access to Customer Display Profiles.
+        </p>
+      </div>
+    )
+  }
   
   // Extract profiles array from API response
   const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
@@ -124,26 +165,38 @@ function App() {
     }
   }
 
-  // Save configuration
+  // Save configuration with backend response validation
   const handleSave = async () => {
     if (!selectedDevice) return
 
     try {
-      await saveConfig({
+      const result = await saveConfig({
         device: selectedDevice,
         config: config
       })
-      frappe.show_alert({
-        message: 'Configuration saved successfully',
-        indicator: 'green'
-      })
-      setHasChanges(false)
-      refreshProfiles()
+      
+      // Check backend success flag (structured error response)
+      if (result && result.success) {
+        frappe.show_alert({
+          message: result.message || 'Configuration saved successfully',
+          indicator: 'green'
+        })
+        setHasChanges(false)
+        await refreshProfiles()
+      } else {
+        // Backend returned error in response (not exception)
+        frappe.show_alert({
+          message: result?.message || 'Failed to save configuration',
+          indicator: 'red'
+        })
+      }
     } catch (error) {
+      // Network error or exception
       frappe.show_alert({
-        message: 'Failed to save configuration',
+        message: error.message || 'Failed to save configuration',
         indicator: 'red'
       })
+      console.error('Save error:', error)
     }
   }
 
@@ -222,6 +275,32 @@ function App() {
   }
 
   // Create new profile
+  
+  // Handle empty state (no profiles)
+  if (!loadingProfiles && profiles.length === 0) {
+    return (
+      <div className="cde-empty" style={{ padding: '2rem', textAlign: 'center' }}>
+        <h3>No Display Profiles</h3>
+        <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+          Create your first Customer Display Profile to get started.
+        </p>
+        <button 
+          onClick={handleCreateNew}
+          style={{ 
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '1rem'
+          }}
+        >
+          Create New Profile
+        </button>
+      </div>
+    )
+  }
   const handleCreateNew = () => {
     setShowTemplateSelector(true)
   }

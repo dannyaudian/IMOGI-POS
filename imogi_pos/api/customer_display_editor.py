@@ -15,59 +15,78 @@ def get_available_devices():
     Get list of all Customer Display Profiles
     
     Returns:
-        dict: List of profiles with name, branch, status
+        dict: List of profiles or error state with graceful degradation
     """
+    # Check permission - return error state instead of throwing
     if not frappe.has_permission('Customer Display Profile', 'read'):
-        frappe.throw(_('No permission to read Customer Display Profile'))
-    
-    profiles = frappe.get_all(
-        'Customer Display Profile',
-        filters={'is_active': 1},
-        fields=['name', 'profile_name', 'branch', 'description', 'layout_type', 
-                'grid_columns', 'grid_rows', 'override_brand', 'brand_logo',
-                'brand_logo_dark', 'brand_name', 'brand_color_primary',
-                'brand_color_accent', 'brand_header_bg'],
-        order_by='profile_name'
-    )
-    
-    # Format for compatibility with frontend
-    devices = []
-    for profile in profiles:
-        # Get blocks separately
-        profile_doc = frappe.get_doc('Customer Display Profile', profile.name)
-        
-        # Build config
-        config = {
-            'layout_type': profile.layout_type or 'Grid',
-            'grid_columns': profile.grid_columns or 3,
-            'grid_rows': profile.grid_rows or 2,
-            'override_brand': profile.override_brand or 0,
-            'brand_logo': profile.brand_logo,
-            'brand_logo_dark': profile.brand_logo_dark,
-            'brand_name': profile.brand_name,
-            'brand_color_primary': profile.brand_color_primary,
-            'brand_color_accent': profile.brand_color_accent,
-            'brand_header_bg': profile.brand_header_bg,
-            'blocks': [block.as_dict() for block in profile_doc.get('blocks', [])]
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('You do not have permission to view Customer Display Profiles'),
+            'devices': [],
+            'total': 0
         }
-        
-        devices.append({
-            'name': profile.name,
-            'profile_name': profile.profile_name,
-            'device_name': profile.profile_name,  # Alias for compatibility
-            'branch': profile.branch,
-            'location': profile.branch,  # Alias for compatibility
-            'is_active': True,
-            'status': 'active',
-            'display_type': 'profile',
-            'description': profile.description,
-            'config': config
-        })
     
-    return {
-        'devices': devices,
-        'total': len(devices)
-    }
+    try:
+        profiles = frappe.get_all(
+            'Customer Display Profile',
+            filters={'is_active': 1},
+            fields=['name', 'profile_name', 'branch', 'description', 'layout_type', 
+                    'grid_columns', 'grid_rows', 'override_brand', 'brand_logo',
+                    'brand_logo_dark', 'brand_name', 'brand_color_primary',
+                    'brand_color_accent', 'brand_header_bg'],
+            order_by='profile_name'
+        )
+        
+        # Format for compatibility with frontend
+        devices = []
+        for profile in profiles:
+            # Get blocks separately
+            profile_doc = frappe.get_doc('Customer Display Profile', profile.name)
+            
+            # Build config
+            config = {
+                'layout_type': profile.layout_type or 'Grid',
+                'grid_columns': profile.grid_columns or 3,
+                'grid_rows': profile.grid_rows or 2,
+                'override_brand': profile.override_brand or 0,
+                'brand_logo': profile.brand_logo,
+                'brand_logo_dark': profile.brand_logo_dark,
+                'brand_name': profile.brand_name,
+                'brand_color_primary': profile.brand_color_primary,
+                'brand_color_accent': profile.brand_color_accent,
+                'brand_header_bg': profile.brand_header_bg,
+                'blocks': [block.as_dict() for block in profile_doc.get('blocks', [])]
+            }
+            
+            devices.append({
+                'name': profile.name,
+                'profile_name': profile.profile_name,
+                'device_name': profile.profile_name,  # Alias for compatibility
+                'branch': profile.branch,
+                'location': profile.branch,  # Alias for compatibility
+                'is_active': True,
+                'status': 'active',
+                'display_type': 'profile',
+                'description': profile.description,
+                'config': config
+            })
+        
+        return {
+            'success': True,
+            'devices': devices,
+            'total': len(devices)
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error fetching Customer Display Profiles: {str(e)}')
+        return {
+            'success': False,
+            'error': 'fetch_failed',
+            'message': _('Failed to load Customer Display Profiles'),
+            'devices': [],
+            'total': 0
+        }
 
 
 @frappe.whitelist()
@@ -124,13 +143,40 @@ def save_device_config(device, config=None):
     
     Args:
         device (str): Customer Display Profile name
-        config: Configuration dict/JSON string
+        config (dict): Configuration object
+        
+    Returns:
+        dict: Success status and message with structured error handling
     """
+    # Define field mapping at function level for clarity
+    CONFIG_FIELD_MAP = {
+        # Frontend key: DocType field
+        'layout_type': 'layout_type',
+        'grid_columns': 'grid_columns',
+        'grid_rows': 'grid_rows',
+        'override_brand': 'override_brand',
+        'brand_logo': 'brand_logo',
+        'brand_logo_dark': 'brand_logo_dark',
+        'brand_name': 'brand_name',
+        'brand_color_primary': 'brand_color_primary',
+        'brand_color_accent': 'brand_color_accent',
+        'brand_header_bg': 'brand_header_bg',
+    }
+    
+    # Check permission - return error instead of throwing
     if not frappe.has_permission('Customer Display Profile', 'write'):
-        frappe.throw(_('No permission to write Customer Display Profile'))
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('No permission to update Customer Display Profile')
+        }
     
     if not device:
-        frappe.throw(_('Device profile name is required'))
+        return {
+            'success': False,
+            'error': 'validation_error',
+            'message': _('Device profile name is required')
+        }
     
     # Parse config if string
     if config:
@@ -138,55 +184,63 @@ def save_device_config(device, config=None):
             try:
                 config = json.loads(config)
             except json.JSONDecodeError:
-                frappe.throw(_('Invalid JSON in config'))
-        
-        if not isinstance(config, dict):
-            frappe.throw(_('Config must be a dictionary'))
+                return {
+                    'success': False,
+                    'error': 'invalid_json',
+                    'message': _('Invalid JSON in config')
+                }
     else:
-        frappe.throw(_('Config is required'))
+        return {
+            'success': False,
+            'error': 'validation_error',
+            'message': _('Config is required')
+        }
     
     try:
         profile_doc = frappe.get_doc('Customer Display Profile', device)
         
-        # Update profile fields from config
-        if 'layout_type' in config:
-            profile_doc.layout_type = config['layout_type']
-        if 'grid_columns' in config:
-            profile_doc.grid_columns = config['grid_columns']
-        if 'grid_rows' in config:
-            profile_doc.grid_rows = config['grid_rows']
-        if 'override_brand' in config:
-            profile_doc.override_brand = config['override_brand']
-        if 'brand_logo' in config:
-            profile_doc.brand_logo = config['brand_logo']
-        if 'brand_logo_dark' in config:
-            profile_doc.brand_logo_dark = config['brand_logo_dark']
-        if 'brand_name' in config:
-            profile_doc.brand_name = config['brand_name']
-        if 'brand_color_primary' in config:
-            profile_doc.brand_color_primary = config['brand_color_primary']
-        if 'brand_color_accent' in config:
-            profile_doc.brand_color_accent = config['brand_color_accent']
-        if 'brand_header_bg' in config:
-            profile_doc.brand_header_bg = config['brand_header_bg']
+        # Update fields using explicit mapping
+        for frontend_key, doctype_field in CONFIG_FIELD_MAP.items():
+            if frontend_key in config:
+                setattr(profile_doc, doctype_field, config[frontend_key])
         
-        # Update blocks if provided
+        # Handle blocks separately (child table)
         if 'blocks' in config and isinstance(config['blocks'], list):
             profile_doc.blocks = []
             for block_data in config['blocks']:
                 profile_doc.append('blocks', block_data)
         
-        profile_doc.save(ignore_permissions=True)
+        # Save with permission check (no ignore_permissions)
+        profile_doc.save(ignore_permissions=False)
         
         return {
             'success': True,
-            'message': _('Configuration saved successfully')
+            'message': _('Configuration saved successfully'),
+            'profile': {
+                'name': profile_doc.name,
+                'modified': profile_doc.modified
+            }
         }
+    
     except frappe.DoesNotExistError:
-        frappe.throw(_('Customer Display Profile not found'))
+        return {
+            'success': False,
+            'error': 'not_found',
+            'message': _('Customer Display Profile not found')
+        }
+    except frappe.exceptions.PermissionError:
+        return {
+            'success': False,
+            'error': 'permission_denied',
+            'message': _('Permission denied to save this profile')
+        }
     except Exception as e:
         frappe.log_error(f'Error saving profile config: {str(e)}')
-        frappe.throw(_('Error saving profile configuration'))
+        return {
+            'success': False,
+            'error': 'save_failed',
+            'message': _('Error saving profile configuration')
+        }
 
 
 @frappe.whitelist()
