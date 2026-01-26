@@ -176,14 +176,19 @@ def get_user_branch_info():
         try:
             # Use ignore_permissions=True to allow all authenticated users to see branch list
             # Access control is handled via user's imogi_default_branch assignment
+            # Only select 'name' field to avoid schema issues (branch_name may not exist)
             branch_list = frappe.get_list(
                 'Branch',
-                fields=['name', 'branch_name as branch'],
+                fields=['name'],
                 limit_page_length=0,
                 ignore_permissions=True
             )
+            # Transform to match expected format {name: "Main", branch: "Main"}
             if branch_list:
-                available_branches = branch_list
+                available_branches = [
+                    {'name': b.get('name'), 'branch': b.get('name')}
+                    for b in branch_list
+                ]
         except Exception as e:
             frappe.log_error(f'Error fetching branches: {str(e)}')
             frappe.throw(_('Error loading branches. Please check Branch DocType configuration.'))

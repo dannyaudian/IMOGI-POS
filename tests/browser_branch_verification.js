@@ -104,25 +104,59 @@ async function verifyBranchConfig() {
   console.log('📋 TEST 2: Branch List Access');
   console.log('-----------------------------');
   
-  const branchListResult = await api('frappe.client.get_list', {
+  // First test with safe fields only (name)
+  const branchListSafeResult = await api('frappe.client.get_list', {
     doctype: 'Branch',
-    fields: ['name', 'branch'],
+    fields: ['name'],
     limit_page_length: 10
   });
   
-  if (branchListResult.success) {
-    results.branchList = branchListResult.data;
-    console.log(`✅ Branch list accessible: ${branchListResult.data.length} branches found`);
-    branchListResult.data.forEach((b, idx) => {
-      console.log(`   ${idx + 1}. ${b.name} - ${b.branch || b.name}`);
+  if (branchListSafeResult.success) {
+    console.log(`✅ Branch list (safe fields) accessible: ${branchListSafeResult.data.length} branches found`);
+    branchListSafeResult.data.forEach((b, idx) => {
+      console.log(`   ${idx + 1}. ${b.name}`);
+    });
+  } else {
+    console.error(`❌ Cannot access Branch list (safe): ${branchListSafeResult.error}`);
+  }
+  
+  // Test with potentially problematic fields (branch_name, disabled, company)
+  console.log('\nTesting schema fields:');
+  const schemaTests = [
+    { field: 'branch', name: 'branch (standard)' },
+    { field: 'branch_name', name: 'branch_name (custom)' },
+    { field: 'disabled', name: 'disabled (standard)' },
+    { field: 'company', name: 'company (standard)' }
+  ];
+  
+  for (const test of schemaTests) {
+    const testResult = await api('frappe.client.get_list', {
+      doctype: 'Branch',
+      fields: ['name', test.field],
+      limit_page_length: 1
     });
     
+    if (testResult.success) {
+      console.log(`   ✅ Field '${test.field}' exists`);
+    } else {
+      console.warn(`   ⚠️  Field '${test.field}' NOT available - ${testResult.error}`);
+      if (test.field === 'branch_name' || test.field === 'branch') {
+        results.errors.push(`Missing field: ${test.field}`);
+      }
+    }
+  }
+  
+  const branchListResult = branchListSafeResult;
+  
+  if (branchListResult.success) {
+    results.branchList = branchListResult.data;
+    
     if (branchListResult.data.length === 0) {
-      console.warn(`⚠️  No branches in system - please create Branch master`);
+      console.warn(`\n⚠️  No branches in system - please create Branch master`);
       results.errors.push('No branches in system');
     }
   } else {
-    console.error(`❌ Cannot access Branch list: ${branchListResult.error}`);
+    console.error(`\n❌ Cannot access Branch list: ${branchListResult.error}`);
     console.error(`   This indicates permission issue on Branch DocType`);
     console.error(`   Fix: Add Read permission for your role on Branch DocType`);
     results.errors.push('Branch list permission error');
