@@ -410,43 +410,396 @@ WHERE parent LIKE '%Display Profile%';
 
 ---
 
+## ✅ POST-DEPLOYMENT VERIFICATION
+
+**Status**: Authorization fixes telah di-deploy ✅
+
+Sekarang perlu **verification testing** untuk memastikan semua working correctly.
+
+### Verification Prompt untuk Claude/ChatGPT:
+
+```
+Authorization fixes untuk IMOGI POS sudah di-deploy.
+Tolong lakukan comprehensive verification testing:
+
+## 1. User Authentication Verification
+
+Test login flow untuk different user roles:
+
+### Test User 1: Cashier Role
+```sql
+SELECT name, role FROM `tabHas Role` 
+WHERE parent = '[cashier_email]' AND role IN ('Cashier', 'Sales User');
+```
+
+Verify:
+- ✅ Bisa akses /counter-pos
+- ✅ Bisa load items catalog
+- ✅ Bisa create sales invoice
+- ✅ TIDAK bisa akses /kitchen (should fail gracefully)
+- ✅ TIDAK bisa akses admin functions
+
+### Test User 2: Kitchen Staff Role
+```sql
+SELECT name, role FROM `tabHas Role` 
+WHERE parent = '[kitchen_staff_email]' AND role = 'Kitchen Staff';
+```
+
+Verify:
+- ✅ Bisa akses /kitchen
+- ✅ Bisa update KOT status
+- ✅ TIDAK bisa create invoices
+- ✅ TIDAK bisa akses /counter-pos
+
+### Test User 3: Waiter Role
+```sql
+SELECT name, role FROM `tabHas Role` 
+WHERE parent = '[waiter_email]' AND role = 'Waiter';
+```
+
+Verify:
+- ✅ Bisa akses /waiter
+- ✅ Bisa create orders
+- ✅ Bisa update table status
+- ✅ TIDAK bisa process payments directly
+
+### Test User 4: Branch Manager Role
+```sql
+SELECT name, role FROM `tabHas Role` 
+WHERE parent = '[manager_email]' AND role IN ('Branch Manager', 'Area Manager');
+```
+
+Verify:
+- ✅ Bisa akses ALL apps
+- ✅ Bisa perform ALL operations
+- ✅ Bisa configure profiles
+- ✅ Full admin access
+
+## 2. API Endpoint Permission Test
+
+Test SETIAP critical endpoint dengan different roles:
+
+### Counter POS APIs
+```javascript
+// Test as Cashier (should work)
+fetch('/api/method/imogi_pos.api.cashier.get_items', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Frappe-CSRF-Token': frappe.csrf_token
+  },
+  body: JSON.stringify({
+    branch: 'Main Branch',
+    pos_profile: 'Counter POS'
+  })
+}).then(r => r.json()).then(console.log)
+
+// Test as Kitchen Staff (should fail)
+// Repeat test logged in as Kitchen Staff user
+```
+
+Expected results:
+| Endpoint | Cashier | Kitchen | Waiter | Manager |
+|----------|---------|---------|--------|---------|
+| get_items | ✅ | ❌ | ✅ | ✅ |
+| create_invoice | ✅ | ❌ | ❌ | ✅ |
+| update_kot_status | ❌ | ✅ | ❌ | ✅ |
+| update_table_status | ❌ | ❌ | ✅ | ✅ |
+
+### Kitchen APIs
+Test:
+- imogi_pos.api.kot.get_active_kots
+- imogi_pos.api.kot.update_kot_status
+- imogi_pos.api.kot.update_kot_state
+
+### Table Management APIs
+Test:
+- imogi_pos.api.table.get_tables
+- imogi_pos.api.table.update_table_status
+- imogi_pos.api.table.assign_waiter
+
+## 3. Frontend Access Control Test
+
+### Test useAuth Hook
+Di setiap React app, verify error handling:
+
+**Counter POS** - login as Kitchen Staff:
+```javascript
+// Should see error:
+"Insufficient permissions. Required roles: Cashier, Branch Manager"
+// Should NOT crash
+// Should show proper error UI
+```
+
+**Kitchen Display** - login as Cashier:
+```javascript
+// Should see error:
+"Insufficient permissions. Required roles: Kitchen Staff, Branch Manager"
+```
+
+**Waiter App** - login as Cashier:
+```javascript
+// Should see error:
+"Insufficient permissions. Required roles: Waiter, Branch Manager"
+```
+
+## 4. Session & Cookie Test
+
+### Browser Console Tests
+```javascript
+// 1. Check session persistence
+fetch('/api/method/frappe.auth.get_logged_user')
+  .then(r => r.json())
+  .then(data => console.log('Current User:', data))
+
+// 2. Check roles
+fetch('/api/method/imogi_pos.utils.auth_helpers.get_user_role_context')
+  .then(r => r.json())
+  .then(data => console.log('User Roles:', data.message.roles))
+
+// 3. Check CSRF token
+console.log('CSRF Token exists:', !!window.FRAPPE_CSRF_TOKEN)
+
+// 4. Check cookies
+console.log('Cookies:', document.cookie)
+```
+
+Expected:
+- ✅ User NOT Guest
+- ✅ Roles array populated
+- ✅ CSRF token present
+- ✅ Cookies include sid (session ID)
+
+## 5. Permission Matrix Verification
+
+Verify di ERPNext Permission Manager:
+
+### Sales Invoice
+```sql
+SELECT role, `read`, `write`, `create`, submit, cancel 
+FROM `tabCustom DocPerm` 
+WHERE parent = 'Sales Invoice';
+```
+
+Expected:
+- Cashier: read=1, write=1, create=1, submit=1
+- Kitchen Staff: read=1, others=0
+- Waiter: read=1, create=1, write=1, submit=0
+- Branch Manager: ALL=1
+
+### Kitchen Order Ticket
+```sql
+SELECT role, `read`, `write`, `create` 
+FROM `tabCustom DocPerm` 
+WHERE parent = 'Kitchen Order Ticket';
+```
+
+Expected:
+- Kitchen Staff: read=1, write=1
+- Cashier: read=1, create=1
+- Waiter: read=1, create=1
+- Branch Manager: ALL=1
+
+## 6. Error Handling Test
+
+### Test Graceful Failures
+
+**Scenario 1**: User without role tries to access
+- Expected: Redirect to login or show permission denied
+- NOT: White screen / app crash
+
+**Scenario 2**: API call fails with 403
+- Expected: Toast error message to user
+- NOT: Silent failure or console error only
+
+**Scenario 3**: Session expires during usage
+- Expected: Redirect to login with return URL
+- NOT: Stuck in loading state
+
+### Network Error Simulation
+```javascript
+// Block API endpoint di Network tab Chrome DevTools
+// Try to perform action
+// Verify error message shown to user
+```
+
+## 7. Security Audit
+
+### Check for Security Issues:
+
+**A. SQL Injection Protection**
+```python
+# ALL database queries should use parameterized queries
+# BAD:
+frappe.db.sql(f"SELECT * FROM tabItem WHERE name = '{item_name}'")
+
+# GOOD:
+frappe.db.sql("SELECT * FROM tabItem WHERE name = %s", (item_name,))
+```
+
+**B. XSS Protection**
+Check all user inputs are sanitized before display
+
+**C. CSRF Protection**
+All POST/PUT/DELETE requests include CSRF token
+
+**D. Permission Bypass Check**
+No methods with ignore_permissions=True without strong justification
+
+Search for:
+```bash
+grep -rn "ignore_permissions=True" imogi_pos/
+```
+
+## 8. Performance Test
+
+### Load Test Critical Endpoints
+
+**Test 1: Get Items (Heavy load)**
+```javascript
+// Measure response time
+console.time('get_items')
+fetch('/api/method/imogi_pos.api.cashier.get_items', {...})
+  .then(r => r.json())
+  .then(data => {
+    console.timeEnd('get_items')
+    console.log('Items count:', data.message.length)
+  })
+```
+
+Expected: < 500ms for typical catalog
+
+**Test 2: Create Invoice**
+```javascript
+// Measure end-to-end time
+console.time('create_invoice')
+// ... create invoice
+console.timeEnd('create_invoice')
+```
+
+Expected: < 1000ms
+
+## 9. Comprehensive Test Report
+
+Generate report dengan format:
+
+### ✅ PASSED Tests
+- [Test name]: Description
+- [Test name]: Description
+
+### ❌ FAILED Tests
+- [Test name]: Error message
+- Root cause: [explanation]
+- Fix needed: [code/config change]
+
+### ⚠️ WARNINGS
+- [Issue]: Potential problem
+- Recommendation: [improvement]
+
+### 📊 Performance Metrics
+- Average API response time: Xms
+- Page load time: Xms
+- Bundle size: X KB
+
+### 🔒 Security Score
+- Permission checks: X/Y endpoints (Z%)
+- SQL injection safe: Yes/No
+- XSS protection: Yes/No
+- CSRF protection: Yes/No
+
+## 10. Final Checklist
+
+- [ ] All user roles tested
+- [ ] All critical APIs tested with different roles
+- [ ] Frontend access control working
+- [ ] Session persistence verified
+- [ ] Permission matrix correct in ERPNext
+- [ ] Error handling graceful
+- [ ] No security vulnerabilities found
+- [ ] Performance acceptable
+- [ ] Documentation updated
+
+## Output Format
+
+Provide detailed test results dengan:
+1. Test execution log
+2. Pass/Fail summary
+3. Issues found (if any)
+4. Recommendations
+5. Code snippets untuk fixes (if needed)
+```
+
+---
+
 ## 📞 Expected Assistant Response Format
 
 ```markdown
-# Authorization Debug Report - IMOGI POS
+# Authorization Verification Report - IMOGI POS
 
-## 1. User Context Analysis
-- User: [email]
-- Roles: [list]
-- Guest: [true/false]
-- Session valid: [yes/no]
+## Executive Summary
+- Total Tests: X
+- Passed: Y
+- Failed: Z
+- Warnings: W
 
-## 2. Permission Issues Found
-### Issue 1: [Description]
-- Location: [file:line]
-- Impact: [High/Medium/Low]
-- Root Cause: [explanation]
-- Fix: [code snippet]
+## 1. User Authentication Tests
+### Cashier Role
+- ✅ Login successful
+- ✅ Counter POS access: OK
+- ✅ Kitchen access: Properly denied
+- ⚠️ Warning: [any issues]
 
-## 3. API Audit Results
-- Total whitelisted methods: X
-- Methods with permission check: Y
-- Methods WITHOUT permission check: Z (SECURITY ISSUE)
+### Kitchen Staff Role
+- ✅ Login successful
+- ✅ Kitchen Display access: OK
+- ✅ Invoice creation: Properly denied
 
-List of unprotected endpoints:
-- imogi_pos.api.xxx.method1
-- imogi_pos.api.xxx.method2
+### [Other roles...]
 
-## 4. Frontend Auth Flow
-- useAuth implementation: [OK/Issues found]
-- Role requirements: [list per app]
-- Error handling: [OK/Needs improvement]
+## 2. API Permission Tests
+### Results Matrix
+| Endpoint | Cashier | Kitchen | Waiter | Manager | Status |
+|----------|---------|---------|--------|---------|--------|
+| get_items | ✅ | ❌ | ✅ | ✅ | PASS |
+| create_invoice | ✅ | ❌ | ❌ | ✅ | PASS |
 
-## 5. Immediate Action Items
-1. [Action 1 with code]
-2. [Action 2 with code]
-3. [Action 3 with code]
+### Issues Found
+[List any permission issues]
 
-## 6. Code Fixes
-[Provide complete code snippets ready to apply]
+## 3. Frontend Access Control
+- useAuth hook: ✅ Working
+- Error messages: ✅ User-friendly
+- Redirect logic: ✅ Correct
+
+## 4. Session Management
+- Cookie persistence: ✅ OK
+- CSRF token: ✅ Present
+- Session timeout: ✅ Handled
+
+## 5. Security Audit
+- SQL Injection: ✅ Protected
+- XSS: ✅ Safe
+- CSRF: ✅ Protected
+- Unprotected endpoints: [list if any]
+
+## 6. Performance Results
+- API avg response: Xms
+- Items load: Xms
+- Invoice creation: Xms
+
+## 7. Issues Requiring Fixes
+### Issue 1: [Title]
+**Severity**: High/Medium/Low
+**Description**: [details]
+**Fix**:
+```python
+# Code fix here
+```
+
+## 8. Recommendations
+1. [Recommendation 1]
+2. [Recommendation 2]
+
+## 9. Overall Assessment
+✅ Authorization system: WORKING / NEEDS FIXES
 ```

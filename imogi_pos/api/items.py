@@ -254,7 +254,7 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     
     # Add category filter if specified
     if category:
-        filters["menu_category"] = category
+        filters["item_group"] = category
     
     # Build query fields
     fields = [
@@ -263,7 +263,6 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
         "item_name",
         "image",
         "description",
-        "menu_category",
         "item_group",
         "stock_uom",
         "variant_of",

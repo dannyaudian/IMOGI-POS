@@ -664,9 +664,13 @@ def cancel_kot_ticket(kot_ticket):
 
 
 @frappe.whitelist()
+@require_permission("KOT Ticket", "write")
 def update_kot_status(kot_ticket, state):
     """
     Updates the overall status of a KOT Ticket.
+    
+    Permission: Requires 'write' permission on KOT Ticket (Kitchen Staff/Branch Manager only).
+    Waiter role has read-only access and cannot update KOT status.
 
     Args:
         kot_ticket (str): KOT Ticket name
@@ -677,6 +681,7 @@ def update_kot_status(kot_ticket, state):
 
     Raises:
         frappe.ValidationError: If the state transition is not allowed
+        frappe.PermissionError: If user lacks 'write' permission on KOT Ticket
     """
 
     return _apply_ticket_state_change(kot_ticket, state)
@@ -918,7 +923,7 @@ def get_active_kots(kitchen=None, station=None):
         
         # Fetch KOT tickets
         kots = frappe.get_all(
-            "Kitchen Order Ticket",
+            "KOT Ticket",
             filters=filters,
             fields=[
                 "name",
@@ -936,12 +941,15 @@ def get_active_kots(kitchen=None, station=None):
             order_by="creation asc"
         )
         
-        # Fetch items for each KOT
-        for kot in kots:
-            items = frappe.get_all(
+        # Batch fetch items for all KOTs (performance optimization: avoid N+1 queries)
+        # PERFORMANCE: Reduced from N+1 queries (1 per KOT) to 2 queries total
+        if kots:
+            kot_names = [kot.name for kot in kots]
+            all_items = frappe.get_all(
                 "KOT Item",
-                filters={"parent": kot.name},
+                filters={"parent": ["in", kot_names]},
                 fields=[
+                    "parent",
                     "name",
                     "item_code",
                     "item_name",
@@ -952,9 +960,18 @@ def get_active_kots(kitchen=None, station=None):
                     "variant_of",
                     "item_group"
                 ],
-                order_by="idx asc"
+                order_by="parent, idx asc"
             )
-            kot["items"] = items
+            
+            # Build map of items grouped by parent KOT
+            items_map = {}
+            for item in all_items:
+                parent = item.pop("parent")
+                items_map.setdefault(parent, []).append(item)
+            
+            # Assign items to their parent KOTs
+            for kot in kots:
+                kot["items"] = items_map.get(kot.name, [])
         
         return kots
         
@@ -996,7 +1013,7 @@ def update_kot_state(kot_name, new_state, reason=None):
             frappe.throw(_("Cancellation reason is required"))
         
         # Get KOT document
-        kot_doc = frappe.get_doc("Kitchen Order Ticket", kot_name)
+        kot_doc = frappe.get_doc("KOT Ticket", kot_name)
         old_state = kot_doc.workflow_state
         
         # Validate state transition using StateManager
@@ -1098,7 +1115,7 @@ def send_to_kitchen(order_name, items_by_station):
                 kitchen = frappe.db.get_value("Kitchen", {"branch": order_doc.branch, "is_active": 1}, "name")
             
             # Create KOT document
-            kot_doc = frappe.new_doc("Kitchen Order Ticket")
+            kot_doc = frappe.new_doc("KOT Ticket")
             kot_doc.pos_order = order_name
             kot_doc.kitchen = kitchen or "Main Kitchen"
             kot_doc.station = station_name
@@ -1119,7 +1136,8 @@ def send_to_kitchen(order_name, items_by_station):
                     "variant_of": item.get("variant_of")
                 })
             
-            # Save KOT
+            # Save KOT (ignore_permissions allows Waiter role via endpoint permission gate)
+            # Security: Controlled by @require_permission on send_to_kitchen + validate_branch_access
             kot_doc.insert(ignore_permissions=True)
             kot_doc.submit()
             

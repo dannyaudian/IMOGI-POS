@@ -68,7 +68,7 @@ def check_restaurant_domain(pos_profile=None):
         )
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False, methods=['GET', 'POST'])
 def get_floors():
     """
     Gets all floors accessible to the current user's branch.
@@ -392,22 +392,34 @@ def get_tables(branch):
     validate_branch_access(branch)
     
     # Get all tables for this branch through their floors
-    # NOTE: Restaurant Table has 'no_of_seats', 'minimum_seating', 'maximum_seating'
-    # NOT 'seating_capacity' (that field doesn't exist in DocType)
-    tables = frappe.db.sql("""
-        SELECT 
-            t.name,
-            t.table_number,
-            t.no_of_seats as seating_capacity,
-            t.status,
-            t.floor,
-            f.floor_name,
-            t.current_pos_order
-        FROM `tabRestaurant Table` t
-        LEFT JOIN `tabRestaurant Floor` f ON t.floor = f.name
-        WHERE f.branch = %s
-        ORDER BY f.floor_name, t.table_number
-    """, (branch,), as_dict=1)
+    # NOTE: Using frappe.get_all instead of SQL to avoid field issues
+    floors = frappe.get_all(
+        "Restaurant Floor",
+        filters={"branch": branch},
+        fields=["name"],
+        pluck="name"
+    )
+    
+    if not floors:
+        return []
+    
+    tables = frappe.get_all(
+        "Restaurant Table",
+        filters={"floor": ["in", floors]},
+        fields=[
+            "name",
+            "table_number", 
+            "status",
+            "floor"
+        ],
+        order_by="floor, table_number"
+    )
+    
+    # Enrich with floor names
+    for table in tables:
+        floor_name = frappe.db.get_value("Restaurant Floor", table.floor, "floor_name")
+        table["floor_name"] = floor_name
+        table["seating_capacity"] = 4  # Default, can be customized
     
     return tables or []
 

@@ -2,8 +2,7 @@
 Cashier API
 Handles cashier operations including order checkout, payment processing, and invoice generation
 
-IMPORTANT: This module uses "Kitchen Order Ticket" as the DocType name.
-If your system uses "KOT Ticket" instead, update all references throughout this file.
+IMPORTANT: This module uses "KOT Ticket" as the DocType name.
 Verify the correct DocType name in your Frappe instance before deployment.
 """
 
@@ -81,13 +80,12 @@ def get_pending_orders(branch=None, table=None, waiter=None, from_date=None, to_
         item_count_map = {ic.parent: ic.count for ic in item_counts}
         
         # Optimize: Get KOT status for all orders in one query
-        # IMPORTANT: Verify DocType name - should be "Kitchen Order Ticket" or "KOT Ticket"
         kot_stats = frappe.db.sql("""
             SELECT 
                 pos_order,
                 COUNT(*) as total,
                 SUM(CASE WHEN workflow_state = 'Served' THEN 1 ELSE 0 END) as served
-            FROM `tabKitchen Order Ticket`
+            FROM `tabKOT Ticket`
             WHERE pos_order IN %(orders)s
             GROUP BY pos_order
         """, {"orders": order_names}, as_dict=True)
@@ -150,7 +148,7 @@ def get_order_details(order_name):
         
         # Get KOT details
         kots = frappe.get_all(
-            "Kitchen Order Ticket",
+            "KOT Ticket",
             filters={"pos_order": order_name},
             fields=[
                 "name",
@@ -218,7 +216,7 @@ def create_invoice_from_order(order_name, customer=None, customer_name=None):
         
         # Verify all KOTs are served
         kots = frappe.get_all(
-            "Kitchen Order Ticket",
+            "KOT Ticket",
             filters={"pos_order": order_name},
             fields=["workflow_state"]
         )
@@ -453,12 +451,12 @@ def complete_order(order_name, invoice_name=None, payment_name=None):
         
         # Close all KOTs
         kots = frappe.get_all(
-            "Kitchen Order Ticket",
+            "KOT Ticket",
             filters={"pos_order": order_name}
         )
         
         for kot in kots:
-            frappe.db.set_value("Kitchen Order Ticket", kot.name, {
+            frappe.db.set_value("KOT Ticket", kot.name, {
                 "workflow_state": "Completed",
                 "completion_time": frappe.utils.now()
             })

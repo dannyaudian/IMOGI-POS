@@ -113,12 +113,17 @@ def get_available_modules(branch=None):
         # Get user roles
         user_roles = frappe.get_roles(user)
         
+        # Administrator or System Manager sees all modules
+        is_admin = user == "Administrator" or "System Manager" in user_roles
+        
         # Filter modules based on user roles
         available_modules = []
         for module_type, config in MODULE_CONFIGS.items():
             required_roles = config.get('requires_roles', [])
-            # Check if user has any of the required roles
-            if any(role in user_roles for role in required_roles):
+            
+            # Admin bypass: show all modules
+            # Regular users: check if they have any of the required roles
+            if is_admin or any(role in user_roles for role in required_roles):
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],

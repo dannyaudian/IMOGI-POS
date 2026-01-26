@@ -115,12 +115,16 @@ def get_user_role_context(user=None):
         except Exception:
             defaults = {}
     
+    def _is_admin_user(username, user_roles):
+        """Check if user is admin (either Administrator username or has System Manager role)."""
+        return username == "Administrator" or "System Manager" in user_roles
+    
     return {
         "user": user,
         "full_name": full_name,
         "roles": roles,
         "is_guest": is_guest,
-        "is_admin": "System Manager" in roles,
+        "is_admin": _is_admin_user(user, roles),
         "is_area_manager": is_area_manager,
         "is_branch_manager": is_branch_manager,
         "is_manager": is_area_manager or is_branch_manager,  # Either type of manager

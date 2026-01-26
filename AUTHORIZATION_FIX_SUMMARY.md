@@ -172,6 +172,69 @@ const response = await fetch('/api/method/imogi_pos.api.public.get_branding', {
 
 ## Verification Steps
 
+### Automated Test Suite (RECOMMENDED)
+
+**Gunakan comprehensive test harness untuk verify semua endpoints sekaligus:**
+
+1. **Login** ke aplikasi sebagai user yang mau di-test (Cashier/Kitchen/Waiter/Manager)
+
+2. **Open Browser Console** (F12)
+
+3. **Load test script:**
+   ```javascript
+   // Copy-paste isi file: tests/browser_console_auth_test.js
+   // Atau jika sudah serve: 
+   // (edit CONFIG di file sesuai environment)
+   ```
+
+4. **Edit CONFIG** di script sesuai environment:
+   ```javascript
+   const CONFIG = {
+     branch: "Main",              // Your branch name
+     pos_profile: "Counter POS",  // Your POS profile
+     kitchen: "Main Kitchen",     // Optional
+     station: "Grill Station",    // Optional
+     floor: "Ground Floor",       // Optional
+     table: "T-001",              // Optional
+   };
+   ```
+
+5. **Run tests:**
+   ```javascript
+   await runAllTests()
+   ```
+
+6. **Review results:**
+   - Console akan print tabel PASS/FAIL per endpoint
+   - Results tersimpan di `window.testResults`
+   - Inspect detail: `console.table(window.testResults.results.cashier)`
+
+**Expected Output:**
+```
+📊 TEST SUMMARY
+==========================================================
+Total Tests:   15
+✅ Passed:      14 (93.3%)
+❌ Failed:      1 (6.7%)
+🚫 Blockers:    0
+```
+
+**Role-Specific Quick Tests:**
+```javascript
+// Test hanya Cashier endpoints
+await testCashierAccess()
+
+// Test hanya Kitchen endpoints
+await testKitchenAccess()
+
+// Test hanya Waiter endpoints
+await testWaiterAccess()
+```
+
+---
+
+### Manual Verification (Alternative)
+
 ### 1. Test API Endpoint (Backend Fix)
 ```bash
 # Login ke Frappe console atau Postman

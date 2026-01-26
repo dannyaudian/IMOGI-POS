@@ -2,6 +2,42 @@
 
 **Quick diagnostic guide untuk troubleshoot "permission denied" atau redirect loop issues**
 
+> 🧪 **NEW:** Comprehensive automated test suite available!  
+> See [Browser Console Test Suite](#-automated-test-suite) below for one-command verification.
+
+---
+
+## 🧪 Automated Test Suite
+
+**Fastest way to verify all endpoints dan role permissions:**
+
+1. **Copy script** dari `tests/browser_console_auth_test.js`
+2. **Login** sebagai user yang mau di-test
+3. **Paste** script ke Browser Console
+4. **Edit CONFIG** (branch, pos_profile, dll)
+5. **Run:** `await runAllTests()`
+
+**Results:**
+- ✅ PASS/FAIL status per endpoint
+- ⏱️ Performance metrics (response time)
+- 🎭 Role vs access matrix
+- 🚫 Critical blocker detection (500 errors)
+
+**Example output:**
+```
+📦 Cashier/Counter APIs
+────────────────────────────────────────────────────────
+✅ Get Pending Orders              | PASS           |   125ms
+✅ Get Items (Counter)             | PASS           |    89ms
+🚫 List Orders for Cashier         | BLOCKER (500)  |   234ms
+   ⚠️  Server Error: Unknown column 'discount_percent'...
+
+📊 TEST SUMMARY
+Total: 15 | ✅ Passed: 13 (86.7%) | ❌ Failed: 2 | 🚫 Blockers: 1
+```
+
+**See:** [AUTHORIZATION_FIX_SUMMARY.md](AUTHORIZATION_FIX_SUMMARY.md#verification-steps) for detailed usage
+
 ---
 
 ## 🔍 Step 1: Identify Error Type
