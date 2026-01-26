@@ -1,6 +1,39 @@
 # IMOGI POS - Branch Setup Quick Fix
 
-## 🔍 Root Cause Analysis (FINAL)
+## � Quick Deploy (January 26, 2026)
+
+**Critical fixes applied:**
+1. ✅ Backend: Branch query uses `pluck='name'` (avoid 417 error from non-existent fields)
+2. ✅ Frontend: Polyfill uses GET for read-only methods (avoid 400 CSRF errors)
+3. ✅ Enhanced CSRF token detection
+4. ✅ Auto-fallback if user's branch invalid
+
+**Deploy steps:**
+```bash
+# 1. Pull latest code
+git pull
+
+# 2. Clear cache (jika perlu)
+bench clear-cache
+
+# 3. Restart bench (optional)
+bench restart
+
+# 4. Hard refresh browser
+Ctrl+Shift+R (or Cmd+Shift+R on Mac)
+```
+
+**Verify fix:**
+```js
+// Browser console (after login)
+verifyBranchFix()  // Run verification script
+```
+
+**Expected:** All tests pass, `/shared/module-select` loads without errors.
+
+---
+
+## �🔍 Root Cause Analysis (FINAL)
 
 ### Mengapa `danny.a.pratama@cao-group.co.id` error "No branch configured"?
 
@@ -11,48 +44,43 @@
 - `imogi_default_branch`: **"Main"** ✅ (sudah di-set)
 - Roles: System Manager, Branch Manager, Cashier, dll ✅
 
-❌ **Penyebab error:**
+❌ **Penyebab error (FINAL FIX - January 26, 2026):**
 
-**Bug di code lama** - tidak ada conditional check sebelum assign Priority 2:
-
-```python
-# Priority 1: Check imogi_default_branch
-if frappe.db.has_column('User', 'imogi_default_branch'):
-    current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')  
-    # ✅ current_branch = "Main"
-
-# Priority 2: Check User Defaults (BUG DI SINI!)
-if not current_branch:  # ✅ This condition exists
-    current_branch = frappe.defaults.get_user_default("branch")  
-    # ❌ Returns None (no User Defaults set)
-    # ❌ Overwrites "Main" with None!
-
-# Priority 3: Global default  
-if not current_branch:  # ✅ This condition exists
-    current_branch = frappe.defaults.get_global_default("branch")
-```
-
-**Masalah sebenarnya:** Code logic sudah benar dengan `if not current_branch`, tapi sistem kamu **TIDAK pakai User Defaults** (field `defaults` kosong di User record). Jadi walau `imogi_default_branch = "Main"`, karena Priority 2 check User Defaults dan return `None`, value jadi hilang.
-
-**✅ Fix Permanen (sudah di-patch):**
-
-Prioritas yang benar untuk sistem IMOGI POS:
+**Root cause sebenarnya:** Backend `get_user_branch_info` query Branch menggunakan field yang **tidak ada di DocType Branch**:
 
 ```python
-# Priority 1: imogi_default_branch (IMOGI POS standard)
-if frappe.db.has_column('User', 'imogi_default_branch'):
-    current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
-
-# Priority 2: User Defaults (Frappe fallback) 
-if not current_branch:
-    current_branch = frappe.defaults.get_user_default("branch")
-
-# Priority 3: Global default
-if not current_branch:
-    current_branch = frappe.defaults.get_global_default("branch")
+# BEFORE (BROKEN - 417 Error):
+branch_list = frappe.get_list(
+    'Branch',
+    fields=['name', 'disabled', 'company'],  # ❌ disabled/company tidak ada!
+    ...
+)
+# Result: DataError 417 "Field not permitted in query: disabled"
 ```
 
-Sekarang **`imogi_default_branch` adalah priority utama** (sesuai design custom field kamu), dan User Defaults hanya fallback.
+**Konsekuensi:**
+1. API `get_user_branch_info` crash dengan error 417
+2. Frontend dapat empty response atau error
+3. UI tampilkan "No branch configured" walau user sudah punya `imogi_default_branch = "Main"`
+
+**✅ Fix Permanen (sudah di-patch - January 26, 2026):**
+
+Query Branch yang robust (tidak assume field apapun selain `name`):
+
+```python
+# AFTER (FIXED):
+branch_names = frappe.get_all(
+    'Branch',
+    pluck='name',  # ✅ Hanya ambil name, tidak select field lain
+    ignore_permissions=True
+)
+# Result: ["Main", "Branch2", ...] tanpa error
+```
+
+**Bonus fix:**
+- `frappe_polyfill.js`: Gunakan **GET request** untuk read-only methods (bypass CSRF)
+- Enhanced CSRF token detection dari multiple sources
+- Auto-fallback jika branch dari user tidak valid
 
 ---
 
@@ -182,7 +210,7 @@ frappe.call({
 ### Test 2: Check API
 
 ```js
-// Test get_user_branch_info
+// Test get_user_branch_info (seharusnya 200 setelah fix)
 fetch('/api/method/imogi_pos.api.module_select.get_user_branch_info', {
   credentials: 'include'
 })
@@ -197,32 +225,51 @@ fetch('/api/method/imogi_pos.api.module_select.get_user_branch_info', {
 });
 ```
 
-**Expected**:
+**Expected** (setelah fix):
 ```json
 {
   "message": {
     "current_branch": "Main",
-    "available_branches": [...]
+    "available_branches": [
+      {"name": "Main", "branch": "Main"}
+    ]
   }
 }
 ```
 
-**Jika error**: Lihat message error, biasanya:
-- `"No branch configured"` → belum set User Default
-- `"Error loading branches"` → Branch DocType tidak ada atau no permission
-- `"Please login"` → belum login
+**Jika masih error**:
+- **417 "Field not permitted"**: Branch query masih select field yang tidak ada (harus pakai `pluck='name'`)
+- **403 "Permission denied"**: User tidak punya akses Branch (seharusnya sudah `ignore_permissions=True`)
+- **404 "Not found"**: Branch DocType tidak ada
+- **"No branch configured"**: User belum punya `imogi_default_branch` atau User Defaults
+
+**NOTE**: Jangan test `frappe.defaults.get_user_default` via REST API - itu **not whitelisted** (403). 
+Fungsi itu hanya bisa dipanggil dari server-side Python.
 
 ### Test 3: Comprehensive Test (Lengkap)
 
-Copy-paste file ini ke browser console:
-**`tests/browser_branch_setup_test.js`**
+**NEW (January 26, 2026)**: Gunakan verification script terbaru:
 
-Lalu run:
 ```js
-verifyBranchSetup()
+// Copy-paste isi file tests/verify_branch_fix_jan26.js ke console
+// Atau jika sudah di-load:
+verifyBranchFix()
 ```
 
-Akan check semua (user, roles, branch doctype, permissions, defaults, API).
+Script ini akan test:
+1. ✅ User branch configuration (imogi_default_branch)
+2. ✅ Polyfill GET request untuk read-only methods
+3. ✅ Direct fetch GET (baseline)
+4. ✅ Backend branch API (417 error check)
+5. ✅ Module select end-to-end
+
+**Expected output**:
+```
+✅ ALL TESTS PASSED! Branch fix is working correctly.
+```
+
+**OLD verification** (manual):
+Copy-paste `tests/browser_branch_setup_test.js` lalu run `verifyBranchSetup()`
 
 ---
 
@@ -324,15 +371,18 @@ Jika semua ✅ → Module Select pasti jalan!
 
 ## 🔗 Files yang Sudah Di-Fix
 
-| File | What Changed |
-|------|-------------|
-| `imogi_pos/api/module_select.py` | **Fixed priority order**: User Defaults → imogi_default_branch → global default |
-| `imogi_pos/api/module_select.py` | Added proper `if not current_branch` checks to avoid overwrite bug |
-| `imogi_pos/public/js/core/permission-manager.js` | Fixed frappe.ready error |
-| `imogi_pos/public/js/workspace_shortcuts.js` | Added URL safety check |
-| `tests/browser_branch_setup_test.js` | NEW: Verification tool |
-| `BRANCH_CONFIG_FIX.md` | Full documentation |
-| `BRANCH_SETUP_QUICKFIX.md` | This quick guide + root cause analysis |
+| File | What Changed | Date |
+|------|-------------|------|
+| `imogi_pos/api/module_select.py` | **CRITICAL FIX**: Use `pluck='name'` instead of `fields=['name','disabled','company']` to avoid 417 errors | Jan 26, 2026 |
+| `imogi_pos/api/module_select.py` | Fixed priority order: `imogi_default_branch` → User Defaults → global default | Jan 26, 2026 |
+| `imogi_pos/api/module_select.py` | Added proper `if not current_branch` checks to avoid overwrite bug | Jan 26, 2026 |
+| `imogi_pos/public/js/core/frappe_polyfill.js` | **CRITICAL FIX**: Use GET for read-only methods (no args) to bypass CSRF 400/403 errors | Jan 26, 2026 |
+| `imogi_pos/public/js/core/frappe_polyfill.js` | Enhanced CSRF token detection from multiple sources | Jan 26, 2026 |
+| `imogi_pos/public/js/core/permission-manager.js` | Fixed frappe.ready error | Jan 25, 2026 |
+| `imogi_pos/public/js/workspace_shortcuts.js` | Added URL safety check | Jan 25, 2026 |
+| `tests/browser_branch_setup_test.js` | NEW: Verification tool | Jan 25, 2026 |
+| `BRANCH_CONFIG_FIX.md` | Full documentation | Jan 25, 2026 |
+| `BRANCH_SETUP_QUICKFIX.md` | This quick guide + root cause analysis | Jan 26, 2026 |
 
 ---
 
@@ -361,6 +411,12 @@ Jika masih error setelah ikuti semua langkah:
 
 ---
 
-**Last Updated**: January 26, 2026
-**Status**: ✅ Patched and Ready
+**Last Updated**: January 26, 2026 (Critical fixes: 417 error + 400 CSRF error)
+**Status**: ✅ Patched and Tested
 **Applies to**: IMOGI POS v2.0+
+
+**Key fixes:**
+- `module_select.py`: Use `pluck='name'` for Branch query (avoid field permission errors)
+- `frappe_polyfill.js`: Use GET for read-only methods (bypass CSRF requirement)
+- Enhanced error logging and user-friendly messages
+

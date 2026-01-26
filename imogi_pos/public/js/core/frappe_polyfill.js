@@ -11,12 +11,32 @@
 (function() {
     'use strict';
 
-    // Skip if Frappe is already loaded
+    // If Frappe Desk is already loaded, don't override core APIs.
+    // Only patch missing helpers (like frappe.ready) then exit.
     if (typeof window.frappe !== 'undefined' && typeof window.frappe.provide === 'function') {
+        // Minimal frappe.ready for Desk contexts that don't define it
+        if (typeof window.frappe.ready !== 'function') {
+            window.frappe.ready = function(fn) {
+                if (typeof fn !== 'function') return;
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    setTimeout(fn, 0);
+                } else {
+                    document.addEventListener('DOMContentLoaded', fn);
+                }
+            };
+        }
+
+        // Ensure translation helper exists as no-op if missing
+        if (typeof window.__ === 'undefined') {
+            window.__ = function(txt) {
+                return txt;
+            };
+        }
+
         return;
     }
 
-    // Initialize frappe namespace
+    // Initialize frappe namespace for standalone pages
     window.frappe = window.frappe || {};
 
     // =========================================================================
@@ -247,18 +267,45 @@
             }
         }
         
-        // Frappe v15 expects args to be sent directly as JSON body
-        // The server will automatically unwrap them
-        const fetchOpts = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Frappe-CSRF-Token': frappe.csrf_token || ''
-            },
-            credentials: 'include',
-            body: JSON.stringify(args || {})
-        };
+        // Check if method is read-only (no args or empty args)
+        const isReadOnly = !args || Object.keys(args).length === 0;
+        
+        // Get CSRF token from multiple possible locations
+        const csrfToken = frappe.csrf_token || 
+                         window.csrf_token || 
+                         document.querySelector('meta[name="csrf-token"]')?.content || 
+                         '';
+        
+        let fetchOpts;
+        
+        if (isReadOnly) {
+            // For read-only methods (no args), use GET to avoid CSRF issues
+            console.log(`[frappe.call] Using GET for read-only method: ${method}`);
+            fetchOpts = {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            };
+        } else {
+            // For write methods, use POST with CSRF token
+            if (!csrfToken) {
+                console.warn(`[frappe.call] No CSRF token found for POST to ${method}. This may cause 400/403 errors.`);
+            }
+            
+            // Frappe v15 expects args to be sent directly as JSON body
+            fetchOpts = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Frappe-CSRF-Token': csrfToken
+                },
+                credentials: 'include',
+                body: JSON.stringify(args)
+            };
+        }
 
         // Show loading indicator if freeze is true
         let loadingEl = null;

@@ -186,20 +186,20 @@ def get_user_branch_info():
             frappe.throw(_('Branch DocType does not exist. Please create Branch master first.'))
         
         try:
-            # Use ignore_permissions=True to allow all authenticated users to see branch list
-            # Access control is handled via user's imogi_default_branch assignment
-            # Only select 'name' field to avoid schema issues (branch_name may not exist)
-            branch_list = frappe.get_list(
+            # Use pluck to get only branch names - most robust method
+            # Avoids issues with fields like 'disabled', 'company' that may not exist
+            # ignore_permissions=True allows all authenticated users to see branch list
+            branch_names = frappe.get_all(
                 'Branch',
-                fields=['name'],
-                limit_page_length=0,
+                pluck='name',
                 ignore_permissions=True
             )
+            
             # Transform to match expected format {name: "Main", branch: "Main"}
-            if branch_list:
+            if branch_names:
                 available_branches = [
-                    {'name': b.get('name'), 'branch': b.get('name')}
-                    for b in branch_list
+                    {'name': name, 'branch': name}
+                    for name in branch_names
                 ]
         except Exception as e:
             frappe.log_error(f'Error fetching branches: {str(e)}')
@@ -207,6 +207,10 @@ def get_user_branch_info():
         
         # If no branches found, throw error
         if not available_branches:
+            frappe.log_error(
+                f"Branch list empty. user={user}, roles={user_roles}",
+                "IMOGI POS: Branch List Empty"
+            )
             if is_system_manager:
                 frappe.throw(_('No branches configured. Please create at least one Branch.'))
             else:
@@ -269,8 +273,11 @@ def get_user_branch_info():
             'available_branches': available_branches
         }
     
+    except (frappe.ValidationError, frappe.PermissionError):
+        # Let Frappe validation/permission errors bubble up so UI shows the real cause
+        raise
     except Exception as e:
-        # Enhanced error logging with traceback
+        # Enhanced error logging with traceback for unexpected errors
         import traceback
         error_msg = f'Error in get_user_branch_info: {str(e)}\n{traceback.format_exc()}'
         frappe.log_error(error_msg, 'IMOGI POS: Branch Info Error')

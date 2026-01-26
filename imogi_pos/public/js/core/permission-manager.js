@@ -40,7 +40,12 @@ class PermissionManager {
             this.initialized = true;
         } catch (error) {
             console.error('Failed to initialize PermissionManager:', error);
-            frappe.throw(__('Failed to load user permissions'));
+            // Jangan crash seluruh Desk hanya karena permission manager gagal
+            frappe.msgprint({
+                title: __('Permissions'),
+                message: __('Failed to load user permissions. Some UI restrictions may not apply.'),
+                indicator: 'orange'
+            });
         }
     }
 
@@ -322,22 +327,26 @@ class PermissionManager {
     }
 }
 
-// Create global instance
-window.PermissionManager = new PermissionManager();
+// Create global instance (idempotent)
+window.PermissionManager = window.PermissionManager || new PermissionManager();
 
-// Auto-initialize in Frappe desk context
+// Auto-initialize in Frappe desk / web context
 if (typeof frappe !== 'undefined') {
     const initPermissions = () => {
-        if (PermissionManager.init) {
-            PermissionManager.init().then(() => {
-                PermissionManager.processPermissionAttributes();
-            }).catch(err => {
+        const pm = window.PermissionManager;
+        if (!pm || typeof pm.init !== 'function') return;
+
+        pm.init()
+            .then(() => {
+                if (typeof pm.processPermissionAttributes === 'function') {
+                    pm.processPermissionAttributes();
+                }
+            })
+            .catch(err => {
                 console.error('IMOGI POS: Permission manager initialization failed:', err);
             });
-        }
     };
 
-    // Proper Desk context initialization (frappe.ready doesn't exist in v15 Desk)
     const onReady = (fn) => {
         // Priority 1: frappe.after_ajax (Desk context)
         if (typeof frappe.after_ajax === 'function') {
