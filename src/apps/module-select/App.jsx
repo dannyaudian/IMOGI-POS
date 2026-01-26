@@ -174,16 +174,19 @@ function App() {
     setPendingModule(null)
   }
 
-  if (loading || profileLoading) {
+  // Show loading while profile is being fetched
+  if (profileLoading) {
     return (
       <div className="module-select-loading">
         <div className="spinner"></div>
-        <p>Loading modules...</p>
+        <p>Loading POS Profile...</p>
       </div>
     )
   }
 
-  if (error || (availableProfiles.length === 0 && !profileLoading)) {
+  // After profile loads, check if user has access
+  // Only show error if profileLoading is done AND no profiles available
+  if (error || availableProfiles.length === 0) {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
@@ -204,6 +207,16 @@ function App() {
             Please contact your system administrator.
           </p>
         )}
+      </div>
+    )
+  }
+
+  // Show loading while modules are being fetched (after profile is ready)
+  if (loading) {
+    return (
+      <div className="module-select-loading">
+        <div className="spinner"></div>
+        <p>Loading modules...</p>
       </div>
     )
   }
