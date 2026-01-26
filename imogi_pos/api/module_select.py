@@ -164,15 +164,17 @@ def get_user_branch_info():
         # Get user's primary branch with multiple fallbacks
         current_branch = None
         
-        # Priority 1: Custom field imogi_default_branch
+        # Priority 1: Custom field imogi_default_branch (IMOGI POS standard)
+        # This is the primary branch assignment method for IMOGI POS
         if frappe.db.has_column('User', 'imogi_default_branch'):
             current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
         
-        # Priority 2: User Defaults (set via User → Defaults tab)
+        # Priority 2: User Defaults (Frappe standard fallback)
+        # Only used if imogi_default_branch is not set
         if not current_branch:
             current_branch = frappe.defaults.get_user_default("branch")
         
-        # Priority 3: Global default branch
+        # Priority 3: Global default branch (final fallback)
         if not current_branch:
             current_branch = frappe.defaults.get_global_default("branch")
         
