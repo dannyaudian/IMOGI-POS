@@ -106,8 +106,6 @@ has_permission = {
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Property Setter", "filters": [["module", "=", "IMOGI POS"]]},
-    # Custom DocPerm untuk allow IMOGI roles read POS Profile
-    {"dt": "Custom DocPerm", "filters": [["parent", "=", "POS Profile"], ["role", "in", ["IMOGI POS User", "IMOGI Cashier", "IMOGI Waiter", "IMOGI Kitchen"]]]},
     # Workflow State dan Action Master harus dimuat sebelum Workflow
     {"dt": "Workflow State", "filters": [["module", "=", "IMOGI POS"]]},
     {"dt": "Workflow Action Master", "filters": [["module", "=", "IMOGI POS"]]},
