@@ -90,7 +90,7 @@ imogi_pos.workspace_shortcuts = {
             });
             
             // Check if we have a direct link-to attribute
-            if (linkTo && self.is_www_page(linkTo)) {
+            if (linkTo && linkTo !== 'null' && linkTo !== 'undefined' && self.is_www_page(linkTo)) {
                 console.log('IMOGI POS: Intercepting shortcut click (link-to) to:', linkTo);
                 
                 e.preventDefault();
@@ -107,7 +107,8 @@ imogi_pos.workspace_shortcuts = {
             if (shortcutUrl || self.is_www_page_text(shortcutText)) {
                 const urlToNavigate = shortcutUrl || self.extract_url_from_text(shortcutText);
                 
-                if (urlToNavigate) {
+                // Validate URL is not null/undefined before navigating
+                if (urlToNavigate && urlToNavigate !== 'null' && urlToNavigate !== 'undefined') {
                     console.log('IMOGI POS: Intercepting shortcut click (text mapping) to:', {
                         text: shortcutText,
                         url: urlToNavigate
@@ -171,16 +172,18 @@ imogi_pos.workspace_shortcuts = {
                 href = $shortcut.find('a').attr('href');
             }
             
-            if (!href) {
+            // Validate href is not null/undefined/empty
+            if (!href || href === 'null' || href === 'undefined' || href === '') {
                 // Log unhandled shortcut for debugging
-                console.debug('IMOGI POS: No href found for shortcut element:', $target);
+                console.debug('IMOGI POS: No valid href found for shortcut element:', $target);
                 return;
             }
             
             // Clean up the href
-            let clean_href = href.toString().replace(/^\/app/, '');
+            let clean_href = href.toString().replace(/^/app/, '');
             
-            if (self.is_www_page(clean_href)) {
+            // Double-check cleaned href is valid
+            if (clean_href && clean_href !== 'null' && clean_href !== 'undefined' && self.is_www_page(clean_href)) {
                 console.log('IMOGI POS: Intercepting shortcut click to:', clean_href);
                 e.preventDefault();
                 e.stopPropagation();

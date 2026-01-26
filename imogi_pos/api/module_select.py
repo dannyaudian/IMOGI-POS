@@ -174,10 +174,13 @@ def get_user_branch_info():
             frappe.throw(_('Branch DocType does not exist. Please create Branch master first.'))
         
         try:
+            # Use ignore_permissions=True to allow all authenticated users to see branch list
+            # Access control is handled via user's imogi_default_branch assignment
             branch_list = frappe.get_list(
                 'Branch',
                 fields=['name', 'branch_name as branch'],
-                limit_page_length=0
+                limit_page_length=0,
+                ignore_permissions=True
             )
             if branch_list:
                 available_branches = branch_list

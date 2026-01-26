@@ -326,31 +326,29 @@ class PermissionManager {
 window.PermissionManager = new PermissionManager();
 
 // Auto-initialize in Frappe desk context
-if (typeof frappe !== 'undefined' && typeof frappe.ready !== 'undefined') {
-    const initPermissions = () => {
-        PermissionManager.init().then(() => {
-            PermissionManager.processPermissionAttributes();
-        });
-    };
-
-    // Use frappe.ready if available (desk context with polyfill)
-    frappe.ready(() => {
-        initPermissions();
-    });
-} else if (typeof frappe !== 'undefined') {
-    // Fallback: Use standard DOM ready events if frappe.ready is not available
+if (typeof frappe !== 'undefined') {
     const initPermissions = () => {
         if (PermissionManager.init) {
             PermissionManager.init().then(() => {
                 PermissionManager.processPermissionAttributes();
+            }).catch(err => {
+                console.error('IMOGI POS: Permission manager initialization failed:', err);
             });
         }
     };
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initPermissions);
+    // Use frappe.after_ajax for Desk context (frappe.ready doesn't exist in v15)
+    if (typeof frappe.after_ajax !== 'undefined') {
+        frappe.after_ajax(() => {
+            initPermissions();
+        });
     } else {
-        initPermissions();
+        // Fallback: Use standard DOM ready events
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPermissions);
+        } else {
+            initPermissions();
+        }
     }
 }
 
