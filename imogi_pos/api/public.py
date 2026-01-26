@@ -26,6 +26,8 @@ __all__ = [
     "check_session",
     "get_current_user_info",
     "check_permission",
+    "get_user_pos_profile_info",
+    "set_user_default_pos_profile",
 ]
 
 @frappe.whitelist(allow_guest=True)
@@ -252,12 +254,16 @@ def check_permission(doctype, perm_type="read"):
 def set_user_branch(branch):
     """Set user's current branch preference for IMOGI POS module selection.
     
+    DEPRECATED: Use set_user_default_pos_profile() instead. This function
+    is maintained for backward compatibility only.
+    
     Args:
         branch (str): Branch name to set as default
         
     Returns:
         dict: Success status and message
     """
+    frappe.log("DEPRECATION WARNING: set_user_branch() is deprecated. Use set_user_default_pos_profile() instead.")
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
@@ -283,4 +289,173 @@ def set_user_branch(branch):
     except Exception as e:
         frappe.log_error(f'Error in set_user_branch: {str(e)}')
         frappe.throw(_('Error setting branch. Please try again.'))
+
+
+@frappe.whitelist()
+def get_user_pos_profile_info():
+    """Get user's available POS Profiles and current selection.
+    
+    This is the primary method for POS Profile-first architecture.
+    Returns POS Profiles the user has access to via POS Profile User table,
+    or all profiles if user is Administrator/System Manager.
+    
+    Returns:
+        dict: Contains:
+            - current_pos_profile: Currently selected POS Profile name
+            - available_pos_profiles: List of accessible POS Profiles with details
+            - branches: Derived list of unique branches from available profiles
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == 'Guest':
+            frappe.throw(_('Please login to continue'))
+        
+        user_roles = frappe.get_roles(user)
+        is_privileged = 'System Manager' in user_roles or 'Administrator' in user_roles
+        
+        # Get available POS Profiles
+        available_pos_profiles = []
+        
+        if is_privileged:
+            # System Manager / Administrator can access all POS Profiles
+            profiles = frappe.get_all(
+                'POS Profile',
+                filters={'disabled': 0},
+                fields=['name', 'imogi_branch', 'imogi_pos_domain', 'imogi_mode', 
+                        'company', 'imogi_enable_cashier', 'imogi_enable_kot',
+                        'imogi_enable_waiter', 'imogi_enable_kitchen']
+            )
+            available_pos_profiles = profiles
+        else:
+            # Regular users: get from POS Profile User child table
+            profile_users = frappe.get_all(
+                'POS Profile User',
+                filters={'user': user},
+                fields=['parent'],
+                pluck='parent'
+            )
+            
+            if profile_users:
+                profiles = frappe.get_all(
+                    'POS Profile',
+                    filters={'name': ['in', profile_users], 'disabled': 0},
+                    fields=['name', 'imogi_branch', 'imogi_pos_domain', 'imogi_mode',
+                            'company', 'imogi_enable_cashier', 'imogi_enable_kot',
+                            'imogi_enable_waiter', 'imogi_enable_kitchen']
+                )
+                available_pos_profiles = profiles
+        
+        if not available_pos_profiles:
+            frappe.throw(_('No POS Profile configured for your account. Please contact administrator.'))
+        
+        # Determine current POS Profile
+        current_pos_profile = None
+        
+        # Priority 1: User's default POS Profile field
+        if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+            current_pos_profile = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
+        
+        # Priority 2: User defaults (session-based)
+        if not current_pos_profile:
+            current_pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
+        
+        # Validate current_pos_profile is in available list
+        profile_names = [p.get('name') for p in available_pos_profiles]
+        if current_pos_profile and current_pos_profile not in profile_names:
+            current_pos_profile = None
+        
+        # Priority 3: Auto-select if only one profile
+        if not current_pos_profile and len(available_pos_profiles) == 1:
+            current_pos_profile = available_pos_profiles[0].get('name')
+        
+        # Extract unique branches from available profiles
+        branches = list(set([
+            p.get('imogi_branch') for p in available_pos_profiles 
+            if p.get('imogi_branch')
+        ]))
+        
+        # Get current branch (derived from current POS Profile)
+        current_branch = None
+        if current_pos_profile:
+            current_branch = frappe.db.get_value('POS Profile', current_pos_profile, 'imogi_branch')
+        
+        return {
+            'current_pos_profile': current_pos_profile,
+            'current_branch': current_branch,
+            'available_pos_profiles': available_pos_profiles,
+            'branches': branches,
+            'is_privileged': is_privileged
+        }
+    
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f'Error in get_user_pos_profile_info: {str(e)}')
+        frappe.throw(_('Error loading POS Profile information. Please try again.'))
+
+
+@frappe.whitelist()
+def set_user_default_pos_profile(pos_profile, sync_to_server=False):
+    """Set user's current POS Profile preference.
+    
+    Args:
+        pos_profile (str): POS Profile name to set as default
+        sync_to_server (bool): If True, also saves to User's imogi_default_pos_profile field
+        
+    Returns:
+        dict: Success status with profile and derived branch info
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == 'Guest':
+            frappe.throw(_('Please login to continue'))
+        
+        # Verify POS Profile exists and is not disabled
+        if not frappe.db.exists('POS Profile', pos_profile):
+            frappe.throw(_('POS Profile {0} does not exist').format(pos_profile))
+        
+        profile_data = frappe.db.get_value(
+            'POS Profile', 
+            pos_profile, 
+            ['disabled', 'imogi_branch', 'imogi_pos_domain', 'imogi_mode'],
+            as_dict=True
+        )
+        
+        if profile_data.get('disabled'):
+            frappe.throw(_('POS Profile {0} is disabled').format(pos_profile))
+        
+        # Verify user has access to this profile
+        user_roles = frappe.get_roles(user)
+        is_privileged = 'System Manager' in user_roles or 'Administrator' in user_roles
+        
+        if not is_privileged:
+            has_access = frappe.db.exists('POS Profile User', {
+                'parent': pos_profile,
+                'user': user
+            })
+            if not has_access:
+                frappe.throw(_('You do not have access to POS Profile {0}').format(pos_profile))
+        
+        # Set in user defaults (session-based, fast)
+        frappe.defaults.set_user_default("imogi_pos_profile", pos_profile)
+        
+        # Optionally sync to server (permanent storage)
+        if sync_to_server and frappe.db.has_column('User', 'imogi_default_pos_profile'):
+            frappe.db.set_value('User', user, 'imogi_default_pos_profile', pos_profile)
+            frappe.db.commit()
+        
+        return {
+            'success': True,
+            'message': _('POS Profile changed to {0}').format(pos_profile),
+            'pos_profile': pos_profile,
+            'branch': profile_data.get('imogi_branch'),
+            'domain': profile_data.get('imogi_pos_domain'),
+            'mode': profile_data.get('imogi_mode')
+        }
+    
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f'Error in set_user_default_pos_profile: {str(e)}')
+        frappe.throw(_('Error setting POS Profile. Please try again.'))
 

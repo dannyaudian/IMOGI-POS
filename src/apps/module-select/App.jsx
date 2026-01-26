@@ -1,38 +1,45 @@
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import './styles.css'
-import BranchSelector from './components/BranchSelector'
+import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
+import { usePOSProfile } from '../../shared/hooks/usePOSProfile'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
 
 function App() {
-  const [selectedBranch, setSelectedBranch] = useState(null)
+  // Use POS Profile as primary selection (not branch)
+  const { 
+    currentProfile, 
+    profileData, 
+    availableProfiles, 
+    branch: selectedBranch,
+    isLoading: profileLoading,
+    setProfile,
+    isPrivileged
+  } = usePOSProfile()
+  
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch available modules based on user permissions
+  // Fetch available modules based on POS Profile (with branch fallback for compatibility)
   const { data: moduleData, isLoading: modulesLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_available_modules',
-    { branch: selectedBranch }
+    { pos_profile: currentProfile, branch: selectedBranch }
   )
 
-  // Fetch branch info
-  const { data: branchData, isLoading: branchLoading } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_user_branch_info'
-  )
-
-  // Fetch current POS opening entry
+  // Fetch current POS opening entry - now uses pos_profile as primary
   const { data: posData, isLoading: posLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
-    { branch: selectedBranch }
+    { pos_profile: currentProfile },
+    currentProfile ? undefined : false
   )
 
   // Fetch all POS opening entries for today (for session selector)
   const { data: posSessionsData, isLoading: posSessionsLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_pos_sessions_today',
-    { branch: selectedBranch },
-    selectedBranch ? undefined : false
+    { pos_profile: currentProfile, branch: selectedBranch },
+    currentProfile ? undefined : false
   )
 
   useEffect(() => {
@@ -41,12 +48,6 @@ function App() {
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
-
-  useEffect(() => {
-    if (branchData && !selectedBranch) {
-      setSelectedBranch(branchData.current_branch)
-    }
-  }, [branchData])
 
   // Calculate POS opening status
   const posOpeningStatus = {
@@ -57,8 +58,13 @@ function App() {
   }
 
   const handleModuleClick = async (module) => {
-    // Store current selection in localStorage
-    localStorage.setItem('imogi_selected_branch', selectedBranch)
+    // Store current selection in localStorage (now POS Profile based)
+    if (currentProfile) {
+      localStorage.setItem('imogi_selected_pos_profile', currentProfile)
+    }
+    if (selectedBranch) {
+      localStorage.setItem('imogi_selected_branch', selectedBranch)
+    }
     localStorage.setItem('imogi_selected_module', module.type)
     
     // Check if module requires active cashier (for Waiter, Kiosk, Self-Order)
@@ -66,7 +72,7 @@ function App() {
       try {
         const response = await frappe.call({
           method: 'imogi_pos.api.module_select.check_active_cashiers',
-          args: { branch: selectedBranch }
+          args: { pos_profile: currentProfile, branch: selectedBranch }
         })
         
         if (!response.message.has_active_cashier) {
@@ -113,7 +119,7 @@ function App() {
     window.location.href = module.url
   }
 
-  if (loading || branchLoading) {
+  if (loading || profileLoading) {
     return (
       <div className="module-select-loading">
         <div className="spinner"></div>
@@ -122,18 +128,19 @@ function App() {
     )
   }
 
-  if (error || (branchData && !branchData.current_branch)) {
+  if (error || (availableProfiles.length === 0 && !profileLoading)) {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
         <h2>Setup Required</h2>
-        <p>{error || 'No branch configured for your account.'}</p>
-        {frappe?.session?.user === 'Administrator' || (moduleData?.roles && moduleData.roles.includes('System Manager')) ? (
+        <p>{error || 'No POS Profile configured for your account.'}</p>
+        {isPrivileged ? (
           <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
             <p>As a System Manager, please:</p>
             <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
-              <li>Create at least one <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a></li>
-              <li>Assign the branch to your <a href="/app/user" style={{ color: '#667eea' }}>User</a> profile (Default Branch field)</li>
+              <li>Create a <a href="/app/pos-profile" style={{ color: '#667eea' }}>POS Profile</a></li>
+              <li>Add yourself to the POS Profile's "Applicable For Users" table</li>
+              <li>Optionally create a <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a> and link it to the POS Profile</li>
               <li>Then refresh this page</li>
             </ul>
           </div>
@@ -160,20 +167,13 @@ function App() {
           </div>
           
           <div className="header-info">
-            {/* Branch Selector */}
+            {/* POS Profile Selector (replaces Branch Selector) */}
             <div className="header-selector">
-              <label className="header-label">Branch:</label>
-              <select 
-                className="header-select"
-                value={selectedBranch || ''}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-              >
-                {branchData?.available_branches?.map((branch) => (
-                  <option key={branch.name} value={branch.name}>
-                    {branch.branch || branch.name}
-                  </option>
-                ))}
-              </select>
+              <label className="header-label">POS Profile:</label>
+              <POSProfileSwitcher 
+                showBranch={true}
+                syncOnChange={true}
+              />
             </div>
 
             {/* POS Session Selector */}
@@ -209,16 +209,17 @@ function App() {
 
       {/* Main Content */}
       <main className="module-select-main">
-        {/* Left Sidebar - Branch & POS Info */}
+        {/* Left Sidebar - POS Profile & POS Info */}
         <aside className="module-select-sidebar">
-          {/* Branch Selector */}
+          {/* POS Profile Info */}
           <div className="sidebar-section">
-            <h3>Branch</h3>
-            <BranchSelector 
-              currentBranch={selectedBranch}
-              branches={branchData?.available_branches || []}
-              onBranchChange={setSelectedBranch}
-            />
+            <h3>POS Profile</h3>
+            <div className="profile-info-card">
+              <p className="profile-name">{currentProfile || 'Not Selected'}</p>
+              {selectedBranch && <p className="profile-branch">Branch: {selectedBranch}</p>}
+              {profileData?.domain && <p className="profile-domain">Domain: {profileData.domain}</p>}
+              {profileData?.mode && <p className="profile-mode">Mode: {profileData.mode}</p>}
+            </div>
           </div>
 
           {/* POS Opening Info */}

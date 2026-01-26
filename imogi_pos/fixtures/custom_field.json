@@ -1321,7 +1321,22 @@
     "dt": "User",
     "doctype": "Custom Field",
     "name": "User-imogi_default_branch",
-    "description": "Default branch for IMOGI POS module selection",
+    "description": "Default branch for IMOGI POS module selection (DEPRECATED: use imogi_default_pos_profile)",
+    "in_list_view": 0,
+    "in_standard_filter": 0
+  },
+  {
+    "fieldname": "imogi_default_pos_profile",
+    "fieldtype": "Link",
+    "label": "Default POS Profile",
+    "options": "POS Profile",
+    "insert_after": "imogi_default_branch",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "User",
+    "doctype": "Custom Field",
+    "name": "User-imogi_default_pos_profile",
+    "description": "Default POS Profile for IMOGI POS module selection. Takes priority over branch.",
     "in_list_view": 1,
     "in_standard_filter": 1
   }

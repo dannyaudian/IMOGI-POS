@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
-import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useKOTList } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
 import { KitchenHeader, FilterControls, KOTColumn } from './components'
 import { useKOTRealtime, useNotificationSound, useKOTState } from './hooks'
 import { groupKOTsByState, getStationsFromKOTs } from './utils'
@@ -10,6 +11,9 @@ import './kitchen.css'
 
 function KitchenContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Kitchen Staff', 'Branch Manager', 'System Manager'])
+  
+  // Use centralized POS context
+  const { posProfile, branch } = useImogiPOS()
   
   const kitchen = initialState.kitchen || 'Main Kitchen'
   const defaultStation = initialState.station || null

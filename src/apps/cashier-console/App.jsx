@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
 import { OrderListSidebar } from './components/OrderListSidebar'
 import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { ActionButtons } from './components/ActionButtons'
@@ -15,12 +16,15 @@ import './App.css'
 function CounterPOSContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   
-  const branch = initialState.branch || 'Default'
-  const posProfile = initialState.pos_profile || 'Default'
+  // Use centralized POS context (with initialState fallback)
+  const { posProfile: contextPosProfile, branch: contextBranch, mode: contextMode } = useImogiPOS()
+  
+  const branch = contextBranch || initialState.branch || 'Default'
+  const posProfile = contextPosProfile || initialState.pos_profile || 'Default'
   
   // Explicitly validate and set POS mode (Counter or Table)
   const validModes = ['Counter', 'Table']
-  const posMode = validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter'
+  const posMode = validModes.includes(contextMode || initialState.pos_mode) ? (contextMode || initialState.pos_mode) : 'Counter'
   
   // Map mode to order type
   const MODE_TO_ORDER_TYPE = {

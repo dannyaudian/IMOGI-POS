@@ -1,0 +1,242 @@
+/**
+ * IMOGI POS - POS Profile Switcher Styles
+ */
+
+.pos-profile-switcher {
+  position: relative;
+  display: inline-block;
+}
+
+.pos-profile-switcher.loading {
+  opacity: 0.7;
+}
+
+.loading-text {
+  color: var(--text-muted, #6c757d);
+  font-size: 0.875rem;
+}
+
+/* Trigger Button */
+.switcher-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.switcher-trigger:hover {
+  background: var(--hover-bg, #f8f9fa);
+  border-color: var(--primary, #0d6efd);
+}
+
+.pos-profile-switcher.open .switcher-trigger {
+  border-color: var(--primary, #0d6efd);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+}
+
+.trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.profile-icon {
+  font-size: 1rem;
+}
+
+.profile-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.profile-name {
+  font-weight: 500;
+  color: var(--text-color, #212529);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.profile-branch {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6c757d);
+}
+
+.dropdown-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted, #6c757d);
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+.switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.profile-group {
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+}
+
+.profile-group:last-child {
+  border-bottom: none;
+}
+
+.group-header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted, #6c757d);
+  background: var(--bg-light, #f8f9fa);
+}
+
+.profile-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.profile-option:hover {
+  background: var(--hover-bg, #f8f9fa);
+}
+
+.profile-option.selected {
+  background: var(--primary-bg, #e7f1ff);
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-name {
+  font-weight: 500;
+  color: var(--text-color, #212529);
+}
+
+.option-mode,
+.option-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6c757d);
+}
+
+.check-icon {
+  color: var(--success, #198754);
+  font-weight: bold;
+  margin-left: 0.5rem;
+}
+
+/* Compact Mode */
+.pos-profile-switcher.compact .switcher-trigger {
+  padding: 0.375rem 0.625rem;
+  min-width: 140px;
+}
+
+.pos-profile-switcher.compact .profile-info {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.pos-profile-switcher.compact .profile-branch {
+  font-size: 0.6875rem;
+}
+
+/* Display Only (non-interactive) */
+.pos-profile-display {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--bg-light, #f8f9fa);
+  border-radius: 0.375rem;
+}
+
+.pos-profile-display.compact {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Badge Style */
+.pos-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--primary-bg, #e7f1ff);
+  border-radius: 1rem;
+  font-size: 0.75rem;
+}
+
+.badge-profile {
+  font-weight: 500;
+  color: var(--primary, #0d6efd);
+}
+
+.badge-branch {
+  color: var(--text-muted, #6c757d);
+}
+
+.badge-mode {
+  padding: 0.125rem 0.375rem;
+  background: var(--primary, #0d6efd);
+  color: white;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .switcher-trigger {
+    min-width: 140px;
+    padding: 0.375rem 0.5rem;
+  }
+  
+  .switcher-dropdown {
+    min-width: 200px;
+  }
+  
+  .profile-info {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}

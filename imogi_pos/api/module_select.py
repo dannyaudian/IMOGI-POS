@@ -285,8 +285,16 @@ def get_user_branch_info():
 
 
 @frappe.whitelist()
-def get_active_pos_opening(branch=None):
-    """Get the active POS opening entry for the current user at specified branch."""
+def get_active_pos_opening(pos_profile=None, branch=None):
+    """Get the active POS opening entry for the current user.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
+        branch (str, optional): Branch name (DEPRECATED - for backward compatibility only)
+        
+    Returns:
+        dict: POS Opening Entry information
+    """
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
@@ -298,33 +306,75 @@ def get_active_pos_opening(branch=None):
                 'company': None
             }
         
-        # If no branch provided, get default from user
-        if not branch:
-            if frappe.db.has_column('User', 'imogi_default_branch'):
-                branch = frappe.db.get_value('User', user, 'imogi_default_branch')
+        # Deprecation warning for branch parameter
+        if branch and not pos_profile:
+            frappe.log("DEPRECATION WARNING: get_active_pos_opening(branch=...) is deprecated. Use pos_profile parameter instead.")
+        
+        profile_names = []
+        company = None
+        
+        # Priority 1: Use pos_profile directly if provided
+        if pos_profile:
+            profile_data = frappe.db.get_value(
+                'POS Profile', 
+                pos_profile, 
+                ['name', 'company', 'disabled'],
+                as_dict=True
+            )
+            if profile_data and not profile_data.get('disabled'):
+                profile_names = [pos_profile]
+                company = profile_data.get('company')
+        
+        # Priority 2: Fallback to branch (deprecated path)
+        if not profile_names and branch:
+            pos_profiles = frappe.get_list(
+                'POS Profile',
+                filters={'imogi_branch': branch, 'disabled': 0},
+                fields=['name', 'company'],
+                limit_page_length=0
+            )
+            if pos_profiles:
+                company = pos_profiles[0].get('company')
+                profile_names = [p.get('name') for p in pos_profiles]
+        
+        # Priority 3: Get from user's default POS Profile
+        if not profile_names:
+            user_pos_profile = None
+            if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+                user_pos_profile = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
             
-            if not branch:
-                return {
-                    'pos_opening_entry': None,
-                    'pos_profile_name': None,
-                    'opening_balance': 0,
-                    'timestamp': None,
-                    'company': None
-                }
+            if not user_pos_profile:
+                user_pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
+            
+            if user_pos_profile:
+                profile_data = frappe.db.get_value(
+                    'POS Profile', 
+                    user_pos_profile, 
+                    ['name', 'company', 'disabled'],
+                    as_dict=True
+                )
+                if profile_data and not profile_data.get('disabled'):
+                    profile_names = [user_pos_profile]
+                    company = profile_data.get('company')
         
-        # Get active POS opening entry for this user and branch (most recent one submitted today)
-        from datetime import datetime
-        today = datetime.now().date()
+        # Priority 4: Legacy fallback - get from user's default branch
+        if not profile_names:
+            user_branch = None
+            if frappe.db.has_column('User', 'imogi_default_branch'):
+                user_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
+            
+            if user_branch:
+                pos_profiles = frappe.get_list(
+                    'POS Profile',
+                    filters={'imogi_branch': user_branch, 'disabled': 0},
+                    fields=['name', 'company'],
+                    limit_page_length=0
+                )
+                if pos_profiles:
+                    company = pos_profiles[0].get('company')
+                    profile_names = [p.get('name') for p in pos_profiles]
         
-        # Find POS Profile(s) for this branch
-        pos_profiles = frappe.get_list(
-            'POS Profile',
-            filters={'imogi_branch': branch},
-            fields=['name', 'company'],
-            limit_page_length=0
-        )
-        
-        if not pos_profiles:
+        if not profile_names:
             return {
                 'pos_opening_entry': None,
                 'pos_profile_name': None,
@@ -333,11 +383,10 @@ def get_active_pos_opening(branch=None):
                 'company': None
             }
         
-        # Get company from first POS Profile
-        company = pos_profiles[0].get('company')
-        profile_names = [p.get('name') for p in pos_profiles]
-        
         # Get active POS opening entry
+        from datetime import datetime
+        today = datetime.now().date()
+        
         pos_opening = frappe.db.get_list(
             'POS Opening Entry',
             filters={
@@ -353,7 +402,6 @@ def get_active_pos_opening(branch=None):
         
         if pos_opening:
             entry = pos_opening[0]
-            
             return {
                 'pos_opening_entry': entry.get('name'),
                 'pos_profile_name': entry.get('pos_profile'),
@@ -364,7 +412,7 @@ def get_active_pos_opening(branch=None):
         
         return {
             'pos_opening_entry': None,
-            'pos_profile_name': None,
+            'pos_profile_name': profile_names[0] if profile_names else None,
             'opening_balance': 0,
             'timestamp': None,
             'company': company  # Return company from POS Profile even if no opening

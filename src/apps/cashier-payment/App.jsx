@@ -19,7 +19,9 @@ import {
   usePaymentMethods
 } from '../../shared/api/imogi-api'
 import { useAuth } from '../../shared/hooks/useAuth'
+import { usePOSProfile } from '../../shared/hooks/usePOSProfile'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
+import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import './cashier.css'
 
 /**
@@ -28,7 +30,11 @@ import './cashier.css'
  */
 function CashierApp() {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
-  const { cashier, branch } = useCashierSession()
+  const { cashier, branch: sessionBranch } = useCashierSession()
+  
+  // Use centralized POS Profile management
+  const { currentProfile: posProfile, branch: profileBranch } = usePOSProfile()
+  const branch = profileBranch || sessionBranch
   
   // Order state
   const [selectedOrderName, setSelectedOrderName] = useState(null)

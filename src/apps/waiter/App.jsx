@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useTables, useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { POSProfileSwitcher } from '@/shared/components/POSProfileSwitcher'
 import { TableLayout, OrderCart, MenuCatalog } from './components'
 import { useCart, useTableOrder } from './hooks'
 import './waiter.css'
@@ -10,15 +11,19 @@ import './waiter.css'
 function WaiterContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
   
-  const branch = initialState.branch || 'Default'
-  const posProfile = initialState.pos_profile || 'Default'
-  const mode = initialState.mode || 'Dine-in' // Dine-in or Counter
+  // Use centralized POS context (with initialState fallback)
+  const { posProfile: contextPosProfile, branch: contextBranch, mode: contextMode } = useImogiPOS()
+  
+  // Fallback to initialState for backward compatibility
+  const branch = contextBranch || initialState.branch || 'Default'
+  const posProfile = contextPosProfile || initialState.pos_profile || 'Default'
+  const mode = contextMode || initialState.mode || 'Dine-in' // Dine-in or Counter
   
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   
-  // Fetch data
+  // Fetch data - now uses POS Profile-derived branch
   const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(branch)
   const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
   
