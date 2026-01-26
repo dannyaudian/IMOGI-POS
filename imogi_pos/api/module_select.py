@@ -161,10 +161,20 @@ def get_user_branch_info():
         user_roles = frappe.get_roles(user)
         is_system_manager = 'System Manager' in user_roles
         
-        # Get user's primary branch from custom field
+        # Get user's primary branch with multiple fallbacks
         current_branch = None
+        
+        # Priority 1: Custom field imogi_default_branch
         if frappe.db.has_column('User', 'imogi_default_branch'):
             current_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
+        
+        # Priority 2: User Defaults (set via User → Defaults tab)
+        if not current_branch:
+            current_branch = frappe.defaults.get_user_default("branch")
+        
+        # Priority 3: Global default branch
+        if not current_branch:
+            current_branch = frappe.defaults.get_global_default("branch")
         
         # Get available branches from Branch doctype
         available_branches = []
@@ -230,13 +240,27 @@ def get_user_branch_info():
         
         # Final validation before return
         if not current_branch:
+            # Enhanced error message for troubleshooting
+            debug_info = {
+                'user': user,
+                'has_imogi_field': frappe.db.has_column('User', 'imogi_default_branch'),
+                'imogi_value': frappe.db.get_value('User', user, 'imogi_default_branch') if frappe.db.has_column('User', 'imogi_default_branch') else None,
+                'user_default': frappe.defaults.get_user_default("branch"),
+                'global_default': frappe.defaults.get_global_default("branch"),
+                'available_count': len(available_branches)
+            }
+            
             frappe.log_error(
-                f'Unable to set current_branch for user {user}. '
-                f'available_branches: {available_branches}, '
-                f'imogi_default_branch: {frappe.db.get_value("User", user, "imogi_default_branch") if frappe.db.has_column("User", "imogi_default_branch") else "N/A"}',
+                f'Unable to determine branch for user {user}.\n'
+                f'Debug info: {debug_info}',
                 'IMOGI POS: Branch Config Error'
             )
-            frappe.throw(_('Unable to determine branch. User has no default branch configured and no branches are available.'))
+            
+            frappe.throw(_(
+                'No branch configured for your account. '
+                'Please set a default branch in User → Defaults → branch field, '
+                'or ask administrator to assign a branch to your user profile.'
+            ))
         
         return {
             'current_branch': current_branch,

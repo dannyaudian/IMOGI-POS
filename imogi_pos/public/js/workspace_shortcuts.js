@@ -100,19 +100,22 @@ imogi_pos.workspace_shortcuts = {
         const captureHandler = function(e) {
             const url = resolveTargetUrl(e);
             
-            // If no URL found, don't hijack - let browser handle normally
+            // CRITICAL: If no URL found, don't hijack - let browser/Frappe handle normally
+            // This prevents "page null" errors when shortcut has no proper href/data-link-to
             if (!url) {
-                return;
+                console.log('IMOGI POS: No URL resolved from shortcut, letting default handler process');
+                return; // Let event continue to Frappe's handler
             }
             
             // Only intercept IMOGI POS www pages
             if (!self.is_www_page(url)) {
-                return;
+                console.log('IMOGI POS: URL is not www page, letting default handler process:', url);
+                return; // Let event continue to Frappe's handler
             }
             
             console.log('IMOGI POS: Intercepting shortcut click to www page:', url);
             
-            // Prevent default ONLY when we have a valid URL to navigate to
+            // Prevent default ONLY when we have a valid www page URL to navigate to
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();

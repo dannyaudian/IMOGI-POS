@@ -337,19 +337,25 @@ if (typeof frappe !== 'undefined') {
         }
     };
 
-    // Use frappe.after_ajax for Desk context (frappe.ready doesn't exist in v15)
-    if (typeof frappe.after_ajax !== 'undefined') {
-        frappe.after_ajax(() => {
-            initPermissions();
-        });
-    } else {
-        // Fallback: Use standard DOM ready events
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initPermissions);
-        } else {
-            initPermissions();
+    // Proper Desk context initialization (frappe.ready doesn't exist in v15 Desk)
+    const onReady = (fn) => {
+        // Priority 1: frappe.after_ajax (Desk context)
+        if (typeof frappe.after_ajax === 'function') {
+            return frappe.after_ajax(fn);
         }
-    }
+        // Priority 2: frappe.ready (web page context) - check if it's a function
+        if (typeof frappe.ready === 'function') {
+            return frappe.ready(fn);
+        }
+        // Fallback: standard DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else {
+            setTimeout(fn, 0);
+        }
+    };
+
+    onReady(initPermissions);
 }
 
 })(); // End of IIFE wrapper
