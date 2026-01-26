@@ -14,8 +14,6 @@ app_license = "MIT"
 app_include_js = [
     '/assets/imogi_pos/js/core/frappe_polyfill.js',  # Load polyfill first for frappe compatibility
     '/assets/imogi_pos/js/escpos_printing.js',
-    '/assets/imogi_pos/js/workspace_shortcuts.js?v=2.0',
-    '/assets/imogi_pos/js/workspace_shortcuts_init.js?v=2.0',
     '/assets/imogi_pos/js/core/permission-manager.js'
 ]
 app_include_css = []

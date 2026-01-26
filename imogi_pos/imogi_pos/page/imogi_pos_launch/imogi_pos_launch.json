@@ -1,0 +1,32 @@
+{
+ "creation": "2026-01-26 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-01-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "IMOGI POS",
+ "name": "imogi-pos-launch",
+ "owner": "Administrator",
+ "page_name": "imogi-pos-launch",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Cashier"
+  },
+  {
+   "role": "Waiter"
+  },
+  {
+   "role": "Kitchen User"
+  },
+  {
+   "role": "Branch Manager"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "IMOGI POS Launcher"
+}
