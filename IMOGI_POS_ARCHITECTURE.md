@@ -130,6 +130,256 @@ POS Profile (DocType)
 
 **Implementation**: `imogi_pos/api/public.py::_resolve_current_pos_profile()`
 
+### Code Implementation
+
+**Backend Resolution Algorithm** (`imogi_pos/api/public.py`):
+
+```python
+def _resolve_current_pos_profile(user, available_profiles, is_privileged):
+    """Deterministic POS Profile resolution algorithm.
+    
+    Priority:
+    1. User.imogi_default_pos_profile (if valid and in available list)
+    2. Session default (frappe.defaults.get_user_default)
+    3. Auto-select if only one available
+    4. Return None (require user selection)
+    """
+    profile_names = [p['name'] for p in available_profiles]
+    
+    if not profile_names:
+        return None  # No profiles available
+    
+    # Priority 1: User's saved default (persistent)
+    if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+        default_profile = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
+        if default_profile and default_profile in profile_names:
+            # Verify profile is still active
+            is_disabled = frappe.db.get_value('POS Profile', default_profile, 'disabled')
+            if not is_disabled:
+                return default_profile
+    
+    # Priority 2: Session default (temporary)
+    session_profile = frappe.defaults.get_user_default('imogi_pos_profile')
+    if session_profile and session_profile in profile_names:
+        # Verify profile is still active
+        is_disabled = frappe.db.get_value('POS Profile', session_profile, 'disabled')
+        if not is_disabled:
+            return session_profile
+    
+    # Priority 3: Auto-select if only one available
+    if len(profile_names) == 1:
+        return profile_names[0]
+    
+    # Priority 4: Require selection (multiple profiles, no default set)
+    return None
+```
+
+### Sync Flow Between Layers
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 1: React State (usePOSProfile hook)                   │
+│ - localStorage: STORAGE_KEY = 'imogi_pos_profile'           │
+│ - useState for currentProfile, profileData                  │
+│ - Syncs via useFrappeGetCall API                            │
+└──────────────────────────────────────────────────────────────┘
+                            ↕ API Call
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 2: Backend API (imogi_pos/api/public.py)              │
+│ - get_user_pos_profile_info(): Get available profiles       │
+│ - set_user_default_pos_profile(): Persist selection         │
+│ - _resolve_current_pos_profile(): Apply priority algorithm  │
+└──────────────────────────────────────────────────────────────┘
+                            ↕ Database
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 3: Database Persistence                               │
+│ - User.imogi_default_pos_profile (permanent)                │
+│ - frappe.defaults (session-based)                           │
+│ - POS Profile User child table (access control)             │
+└──────────────────────────────────────────────────────────────┘
+                            ↕ BroadcastChannel
+┌──────────────────────────────────────────────────────────────┐
+│ LAYER 4: Cross-Tab Sync (IMOGIPOSProfile manager)           │
+│ - BroadcastChannel: 'imogi-pos-profile-change'              │
+│ - Syncs profile changes across browser tabs                 │
+│ - Updates global: window.CURRENT_POS_PROFILE                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### React Hook Usage (`src/shared/hooks/usePOSProfile.js`)
+
+```javascript
+export function usePOSProfile() {
+  // State managed in localStorage + React state
+  const [currentProfile, setCurrentProfile] = useState(() => {
+    return localStorage.getItem(STORAGE_KEY) || null
+  })
+  
+  // Fetch from backend API
+  const { data: profileInfo } = useFrappeGetCall(
+    'imogi_pos.api.public.get_user_pos_profile_info'
+  )
+  
+  // Auto-sync when server recommends different profile
+  useEffect(() => {
+    if (!currentProfile && profileInfo?.current_pos_profile) {
+      setCurrentProfile(profileInfo.current_pos_profile)
+      localStorage.setItem(STORAGE_KEY, profileInfo.current_pos_profile)
+    }
+  }, [profileInfo, currentProfile])
+  
+  // Method to change profile (syncs to server)
+  const setProfile = async (profileName, syncToServer = true) => {
+    setCurrentProfile(profileName)
+    localStorage.setItem(STORAGE_KEY, profileName)
+    
+    if (syncToServer) {
+      await setDefaultOnServer({
+        pos_profile: profileName,
+        sync_to_server: true
+      })
+    }
+  }
+  
+  return {
+    currentProfile,
+    availableProfiles: profileInfo?.available_pos_profiles || [],
+    branch: profileData?.imogi_branch,
+    setProfile,
+    refetch
+  }
+}
+```
+
+### JavaScript Manager Usage (`imogi_pos/public/js/core/pos-profile-manager.js`)
+
+```javascript
+const IMOGIPOSProfile = {
+  storageKey: 'imogi_pos_profile',
+  current: null,
+  currentData: null,
+  channel: null,
+  
+  async init() {
+    // Load from localStorage
+    this.current = localStorage.getItem(this.storageKey) || null;
+    
+    // Setup cross-tab sync
+    if (window.BroadcastChannel) {
+      this.channel = new BroadcastChannel('imogi-pos-profile-change');
+      this.channel.onmessage = (event) => {
+        if (event.data.posProfile !== this.current) {
+          this.current = event.data.posProfile;
+          localStorage.setItem(this.storageKey, this.current);
+          window.dispatchEvent(new CustomEvent('pos-profile-changed'));
+        }
+      }
+    }
+  },
+  
+  async set(posProfile, { syncToServer = false, broadcast = true }) {
+    this.current = posProfile;
+    localStorage.setItem(this.storageKey, posProfile);
+    
+    // Sync to server (permanent storage)
+    if (syncToServer) {
+      await frappe.call({
+        method: 'imogi_pos.api.public.set_user_default_pos_profile',
+        args: { pos_profile: posProfile, sync_to_server: true }
+      });
+    }
+    
+    // Broadcast to other tabs
+    if (broadcast && this.channel) {
+      this.channel.postMessage({ posProfile });
+    }
+  }
+}
+```
+
+### API Contract (`imogi_pos/api/public.py`)
+
+```python
+@frappe.whitelist()
+def get_user_pos_profile_info():
+    """PRIMARY API for POS Profile-first architecture.
+    
+    Returns:
+        dict: {
+            'current_pos_profile': str | None,
+            'available_pos_profiles': list,
+            'branches': list,
+            'has_access': bool,
+            'require_selection': bool,
+            'is_privileged': bool
+        }
+    
+    CRITICAL: This API NEVER throws for valid states.
+    Empty available_pos_profiles is valid (new user not assigned).
+    Frontend decides handling based on response flags.
+    """
+    user = frappe.session.user
+    user_roles = frappe.get_roles(user)
+    is_privileged = 'System Manager' in user_roles or user == 'Administrator'
+    
+    # 1. Get available profiles
+    available_pos_profiles = _get_available_pos_profiles(user, is_privileged)
+    
+    # 2. Resolve current profile using algorithm
+    current_pos_profile = _resolve_current_pos_profile(
+        user, available_pos_profiles, is_privileged
+    )
+    
+    # 3. Derive branch from profile
+    current_branch = None
+    if current_pos_profile:
+        current_branch = frappe.db.get_value(
+            'POS Profile', current_pos_profile, 'imogi_branch'
+        )
+    
+    return {
+        'current_pos_profile': current_pos_profile,
+        'available_pos_profiles': available_pos_profiles,
+        'branches': list(set([p['imogi_branch'] for p in available_pos_profiles])),
+        'current_branch': current_branch,
+        'has_access': len(available_pos_profiles) > 0,
+        'require_selection': len(available_pos_profiles) > 1 and not current_pos_profile,
+        'is_privileged': is_privileged
+    }
+
+
+@frappe.whitelist()
+def set_user_default_pos_profile(pos_profile, sync_to_server=False):
+    """Set user's POS Profile preference.
+    
+    Args:
+        pos_profile (str): POS Profile name
+        sync_to_server (bool): Persist to User.imogi_default_pos_profile
+    
+    Storage Locations:
+        - Session: frappe.defaults.set_user_default() [temporary]
+        - Database: User.imogi_default_pos_profile [permanent]
+    """
+    user = frappe.session.user
+    
+    # Verify profile exists and user has access
+    # ... validation code ...
+    
+    # Set in session (fast, temporary)
+    frappe.defaults.set_user_default("imogi_pos_profile", pos_profile)
+    
+    # Optionally sync to database (permanent)
+    if sync_to_server and frappe.db.has_column('User', 'imogi_default_pos_profile'):
+        frappe.db.set_value('User', user, 'imogi_default_pos_profile', pos_profile)
+        frappe.db.commit()
+    
+    return {
+        'success': True,
+        'pos_profile': pos_profile,
+        'branch': frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
+    }
+```
+
 ---
 
 ## 🌐 Routing Architecture

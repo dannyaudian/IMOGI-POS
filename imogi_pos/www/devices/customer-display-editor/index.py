@@ -4,22 +4,10 @@ from frappe import _
 
 def get_context(context):
     """
-    Build page context for customer display editor
+    DEPRECATED: This path has been moved to /customer_display_editor
+    
+    Redirect to new React-based Customer Display Editor
     """
-    # Check if user is logged in
-    if frappe.session.user == 'Guest':
-        frappe.throw(_('Login required'), frappe.PermissionError)
-    
-    # Check if user has permission to access customer display editor
-    if not frappe.has_permission('Customer Display Device', 'read'):
-        frappe.throw(_('Not permitted to access Customer Display Editor'), frappe.PermissionError)
-    
-    # Add basic context
-    context.update({
-        'title': 'Customer Display Editor',
-        'page_title': 'Customer Display Editor',
-        'no_breadcrumbs': True,
-        'show_sidebar': False
-    })
-    
-    return context
+    # Force redirect to new implementation
+    frappe.local.flags.redirect_location = '/customer_display_editor'
+    raise frappe.Redirect

@@ -12,6 +12,11 @@ from imogi_pos.utils.permissions import (
     validate_api_permission,
     validate_branch_access
 )
+from imogi_pos.utils.decorators import (
+    require_permission,
+    require_config_access,
+    require_runtime_access
+)
 
 
 class TestPermissionChecks(unittest.TestCase):

@@ -13,20 +13,41 @@ from frappe.utils import get_datetime
 def get_available_displays():
     """
     Get list of all restaurant table displays
+    
+    Returns:
+        dict: List of displays or error state with graceful degradation
     """
+    # Check permission - return error state instead of throwing
     if not frappe.has_permission('Restaurant Table Display', 'read'):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('You do not have permission to view Restaurant Table Displays'),
+            'displays': [],
+            'total': 0
+        }
     
-    displays = frappe.get_list(
-        'Restaurant Table Display',
-        fields=['name', 'display_name', 'section', 'status', 'display_type', 'ip_address'],
-        order_by='display_name asc'
-    )
-    
-    return {
-        'displays': displays,
-        'total': len(displays)
-    }
+    try:
+        displays = frappe.get_list(
+            'Restaurant Table Display',
+            fields=['name', 'display_name', 'section', 'status', 'display_type', 'ip_address'],
+            order_by='display_name asc'
+        )
+        
+        return {
+            'success': True,
+            'displays': displays,
+            'total': len(displays)
+        }
+    except Exception as e:
+        frappe.log_error(f'Error fetching Restaurant Table Displays: {str(e)}')
+        return {
+            'success': False,
+            'error': 'fetch_failed',
+            'message': _('Failed to load Restaurant Table Displays'),
+            'displays': [],
+            'total': 0
+        }
 
 
 @frappe.whitelist()
@@ -38,10 +59,15 @@ def get_display_config(display):
         display: Display name/ID
     
     Returns:
-        dict with display info and config
+        dict with display info and config or error state
     """
+    # Check permission - return error state instead of throwing
     if not frappe.has_permission('Restaurant Table Display', 'read'):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('You do not have permission to view Restaurant Table Displays')
+        }
     
     try:
         display_doc = frappe.get_doc('Restaurant Table Display', display)
@@ -81,9 +107,17 @@ def save_display_config(display, config):
     Args:
         display: Display name/ID
         config: Configuration dict/JSON string
+    
+    Returns:
+        dict: Success/error state
     """
+    # Check permission - return error state instead of throwing
     if not frappe.has_permission('Restaurant Table Display', 'write'):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('You do not have permission to modify Restaurant Table Displays')
+        }
     
     try:
         display_doc = frappe.get_doc('Restaurant Table Display', display)
@@ -119,9 +153,17 @@ def reset_display_config(display):
     
     Args:
         display: Display name/ID
+    
+    Returns:
+        dict: Success/error state
     """
+    # Check permission - return error state instead of throwing
     if not frappe.has_permission('Restaurant Table Display', 'write'):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        return {
+            'success': False,
+            'error': 'insufficient_permissions',
+            'message': _('You do not have permission to modify Restaurant Table Displays')
+        }
     
     try:
         display_doc = frappe.get_doc('Restaurant Table Display', display)

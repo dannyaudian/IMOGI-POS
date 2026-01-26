@@ -169,3 +169,135 @@ def log_api_call(fn):
             raise
     
     return wrapper
+
+
+def require_config_access(config_doctype, perm_type="write"):
+    """Decorator to require permission on configuration DocType.
+    
+    ERPNext v15 Native Pattern for Configuration UIs:
+    - Administrator and System Manager bypass check
+    - Regular users require DocType permission
+    - Uses frappe.has_permission() for native integration
+    - Throws informative frappe.PermissionError
+    
+    This decorator is for CONFIGURATION UIs (editors/management pages)
+    that do NOT require POS Profile. For runtime operational modules,
+    use @require_runtime_access instead.
+    
+    Args:
+        config_doctype (str): Configuration DocType name
+        perm_type (str): Permission type (read, write, create, delete)
+    
+    Example:
+        @frappe.whitelist()
+        @require_config_access('Customer Display Profile', 'write')
+        def save_display_config(profile_name, config):
+            # User needs write permission on Customer Display Profile
+            # No POS Profile validation (correct for config UI)
+            pass
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            # Skip check for privileged users (ERPNext v15 standard)
+            if not has_privileged_access():
+                # Use centralized permission validation
+                validate_api_permission(config_doctype, perm_type=perm_type, throw=True)
+            
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def require_runtime_access(requires_pos_profile=True, requires_opening=False):
+    """Decorator to require runtime operational access.
+    
+    ERPNext v15 Native Pattern for Runtime Modules:
+    - Validates user is in POS Profile User table (if requires_pos_profile)
+    - Validates active POS Opening exists (if requires_opening)
+    - Administrator and System Manager bypass checks
+    
+    This decorator is for RUNTIME/OPERATIONAL modules (cashier, waiter, kitchen)
+    that require active POS Profile. For configuration UIs (editors),
+    use @require_config_access instead.
+    
+    Args:
+        requires_pos_profile (bool): Require user to have assigned POS Profile
+        requires_opening (bool): Require active POS Opening to exist
+    
+    Example:
+        @frappe.whitelist()
+        @require_runtime_access(requires_pos_profile=True, requires_opening=True)
+        def create_pos_order(pos_profile):
+            # User must be in POS Profile User table
+            # Active POS Opening must exist
+            pass
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            # Skip check for privileged users
+            if has_privileged_access():
+                return fn(*args, **kwargs)
+            
+            user = frappe.session.user
+            
+            # Validate POS Profile access if required
+            if requires_pos_profile:
+                # Get pos_profile from function args/kwargs
+                pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
+                
+                if not pos_profile:
+                    frappe.throw(
+                        _('POS Profile is required for this operation'),
+                        frappe.ValidationError
+                    )
+                
+                # Check if user is in POS Profile User table
+                has_access = frappe.db.exists('POS Profile User', {
+                    'parent': pos_profile,
+                    'user': user
+                })
+                
+                if not has_access:
+                    user_roles = ", ".join(frappe.get_roles(user))
+                    error_msg = _(
+                        "Access Denied: You are not assigned to POS Profile '{0}'.\n"
+                        "Current user: {1}\n"
+                        "Your roles: {2}\n"
+                        "Please contact your Branch Manager to assign you to this POS Profile."
+                    ).format(pos_profile, user, user_roles)
+                    
+                    frappe.throw(error_msg, frappe.PermissionError)
+            
+            # Validate POS Opening if required
+            if requires_opening:
+                pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
+                
+                if not pos_profile:
+                    frappe.throw(
+                        _('POS Profile is required to check POS Opening'),
+                        frappe.ValidationError
+                    )
+                
+                # Check for active POS Opening
+                opening = frappe.db.get_value(
+                    'POS Opening Entry',
+                    {
+                        'pos_profile': pos_profile,
+                        'user': user,
+                        'docstatus': 1,
+                        'status': 'Open'
+                    },
+                    'name'
+                )
+                
+                if not opening:
+                    frappe.throw(
+                        _('No active POS Opening found for profile {0}. Please open a POS session first.').format(pos_profile),
+                        frappe.ValidationError
+                    )
+            
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator

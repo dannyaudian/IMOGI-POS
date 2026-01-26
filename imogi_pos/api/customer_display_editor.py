@@ -210,8 +210,8 @@ def save_device_config(device, config=None):
             for block_data in config['blocks']:
                 profile_doc.append('blocks', block_data)
         
-        # Save with permission check (no ignore_permissions)
-        profile_doc.save(ignore_permissions=False)
+        # Save using native DocType permissions (no ignore_permissions)
+        profile_doc.save()
         
         return {
             'success': True,
@@ -270,7 +270,8 @@ def reset_device_config(device):
         profile_doc.brand_header_bg = None
         profile_doc.blocks = []
         
-        profile_doc.save(ignore_permissions=True)
+        # Save using native DocType permissions
+        profile_doc.save()
         
         return {
             'success': True,
@@ -475,7 +476,8 @@ def create_profile(profile_name, branch, template_id=None, config=None):
                 for block_data in config['blocks']:
                     new_doc.append('blocks', block_data)
         
-        new_doc.insert(ignore_permissions=True)
+        # Insert using native DocType permissions
+        new_doc.insert()
         
         return {
             'success': True,
@@ -518,7 +520,8 @@ def duplicate_profile(source_profile, new_name, new_branch=None):
         if new_branch:
             new_doc.branch = new_branch
         
-        new_doc.insert(ignore_permissions=True)
+        # Insert using native DocType permissions
+        new_doc.insert()
         
         return {
             'success': True,
