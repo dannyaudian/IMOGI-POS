@@ -6,9 +6,9 @@
  * Shows POSOpeningModal if module requires opening but none exists.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFrappeGetCall } from 'frappe-react-sdk'
-import { usePOSProfile } from './usePOSProfile'
+import { useOperationalContext } from './useOperationalContext'
 
 const MODULE_SELECT_URL = '/shared/module-select'
 
@@ -27,12 +27,15 @@ export function usePOSProfileGuard(options = {}) {
   } = options
   
   const {
-    currentProfile,
-    profileData,
-    isLoading: profileLoading,
-    error: profileError,
-    availableProfiles
-  } = usePOSProfile()
+    pos_profile,
+    branch,
+    available_profiles,
+    needsSelection,
+    contextRequired,
+    hasAccess,
+    isLoading: contextLoading,
+    error: contextError
+  } = useOperationalContext()
   
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [guardPassed, setGuardPassed] = useState(false)
@@ -40,19 +43,19 @@ export function usePOSProfileGuard(options = {}) {
   // Fetch POS Opening Entry if required
   const { data: posOpening, isLoading: openingLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
-    { pos_profile: currentProfile },
-    currentProfile && requiresOpening ? undefined : false
+    undefined,
+    pos_profile && requiresOpening ? undefined : false
   )
   
   // Check guard conditions
   useEffect(() => {
     // Still loading
-    if (profileLoading || (requiresOpening && openingLoading)) {
+    if (contextLoading || (requiresOpening && openingLoading)) {
       return
     }
     
     // No POS Profile available
-    if (!currentProfile && availableProfiles.length === 0) {
+    if (contextRequired && !pos_profile && available_profiles.length === 0 && !hasAccess) {
       if (autoRedirect) {
         console.log('[POSProfileGuard] No POS Profile available, redirecting to module-select')
         window.location.href = MODULE_SELECT_URL
@@ -61,7 +64,7 @@ export function usePOSProfileGuard(options = {}) {
     }
     
     // No current profile selected but profiles are available
-    if (!currentProfile && availableProfiles.length > 0) {
+    if (contextRequired && !pos_profile && available_profiles.length > 0 && needsSelection) {
       if (autoRedirect) {
         console.log('[POSProfileGuard] No POS Profile selected, redirecting to module-select')
         window.location.href = MODULE_SELECT_URL
@@ -70,7 +73,7 @@ export function usePOSProfileGuard(options = {}) {
     }
     
     // Check opening requirement
-    if (requiresOpening) {
+    if (requiresOpening && pos_profile) {
       if (!posOpening || !posOpening.pos_opening_entry) {
         // Show opening modal instead of redirecting
         setShowOpeningModal(true)
@@ -82,14 +85,24 @@ export function usePOSProfileGuard(options = {}) {
     setGuardPassed(true)
     
   }, [
-    currentProfile, 
-    availableProfiles, 
-    profileLoading, 
+    pos_profile, 
+    available_profiles, 
+    contextLoading, 
     requiresOpening, 
     posOpening, 
     openingLoading, 
-    autoRedirect
+    autoRedirect,
+    needsSelection,
+    contextRequired,
+    hasAccess
   ])
+
+  const profileData = useMemo(() => {
+    if (!pos_profile) {
+      return null
+    }
+    return available_profiles.find((profile) => profile.name === pos_profile) || null
+  }, [available_profiles, pos_profile])
   
   // Handle opening modal success
   const handleOpeningSuccess = useCallback((result) => {
@@ -104,14 +117,14 @@ export function usePOSProfileGuard(options = {}) {
   
   return {
     // Guard state
-    isLoading: profileLoading || (requiresOpening && openingLoading),
+    isLoading: contextLoading || (requiresOpening && openingLoading),
     guardPassed,
-    error: profileError,
+    error: contextError,
     
     // POS Profile data
-    posProfile: currentProfile,
+    posProfile: pos_profile,
     profileData,
-    branch: profileData?.branch || null,
+    branch: branch || null,
     
     // POS Opening data (if required)
     posOpening: posOpening || null,

@@ -186,7 +186,7 @@ def resolve_operational_context(
     
     # Classify user role
     role_class = get_user_role_class(user)
-    is_privileged = role_class == "SYSTEM_LEVEL"
+    is_privileged = role_class in ["SYSTEM_LEVEL", "FINANCE_CONTROLLER"]
     context_required = is_context_required_for_role_class(role_class)
     
     # Get available POS Profiles (uses existing resolver)

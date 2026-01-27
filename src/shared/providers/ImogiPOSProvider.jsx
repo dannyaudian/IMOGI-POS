@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useMemo } from 'react'
 import { FrappeProvider } from 'frappe-react-sdk'
-import { usePOSProfile } from '../hooks/usePOSProfile'
+import { useOperationalContext } from '../hooks/useOperationalContext'
 
 // Create context for IMOGI POS state
 const ImogiPOSContext = createContext(null)
@@ -44,33 +44,31 @@ export function ImogiPOSProvider({ children, initialState = {} }) {
  * Internal context provider that uses hooks (must be inside FrappeProvider)
  */
 function ImogiPOSContextProvider({ children, initialState = {} }) {
-  const posProfile = usePOSProfile()
-  
-  // Merge initialState with POS Profile data
-  // Priority: POS Profile hook > initialState > localStorage
+  const {
+    pos_profile,
+    branch,
+    available_profiles,
+    isLoading,
+    setContext
+  } = useOperationalContext()
+
+  const profileData = useMemo(() => {
+    if (!pos_profile) {
+      return null
+    }
+    return available_profiles.find((profile) => profile.name === pos_profile) || null
+  }, [available_profiles, pos_profile])
+
+  // Merge initialState with operational context
+  // Priority: operational context > initialState
   const mergedState = {
     ...initialState,
-    pos_profile: posProfile.currentProfile || initialState.pos_profile,
-    branch: posProfile.branch || initialState.branch,
-    domain: posProfile.domain || initialState.domain,
-    mode: posProfile.mode || initialState.mode,
-    company: posProfile.company || initialState.company,
+    pos_profile: pos_profile || initialState.pos_profile,
+    branch: branch || initialState.branch,
+    domain: profileData?.pos_domain || initialState.domain,
+    mode: profileData?.mode || initialState.mode,
+    company: profileData?.company || initialState.company,
   }
-  
-  // Sync initialState POS Profile to hook if provided and different
-  useEffect(() => {
-    if (initialState.pos_profile && 
-        initialState.pos_profile !== posProfile.currentProfile &&
-        posProfile.availableProfiles.length > 0) {
-      // Check if initialState profile is in available profiles
-      const isAvailable = posProfile.availableProfiles.some(
-        p => p.name === initialState.pos_profile
-      )
-      if (isAvailable) {
-        posProfile.setProfile(initialState.pos_profile)
-      }
-    }
-  }, [initialState.pos_profile, posProfile.currentProfile, posProfile.availableProfiles])
   
   const contextValue = {
     // Current state
@@ -81,12 +79,12 @@ function ImogiPOSContextProvider({ children, initialState = {} }) {
     company: mergedState.company,
     
     // Profile management
-    availableProfiles: posProfile.availableProfiles,
-    setProfile: posProfile.setProfile,
-    isProfileLoading: posProfile.isLoading,
+    availableProfiles: available_profiles,
+    setProfile: async (profileName) => setContext({ pos_profile: profileName }),
+    isProfileLoading: isLoading,
     
     // Full profile data
-    profileData: posProfile.profileData,
+    profileData,
     
     // Backward compatibility
     initialState: mergedState

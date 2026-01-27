@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { FrappeProvider } from 'frappe-react-sdk'
 import { ImogiPOSProvider, useImogiPOS } from '../../shared/providers/ImogiPOSProvider'
-import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import {
   OrderList,
   OrderDetails,
