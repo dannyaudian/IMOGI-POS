@@ -192,7 +192,7 @@ Test each page with different roles:
 
 #### E.3 Counter POS (`/counter/pos`)
 - ⬜ Page loads without errors
-- ⬜ POS Session validation works (if enabled)
+- ⬜ POS Opening validation works (if enabled)
 - ⬜ Can create new orders
 - ⬜ Can process payments
 - ⬜ Can print receipts

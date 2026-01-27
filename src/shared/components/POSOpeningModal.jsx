@@ -2,7 +2,7 @@
  * IMOGI POS - POS Opening Modal Component
  * 
  * Modal dialog for creating POS Opening Entry from React UI.
- * Allows users to start a new POS session without leaving the app.
+ * Allows users to start a new POS opening without leaving the app.
  */
 
 import React, { useState, useEffect } from 'react'
@@ -123,7 +123,7 @@ export function POSOpeningModal({
         <div className="pos-opening-modal-header">
           <h2>
             <i className="fa-solid fa-cash-register"></i>
-            Open POS Session
+            Open POS Opening
           </h2>
           {!required && (
             <button 
@@ -245,7 +245,7 @@ export function POSOpeningModal({
             ) : (
               <>
                 <i className="fa-solid fa-play"></i>
-                Open Session
+                Open Opening
               </>
             )}
           </button>

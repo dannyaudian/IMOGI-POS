@@ -282,14 +282,14 @@ const IMOGIAuth = {
      */
     logout: function(redirect) {
         return new Promise(async (resolve, reject) => {
-            // Check for active POS session before logout
+            // Check for active POS opening before logout
             try {
                 const hasActiveSession = await this.checkActiveSession();
                 
                 if (hasActiveSession) {
                     // Warn user about active session
                     frappe.confirm(
-                        __('You have an active POS Session. Logging out will not close your session. Do you want to close the session first?'),
+                        __('You have an active POS Opening. Logging out will not close your opening. Do you want to close it first?'),
                         () => {
                             // User wants to close session first
                             this.promptCloseSession();
@@ -313,7 +313,7 @@ const IMOGIAuth = {
     },
     
     /**
-     * Check if user has active POS session
+     * Check if user has active POS opening
      * @returns {Promise<boolean>}
      */
     checkActiveSession: function() {
@@ -338,7 +338,7 @@ const IMOGIAuth = {
     promptCloseSession: function() {
         frappe.msgprint({
             title: __('Close Session First'),
-            message: __('Please close your POS Session from the Cashier Console or go to POS Closing Entry to end your shift.'),
+            message: __('Please close your POS Opening from the Cashier Console or go to POS Closing Entry to end your shift.'),
             primary_action: {
                 label: __('Go to Closing Entry'),
                 action: () => {

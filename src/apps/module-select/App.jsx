@@ -9,6 +9,8 @@ import ModuleCard from './components/ModuleCard'
 function App() {
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeOpening, setActiveOpening] = useState(null)
+  const [sessionsToday, setSessionsToday] = useState({ sessions: [], total: 0 })
   const [contextState, setContextState] = useState({
     pos_profile: null,
     branch: null,
@@ -22,7 +24,7 @@ function App() {
   const [pendingModule, setPendingModule] = useState(null)
 
   // Fetch available modules - no parameters needed
-  const { data: moduleData, isLoading: modulesLoading, error: moduleError } = useFrappeGetCall(
+  const { data: moduleData, isLoading: modulesLoading, error: moduleError, mutate: refetchModuleData } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_available_modules'
   )
 
@@ -30,19 +32,11 @@ function App() {
     'imogi_pos.utils.operational_context.set_operational_context'
   )
 
-  // Fetch current POS opening entry - no parameters needed
-  const { data: posData, isLoading: posLoading, mutate: refetchPosData } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_active_pos_opening'
-  )
-
-  // Fetch all POS opening entries for today - no parameters needed
-  const { data: posSessionsData } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_pos_sessions_today'
-  )
-
   useEffect(() => {
     if (!modulesLoading && moduleData) {
       setModules(moduleData.modules || [])
+      setActiveOpening(moduleData.active_opening || null)
+      setSessionsToday(moduleData.sessions_today || { sessions: [], total: 0 })
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
@@ -67,11 +61,11 @@ function App() {
     is_privileged: contextState.is_privileged
   }), [contextState])
   
-  // Listen for POS session opened events (from POSOpeningModal)
+  // Listen for POS opening events (from POSOpeningModal)
   useEffect(() => {
     const handleSessionOpened = (event) => {
-      // Refresh POS data
-      refetchPosData()
+      // Refresh module data (includes active opening + sessions today)
+      refetchModuleData()
       
       // If there was a pending module, navigate to it
       if (pendingModule) {
@@ -82,14 +76,14 @@ function App() {
     
     window.addEventListener('posSessionOpened', handleSessionOpened)
     return () => window.removeEventListener('posSessionOpened', handleSessionOpened)
-  }, [pendingModule, refetchPosData])
+  }, [pendingModule, refetchModuleData])
 
   // Calculate POS opening status
   const posOpeningStatus = {
-    hasOpening: !!(posData && posData.pos_opening_entry),
-    posOpeningEntry: posData?.pos_opening_entry,
-    user: posData?.user,
-    openingBalance: posData?.opening_balance
+    hasOpening: !!(activeOpening && activeOpening.pos_opening_entry),
+    posOpeningEntry: activeOpening?.pos_opening_entry,
+    user: activeOpening?.user,
+    openingBalance: activeOpening?.opening_balance
   }
   
   // Navigate to module with BASE URL only (no query params)
@@ -126,7 +120,7 @@ function App() {
         if (!response.message.has_active_cashier) {
           frappe.msgprint({
             title: 'No Active Cashier',
-            message: response.message.message || 'No active cashier sessions found. Please ask a cashier to open a POS session first.',
+            message: response.message.message || 'No active cashier sessions found. Please ask a cashier to open a POS opening first.',
             indicator: 'orange'
           })
           return
@@ -154,7 +148,7 @@ function App() {
     // Check if module requires POS opening entry
     if (module.requires_opening) {
       // Check if POS opening exists
-      if (!posData || !posData.pos_opening_entry) {
+      if (!activeOpening || !activeOpening.pos_opening_entry) {
         // No POS opening entry - show modal to create one
         setPendingModule(module)
         setShowOpeningModal(true)
@@ -188,7 +182,7 @@ function App() {
     return (
       <div className="module-select-loading">
         <div className="spinner"></div>
-        <p>Loading POS Profile...</p>
+        <p>Loading module data...</p>
       </div>
     )
   }
@@ -268,27 +262,27 @@ function App() {
               />
             </div>
 
-            {/* POS Session Selector */}
-            {posSessionsData && posSessionsData.sessions && posSessionsData.sessions.length > 0 && (
+            {/* POS Opening Selector */}
+            {sessionsToday && sessionsToday.sessions && sessionsToday.sessions.length > 0 && (
               <div className="header-selector">
-                <label className="header-label">POS Session:</label>
+                <label className="header-label">POS Opening:</label>
                 <select 
                   className="header-select"
-                  value={posData?.pos_opening_entry || ''}
+                  value={activeOpening?.pos_opening_entry || ''}
                   onChange={(e) => {
                     if (e.target.value) {
-                      // Switch to selected POS session
+                      // Switch to selected POS opening
                       window.location.href = `/app/pos-opening-entry/${e.target.value}`
                     }
                   }}
                 >
-                  {posSessionsData.sessions.map((session) => (
+                  {sessionsToday.sessions.map((session) => (
                     <option key={session.name} value={session.name}>
                       {session.user} - {session.period_start_date ? new Date(session.period_start_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-                      {session.name === posData?.pos_opening_entry ? ' (Active)' : ''}
+                      {session.name === activeOpening?.pos_opening_entry ? ' (Active)' : ''}
                     </option>
                   ))}
-                  <option value="">-- View All Sessions --</option>
+                  <option value="">-- View All Openings --</option>
                 </select>
               </div>
             )}
@@ -315,12 +309,12 @@ function App() {
           </div>
 
           {/* POS Opening Info */}
-          {posData && (
+          {activeOpening && (
             <div className="sidebar-section pos-info-section">
               <h3>Active POS</h3>
               <POSInfoCard 
-                posData={posData}
-                isLoading={posLoading}
+                posData={activeOpening}
+                isLoading={modulesLoading}
               />
             </div>
           )}
@@ -346,15 +340,15 @@ function App() {
             <h2>Available Modules</h2>
             <p>Select a module to get started</p>
             
-            {/* POS Sessions Overview */}
-            {posSessionsData && posSessionsData.sessions && posSessionsData.sessions.length > 0 && (
+            {/* POS Openings Overview */}
+            {sessionsToday && sessionsToday.sessions && sessionsToday.sessions.length > 0 && (
               <div className="pos-sessions-overview">
-                <h3>Active POS Sessions Today ({posSessionsData.sessions.length})</h3>
+                <h3>Active POS Openings Today ({sessionsToday.sessions.length})</h3>
                 <div className="sessions-list">
-                  {posSessionsData.sessions.map((session) => (
+                  {sessionsToday.sessions.map((session) => (
                     <div 
                       key={session.name} 
-                      className={`session-chip ${session.name === posData?.pos_opening_entry ? 'active' : ''}`}
+                      className={`session-chip ${session.name === activeOpening?.pos_opening_entry ? 'active' : ''}`}
                       onClick={() => window.location.href = `/app/pos-opening-entry/${session.name}`}
                       title={`View ${session.user}'s session`}
                     >
@@ -363,7 +357,7 @@ function App() {
                       <span className="session-time">
                         {new Date(session.period_start_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {session.name === posData?.pos_opening_entry && (
+                      {session.name === activeOpening?.pos_opening_entry && (
                         <span className="session-badge-active">You</span>
                       )}
                     </div>

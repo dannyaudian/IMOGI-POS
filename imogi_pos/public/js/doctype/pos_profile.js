@@ -31,7 +31,7 @@ frappe.ui.form.on('POS Profile', {
             
             // Add custom button
             frm.add_custom_button(button_label, function() {
-                // Check if POS Session is required
+                // Check if POS Opening Entry is required
                 const require_session = frm.doc.imogi_require_pos_session;
                 
                 if (!require_session) {

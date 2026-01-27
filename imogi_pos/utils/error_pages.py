@@ -54,15 +54,15 @@ def set_setup_error(context, error_type="pos_profile", error_message=None, page_
         
     elif error_type == "session":
         context.error_title = _("Session Required")
-        context.error_message = error_message or _("An active POS session is required to access this page.")
+        context.error_message = error_message or _("An active POS opening is required to access this page.")
         context.error_details = [
-            _("You need to open a POS session first."),
-            _("Go to POS Opening Entry and create a new session."),
+            _("You need to open a POS opening first."),
+            _("Go to POS Opening Entry and create a new opening."),
             _("Once opened, you can access {0}.").format(page_name)
         ]
         context.error_icon = "lock"
-        context.back_url = "/app/pos-opening-entry/new-pos-opening-entry"
-        context.back_label = _("Open Session")
+        context.back_url = "/app/pos-opening-entry/new"
+        context.back_label = _("Open Opening")
         
     elif error_type == "permission":
         context.error_title = _("Access Denied")

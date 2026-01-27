@@ -14,14 +14,14 @@ function POSInfoCard({ posData, isLoading }) {
     return (
       <div className="pos-info-card no-opening">
         <div className="status-badge inactive">No Active POS</div>
-        <p className="pos-message">No POS session opened yet</p>
+        <p className="pos-message">No POS opening recorded yet</p>
         {posData?.company && (
           <div className="pos-detail">
             <label>Company</label>
             <p className="pos-value">{posData.company}</p>
           </div>
         )}
-        <p className="pos-hint">Open a POS session in Cashier Console</p>
+        <p className="pos-hint">Open a POS opening entry in Cashier Console</p>
       </div>
     )
   }

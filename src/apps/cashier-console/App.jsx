@@ -97,7 +97,7 @@ function CounterPOSContent({ initialState }) {
   
   // Wait for guard to pass
   if (!guardPassed) {
-    return <LoadingSpinner message="Verifying POS session..." />
+    return <LoadingSpinner message="Verifying POS opening..." />
   }
 
   if (!effectivePosProfile) {

@@ -63,19 +63,19 @@ def get_custom_redirect_url(doc, method=None):
             # Redirect berdasarkan operation mode
             if mode == "Table":
                 redirect_url = "/restaurant/waiter"
-                message = "POS Session opened. Redirecting to Restaurant POS..."
+                message = "POS Opening Entry created. Redirecting to Restaurant POS..."
             elif mode == "Counter":
                 redirect_url = "/counter/pos"
-                message = "POS Session opened. Redirecting to Counter POS..."
+                message = "POS Opening Entry created. Redirecting to Counter POS..."
             elif mode == "Kiosk":
                 redirect_url = "/restaurant/waiter?mode=kiosk"
-                message = "POS Session opened. Redirecting to Kiosk Mode..."
+                message = "POS Opening Entry created. Redirecting to Kiosk Mode..."
             elif mode == "Self-Order":
                 redirect_url = "/restaurant/self-order"
-                message = "POS Session opened. Redirecting to Self-Order..."
+                message = "POS Opening Entry created. Redirecting to Self-Order..."
             else:
                 redirect_url = "/counter/pos"
-                message = "POS Session opened. Redirecting to POS..."
+                message = "POS Opening Entry created. Redirecting to POS..."
             
             # Store redirect info in cache untuk diambil oleh frontend
             cache_key = f"pos_opening_redirect_{doc.name}"

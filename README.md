@@ -15,7 +15,7 @@ IMOGI POS follows best practices for ERPNext v15 development with a focus on mod
 - **Branch-aware**: All objects carry branch information with UI filtering
 - **Single Billing Path**: Sales Invoice (is_pos=1) with appropriate payments
 - **Flexible Payments**: Supports partial payments with configurable rounding tolerance
-- **Native POS Session**: Optional enforcement with automatic linking
+- **Native POS Opening**: Optional enforcement with automatic linking
 
 ### Restaurant-specific Features
 
@@ -237,7 +237,7 @@ For detailed printing setup including auto-start configuration, multi-branch dep
 
 Once all settings are configured, follow these steps to start using IMOGI POS:
 
-### 1. **Start POS Session** (Opsional)
+### 1. **Start POS Opening** (Opsional)
 
 Jika POS Profile mengaktifkan **Require Session**, kasir harus membuka sesi terlebih dahulu:
 
@@ -355,7 +355,7 @@ Untuk waiter yang mengambil order dari meja:
 
 ### 9. **Tutup Shift/Session**
 
-Pada akhir shift, jika menggunakan POS Session:
+Pada akhir shift, jika menggunakan POS Opening:
 
 1. Buka **IMOGI POS → Session → POS Closing Entry**
 2. Klik **New**
@@ -378,7 +378,7 @@ Akses laporan melalui workspace **IMOGI POS**:
 ### Tips Operasional
 
 ✅ **Best Practices:**
-- Selalu buka POS Session di awal shift
+- Selalu buka POS Opening di awal shift
 - Verifikasi printer connection sebelum mulai operasi
 - Backup cash drawer secara regular
 - Monitor Kitchen Display untuk order delays
