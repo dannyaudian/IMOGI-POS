@@ -25,13 +25,8 @@
             setTimeout(fn, 0);
         };
     }
-    
-    // Wait for frappe to be available
-    if (typeof frappe === 'undefined') {
-        console.warn('PermissionManager: frappe not available, skipping initialization');
-        return;
-    }
 
+// Always define the class, even if frappe isn't loaded yet
 class PermissionManager {
     constructor() {
         this.initialized = false;
@@ -55,11 +50,13 @@ class PermissionManager {
         } catch (error) {
             console.error('Failed to initialize PermissionManager:', error);
             // Jangan crash seluruh Desk hanya karena permission manager gagal
-            frappe.msgprint({
-                title: __('Permissions'),
-                message: __('Failed to load user permissions. Some UI restrictions may not apply.'),
-                indicator: 'orange'
-            });
+            if (typeof frappe !== 'undefined' && frappe.msgprint) {
+                frappe.msgprint({
+                    title: __('Permissions'),
+                    message: __('Failed to load user permissions. Some UI restrictions may not apply.'),
+                    indicator: 'orange'
+                });
+            }
         }
     }
 
@@ -68,6 +65,11 @@ class PermissionManager {
      * @returns {Promise<void>}
      */
     async fetchPermissions() {
+        if (typeof frappe === 'undefined' || !frappe.call) {
+            console.error('PermissionManager: frappe.call not available');
+            throw new Error('Frappe not loaded');
+        }
+
         const response = await frappe.call({
             method: 'imogi_pos.utils.role_permissions.get_permissions_for_user',
             type: 'GET',
@@ -296,11 +298,15 @@ class PermissionManager {
      * @param {string} action - Action that was denied
      */
     showPermissionDenied(action = 'perform this action') {
-        frappe.msgprint({
-            title: __('Access Denied'),
-            message: __('You do not have permission to {0}. Please contact your system administrator.', [action]),
-            indicator: 'red'
-        });
+        if (typeof frappe !== 'undefined' && frappe.msgprint) {
+            frappe.msgprint({
+                title: __('Access Denied'),
+                message: __('You do not have permission to {0}. Please contact your system administrator.', [action]),
+                indicator: 'red'
+            });
+        } else {
+            console.warn('Permission denied:', action);
+        }
     }
 
     /**
