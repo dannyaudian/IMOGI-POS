@@ -45,7 +45,7 @@ if not validate_pos_profile_access(pos_profile, user):
 **Before:**
 ```python
 # System Managers blocked by missing DefaultValue
-pos_profile = frappe.defaults.get_user_default("pos_profile")
+pos_profile = frappe.defaults.get_user_default('pos_profile')  # legacy example removed from runtime code
 if not pos_profile:
     throw "No access"  # Blocks legitimate admins!
 ```

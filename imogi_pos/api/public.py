@@ -552,9 +552,10 @@ def get_user_pos_profile_info():
         )
         
         # Extract unique branches from available profiles
+        candidate_details = result.get('candidate_details', [])
         branches = list(set([
             p.get('branch')
-            for p in result['candidates']
+            for p in candidate_details
             if p.get('branch')
         ]))
         
@@ -570,7 +571,7 @@ def get_user_pos_profile_info():
                     'imogi_mode': p.get('mode'),
                     'company': p.get('company')
                 }
-                for p in result['candidates']
+                for p in candidate_details
             ],  # Can be []
             'branches': branches,
             'require_selection': result['needs_selection'],
@@ -603,7 +604,7 @@ def get_allowed_pos_profiles():
         user=frappe.session.user,
         last_used=last_used
     )
-    return result.get('candidates', [])
+    return result.get('candidate_details', [])
 
 
 @frappe.whitelist()

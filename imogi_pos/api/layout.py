@@ -53,17 +53,24 @@ def check_restaurant_domain(pos_profile=None):
         from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
 
         resolution = resolve_pos_profile(user=frappe.session.user)
-        if not resolution.get("has_access"):
-            frappe.throw(
-                _("No POS Profile found. Please configure a POS Profile for the user."),
-                frappe.ValidationError,
-            )
+        from imogi_pos.utils.pos_profile_resolver import raise_setup_required_if_no_candidates
+
+        raise_setup_required_if_no_candidates(resolution)
         if resolution.get("needs_selection"):
             frappe.throw(
-                _("Multiple POS Profiles available. Please select one before continuing."),
+                _("POS Profile selection required. Please choose a POS Profile before continuing."),
                 frappe.ValidationError,
             )
         pos_profile = resolution.get("selected")
+    else:
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
+        resolution = resolve_pos_profile(user=frappe.session.user, requested=pos_profile)
+        raise_setup_required_if_no_candidates(resolution)
+        if resolution.get("selected") != pos_profile:
+            frappe.throw(
+                _("You do not have access to POS Profile {0}.").format(pos_profile),
+                frappe.PermissionError,
+            )
 
     domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain")
     if domain != "Restaurant":

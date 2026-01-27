@@ -144,7 +144,7 @@ class TableLayoutService:
         if not self.profile or self.profile.name != profile_name:
             self.load_profile(profile_name)
         
-        # Table layout profiles no longer reference a default POS Profile,
+        # Table layout profiles no longer reference legacy POS Profile defaults,
         # so domain validation based on it has been removed.
         
         # Track created/updated nodes

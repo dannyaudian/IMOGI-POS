@@ -44,7 +44,7 @@ def set_setup_error(context, error_type="pos_profile", error_message=None, page_
     
     if error_type == "pos_profile":
         context.error_title = _("Setup Required")
-        context.error_message = error_message or _("No POS Profile found. Please contact your administrator to set up a POS Profile.")
+        context.error_message = error_message or _("No POS Profiles are assigned to your account. Please contact your administrator to set one up.")
         context.error_details = [
             _("A POS Profile is required to use {0}.").format(page_name),
             _("Go to POS Profile list and create a new profile."),

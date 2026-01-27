@@ -6,14 +6,18 @@ import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/componen
 function KioskContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager']) // Allow Guest and staff
   
-  const branch = initialState.branch || 'Default'
-  const posProfile = initialState.pos_profile || 'Kiosk'
+  const branch = initialState.branch || null
+  const posProfile = initialState.pos_profile || null
   const serviceType = initialState.service_type || 'Dine In'
   
-  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
+  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(posProfile, branch)
 
   if (authLoading) {
     return <LoadingSpinner message="Loading..." />
+  }
+
+  if (!posProfile) {
+    return <ErrorMessage error="POS Profile selection required for kiosk mode." />
   }
 
   return (

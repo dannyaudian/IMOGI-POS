@@ -23,7 +23,7 @@
 
   // ====== Early checks ======
   if (!POS_PROFILE) {
-    frappe.msgprint(__('No POS Profile found. Please contact your administrator.'));
+    frappe.msgprint(__('No POS Profile selected. Please choose one from Module Select.'));
     // jangan return; biar UI tetep render, tapi tombol disabled
   }
 
@@ -1361,4 +1361,3 @@
     init();
   }
 })(); // End IIFE
-

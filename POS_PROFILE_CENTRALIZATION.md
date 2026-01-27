@@ -100,7 +100,7 @@ Returns:
 ### Previous Behavior (PROBLEMATIC)
 ```python
 # Old scattered logic relied on DefaultValue DocType
-pos_profile = frappe.defaults.get_user_default("pos_profile")
+pos_profile = frappe.defaults.get_user_default('pos_profile')
 if not pos_profile:
     throw "No POS Profile configured"  # Blocks System Managers!
 ```
@@ -306,7 +306,7 @@ if (data?.require_selection) {
 # Scattered resolution logic (BAD)
 pos_profile = frappe.db.get_value("POS Profile User", {"user": user}, "parent")
 if not pos_profile:
-    pos_profile = frappe.defaults.get_user_default("pos_profile")
+    pos_profile = frappe.defaults.get_user_default('pos_profile')
 if not pos_profile:
     frappe.throw("No POS Profile")
 ```

@@ -1120,25 +1120,20 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         list: POS Orders with summarized details
     """
     if not branch:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
 
         resolution = resolve_pos_profile(
             user=frappe.session.user,
             requested=pos_profile
         )
-        if not resolution.get("has_access"):
-            frappe.throw(
-                _("No POS Profile found for user: {0}").format(
-                    frappe.session.user
-                )
-            )
+        raise_setup_required_if_no_candidates(resolution)
         if pos_profile and resolution.get("selected") != pos_profile:
             frappe.throw(
                 _("You do not have access to POS Profile {0}.").format(pos_profile),
                 frappe.PermissionError,
             )
         if resolution.get("needs_selection"):
-            frappe.throw(_("Multiple POS Profiles available. Please select one."))
+            frappe.throw(_("POS Profile selection required. Please select one."))
 
         pos_profile = resolution.get("selected")
         branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
@@ -1601,7 +1596,7 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
     Only shows orders created in Counter mode by the current cashier or all cashiers in branch.
     
     IMPORTANT: Now uses centralized POS Profile resolver for consistent access control.
-    System Managers can access POS without having a default POS Profile assigned.
+    System Managers can access POS without relying on user defaults.
     
     Args:
         pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
@@ -1630,21 +1625,9 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
         # This handles System Manager bypass and multi-profile scenarios
         if not pos_profile:
             resolution = resolve_pos_profile(user=user)
+            from imogi_pos.utils.pos_profile_resolver import raise_setup_required_if_no_candidates
 
-            # Check if user has POS access
-            if not resolution['has_access']:
-                # System Manager can still proceed if they explicitly provide branch
-                if not resolution['is_privileged'] or not branch:
-                    error_msg = _(
-                        "No POS Profile configured for user: {0}. "
-                        "Please contact your system administrator to assign a POS Profile."
-                    ).format(user)
-                    frappe.log_error(
-                        f"No POS Profile found for user: {user}\n"
-                        f"Resolution result: {resolution}",
-                        "list_counter_order_history - No POS Profile"
-                    )
-                    frappe.throw(error_msg, frappe.ValidationError)
+            raise_setup_required_if_no_candidates(resolution)
 
             # User has access - use resolved profile
             if resolution['selected']:
@@ -1653,10 +1636,10 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
                 frappe.logger().debug(f"Resolved POS Profile: {pos_profile}, Branch: {branch}")
             elif resolution['needs_selection']:
                 # Multiple profiles - need explicit selection
-                error_msg = _(
-                    "Multiple POS Profiles available. Please select one before viewing order history."
+                frappe.throw(
+                    _("POS Profile selection required. Please choose one before viewing order history."),
+                    frappe.ValidationError,
                 )
-                frappe.throw(error_msg, frappe.ValidationError)
         
         # Validate explicit POS Profile selection when provided
         if pos_profile:

@@ -192,7 +192,7 @@ function App() {
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
         <h2>POS Profile Required</h2>
-        <p>{error || 'No POS Profile configured for your account.'}</p>
+        <p>{error || 'No POS Profiles are assigned to your account.'}</p>
         {isPrivileged ? (
           <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
             <p><strong>As a System Manager, you can:</strong></p>
@@ -203,7 +203,7 @@ function App() {
               <li>Then refresh this page</li>
             </ul>
             <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>
-              Note: System Managers do not need DefaultValue records. 
+              Note: System Managers do not need user defaults. 
               POS Profile access is controlled via the "Applicable For Users" table only.
             </p>
           </div>

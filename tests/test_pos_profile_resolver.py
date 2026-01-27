@@ -129,7 +129,7 @@ class TestPOSProfileResolver(unittest.TestCase):
         self.assertFalse(result['is_privileged'])
         self.assertTrue(result['has_access'])
         self.assertEqual(len(result['candidates']), 1)
-        self.assertEqual(result['candidates'][0]['name'], 'Profile-A')
+        self.assertEqual(result['candidates'][0], 'Profile-A')
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -365,7 +365,7 @@ class TestPOSProfileResolver(unittest.TestCase):
         
         # Only active profile returned
         self.assertEqual(len(result['candidates']), 1)
-        self.assertEqual(result['candidates'][0]['name'], 'Profile-A')
+        self.assertEqual(result['candidates'][0], 'Profile-A')
 
 
 def run_tests():
