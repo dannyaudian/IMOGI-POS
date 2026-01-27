@@ -1589,44 +1589,75 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
     Lists completed POS Orders created by Counter mode for history view.
     Only shows orders created in Counter mode by the current cashier or all cashiers in branch.
     
+    IMPORTANT: Now uses centralized POS Profile resolver for consistent access control.
+    System Managers can access POS without having a default POS Profile assigned.
+    
     Args:
-        pos_profile (str, optional): POS Profile name
-        branch (str, optional): Branch filter
+        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
+        branch (str, optional): Branch filter (DEPRECATED - derived from pos_profile)
         cashier (str, optional): Filter by specific cashier (defaults to current user)
         date (str, optional): Date filter (defaults to today)
         limit (int, optional): Number of records to return
     
     Returns:
         list: Completed POS Orders with summarized details
+    
+    NOTE ON POS PROFILE RESOLUTION:
+        This function now uses resolve_pos_profile_for_user() from the centralized
+        resolver. System Managers can access POS even without defaults.
+        Regular users must have at least one POS Profile assigned via
+        "Applicable for Users" child table.
     """
     from frappe.utils import today, getdate
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
     
     try:
-        frappe.logger().debug(f"list_counter_order_history called with: pos_profile={pos_profile}, branch={branch}, user={frappe.session.user}")
+        user = frappe.session.user
+        frappe.logger().debug(f"list_counter_order_history called with: pos_profile={pos_profile}, branch={branch}, user={user}")
         
-        # Get branch from POS Profile if not provided
-        if not branch:
-            if pos_profile:
-                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-                frappe.logger().debug(f"Got branch from POS Profile: {branch}")
-            else:
-                pos_profile = frappe.db.get_value(
-                    "POS Profile User", {"user": frappe.session.user}, "parent"
-                )
-                frappe.logger().debug(f"Got POS Profile from user: {pos_profile}")
-                if not pos_profile:
-                    error_msg = _("No POS Profile configured for user: {0}. Please contact your system administrator to assign a POS Profile.").format(frappe.session.user)
+        # CRITICAL: Use centralized resolver for POS Profile access
+        # This handles System Manager bypass and multi-profile scenarios
+        if not pos_profile:
+            resolution = resolve_pos_profile_for_user(user=user)
+            
+            # Check if user has POS access
+            if not resolution['has_access']:
+                # System Manager can still proceed if they explicitly provide branch
+                if not resolution['is_privileged'] or not branch:
+                    error_msg = _(
+                        "No POS Profile configured for user: {0}. "
+                        "Please contact your system administrator to assign a POS Profile."
+                    ).format(user)
                     frappe.log_error(
-                        f"No POS Profile found for user: {frappe.session.user}",
+                        f"No POS Profile found for user: {user}\n"
+                        f"Resolution result: {resolution}",
                         "list_counter_order_history - No POS Profile"
                     )
                     frappe.throw(error_msg, frappe.ValidationError)
-                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-                frappe.logger().debug(f"Got branch from POS Profile: {branch}")
+            
+            # User has access - use resolved profile
+            if resolution['pos_profile']:
+                pos_profile = resolution['pos_profile']
+                branch = resolution['branch']  # Derive branch from profile
+                frappe.logger().debug(f"Resolved POS Profile: {pos_profile}, Branch: {branch}")
+            elif resolution['needs_selection']:
+                # Multiple profiles - need explicit selection
+                error_msg = _(
+                    "Multiple POS Profiles available. Please select one before viewing order history."
+                )
+                frappe.throw(error_msg, frappe.ValidationError)
+        
+        # Get branch from POS Profile if not already set
+        if pos_profile and not branch:
+            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+            frappe.logger().debug(f"Got branch from POS Profile: {branch}")
         
         # If still no branch, throw error
         if not branch:
-            error_msg = _("No branch configured for POS Profile: {0}. Please contact your system administrator to configure a branch.").format(pos_profile)
+            error_msg = _(
+                "No branch configured for POS Profile: {0}. "
+                "Please contact your system administrator to configure a branch."
+            ).format(pos_profile or 'N/A')
             frappe.log_error(
                 f"No branch found for POS Profile: {pos_profile}",
                 "list_counter_order_history - No Branch"

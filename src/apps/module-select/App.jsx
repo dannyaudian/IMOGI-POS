@@ -190,22 +190,33 @@ function App() {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
-        <h2>Setup Required</h2>
+        <h2>POS Profile Required</h2>
         <p>{error || 'No POS Profile configured for your account.'}</p>
         {isPrivileged ? (
           <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-            <p>As a System Manager, please:</p>
+            <p><strong>As a System Manager, you can:</strong></p>
             <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
               <li>Create a <a href="/app/pos-profile" style={{ color: '#667eea' }}>POS Profile</a></li>
               <li>Add yourself to the POS Profile's "Applicable For Users" table</li>
-              <li>Optionally create a <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a> and link it to the POS Profile</li>
+              <li>Configure a <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a> and link it to the POS Profile</li>
               <li>Then refresh this page</li>
             </ul>
+            <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>
+              Note: System Managers do not need DefaultValue records. 
+              POS Profile access is controlled via the "Applicable For Users" table only.
+            </p>
           </div>
         ) : (
-          <p style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-            Please contact your system administrator.
-          </p>
+          <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
+            <p>Your administrator needs to:</p>
+            <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
+              <li>Add you to a POS Profile's "Applicable For Users" table</li>
+              <li>Ensure the POS Profile is not disabled</li>
+            </ul>
+            <p style={{ marginTop: '0.5rem' }}>
+              Please contact your system administrator for assistance.
+            </p>
+          </div>
         )}
       </div>
     )

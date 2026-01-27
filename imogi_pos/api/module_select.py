@@ -310,13 +310,27 @@ def get_user_branch_info():
 def get_active_pos_opening(pos_profile=None, branch=None):
     """Get the active POS opening entry for the current user.
     
+    IMPORTANT: Now uses centralized POS Profile resolver for consistent behavior.
+    System Managers can check POS opening even without assigned POS Profile.
+    
     Args:
         pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
         branch (str, optional): Branch name (DEPRECATED - for backward compatibility only)
         
     Returns:
-        dict: POS Opening Entry information
+        dict: POS Opening Entry information with:
+            - pos_opening_entry: Name of active POS Opening Entry (or None)
+            - pos_profile_name: POS Profile used
+            - opening_balance: Opening cash balance
+            - timestamp: When session was opened
+            - company: Company from POS Profile
+    
+    NOTE ON POS PROFILE RESOLUTION:
+        This function now uses resolve_pos_profile_for_user() from the centralized
+        resolver for consistent POS Profile access control.
     """
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+    
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
@@ -348,7 +362,7 @@ def get_active_pos_opening(pos_profile=None, branch=None):
                 company = profile_data.get('company')
         
         # Priority 2: Fallback to branch (deprecated path)
-        if not profile_names and branch:
+        elif branch:
             pos_profiles = frappe.get_list(
                 'POS Profile',
                 filters={'imogi_branch': branch, 'disabled': 0},
@@ -359,43 +373,21 @@ def get_active_pos_opening(pos_profile=None, branch=None):
                 company = pos_profiles[0].get('company')
                 profile_names = [p.get('name') for p in pos_profiles]
         
-        # Priority 3: Get from user's default POS Profile
+        # Priority 3: Use centralized resolver
+        # CRITICAL: This replaces the complex fallback logic with centralized resolution
         if not profile_names:
-            user_pos_profile = None
-            if frappe.db.has_column('User', 'imogi_default_pos_profile'):
-                user_pos_profile = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
+            resolution = resolve_pos_profile_for_user(user=user)
             
-            if not user_pos_profile:
-                user_pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
-            
-            if user_pos_profile:
-                profile_data = frappe.db.get_value(
-                    'POS Profile', 
-                    user_pos_profile, 
-                    ['name', 'company', 'disabled'],
-                    as_dict=True
-                )
-                if profile_data and not profile_data.get('disabled'):
-                    profile_names = [user_pos_profile]
-                    company = profile_data.get('company')
+            if resolution['pos_profile']:
+                profile_names = [resolution['pos_profile']]
+                company = resolution['company']
+            elif resolution['has_access'] and resolution['available_profiles']:
+                # User has profiles but needs selection - check all available
+                profile_names = [p['name'] for p in resolution['available_profiles']]
+                # Use first profile's company as fallback
+                company = resolution['available_profiles'][0].get('company')
         
-        # Priority 4: Legacy fallback - get from user's default branch
-        if not profile_names:
-            user_branch = None
-            if frappe.db.has_column('User', 'imogi_default_branch'):
-                user_branch = frappe.db.get_value('User', user, 'imogi_default_branch')
-            
-            if user_branch:
-                pos_profiles = frappe.get_list(
-                    'POS Profile',
-                    filters={'imogi_branch': user_branch, 'disabled': 0},
-                    fields=['name', 'company'],
-                    limit_page_length=0
-                )
-                if pos_profiles:
-                    company = pos_profiles[0].get('company')
-                    profile_names = [p.get('name') for p in pos_profiles]
-        
+        # No profiles found - return empty result
         if not profile_names:
             return {
                 'pos_opening_entry': None,
