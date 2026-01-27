@@ -400,6 +400,46 @@ Akses laporan melalui workspace **IMOGI POS**:
 - **Kiosk**: `/kiosk?profile=PROFILE_NAME`
 - **Table Layout**: Akses dari Desk → IMOGI POS → Table Layout
 
+## Nginx Reverse Proxy untuk Frappe/ERPNext
+
+Jika browser menampilkan error MIME type (CSS/JS jadi HTML) atau `/api/method/...` mengembalikan HTML login/error, biasanya reverse proxy belum merutekan `/assets` dan `/api` dengan benar. Template Nginx siap pakai sudah disediakan di `deployment/nginx/frappe-proxy.conf`.
+
+> **Catatan untuk pengguna Frappe Cloud:** Frappe Cloud mengelola Nginx secara terpusat, jadi Anda **tidak perlu** (dan tidak bisa) mengubah konfigurasi Nginx sendiri. Jika Anda mengalami masalah MIME type atau `/api` mengembalikan HTML, lakukan verifikasi dengan skrip di bawah dan hubungi support Frappe Cloud dengan hasilnya.
+
+### Cara Pakai
+
+1. Salin template ke server Nginx Anda:
+
+   ```bash
+   sudo cp deployment/nginx/frappe-proxy.conf /etc/nginx/conf.d/frappe.conf
+   ```
+
+2. Sesuaikan upstream jika perlu:
+   - `frappe_backend` (default `127.0.0.1:8000`)
+   - `frappe_socketio` (default `127.0.0.1:9000`)
+
+3. Uji dan reload Nginx:
+
+   ```bash
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+4. Rebuild assets dan bersihkan cache Frappe:
+
+   ```bash
+   bench build
+   bench clear-cache
+   bench clear-website-cache
+   ```
+
+5. Verifikasi dengan skrip:
+
+   ```bash
+   scripts/verify_frappe_proxy.sh <domain> /assets/frappe/css/desk.min.css
+   ```
+
+   Jika sukses, CSS akan `Content-Type: text/css` dan `/api/method/ping` mengembalikan JSON.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
