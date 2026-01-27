@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
+import React, { useState, useEffect, useMemo, useContext } from 'react'
+import { FrappeContext, useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -11,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [activeOpening, setActiveOpening] = useState(null)
   const [sessionsToday, setSessionsToday] = useState({ sessions: [], total: 0 })
+  const [realtimeBanner, setRealtimeBanner] = useState(null)
   const [contextState, setContextState] = useState({
     pos_profile: null,
     branch: null,
@@ -24,8 +25,50 @@ function App() {
   const [pendingModule, setPendingModule] = useState(null)
 
   // Fetch available modules - no parameters needed
+  const frappeContext = useContext(FrappeContext)
+  const realtimeSocket = frappeContext?.socket
+  const debugRealtime = Boolean(frappe?.boot?.sysdefaults?.imogi_pos_debug_realtime)
+  const maskUser = (user) => {
+    if (!user) return 'unknown'
+    const parts = user.split('@')
+    const name = parts[0]
+    const maskedName = name.length > 1 ? `${name[0]}***${name.slice(-1)}` : `${name[0]}***`
+    return parts.length > 1 ? `${maskedName}@${parts[1]}` : maskedName
+  }
+  const maskSid = (sid) => {
+    if (!sid) return 'unknown'
+    if (sid.length <= 8) return `${sid.slice(0, 2)}***${sid.slice(-2)}`
+    return `${sid.slice(0, 4)}***${sid.slice(-4)}`
+  }
+  const isSessionError = (error) => {
+    if (!error) return false
+    const status = error?.httpStatus || error?.status || error?.response?.status
+    if (status === 401 || status === 403 || status === 417) return true
+    const message = error?.message || error?.response?.data?.message
+    return typeof message === 'string' && message.toLowerCase().includes('session stopped')
+  }
+
   const { data: moduleData, isLoading: modulesLoading, error: moduleError, mutate: refetchModuleData } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_available_modules'
+    'imogi_pos.api.module_select.get_available_modules',
+    undefined,
+    undefined,
+    {
+      errorRetryCount: 1,
+      shouldRetryOnError: (error) => !isSessionError(error),
+      onError: (error) => {
+        if (isSessionError(error)) {
+          setRealtimeBanner('Realtime disconnected, continuing without realtime')
+        }
+        if (debugRealtime) {
+          console.warn('[module-select] module fetch error', {
+            status: error?.httpStatus || error?.status || error?.response?.status,
+            message: error?.message || error?.response?.data?.message,
+            user: maskUser(frappe?.session?.user),
+            sid: maskSid(frappe?.session?.sid)
+          })
+        }
+      }
+    }
   )
 
   const { call: setContextOnServer } = useFrappePostCall(
@@ -40,6 +83,65 @@ function App() {
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
+
+  useEffect(() => {
+    if (!realtimeSocket) {
+      return
+    }
+
+    const logRealtime = (message, detail) => {
+      if (!debugRealtime) return
+      console.warn('[module-select][realtime]', message, {
+        ...detail,
+        user: maskUser(frappe?.session?.user),
+        sid: maskSid(frappe?.session?.sid)
+      })
+    }
+
+    const handleConnect = () => {
+      setRealtimeBanner(null)
+      logRealtime('connected')
+    }
+
+    const handleDisconnect = (reason) => {
+      setRealtimeBanner('Realtime disconnected, continuing without realtime')
+      logRealtime('disconnected', { reason })
+    }
+
+    const handleConnectError = (error) => {
+      setRealtimeBanner('Realtime disconnected, continuing without realtime')
+      logRealtime('connect_error', { error: error?.message || error })
+    }
+
+    const handleReconnectFailed = () => {
+      setRealtimeBanner('Realtime disconnected, continuing without realtime')
+      logRealtime('reconnect_failed')
+      try {
+        realtimeSocket.io?.reconnection(false)
+      } catch (error) {
+        logRealtime('reconnection_disable_failed', { error: error?.message || error })
+      }
+    }
+
+    try {
+      realtimeSocket.io?.reconnectionAttempts?.(1)
+      realtimeSocket.io?.reconnectionDelay?.(1000)
+      realtimeSocket.io?.reconnectionDelayMax?.(3000)
+      realtimeSocket.on('connect', handleConnect)
+      realtimeSocket.on('disconnect', handleDisconnect)
+      realtimeSocket.on('connect_error', handleConnectError)
+      realtimeSocket.io?.on?.('reconnect_failed', handleReconnectFailed)
+    } catch (error) {
+      logRealtime('init_failed', { error: error?.message || error })
+    }
+
+    return () => {
+      realtimeSocket.off('connect', handleConnect)
+      realtimeSocket.off('disconnect', handleDisconnect)
+      realtimeSocket.off('connect_error', handleConnectError)
+      realtimeSocket.io?.off?.('reconnect_failed', handleReconnectFailed)
+    }
+  }, [realtimeSocket, debugRealtime])
 
   useEffect(() => {
     if (moduleData?.context) {
@@ -189,7 +291,7 @@ function App() {
 
   // After profile loads, check if user has access
   // Only show error if profileLoading is done AND no profiles available
-  if (moduleError || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0)) {
+  if ((moduleError && modules.length === 0) || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0)) {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
@@ -221,6 +323,12 @@ function App() {
 
   return (
     <div className="module-select-container">
+      {realtimeBanner && (
+        <div className="realtime-banner" role="status" aria-live="polite">
+          <span className="realtime-banner-icon">⚠️</span>
+          <span>{realtimeBanner}</span>
+        </div>
+      )}
       {/* Header */}
       <header className="module-select-header">
         <div className="header-content">
