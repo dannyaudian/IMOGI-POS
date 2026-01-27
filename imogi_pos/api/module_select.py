@@ -5,11 +5,13 @@ Provides available modules based on user permissions and roles
 
 import frappe
 from frappe import _
+from imogi_pos.api.public import get_user_pos_profile_info
 from imogi_pos.utils.auth_helpers import get_user_role_context
 from imogi_pos.utils.role_permissions import (
     PRIVILEGED_ROLES,
     MANAGEMENT_ROLES
 )
+from urllib.parse import quote
 
 
 # ============================================================================
@@ -99,24 +101,26 @@ MODULE_CONFIGS = {
 def get_available_modules():
     """Get list of available modules based on user's roles and operational context.
 
-    IMPORTANT: Now uses centralized operational context.
+    IMPORTANT: Uses centralized POS Profile resolver.
     - No longer accepts pos_profile or branch parameters
-    - Context managed server-side via operational_context module
-    - Returns BASE URLs only (no query params)
+    - POS Profile and branch resolved via get_user_pos_profile_info()
     - Aggregates active opening + today's sessions in one payload
+    - Cashier URL includes resolved pos_profile when available
 
     Returns:
         dict: Available modules list with operational context metadata
     """
-    from imogi_pos.utils.operational_context import get_operational_context
-
     try:
         role_context = get_user_role_context()
         if role_context.get("is_guest"):
             frappe.throw(_('Please login to continue'))
 
-        # Get operational context FIRST (authoritative source)
-        context = get_operational_context()
+        # Get POS Profile context FIRST (authoritative source)
+        context = get_user_pos_profile_info()
+        pos_profile = context.get("current_pos_profile")
+        branch = context.get("current_branch")
+        if pos_profile in (None, "", "None"):
+            pos_profile = None
 
         # Get user roles
         user_roles = role_context.get("roles", [])
@@ -132,19 +136,26 @@ def get_available_modules():
             # Admin bypass: show all modules
             # Regular users: check if they have any of the required roles
             if is_admin or any(role in user_roles for role in required_roles):
-                # Return BASE URL ONLY - no query params
                 module_url = config['url']
+                requires_pos_profile = config.get('requires_pos_profile', False)
+
+                if module_type == 'cashier':
+                    requires_pos_profile = True
+                    if pos_profile and str(pos_profile).strip() and str(pos_profile) != "None":
+                        module_url = f"/counter/pos?pos_profile={quote(str(pos_profile))}"
+                    else:
+                        module_url = None
 
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],
                     'description': config['description'],
-                    'url': module_url,  # Base URL without params
+                    'url': module_url,
                     'base_url': module_url,  # Consistent naming
                     'icon': config['icon'],
                     'requires_session': config.get('requires_session', False),
                     'requires_opening': config.get('requires_opening', False),
-                    'requires_pos_profile': config.get('requires_pos_profile', False),
+                    'requires_pos_profile': requires_pos_profile,
                     'requires_active_cashier': config.get('requires_active_cashier', False),
                     'order': config.get('order', 99)
                 })
@@ -152,15 +163,18 @@ def get_available_modules():
         # Sort by order
         available_modules.sort(key=lambda x: x['order'])
 
-        active_opening = _get_active_pos_opening_for_context(context, frappe.session.user)
-        sessions_today = _get_pos_sessions_today_for_context(context)
+        active_opening = _get_active_pos_opening_for_context(
+            {"current_pos_profile": pos_profile},
+            frappe.session.user
+        )
+        sessions_today = _get_pos_sessions_today_for_context({"current_branch": branch})
 
         # Return modules with operational context + opening/session info
         return {
             'modules': available_modules,
             'context': {
-                'pos_profile': context.get('current_pos_profile'),
-                'branch': context.get('current_branch'),
+                'pos_profile': pos_profile,
+                'branch': branch,
                 'require_selection': context.get('require_selection', False),
                 'available_pos_profiles': context.get('available_pos_profiles', []),
                 'is_privileged': context.get('is_privileged', False)
@@ -431,9 +445,9 @@ def _get_pos_sessions_today_for_context(context):
 def get_active_pos_opening():
     """Get the active POS opening entry for the current user.
     
-    IMPORTANT: Now uses centralized operational context.
+    IMPORTANT: Uses centralized POS Profile resolver.
     - No longer accepts pos_profile or branch parameters
-    - Context managed server-side via operational_context module
+    - Context managed via get_user_pos_profile_info()
     - System Managers can check POS opening even without assigned context
         
     Returns:
@@ -444,17 +458,19 @@ def get_active_pos_opening():
             - timestamp: When session was opened
             - company: Company from POS Profile
     """
-    from imogi_pos.utils.operational_context import get_active_operational_context
-
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
             return _empty_active_opening()
 
-        # Get operational context (auto-resolves if needed)
-        context = get_active_operational_context(user=user, auto_resolve=True)
-
-        return _get_active_pos_opening_for_context(context, user)
+        context = get_user_pos_profile_info()
+        pos_profile = context.get("current_pos_profile")
+        if pos_profile in ("", "None"):
+            pos_profile = None
+        return _get_active_pos_opening_for_context(
+            {"current_pos_profile": pos_profile},
+            user
+        )
 
     except Exception as e:
         frappe.log_error(f'Error in get_active_pos_opening: {str(e)}')
@@ -492,18 +508,15 @@ def check_active_cashiers():
     Check if there are any active cashier POS openings at current branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
     
-    IMPORTANT: Now uses centralized operational context.
+    IMPORTANT: Uses centralized POS Profile resolver.
     - No longer accepts pos_profile or branch parameters
-    - Context managed server-side via operational_context module
+    - Context managed via get_user_pos_profile_info()
     """
-    from imogi_pos.utils.operational_context import get_active_operational_context
-    
     try:
-        # Get operational context
-        context = get_active_operational_context(user=frappe.session.user, auto_resolve=True)
-        
-        # Get branch from context
-        branch = context.get('branch')
+        context = get_user_pos_profile_info()
+        branch = context.get('current_branch')
+        if branch in ("", "None"):
+            branch = None
         
         if not branch:
             return {
@@ -586,24 +599,23 @@ def get_pos_sessions_today():
     Get all POS openings created today at current branch.
     Used for opening selector in module select UI.
     
-    IMPORTANT: Now uses centralized operational context.
+    IMPORTANT: Uses centralized POS Profile resolver.
     - No longer accepts branch parameter
-    - Context managed server-side via operational_context module
+    - Context managed via get_user_pos_profile_info()
     """
-    from imogi_pos.utils.operational_context import get_active_operational_context
-
     try:
-        # Get operational context
-        context = get_active_operational_context(user=frappe.session.user, auto_resolve=True)
-
-        return _get_pos_sessions_today_for_context(context)
+        context = get_user_pos_profile_info()
+        branch = context.get("current_branch")
+        if branch in ("", "None"):
+            branch = None
+        return _get_pos_sessions_today_for_context({"current_branch": branch})
 
     except Exception as e:
         frappe.log_error(f'Error in get_pos_sessions_today: {str(e)}')
         return {
             'sessions': [],
             'total': 0,
-            'branch': context.get('branch') if isinstance(context, dict) else None,
+            'branch': context.get('current_branch') if isinstance(context, dict) else None,
             'error': str(e)
         }
 

@@ -171,7 +171,7 @@ function App() {
       
       // If there was a pending module, navigate to it
       if (pendingModule) {
-        navigateToModule(pendingModule)
+        void navigateToModule(pendingModule)
         setPendingModule(null)
       }
     }
@@ -188,14 +188,61 @@ function App() {
     openingBalance: activeOpening?.opening_balance
   }
   
-  // Navigate to module with BASE URL only (no query params)
-  const navigateToModule = (module) => {
+  const showPosProfileResolutionError = () => {
+    frappe.msgprint({
+      title: 'POS Profile Error',
+      message: 'POS Profile not resolved. Please contact administrator.',
+      indicator: 'red'
+    })
+  }
+
+  const fetchResolvedPosProfile = async () => {
+    try {
+      const response = await frappe.call({
+        method: 'imogi_pos.api.public.get_user_pos_profile_info'
+      })
+      return response?.message?.current_pos_profile || null
+    } catch (error) {
+      console.error('Error resolving POS Profile:', error)
+      return null
+    }
+  }
+
+  // Navigate to module with validated URL params
+  const navigateToModule = async (module) => {
     const base = module?.base_url || module?.url || ''
     if (!base) {
+      if (module?.requires_pos_profile) {
+        showPosProfileResolutionError()
+      }
       return
     }
 
     const url = new URL(base, window.location.origin)
+
+    if (url.pathname === '/counter/pos') {
+      const posProfileParam = url.searchParams.get('pos_profile')
+
+      if (posProfileParam === 'None') {
+        showPosProfileResolutionError()
+        return
+      }
+
+      let posProfile = posProfileParam
+      if (posProfile == null) {
+        posProfile = await fetchResolvedPosProfile()
+      }
+
+      if (!posProfile || posProfile === 'None') {
+        showPosProfileResolutionError()
+        return
+      }
+
+      const nextUrl = `/counter/pos?pos_profile=${encodeURIComponent(posProfile)}`
+      window.location.href = nextUrl
+      return
+    }
+
     window.location.href = url.pathname
   }
 
@@ -259,7 +306,7 @@ function App() {
     }
     
     // Navigate to module
-    navigateToModule(module)
+    await navigateToModule(module)
   }
   
   // Handle POS Opening Modal success
@@ -268,7 +315,7 @@ function App() {
     
     // Navigate to pending module if any
     if (pendingModule) {
-      navigateToModule(pendingModule)
+      void navigateToModule(pendingModule)
       setPendingModule(null)
     }
   }
