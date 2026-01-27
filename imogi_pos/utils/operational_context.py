@@ -419,13 +419,13 @@ def require_operational_context(
             
             if resolved.get("require_selection"):
                 frappe.throw(
-                    _("Please select a POS Profile before accessing this module."),
+                    _("POS Profile required. Please select one."),
                     frappe.ValidationError
                 )
             
             # Should not reach here
             frappe.throw(
-                _("Operational context required. Please select a POS Profile."),
+                _("POS Profile required. Please select one."),
                 frappe.ValidationError
             )
         
