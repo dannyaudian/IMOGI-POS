@@ -1276,8 +1276,14 @@ def prepare_invoice_draft(pos_order):
     return draft_invoice
 
 @frappe.whitelist()
-def check_pos_session(pos_profile=None):
-    """Check whether POS Opening Entry is active for session management."""
+def check_pos_session():
+    """Check whether POS Opening Entry is active for session management.
+    
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile parameter
+    - Context managed server-side via operational_context module
+    """
+    from imogi_pos.utils.operational_context import get_active_operational_context
 
     exists = True
     if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
