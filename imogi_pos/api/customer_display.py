@@ -530,9 +530,14 @@ def get_customer_display_config(device_id=None, pairing_code=None):
             
             # If no POS Profile, try to get a default one for the branch
             if not pos_profile:
-                pos_profile = frappe.db.get_value("POS Profile", 
-                                                {"branch": device.branch, "user": ["is", "not set"]}, 
-                                                "name")
+                pos_profile = frappe.db.get_value(
+                    "POS Profile",
+                    {
+                        "imogi_branch": device.branch,
+                        "disabled": 0
+                    },
+                    "name"
+                )
             
             # Get branding from API
             if pos_profile:

@@ -49,11 +49,19 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
     try:
         profile_doc = None
         if pos_profile:
-            profile_doc = (
-                frappe.get_doc("POS Profile", pos_profile)
-                if isinstance(pos_profile, str)
-                else pos_profile
-            )
+            if isinstance(pos_profile, dict):
+                if not getattr(frappe.flags, "imogi_pos_pos_profile_dict_warned", False):
+                    frappe.logger("imogi_pos.pos_profile").warning(
+                        "POS Profile payload was a dict; coercing to Document."
+                    )
+                    frappe.flags.imogi_pos_pos_profile_dict_warned = True
+                profile_doc = frappe.get_doc(pos_profile)
+            else:
+                profile_doc = (
+                    frappe.get_doc("POS Profile", pos_profile)
+                    if isinstance(pos_profile, str)
+                    else pos_profile
+                )
 
         brand_profile = None
         
