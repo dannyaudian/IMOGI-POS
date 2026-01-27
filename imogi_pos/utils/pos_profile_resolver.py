@@ -312,14 +312,16 @@ def get_available_pos_profiles(user=None, is_privileged=None):
     if user == 'Guest':
         return []
     
-    # Auto-detect privileged status if not provided
+    # Determine if user is privileged (trust parameter, with fallback)
     if is_privileged is None:
+        # Fallback: check if user is explicitly Administrator or has System Manager role
         user_roles = frappe.get_roles(user)
-        is_privileged = 'System Manager' in user_roles or user == 'Administrator'
+        is_privileged = user == 'Administrator' or 'System Manager' in user_roles
     
     try:
-        if is_privileged:
-            # System Manager / Administrator: See all active profiles
+        # Privileged users (Administrator, System Manager): See all active profiles
+        # They bypass "Applicable for Users" child table restrictions
+        if user == 'Administrator' or is_privileged:
             profiles = frappe.get_all(
                 'POS Profile',
                 filters={'disabled': 0},
@@ -407,8 +409,12 @@ def validate_pos_profile_access(pos_profile, user=None):
         return False
     
     # Check user access
+    # Administrator username or System Manager role: always has access
+    if user == 'Administrator':
+        return True
+    
     user_roles = frappe.get_roles(user)
-    is_privileged = 'System Manager' in user_roles or user == 'Administrator'
+    is_privileged = 'System Manager' in user_roles
     
     if is_privileged:
         return True

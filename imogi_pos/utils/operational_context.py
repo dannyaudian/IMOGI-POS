@@ -190,7 +190,8 @@ def resolve_operational_context(
     context_required = is_context_required_for_role_class(role_class)
     
     # Get available POS Profiles (uses existing resolver)
-    available_profiles = get_available_pos_profiles(user=user, is_privileged=is_privileged)
+    # Pass explicit boolean to ensure privileged users bypass "Applicable for Users" restriction
+    available_profiles = get_available_pos_profiles(user=user, is_privileged=bool(is_privileged))
     profile_names = [p['name'] for p in available_profiles]
     
     # Get available branches
