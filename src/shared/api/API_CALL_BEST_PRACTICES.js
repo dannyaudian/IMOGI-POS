@@ -146,7 +146,7 @@ const response = await fetch('/api/method/imogi_pos.api.method', {
  * 
  * This is automatically set by:
  * 1. Server templates (via <meta name="csrf_token">)
- * 2. frappe_polyfill.js (getter that caches the token)
+ * 2. Frappe's built-in CSRF token management
  * 
  * NEVER hardcode CSRF tokens or use multiple sources!
  */
@@ -282,7 +282,7 @@ console.log('Via getter:', frappe.csrf_token); // Should match above
 
 // If token is empty, check:
 // 1. Is <meta name="csrf_token"> in page HTML?
-// 2. Is frappe_polyfill.js loaded?
+// 2. Is Frappe properly loaded in the page?
 // 3. Check browser console for errors
 
 // ============================================================================
