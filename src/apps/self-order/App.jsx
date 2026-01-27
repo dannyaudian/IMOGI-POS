@@ -6,14 +6,18 @@ import { LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
 function SelfOrderContent({ initialState }) {
   const { user, loading: authLoading } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager']) // Allow Guest and staff
   
-  const branch = initialState.branch || 'Default'
-  const posProfile = initialState.pos_profile || 'Self Order'
+  const branch = initialState.branch || null
+  const posProfile = initialState.pos_profile || null
   const tableNumber = initialState.table_number || null
   
-  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(branch, posProfile)
+  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(posProfile, branch)
 
   if (authLoading) {
     return <LoadingSpinner message="Loading..." />
+  }
+
+  if (!posProfile) {
+    return <ErrorMessage error="POS Profile selection required for self-order." />
   }
 
   return (

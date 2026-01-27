@@ -35,8 +35,8 @@ function CounterPOSContent({ initialState }) {
   const { mode: contextMode } = useImogiPOS()
   
   // Fallback to initialState for backward compatibility
-  const effectiveBranch = branch || initialState.branch || 'Default'
-  const effectivePosProfile = posProfile || initialState.pos_profile || 'Default'
+  const effectiveBranch = branch || initialState.branch || null
+  const effectivePosProfile = posProfile || initialState.pos_profile || null
   
   // Explicitly validate and set POS mode (Counter or Table)
   const validModes = ['Counter', 'Table']
@@ -99,6 +99,10 @@ function CounterPOSContent({ initialState }) {
   // Wait for guard to pass
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying POS session..." />
+  }
+
+  if (!effectivePosProfile) {
+    return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
   }
 
   if (authError || !hasAccess) {

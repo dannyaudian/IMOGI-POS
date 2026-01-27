@@ -34,7 +34,7 @@ Usage:
     # Result structure:
     {
         'selected': 'Main-POS',  # Selected profile name (or None)
-        'candidates': [...],     # List of accessible profiles
+        'candidates': [...],     # List of accessible profile names
         'needs_selection': False,
         'is_privileged': True,
         'has_access': True
@@ -43,10 +43,12 @@ Usage:
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 
 __all__ = [
     'resolve_pos_profile',
     'resolve_pos_profile_for_user',
+    'raise_setup_required_if_no_candidates',
     'get_available_pos_profiles',
     'validate_pos_profile_access',
     'get_pos_profile_branch'
@@ -69,12 +71,12 @@ def resolve_pos_profile(user, *, requested=None, last_used=None):
     Returns:
         dict: {
             "selected": str|None,
-            "candidates": [
-                {"name": str, "company": str, "branch": str|None, "mode": str|None}
-            ],
+            "candidates": list[str],
             "needs_selection": bool,
+            "reason": str,
             "is_privileged": bool,
-            "has_access": bool
+            "has_access": bool,
+            "candidate_details": list[dict]
         }
     """
     user = user or frappe.session.user
@@ -84,22 +86,26 @@ def resolve_pos_profile(user, *, requested=None, last_used=None):
             "selected": None,
             "candidates": [],
             "needs_selection": False,
+            "reason": "guest",
             "is_privileged": False,
-            "has_access": False
+            "has_access": False,
+            "candidate_details": []
         }
 
     user_roles = frappe.get_roles(user)
     is_privileged = 'System Manager' in user_roles or user == 'Administrator'
 
     # System Manager/Administrator see all active profiles (authoritative choice)
-    candidates = get_available_pos_profiles(user=user, is_privileged=is_privileged)
-    profile_names = [p['name'] for p in candidates]
+    candidate_details = get_available_pos_profiles(user=user, is_privileged=is_privileged)
+    profile_names = [p['name'] for p in candidate_details]
 
     selected = None
     needs_selection = False
+    reason = "no_candidates"
 
     if requested and requested in profile_names:
         selected = requested
+        reason = "requested"
     else:
         # Last-used from client or server-stored preference (User.imogi_default_pos_profile)
         last_used = last_used or frappe.form_dict.get('last_used')
@@ -110,28 +116,34 @@ def resolve_pos_profile(user, *, requested=None, last_used=None):
         for candidate in (last_used, stored):
             if candidate and candidate in profile_names:
                 selected = candidate
+                reason = "last_used" if candidate == last_used else "stored"
                 break
 
     if not selected:
         if len(profile_names) == 1:
             selected = profile_names[0]
+            reason = "single_candidate"
         else:
             needs_selection = bool(profile_names)
+            if needs_selection:
+                reason = "needs_selection"
 
     result = {
         "selected": selected,
-        "candidates": [
+        "candidates": profile_names,
+        "needs_selection": needs_selection,
+        "reason": reason,
+        "is_privileged": is_privileged,
+        "has_access": bool(profile_names),
+        "candidate_details": [
             {
                 "name": profile.get("name"),
                 "company": profile.get("company"),
                 "branch": profile.get("imogi_branch"),
                 "mode": profile.get("imogi_mode")
             }
-            for profile in candidates
-        ],
-        "needs_selection": needs_selection,
-        "is_privileged": is_privileged,
-        "has_access": bool(profile_names)
+            for profile in candidate_details
+        ]
     }
 
     _log_resolution(
@@ -237,7 +249,7 @@ def resolve_pos_profile_for_user(user=None, context=None):
     )
 
     selected = resolution.get("selected")
-    candidates = resolution.get("candidates", [])
+    candidates = resolution.get("candidate_details", [])
     profile_data = next((p for p in candidates if p.get("name") == selected), None)
 
     return {
@@ -259,6 +271,15 @@ def resolve_pos_profile_for_user(user=None, context=None):
         'selection_method': 'resolver',
         'profile_data': profile_data
     }
+
+
+def raise_setup_required_if_no_candidates(resolution):
+    """Centralized setup-required error when no POS Profiles exist for user."""
+    if not resolution.get("candidates"):
+        frappe.throw(
+            _("Setup required: No POS Profiles available for your account."),
+            frappe.ValidationError,
+        )
 
 
 # ============================================================================

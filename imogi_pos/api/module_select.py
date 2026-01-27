@@ -388,11 +388,11 @@ def get_active_pos_opening(pos_profile=None, branch=None):
             if resolution['selected']:
                 profile_names = [resolution['selected']]
                 company = frappe.db.get_value("POS Profile", resolution["selected"], "company")
-            elif resolution['has_access'] and resolution['candidates']:
+            elif resolution['has_access'] and resolution.get('candidate_details'):
                 # User has profiles but needs selection - check all available
-                profile_names = [p['name'] for p in resolution['candidates']]
+                profile_names = [p['name'] for p in resolution['candidate_details']]
                 # Use first profile's company as fallback
-                company = resolution['candidates'][0].get('company')
+                company = resolution['candidate_details'][0].get('company')
         
         # No profiles found - return empty result
         if not profile_names:

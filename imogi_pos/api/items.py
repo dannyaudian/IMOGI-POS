@@ -225,14 +225,23 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     
     # Get POS Profile if not provided (centralized resolver)
     if not pos_profile:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
 
         resolution = resolve_pos_profile(user=frappe.session.user)
-        if not resolution.get("has_access"):
-            frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
+        raise_setup_required_if_no_candidates(resolution)
         if resolution.get("needs_selection"):
-            frappe.throw(_("Multiple POS Profiles available. Please select one."))
+            frappe.throw(_("POS Profile selection required. Please select one."))
         pos_profile = resolution.get("selected")
+    else:
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
+
+        resolution = resolve_pos_profile(user=frappe.session.user, requested=pos_profile)
+        raise_setup_required_if_no_candidates(resolution)
+        if resolution.get("selected") != pos_profile:
+            frappe.throw(
+                _("You do not have access to POS Profile {0}.").format(pos_profile),
+                frappe.PermissionError,
+            )
     
     # Validate user has access to this POS Profile
     check_doctype_permission("POS Profile", doc=pos_profile)

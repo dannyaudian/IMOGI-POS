@@ -10,14 +10,6 @@ NOTE: This module is deprecated. Use imogi_pos.utils.permission_manager instead.
 import frappe
 from frappe import _
 
-# Import from centralized permission manager (ERPNext v15+ compatible)
-from imogi_pos.utils.permission_manager import (
-    is_privileged_user,
-    check_doctype_permission,
-    check_branch_access,
-    check_pos_profile_access,
-    get_user_permissions
-)
 
 
 def get_user_pos_profile(user=None, allow_fallback=True):
@@ -144,19 +136,9 @@ def validate_pos_profile_access(pos_profile, user=None):
     if not user:
         user = frappe.session.user
     
-    # Privileged users (System Manager, Administrator) have access to all profiles
-    if has_privileged_access(user):
-        return
-    
-    # For non-privileged users, check if assigned to this profile
-    # Note: Branch Manager and Area Manager should be able to access any profile
-    # in their branch/area via ERPNext permission system, not this check
-    assigned = frappe.db.exists("POS Profile User", {
-        "parent": pos_profile,
-        "user": user
-    })
-    
-    if not assigned:
+    from imogi_pos.utils.pos_profile_resolver import validate_pos_profile_access
+
+    if not validate_pos_profile_access(pos_profile, user=user):
         frappe.throw(
             _("You don't have access to POS Profile: {0}").format(pos_profile),
             frappe.PermissionError

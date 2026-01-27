@@ -202,10 +202,6 @@ def check_pos_profile_access(
     Raises:
         frappe.PermissionError: If user not assigned and throw=True
     """
-    # Privileged users have unrestricted access
-    if is_privileged_user(user):
-        return True
-    
     # Get current user if not specified
     if not user:
         user = frappe.session.user
@@ -219,11 +215,8 @@ def check_pos_profile_access(
             )
         return False
     
-    # Check explicit assignment in POS Profile User table (STRICT)
-    has_access = frappe.db.exists('POS Profile User', {
-        'parent': pos_profile,
-        'user': user
-    })
+    from imogi_pos.utils.pos_profile_resolver import validate_pos_profile_access
+    has_access = validate_pos_profile_access(pos_profile, user=user)
     
     if not has_access and throw:
         user_roles = ", ".join(frappe.get_roles(user))
@@ -427,14 +420,23 @@ def require_pos_profile_access(strict: bool = True):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            from imogi_pos.utils.auth_helpers import get_user_pos_profile
+            from imogi_pos.utils.pos_profile_resolver import (
+                resolve_pos_profile,
+                raise_setup_required_if_no_candidates,
+            )
             
             # Get POS Profile with fallback based on strict mode
-            pos_profile = get_user_pos_profile(allow_fallback=not strict)
-            
+            resolution = resolve_pos_profile(user=frappe.session.user)
+            raise_setup_required_if_no_candidates(resolution)
+            if resolution.get("needs_selection") and strict:
+                frappe.throw(
+                    _("POS Profile selection required. Please select a POS Profile."),
+                    frappe.ValidationError,
+                )
+            pos_profile = resolution.get("selected")
             if not pos_profile:
                 frappe.throw(
-                    _("No POS Profile assigned to your user. Contact your administrator."),
+                    _("POS Profile selection required. Please select a POS Profile."),
                     frappe.ValidationError
                 )
             

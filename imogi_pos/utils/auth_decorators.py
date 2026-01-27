@@ -188,13 +188,24 @@ def require_pos_profile(allow_fallback=False):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            from imogi_pos.utils.auth_helpers import get_user_pos_profile
-            
-            pos_profile = get_user_pos_profile(allow_fallback=allow_fallback)
-            
+            from imogi_pos.utils.pos_profile_resolver import (
+                resolve_pos_profile,
+                raise_setup_required_if_no_candidates,
+            )
+
+            resolution = resolve_pos_profile(user=frappe.session.user)
+            raise_setup_required_if_no_candidates(resolution)
+            if resolution.get("needs_selection") and not allow_fallback:
+                frappe.throw(
+                    _("POS Profile selection required. Please select a POS Profile."),
+                    frappe.ValidationError,
+                )
+
+            pos_profile = resolution.get("selected")
+
             if not pos_profile:
                 frappe.throw(
-                    _("No POS Profile assigned to your user. Please contact your administrator."),
+                    _("POS Profile selection required. Please select a POS Profile."),
                     frappe.ValidationError
                 )
             

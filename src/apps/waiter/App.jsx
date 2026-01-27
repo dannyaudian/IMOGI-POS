@@ -23,8 +23,8 @@ function WaiterContent({ initialState }) {
   } = usePOSProfileGuard({ requiresOpening: false })
   
   // Fallback to initialState for backward compatibility
-  const effectiveBranch = branch || initialState.branch || 'Default'
-  const effectivePosProfile = posProfile || initialState.pos_profile || 'Default'
+  const effectiveBranch = branch || initialState.branch || null
+  const effectivePosProfile = posProfile || initialState.pos_profile || null
   const mode = profileData?.mode || initialState.mode || 'Dine-in' // Dine-in or Counter
   
   const [selectedTable, setSelectedTable] = useState(null)
@@ -65,6 +65,10 @@ function WaiterContent({ initialState }) {
   // Wait for guard to pass
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying access..." />
+  }
+
+  if (!effectivePosProfile) {
+    return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
   }
 
   if (authError || !hasAccess) {

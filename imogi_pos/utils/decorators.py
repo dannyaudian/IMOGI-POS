@@ -292,7 +292,10 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                 return fn(*args, **kwargs)
             
             user = frappe.session.user
-            from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+            from imogi_pos.utils.pos_profile_resolver import (
+                resolve_pos_profile,
+                raise_setup_required_if_no_candidates,
+            )
             
             # Validate POS Profile access if required
             if requires_pos_profile:
@@ -300,17 +303,18 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                 pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
                 
                 resolution = resolve_pos_profile(user=user, requested=pos_profile)
+                raise_setup_required_if_no_candidates(resolution)
                 if not pos_profile:
                     if resolution.get("needs_selection"):
                         frappe.throw(
-                            _('Multiple POS Profiles available. Please select one.'),
+                            _('POS Profile selection required. Please select one.'),
                             frappe.ValidationError
                         )
                     pos_profile = resolution.get("selected")
 
                 if not pos_profile:
                     frappe.throw(
-                        _('POS Profile is required for this operation'),
+                        _('POS Profile selection required. Please select a POS Profile.'),
                         frappe.ValidationError
                     )
 
@@ -330,11 +334,12 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                 pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
                 if not pos_profile:
                     resolution = resolve_pos_profile(user=user)
+                    raise_setup_required_if_no_candidates(resolution)
                     pos_profile = resolution.get("selected")
 
                 if not pos_profile:
                     frappe.throw(
-                        _('POS Profile is required to check POS Opening'),
+                        _('POS Profile selection required before checking POS Opening'),
                         frappe.ValidationError
                     )
                 
