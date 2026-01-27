@@ -54,6 +54,23 @@ body {
   z-index: 100;
 }
 
+.realtime-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: #fff3cd;
+  color: #856404;
+  border-bottom: 1px solid #ffeeba;
+  font-weight: 600;
+  text-align: center;
+}
+
+.realtime-banner-icon {
+  font-size: 1rem;
+}
+
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
