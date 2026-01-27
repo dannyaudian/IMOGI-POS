@@ -350,8 +350,9 @@ function App() {
   }
 
   // After profile loads, check if user has access
-  // Only show error if profileLoading is done AND no profiles available
-  if ((moduleError && modules.length === 0) || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0)) {
+  // Only show error if data is loaded AND user has no access
+  // Don't show error during loading or if privileged user has profiles
+  if (!modulesLoading && ((moduleError && modules.length === 0) || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0))) {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
