@@ -59,6 +59,13 @@
 
     // Initialize frappe namespace for standalone pages
     window.frappe = window.frappe || {};
+    
+    // Initialize router early with setup method to prevent errors
+    if (!window.frappe.router) {
+        window.frappe.router = { setup: function() {} };
+    } else if (!window.frappe.router.setup) {
+        window.frappe.router.setup = function() {};
+    }
 
     // =========================================================================
     // ERROR DISPLAY SYSTEM - Visible error notifications for users
@@ -683,19 +690,25 @@
     /**
      * frappe.router - Router utilities
      */
-    window.frappe.router = {
-        slug: function(name) {
+    window.frappe.router = window.frappe.router || {};
+    
+    // Ensure essential router methods exist
+    if (!window.frappe.router.slug) {
+        window.frappe.router.slug = function(name) {
             return (name || '')
                 .toLowerCase()
                 .replace(/ /g, '-')
                 .replace(/[^\w-]/g, '');
-        },
-        // No-op setup for Frappe desk compatibility
-        setup: function() {
+        };
+    }
+    
+    // No-op setup for Frappe desk compatibility
+    if (!window.frappe.router.setup) {
+        window.frappe.router.setup = function() {
             // Polyfill: Does nothing in custom apps
             // Frappe desk expects this to exist
-        }
-    };
+        };
+    }
 
     /**
      * frappe.ui - UI components namespace
@@ -1609,6 +1622,11 @@
         _ready: false,
         _readyCallbacks: []
     };
+    
+    // Ensure _readyCallbacks is always an array even if session object exists
+    if (!Array.isArray(window.frappe.session._readyCallbacks)) {
+        window.frappe.session._readyCallbacks = [];
+    }
 
     /**
      * frappe.session.ready - Execute callback when session is fully loaded
@@ -1616,6 +1634,12 @@
      */
     window.frappe.session.ready = function(callback) {
         if (typeof callback !== 'function') return;
+        
+        // Ensure _readyCallbacks exists
+        if (!Array.isArray(frappe.session._readyCallbacks)) {
+            frappe.session._readyCallbacks = [];
+        }
+        
         if (frappe.session._ready) {
             callback();
         } else {
@@ -1628,10 +1652,20 @@
      */
     window.frappe.session._markReady = function() {
         frappe.session._ready = true;
-        // Ensure _readyCallbacks exists
-        const callbacks = frappe.session._readyCallbacks || [];
+        // Ensure _readyCallbacks exists and is an array
+        if (!Array.isArray(frappe.session._readyCallbacks)) {
+            frappe.session._readyCallbacks = [];
+            return;
+        }
+        const callbacks = frappe.session._readyCallbacks;
         callbacks.forEach(fn => {
-            try { fn(); } catch(e) { console.error('Session ready callback error:', e); }
+            try { 
+                if (typeof fn === 'function') {
+                    fn(); 
+                }
+            } catch(e) { 
+                console.error('Session ready callback error:', e); 
+            }
         });
         frappe.session._readyCallbacks = [];
     };

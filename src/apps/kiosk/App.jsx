@@ -1,22 +1,45 @@
+import { useEffect } from 'react'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useItems, useCreateOrder } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
 
 function KioskContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager']) // Allow Guest and staff
   
-  const branch = initialState.branch || null
-  const posProfile = initialState.pos_profile || null
+  // POS Profile guard - kiosk doesn't require opening, just profile
+  const {
+    isLoading: guardLoading,
+    guardPassed,
+    posProfile,
+    profileData,
+    branch
+  } = usePOSProfileGuard({ requiresOpening: false, autoRedirect: false })
+  
+  // Fallback to initialState for backward compatibility
+  const effectiveBranch = branch || initialState.branch || null
+  const effectivePosProfile = posProfile || initialState.pos_profile || null
   const serviceType = initialState.service_type || 'Dine In'
   
-  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(posProfile, branch)
+  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(effectivePosProfile, effectiveBranch)
 
-  if (authLoading) {
+  // Guard check: redirect to module-select if no profile after loading
+  useEffect(() => {
+    if (!guardLoading && !authLoading && !effectivePosProfile) {
+      const timeout = setTimeout(() => {
+        console.error('POS Profile required for kiosk - redirecting to module select')
+        window.location.href = '/shared/module-select'
+      }, 3000)
+      return () => clearTimeout(timeout)
+    }
+  }, [guardLoading, authLoading, effectivePosProfile])
+
+  if (authLoading || guardLoading) {
     return <LoadingSpinner message="Loading..." />
   }
 
-  if (!posProfile) {
+  if (!effectivePosProfile) {
     return <ErrorMessage error="POS Profile selection required for kiosk mode." />
   }
 

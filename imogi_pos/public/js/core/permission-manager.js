@@ -353,7 +353,14 @@ window.permissionManager = window.permissionManager || new window.PermissionMana
 if (typeof frappe !== 'undefined') {
     const initPermissions = () => {
         const pm = window.permissionManager;
-        if (!pm || typeof pm.init !== 'function') return;
+        if (!pm) {
+            console.warn('PermissionManager: window.permissionManager is not initialized');
+            return;
+        }
+        if (typeof pm.init !== 'function') {
+            console.warn('PermissionManager: pm.init is not a function');
+            return;
+        }
 
         pm.init()
             .then(() => {

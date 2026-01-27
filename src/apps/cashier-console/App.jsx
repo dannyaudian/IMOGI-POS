@@ -76,6 +76,17 @@ function CounterPOSContent({ initialState }) {
     return () => window.removeEventListener('selectVariant', handleSelectVariant)
   }, [selectedOrder])
 
+  // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
+  useEffect(() => {
+    if (!guardLoading && !authLoading && !guardPassed && !showOpeningModal) {
+      const timeout = setTimeout(() => {
+        console.error('POS Profile guard failed - redirecting to module select')
+        window.location.href = '/shared/module-select'
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [guardLoading, authLoading, guardPassed, showOpeningModal])
+
   // Show loading while checking auth and guard
   if (authLoading || guardLoading) {
     return <LoadingSpinner message="Loading Cashier Console..." />

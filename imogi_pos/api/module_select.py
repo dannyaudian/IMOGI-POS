@@ -452,9 +452,9 @@ def _get_pos_sessions_today_for_context(context):
 def get_active_pos_opening():
     """Get the active POS opening entry for the current user.
     
-    IMPORTANT: Uses centralized POS Profile resolver.
+    IMPORTANT: Uses centralized operational context.
     - No longer accepts pos_profile or branch parameters
-    - Context managed via get_user_pos_profile_info()
+    - Context managed via operational_context module
     - System Managers can check POS opening even without assigned context
         
     Returns:
@@ -470,10 +470,11 @@ def get_active_pos_opening():
         if not user or user == 'Guest':
             return _empty_active_opening()
 
-        context = get_user_pos_profile_info()
-        pos_profile = context.get("current_pos_profile")
-        if pos_profile in ("", "None"):
-            pos_profile = None
+        context = get_active_operational_context(
+            user=user,
+            auto_resolve=True
+        )
+        pos_profile = context.get("pos_profile")
         return _get_active_pos_opening_for_context(
             {"current_pos_profile": pos_profile},
             user
@@ -515,15 +516,16 @@ def check_active_cashiers():
     Check if there are any active cashier POS openings at current branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
     
-    IMPORTANT: Uses centralized POS Profile resolver.
+    IMPORTANT: Uses centralized operational context.
     - No longer accepts pos_profile or branch parameters
-    - Context managed via get_user_pos_profile_info()
+    - Context managed via operational_context module
     """
     try:
-        context = get_user_pos_profile_info()
-        branch = context.get('current_branch')
-        if branch in ("", "None"):
-            branch = None
+        context = get_active_operational_context(
+            user=frappe.session.user,
+            auto_resolve=True
+        )
+        branch = context.get('branch')
         
         if not branch:
             return {
@@ -606,15 +608,16 @@ def get_pos_sessions_today():
     Get all POS openings created today at current branch.
     Used for opening selector in module select UI.
     
-    IMPORTANT: Uses centralized POS Profile resolver.
+    IMPORTANT: Uses centralized operational context.
     - No longer accepts branch parameter
-    - Context managed via get_user_pos_profile_info()
+    - Context managed via operational_context module
     """
     try:
-        context = get_user_pos_profile_info()
-        branch = context.get("current_branch")
-        if branch in ("", "None"):
-            branch = None
+        context = get_active_operational_context(
+            user=frappe.session.user,
+            auto_resolve=True
+        )
+        branch = context.get("branch")
         return _get_pos_sessions_today_for_context({"current_branch": branch})
 
     except Exception as e:
@@ -622,7 +625,7 @@ def get_pos_sessions_today():
         return {
             'sessions': [],
             'total': 0,
-            'branch': context.get('current_branch') if isinstance(context, dict) else None,
+            'branch': context.get('branch') if isinstance(context, dict) else None,
             'error': str(e)
         }
 
