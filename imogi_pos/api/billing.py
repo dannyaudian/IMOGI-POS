@@ -1138,7 +1138,7 @@ def list_orders_for_cashier(workflow_state=None, floor=None, order_type=None):
     
     if not branch:
         frappe.throw(
-            _("No branch configured in operational context. Please select a POS Profile."),
+            _("Branch is required. Please select a POS Profile."),
             frappe.ValidationError
         )
     

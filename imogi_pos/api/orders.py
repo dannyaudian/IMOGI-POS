@@ -413,7 +413,7 @@ def get_next_available_table():
         frappe.throw(_("POS Profile required. Please select one."), frappe.ValidationError)
     
     if not branch:
-        frappe.throw(_("No branch configured for POS Profile"), frappe.ValidationError)
+        frappe.throw(_("Branch configuration required."), frappe.ValidationError)
     
     check_branch_access(branch)
     effective_branch = branch
@@ -478,10 +478,10 @@ def create_order(order_type, table=None, customer=None, items=None, service_type
     effective_branch = context.get("branch")
     
     if not effective_pos_profile:
-        frappe.throw(_("POS Profile is required"), frappe.ValidationError)
+        frappe.throw(_("POS Profile required. Please select one."), frappe.ValidationError)
     
     if not effective_branch:
-        frappe.throw(_("Branch is required (derived from POS Profile)"), frappe.ValidationError)
+        frappe.throw(_("Branch configuration required."), frappe.ValidationError)
     
     check_branch_access(effective_branch)
     ensure_update_stock_enabled(effective_pos_profile)
@@ -1319,10 +1319,10 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         effective_branch = context.get("branch")
         
         if not effective_pos_profile:
-            frappe.throw(_("POS Profile is required"))
+            frappe.throw(_("POS Profile required. Please select one."))
         
         if not effective_branch:
-            frappe.throw(_("Branch is required or must be derived from POS Profile"))
+            frappe.throw(_("Branch configuration required."))
         
         # Parse items if JSON string
         if isinstance(items, str):
