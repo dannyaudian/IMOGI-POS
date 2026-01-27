@@ -385,28 +385,23 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     }
 
 @frappe.whitelist()
-def get_tables(pos_profile=None, branch=None):
+def get_tables():
     """
     Gets all tables for a specific branch for the waiter app.
+    Uses centralized operational context for branch resolution.
     Returns a simple list of tables with their current status.
-    
-    Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
-        branch (str, optional): Branch name (DEPRECATED - use pos_profile)
     
     Returns:
         list: List of tables with basic information
     """
-    # Deprecation warning
-    if branch and not pos_profile:
-        frappe.log("DEPRECATION WARNING: get_tables(branch=...) is deprecated. Use pos_profile parameter instead.")
+    from imogi_pos.utils.operational_context import require_operational_context
     
-    # Determine effective branch
-    effective_branch = None
-    if pos_profile:
-        effective_branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-    elif branch:
-        effective_branch = branch
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    effective_branch = context.get("branch")
+    
+    if not pos_profile:
+        frappe.throw(_("POS Profile required. Please select one."))
     
     if not effective_branch:
         return []

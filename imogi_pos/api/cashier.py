@@ -172,13 +172,11 @@ def get_pos_payment_methods(pos_profile):
 
 
 @frappe.whitelist()
-def get_pending_orders(pos_profile=None, branch=None, table=None, waiter=None, from_date=None, to_date=None):
+def get_pending_orders(table=None, waiter=None, from_date=None, to_date=None):
     """
-    Get list of orders pending payment
+    Get list of orders pending payment using centralized operational context.
     
     Args:
-        pos_profile: POS Profile name (PREFERRED - primary filter)
-        branch: Filter by branch (DEPRECATED - use pos_profile)
         table: Filter by specific table
         waiter: Filter by waiter
         from_date: Filter orders from date
@@ -188,21 +186,22 @@ def get_pending_orders(pos_profile=None, branch=None, table=None, waiter=None, f
         List of pending orders with summary info
     """
     try:
-        # Deprecation warning
-        if branch and not pos_profile:
-            frappe.log("DEPRECATION WARNING: get_pending_orders(branch=...) is deprecated. Use pos_profile parameter instead.")
+        from imogi_pos.utils.operational_context import require_operational_context
+        
+        context = require_operational_context()
+        pos_profile = context.get("pos_profile")
+        
+        if not pos_profile:
+            frappe.throw(_("POS Profile required. Please select one."))
         
         filters = {
             "docstatus": ["<", 2],  # Not cancelled
             "status": ["in", ["Draft", "Submitted"]],
         }
         
-        # Priority 1: Filter by POS Profile if provided
-        if pos_profile:
-            filters["pos_profile"] = pos_profile
-        # Priority 2: Fallback to branch (deprecated)
-        elif branch:
-            filters["branch"] = branch
+        # Filter by POS Profile
+        filters["pos_profile"] = pos_profile
+        
         if table:
             filters["table"] = table
         if waiter:
@@ -675,12 +674,9 @@ def complete_order(order_name, invoice_name=None, payment_name=None):
 
 
 @frappe.whitelist()
-def get_payment_methods(branch=None):
+def get_payment_methods():
     """
     Get available payment methods
-    
-    Args:
-        branch: Filter by branch (optional)
     
     Returns:
         List of payment methods with configuration
