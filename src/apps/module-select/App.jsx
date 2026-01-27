@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
+import { useFrappeGetCall } from 'frappe-react-sdk'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -10,13 +10,14 @@ import ModuleCard from './components/ModuleCard'
 function App() {
   // Use POS Profile as primary selection (not branch)
   const { 
-    currentProfile, 
     profileData, 
     availableProfiles, 
     branch: selectedBranch,
     isLoading: profileLoading,
-    setProfile,
-    isPrivileged
+    isPrivileged,
+    needsSelection,
+    resolvedProfile,
+    resolvedBranch
   } = usePOSProfile()
   
   const [modules, setModules] = useState([])
@@ -30,21 +31,21 @@ function App() {
   // Fetch available modules based on POS Profile (with branch fallback for compatibility)
   const { data: moduleData, isLoading: modulesLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_available_modules',
-    { pos_profile: currentProfile, branch: selectedBranch }
+    { pos_profile: resolvedProfile, branch: resolvedBranch || selectedBranch }
   )
 
   // Fetch current POS opening entry - now uses pos_profile as primary
   const { data: posData, isLoading: posLoading, mutate: refetchPosData } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
-    { pos_profile: currentProfile },
-    currentProfile ? undefined : false
+    { pos_profile: resolvedProfile },
+    resolvedProfile ? undefined : false
   )
 
   // Fetch all POS opening entries for today (for session selector)
   const { data: posSessionsData, isLoading: posSessionsLoading } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_pos_sessions_today',
-    { pos_profile: currentProfile, branch: selectedBranch },
-    currentProfile ? undefined : false
+    { pos_profile: resolvedProfile, branch: resolvedBranch || selectedBranch },
+    resolvedProfile ? undefined : false
   )
 
   useEffect(() => {
@@ -79,40 +80,68 @@ function App() {
     openingBalance: posData?.opening_balance
   }
   
+  const buildStrictModuleUrl = (module, context, extraParams = {}) => {
+    const base = module?.base_url || module?.url || ''
+    if (!base) {
+      return base
+    }
+
+    const url = new URL(base, window.location.origin)
+    const basePath = url.pathname
+    const isPosRoute = basePath === '/counter/pos' || basePath.includes('/pos')
+    const profile = context?.current_pos_profile || context?.selected_pos_profile || null
+
+    if (isPosRoute && profile && profile !== 'None' && profile !== 'null') {
+      url.searchParams.set('pos_profile', profile)
+    }
+
+    Object.entries(extraParams).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') {
+        return
+      }
+      if (value === 'None' || value === 'null') {
+        return
+      }
+      url.searchParams.set(key, value)
+    })
+
+    return `${url.pathname}${url.search}`
+  }
+
+  const isPosRouteModule = (module) => {
+    const base = module?.base_url || module?.url || ''
+    if (!base) {
+      return false
+    }
+    const url = new URL(base, window.location.origin)
+    return url.pathname === '/counter/pos' || url.pathname.includes('/pos')
+  }
+
   // Navigate to module with proper query params
   const navigateToModule = (module, posSessionData = null) => {
-    let url = module.base_url || module.url
-    const params = new URLSearchParams()
-    
-    // Add pos_profile to query params
-    if (currentProfile) {
-      params.set('pos_profile', currentProfile)
-    }
-    
-    // Add pos_opening_entry if available
     const openingEntry = posSessionData?.pos_opening_entry || posData?.pos_opening_entry
-    if (openingEntry && module.requires_opening) {
-      params.set('pos_opening_entry', openingEntry)
+    const url = buildStrictModuleUrl(
+      module,
+      { current_pos_profile: resolvedProfile },
+      module.requires_opening ? { pos_opening_entry: openingEntry } : {}
+    )
+
+    if (!url) {
+      return
     }
-    
-    // Build final URL
-    const queryString = params.toString()
-    if (queryString) {
-      url = `${url}${url.includes('?') ? '&' : '?'}${queryString}`
-    }
-    
+
     window.location.href = url
   }
 
   const handleModuleClick = async (module) => {
     // Store current selection in localStorage (now POS Profile based)
-    if (currentProfile) {
-      localStorage.setItem('imogi_selected_pos_profile', currentProfile)
-      localStorage.setItem('imogi_active_pos_profile', currentProfile)
-      localStorage.setItem('imogi:last_pos_profile', currentProfile)
+    if (resolvedProfile) {
+      localStorage.setItem('imogi_selected_pos_profile', resolvedProfile)
+      localStorage.setItem('imogi_active_pos_profile', resolvedProfile)
+      localStorage.setItem('imogi:last_pos_profile', resolvedProfile)
     }
-    if (selectedBranch) {
-      localStorage.setItem('imogi_selected_branch', selectedBranch)
+    if (resolvedBranch || selectedBranch) {
+      localStorage.setItem('imogi_selected_branch', resolvedBranch || selectedBranch)
     }
     localStorage.setItem('imogi_selected_module', module.type)
     
@@ -121,7 +150,7 @@ function App() {
       try {
         const response = await frappe.call({
           method: 'imogi_pos.api.module_select.check_active_cashiers',
-          args: { pos_profile: currentProfile, branch: selectedBranch }
+          args: { pos_profile: resolvedProfile, branch: resolvedBranch || selectedBranch }
         })
         
         if (!response.message.has_active_cashier) {
@@ -141,6 +170,15 @@ function App() {
         })
         return
       }
+    }
+
+    if (isPosRouteModule(module) && (!resolvedProfile || needsSelection)) {
+      frappe.msgprint({
+        title: 'POS Profile Required',
+        message: 'Please select a POS Profile before opening the Cashier Console.',
+        indicator: 'orange'
+      })
+      return
     }
     
     // Check if module requires POS opening entry
@@ -295,8 +333,10 @@ function App() {
           <div className="sidebar-section">
             <h3>POS Profile</h3>
             <div className="profile-info-card">
-              <p className="profile-name">{currentProfile || 'Not Selected'}</p>
-              {selectedBranch && <p className="profile-branch">Branch: {selectedBranch}</p>}
+              <p className="profile-name">{resolvedProfile || 'Not Selected'}</p>
+              {(resolvedBranch || selectedBranch) && (
+                <p className="profile-branch">Branch: {resolvedBranch || selectedBranch}</p>
+              )}
               {profileData?.domain && <p className="profile-domain">Domain: {profileData.domain}</p>}
               {profileData?.mode && <p className="profile-mode">Mode: {profileData.mode}</p>}
             </div>
@@ -395,7 +435,7 @@ function App() {
         isOpen={showOpeningModal}
         onClose={handleOpeningClose}
         onSuccess={handleOpeningSuccess}
-        posProfile={currentProfile}
+        posProfile={resolvedProfile}
         required={false}
       />
     </div>

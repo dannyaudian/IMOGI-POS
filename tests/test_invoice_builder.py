@@ -46,7 +46,7 @@ def invoice_builder_module():
     sys.modules.pop('imogi_pos', None)
 
 
-def test_get_active_pos_session_returns_none_if_doctype_missing(invoice_builder_module):
+def test_get_active_pos_opening_returns_none_if_doctype_missing(invoice_builder_module):
     invoice_builder, frappe = invoice_builder_module
-    frappe.db.exists_map[("DocType", "POS Session")] = False
-    assert invoice_builder.get_active_pos_session("P1") is None
+    frappe.db.exists_map[("DocType", "POS Opening Entry")] = False
+    assert invoice_builder.get_active_pos_opening("P1") is None

@@ -23,6 +23,18 @@ from typing import Optional, List, Tuple
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# DOCTYPE NORMALIZATION
+# =============================================================================
+
+def _normalize_doctype(doctype: Optional[str]) -> Optional[str]:
+    """Map legacy DocType names to ERPNext v15 equivalents."""
+    if not doctype:
+        return doctype
+    if doctype == "POS Session":
+        return "POS Opening Entry"
+    return doctype
+
+# =============================================================================
 # CORE PERMISSION CHECKS
 # =============================================================================
 
@@ -95,6 +107,18 @@ def check_doctype_permission(
     Raises:
         frappe.PermissionError: If user lacks permission and throw=True
     """
+    doctype = _normalize_doctype(doctype)
+
+    db = getattr(frappe, "db", None)
+    if db and hasattr(db, "exists"):
+        try:
+            if not db.exists("DocType", doctype):
+                logger.warning("DocType %s not found; skipping permission check.", doctype)
+                return True
+        except Exception:
+            logger.warning("Unable to verify DocType %s; skipping permission check.", doctype)
+            return True
+
     # Privileged users have unrestricted access
     if is_privileged_user(user):
         return True
@@ -104,7 +128,10 @@ def check_doctype_permission(
         user = frappe.session.user
     
     # Use native Frappe permission system
-    has_permission = frappe.has_permission(doctype, perm_type=perm_type, doc=doc)
+    try:
+        has_permission = frappe.has_permission(doctype, perm_type=perm_type, doc=doc)
+    except TypeError:
+        has_permission = frappe.has_permission(doctype, doc=doc)
     
     if not has_permission and throw:
         user_roles = ", ".join(frappe.get_roles(user))

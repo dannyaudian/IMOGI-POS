@@ -229,6 +229,13 @@ def get_active_pos_opening(pos_profile: str) -> Optional[str]:
     Returns:
         Name of the active POS Opening Entry or None
     """
+    if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
+        try:
+            if not frappe.db.exists("DocType", "POS Opening Entry"):
+                return None
+        except Exception:
+            return None
+
     scope = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_session_scope") or "User"
     
     filters = {

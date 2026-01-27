@@ -137,11 +137,6 @@ def get_available_modules(pos_profile=None, branch=None):
             if is_admin or any(role in user_roles for role in required_roles):
                 module_url = config['url']
                 
-                # Append pos_profile to URL as query param for modules that need it
-                if pos_profile and config.get('requires_pos_profile') or config.get('requires_opening'):
-                    separator = '&' if '?' in module_url else '?'
-                    module_url = f"{module_url}{separator}pos_profile={pos_profile}"
-                
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],

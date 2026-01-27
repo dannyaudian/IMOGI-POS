@@ -53,28 +53,37 @@ export function usePOSProfile() {
   
   // Process profile info when loaded
   useEffect(() => {
-    if (profileInfo) {
-      setAvailableProfiles(profileInfo.available_pos_profiles || [])
-      setBranches(profileInfo.branches || [])
-      setIsPrivileged(profileInfo.is_privileged || false)
-      setNeedsSelection(!!profileInfo.require_selection)
-      
-      // If no current profile set, use server's recommendation
-      if (!currentProfile && profileInfo.current_pos_profile) {
-        const serverProfile = profileInfo.current_pos_profile
-        const serverProfileData = profileInfo.available_pos_profiles?.find(
-          p => p.name === serverProfile
-        )
-        
-        setCurrentProfile(serverProfile)
+    if (!profileInfo) {
+      return
+    }
+
+    setAvailableProfiles(profileInfo.available_pos_profiles || [])
+    setBranches(profileInfo.branches || [])
+    setIsPrivileged(profileInfo.is_privileged || false)
+    setNeedsSelection(!!profileInfo.require_selection)
+
+    const serverProfile = profileInfo.current_pos_profile || null
+    if (serverProfile !== currentProfile) {
+      const serverProfileData = profileInfo.available_pos_profiles?.find(
+        p => p.name === serverProfile
+      )
+
+      setCurrentProfile(serverProfile)
+      if (serverProfile) {
         localStorage.setItem(STORAGE_KEY, serverProfile)
         localStorage.setItem(LAST_USED_KEY, serverProfile)
-        
-        if (serverProfileData) {
-          const data = normalizeProfileData(serverProfileData)
-          setProfileData(data)
-          localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(data))
-        }
+      } else {
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(LAST_USED_KEY)
+      }
+
+      if (serverProfileData) {
+        const data = normalizeProfileData(serverProfileData)
+        setProfileData(data)
+        localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(data))
+      } else {
+        setProfileData(null)
+        localStorage.removeItem(PROFILE_DATA_KEY)
       }
     }
   }, [profileInfo, currentProfile])
@@ -219,6 +228,8 @@ export function usePOSProfile() {
     branches,
     isPrivileged,
     needsSelection,
+    resolvedProfile: profileInfo?.current_pos_profile || null,
+    resolvedBranch: profileInfo?.current_branch || null,
     
     // Loading state
     isLoading,
