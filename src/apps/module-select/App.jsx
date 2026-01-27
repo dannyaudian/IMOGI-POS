@@ -5,6 +5,7 @@ import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
+import POSProfileSelectModal from './components/POSProfileSelectModal'
 
 function App() {
   const [modules, setModules] = useState([])
@@ -23,6 +24,8 @@ function App() {
   // POS Opening Modal state
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [pendingModule, setPendingModule] = useState(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [pendingProfileModule, setPendingProfileModule] = useState(null)
 
   // Fetch available modules - no parameters needed
   const frappeContext = useContext(FrappeContext)
@@ -146,8 +149,8 @@ function App() {
   useEffect(() => {
     if (moduleData?.context) {
       setContextState({
-        pos_profile: moduleData.context.pos_profile || null,
-        branch: moduleData.context.branch || null,
+        pos_profile: moduleData.context.current_pos_profile || null,
+        branch: moduleData.context.current_branch || null,
         require_selection: moduleData.context.require_selection || false,
         available_pos_profiles: moduleData.context.available_pos_profiles || [],
         is_privileged: moduleData.context.is_privileged || false
@@ -188,72 +191,43 @@ function App() {
     openingBalance: activeOpening?.opening_balance
   }
   
-  const showPosProfileResolutionError = () => {
-    frappe.msgprint({
-      title: 'POS Profile Error',
-      message: 'POS Profile not resolved. Please contact administrator.',
-      indicator: 'red'
-    })
-  }
-
-  const fetchResolvedPosProfile = async () => {
-    try {
-      const response = await frappe.call({
-        method: 'imogi_pos.api.public.get_user_pos_profile_info'
-      })
-      return response?.message?.current_pos_profile || null
-    } catch (error) {
-      console.error('Error resolving POS Profile:', error)
-      return null
-    }
-  }
-
-  // Navigate to module with validated URL params
-  const navigateToModule = async (module) => {
+  const navigateToModule = (module) => {
     const base = module?.base_url || module?.url || ''
     if (!base) {
-      if (module?.requires_pos_profile) {
-        showPosProfileResolutionError()
-      }
       return
     }
 
     const url = new URL(base, window.location.origin)
-
-    if (url.pathname === '/counter/pos') {
-      const posProfileParam = url.searchParams.get('pos_profile')
-
-      if (posProfileParam === 'None') {
-        showPosProfileResolutionError()
-        return
-      }
-
-      let posProfile = posProfileParam
-      if (posProfile == null) {
-        posProfile = await fetchResolvedPosProfile()
-      }
-
-      if (!posProfile || posProfile === 'None') {
-        showPosProfileResolutionError()
-        return
-      }
-
-      const nextUrl = `/counter/pos?pos_profile=${encodeURIComponent(posProfile)}`
-      window.location.href = nextUrl
-      return
-    }
-
     window.location.href = url.pathname
   }
 
-  const handleModuleClick = async (module) => {
+  const setOperationalContext = async (posProfile, branchOverride) => {
+    if (!posProfile) {
+      return null
+    }
+
+    const response = await setContextOnServer({
+      pos_profile: posProfile,
+      branch: branchOverride || null
+    })
+
+    if (response?.success) {
+      setContextState((prev) => ({
+        ...prev,
+        pos_profile: response.context?.pos_profile || posProfile,
+        branch: response.context?.branch || null,
+        require_selection: false
+      }))
+    }
+
+    return response
+  }
+
+  const proceedToModule = async (module, refreshedData = null) => {
     // Set context on server (replaces localStorage)
     if (contextData.pos_profile) {
       try {
-        await setContextOnServer({
-          pos_profile: contextData.pos_profile,
-          branch: contextData.branch
-        })
+        await setOperationalContext(contextData.pos_profile, contextData.branch)
       } catch (error) {
         console.error('Error setting operational context:', error)
       }
@@ -285,19 +259,12 @@ function App() {
       }
     }
 
-    if (contextData.require_selection) {
-      frappe.msgprint({
-        title: 'POS Profile Required',
-        message: 'Please select a POS Profile before opening modules.',
-        indicator: 'orange'
-      })
-      return
-    }
-    
     // Check if module requires POS opening entry
     if (module.requires_opening) {
+      const openingData = refreshedData?.active_opening || activeOpening
+
       // Check if POS opening exists
-      if (!activeOpening || !activeOpening.pos_opening_entry) {
+      if (!openingData || !openingData.pos_opening_entry) {
         // No POS opening entry - show modal to create one
         setPendingModule(module)
         setShowOpeningModal(true)
@@ -306,7 +273,25 @@ function App() {
     }
     
     // Navigate to module
-    await navigateToModule(module)
+    navigateToModule(module)
+  }
+
+  const handleModuleClick = async (module) => {
+    if (module.requires_pos_profile && !contextData.pos_profile) {
+      if (contextData.available_pos_profiles.length === 0) {
+        frappe.msgprint({
+          title: 'POS Profile Required',
+          message: 'No POS Profiles are available for selection. Please contact administrator.',
+          indicator: 'orange'
+        })
+        return
+      }
+      setPendingProfileModule(module)
+      setShowProfileModal(true)
+      return
+    }
+
+    await proceedToModule(module)
   }
   
   // Handle POS Opening Modal success
@@ -324,6 +309,34 @@ function App() {
   const handleOpeningClose = () => {
     setShowOpeningModal(false)
     setPendingModule(null)
+  }
+
+  const handleProfileModalClose = () => {
+    setShowProfileModal(false)
+    setPendingProfileModule(null)
+  }
+
+  const handleProfileSelection = async (profileName) => {
+    if (!profileName || !pendingProfileModule) {
+      handleProfileModalClose()
+      return
+    }
+
+    try {
+      await setOperationalContext(profileName)
+      const refreshed = await refetchModuleData()
+      setShowProfileModal(false)
+      const moduleToOpen = pendingProfileModule
+      setPendingProfileModule(null)
+      await proceedToModule(moduleToOpen, refreshed)
+    } catch (error) {
+      console.error('Error setting operational context:', error)
+      frappe.msgprint({
+        title: 'Error',
+        message: 'Failed to set POS Profile. Please try again.',
+        indicator: 'red'
+      })
+    }
   }
 
   // Show loading while profile is being fetched
@@ -558,6 +571,14 @@ function App() {
         onSuccess={handleOpeningSuccess}
         posProfile={contextData.pos_profile}
         required={false}
+      />
+
+      <POSProfileSelectModal
+        isOpen={showProfileModal}
+        moduleName={pendingProfileModule?.name}
+        profiles={contextData.available_pos_profiles}
+        onClose={handleProfileModalClose}
+        onConfirm={handleProfileSelection}
       />
     </div>
   )
