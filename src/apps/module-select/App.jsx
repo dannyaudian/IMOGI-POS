@@ -349,29 +349,6 @@ function App() {
     )
   }
 
-  // After profile loads, check if user has access
-  // Only show error if data is loaded AND user has no access
-  // Don't show error during loading or if privileged user has profiles
-  if (!modulesLoading && ((moduleError && modules.length === 0) || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0))) {
-    return (
-      <div className="module-select-error">
-        <div className="error-icon">⚠️</div>
-        <h2>POS Profile Required</h2>
-        <p>{moduleError?.message || 'No POS Profiles are assigned to your account.'}</p>
-        <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-          <p>Your administrator needs to:</p>
-          <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
-            <li>Add you to a POS Profile's "Applicable For Users" table</li>
-            <li>Ensure the POS Profile is not disabled</li>
-          </ul>
-          <p style={{ marginTop: '0.5rem' }}>
-            Please contact your system administrator for assistance.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   // Show loading while modules are being fetched (after profile is ready)
   if (loading) {
     return (
