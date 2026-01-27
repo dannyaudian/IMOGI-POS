@@ -400,9 +400,6 @@ def get_tables():
     pos_profile = context.get("pos_profile")
     effective_branch = context.get("branch")
     
-    if not pos_profile:
-        frappe.throw(_("POS Profile required. Please select one."))
-    
     if not effective_branch:
         return []
     

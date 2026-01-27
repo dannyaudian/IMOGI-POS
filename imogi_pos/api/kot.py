@@ -783,9 +783,6 @@ def get_kitchen_orders(station=None, status=None):
         pos_profile = context.get("pos_profile")
         branch = context.get("branch")
         
-        if not pos_profile:
-            frappe.throw(_('POS Profile required. Please select one.'))
-        
         # Base filters for KOT Ticket
         filters = {
             'docstatus': ['!=', 2]  # Not cancelled
@@ -914,9 +911,6 @@ def get_active_kots(kitchen=None, station=None):
         context = require_operational_context()
         pos_profile = context.get("pos_profile")
         branch = context.get("branch")
-        
-        if not pos_profile:
-            frappe.throw(_("POS Profile required. Please select one."))
         
         filters = {
             "workflow_state": ["not in", ["Served", "Cancelled"]],

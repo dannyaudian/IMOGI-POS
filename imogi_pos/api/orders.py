@@ -409,9 +409,6 @@ def get_next_available_table():
     pos_profile = context.get("pos_profile")
     branch = context.get("branch")
     
-    if not pos_profile:
-        frappe.throw(_("POS Profile required. Please select one."), frappe.ValidationError)
-    
     if not branch:
         frappe.throw(_("Branch configuration required."), frappe.ValidationError)
     
@@ -476,9 +473,6 @@ def create_order(order_type, table=None, customer=None, items=None, service_type
     context = require_operational_context()
     effective_pos_profile = context.get("pos_profile")
     effective_branch = context.get("branch")
-    
-    if not effective_pos_profile:
-        frappe.throw(_("POS Profile required. Please select one."), frappe.ValidationError)
     
     if not effective_branch:
         frappe.throw(_("Branch configuration required."), frappe.ValidationError)
@@ -1317,9 +1311,6 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         context = require_operational_context()
         effective_pos_profile = context.get("pos_profile")
         effective_branch = context.get("branch")
-        
-        if not effective_pos_profile:
-            frappe.throw(_("POS Profile required. Please select one."))
         
         if not effective_branch:
             frappe.throw(_("Branch configuration required."))

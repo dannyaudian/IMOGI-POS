@@ -228,9 +228,6 @@ def get_items_for_counter(search_term=None, category=None, limit=100):
     pos_profile = context.get("pos_profile")
     branch = context.get("branch")
     
-    if not pos_profile:
-        frappe.throw(_("POS Profile required. Please select one."))
-    
     # Validate user has access to this POS Profile
     check_doctype_permission("POS Profile", doc=pos_profile)
     

@@ -191,9 +191,6 @@ def get_pending_orders(table=None, waiter=None, from_date=None, to_date=None):
         context = require_operational_context()
         pos_profile = context.get("pos_profile")
         
-        if not pos_profile:
-            frappe.throw(_("POS Profile required. Please select one."))
-        
         filters = {
             "docstatus": ["<", 2],  # Not cancelled
             "status": ["in", ["Draft", "Submitted"]],

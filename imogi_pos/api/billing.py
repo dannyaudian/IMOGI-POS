@@ -1635,9 +1635,6 @@ def list_counter_order_history(cashier=None, date=None, limit=50):
         pos_profile = context.get("pos_profile")
         branch = context.get("branch")
         
-        if not pos_profile:
-            frappe.throw(_("POS Profile required. Please select one."), frappe.ValidationError)
-        
         # Get branch from POS Profile if not already set
         if not branch:
             branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
@@ -1645,15 +1642,10 @@ def list_counter_order_history(cashier=None, date=None, limit=50):
         
         # If still no branch, throw error
         if not branch:
-            error_msg = _(
-                "No branch configured for POS Profile: {0}. "
-                "Please contact your system administrator to configure a branch."
-            ).format(pos_profile or 'N/A')
-            frappe.log_error(
-                f"No branch found for POS Profile: {pos_profile}",
-                "list_counter_order_history - No Branch"
+            frappe.throw(
+                _("Branch configuration required."),
+                frappe.ValidationError
             )
-            frappe.throw(error_msg, frappe.ValidationError)
         
         frappe.logger().debug(f"Validating branch access for: {branch}")
         # Validate branch access - will throw clear error if no access
