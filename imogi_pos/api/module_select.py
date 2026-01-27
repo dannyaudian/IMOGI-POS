@@ -5,11 +5,10 @@ Provides available modules based on user permissions and roles
 
 import frappe
 from frappe import _
-from imogi_pos.utils.auth_decorators import require_roles
+from imogi_pos.utils.auth_helpers import get_user_role_context
 from imogi_pos.utils.role_permissions import (
     PRIVILEGED_ROLES,
-    MANAGEMENT_ROLES,
-    RESTRICTED_ROLES
+    MANAGEMENT_ROLES
 )
 
 
@@ -108,21 +107,21 @@ def get_available_modules():
     Returns:
         dict: Available modules list with operational context metadata
     """
-    from imogi_pos.utils.operational_context import get_active_operational_context
+    from imogi_pos.utils.operational_context import get_operational_context
     
     try:
-        user = frappe.session.user
-        if not user or user == 'Guest':
+        role_context = get_user_role_context()
+        if role_context.get("is_guest"):
             frappe.throw(_('Please login to continue'))
         
-        # Get operational context (auto-resolves if needed)
-        context = get_active_operational_context(user=user, auto_resolve=True)
-        
+        # Get operational context (authoritative source)
+        context = get_operational_context()
+
         # Get user roles
-        user_roles = frappe.get_roles(user)
-        
+        user_roles = role_context.get("roles", [])
+
         # Administrator or System Manager sees all modules
-        is_admin = user == "Administrator" or "System Manager" in user_roles
+        is_admin = role_context.get("is_admin", False)
         
         # Filter modules based on user roles
         available_modules = []
@@ -155,12 +154,12 @@ def get_available_modules():
         # Return modules with operational context
         return {
             'modules': available_modules,
-            'user': user,
-            'roles': user_roles,
-            'operational_context': {
-                'pos_profile': context.get('pos_profile'),
-                'branch': context.get('branch'),
-                'has_context': bool(context.get('pos_profile'))
+            'context': {
+                'pos_profile': context.get('current_pos_profile'),
+                'branch': context.get('current_branch'),
+                'require_selection': context.get('require_selection', False),
+                'available_pos_profiles': context.get('available_pos_profiles', []),
+                'is_privileged': context.get('is_privileged', False)
             }
         }
     

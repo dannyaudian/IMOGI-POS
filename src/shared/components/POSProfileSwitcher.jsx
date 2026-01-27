@@ -6,7 +6,6 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react'
-import { usePOSProfile } from '../hooks/usePOSProfile'
 import './POSProfileSwitcher.css'
 
 /**
@@ -14,24 +13,21 @@ import './POSProfileSwitcher.css'
  * @param {Object} props
  * @param {boolean} props.showBranch - Show branch name alongside profile
  * @param {boolean} props.compact - Compact mode for smaller headers
- * @param {boolean} props.syncOnChange - Sync to server when profile changes
+ * @param {string|null} props.currentProfile - Active profile name
+ * @param {Array} props.availableProfiles - Available profiles list
+ * @param {string|null} props.branch - Current branch name
+ * @param {boolean} props.isLoading - Loading state
  * @param {Function} props.onProfileChange - Callback when profile changes
  */
 export function POSProfileSwitcher({ 
   showBranch = true, 
   compact = false,
-  syncOnChange = false,
+  currentProfile = null,
+  availableProfiles = [],
+  branch = null,
+  isLoading = false,
   onProfileChange 
 }) {
-  const {
-    currentProfile,
-    profileData,
-    availableProfiles,
-    isLoading,
-    setProfile,
-    branch
-  } = usePOSProfile()
-  
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
   
@@ -53,16 +49,14 @@ export function POSProfileSwitcher({
     
     if (profileName === currentProfile) return
     
-    await setProfile(profileName, { syncToServer: syncOnChange })
-    
     if (onProfileChange) {
-      onProfileChange(profileName)
+      await onProfileChange(profileName)
     }
   }
   
   // Group profiles by branch for display
   const profilesByBranch = availableProfiles.reduce((acc, profile) => {
-    const branchName = profile.imogi_branch || 'No Branch'
+    const branchName = profile.branch || profile.imogi_branch || 'No Branch'
     if (!acc[branchName]) {
       acc[branchName] = []
     }
@@ -74,7 +68,7 @@ export function POSProfileSwitcher({
   if (availableProfiles.length <= 1 && !isLoading) {
     return (
       <div className={`pos-profile-display ${compact ? 'compact' : ''}`}>
-        <span className="profile-name">{currentProfile || 'No Profile'}</span>
+          <span className="profile-name">{currentProfile || 'No Profile'}</span>
         {showBranch && branch && (
           <span className="profile-branch">@ {branch}</span>
         )}
@@ -133,7 +127,7 @@ export function POSProfileSwitcher({
                     aria-selected={profile.name === currentProfile}
                   >
                     <span className="option-name">{profile.name}</span>
-                    <span className="option-mode">{profile.imogi_mode}</span>
+                    <span className="option-mode">{profile.mode || profile.imogi_mode}</span>
                     {profile.name === currentProfile && (
                       <span className="check-icon">✓</span>
                     )}
@@ -154,8 +148,8 @@ export function POSProfileSwitcher({
                 <div className="option-info">
                   <span className="option-name">{profile.name}</span>
                   <span className="option-meta">
-                    {profile.imogi_mode}
-                    {profile.imogi_branch && ` • ${profile.imogi_branch}`}
+                    {profile.mode || profile.imogi_mode}
+                    {(profile.branch || profile.imogi_branch) && ` • ${profile.branch || profile.imogi_branch}`}
                   </span>
                 </div>
                 {profile.name === currentProfile && (
@@ -173,22 +167,4 @@ export function POSProfileSwitcher({
 /**
  * Inline profile display (non-interactive)
  */
-export function POSProfileBadge({ showBranch = true }) {
-  const { currentProfile, branch, domain, mode } = usePOSProfile()
-  
-  if (!currentProfile) return null
-  
-  return (
-    <div className="pos-profile-badge">
-      <span className="badge-profile">{currentProfile}</span>
-      {showBranch && branch && (
-        <span className="badge-branch">@ {branch}</span>
-      )}
-      {mode && (
-        <span className="badge-mode">{mode}</span>
-      )}
-    </div>
-  )
-}
-
 export default POSProfileSwitcher

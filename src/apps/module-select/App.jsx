@@ -1,50 +1,43 @@
-import React, { useState, useEffect } from 'react'
-import { useFrappeGetCall } from 'frappe-react-sdk'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
-import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
 
 function App() {
-  const { 
-    context,
-    pos_profile,
-    branch,
-    available_profiles,
-    hasContext,
-    needsSelection,
-    isPrivileged,
-    setContext,
-    isLoading: profileLoading
-  } = useOperationalContext()
-  
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [contextState, setContextState] = useState({
+    pos_profile: null,
+    branch: null,
+    require_selection: false,
+    available_pos_profiles: [],
+    is_privileged: false
+  })
   
   // POS Opening Modal state
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [pendingModule, setPendingModule] = useState(null)
 
   // Fetch available modules - no parameters needed
-  const { data: moduleData, isLoading: modulesLoading } = useFrappeGetCall(
+  const { data: moduleData, isLoading: modulesLoading, error: moduleError } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_available_modules'
+  )
+
+  const { call: setContextOnServer } = useFrappePostCall(
+    'imogi_pos.utils.operational_context.set_operational_context'
   )
 
   // Fetch current POS opening entry - no parameters needed
   const { data: posData, isLoading: posLoading, mutate: refetchPosData } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_active_pos_opening',
-    undefined,
-    pos_profile ? undefined : false
+    'imogi_pos.api.module_select.get_active_pos_opening'
   )
 
   // Fetch all POS opening entries for today - no parameters needed
-  const { data: posSessionsData, isLoading: posSessionsLoading } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_pos_sessions_today',
-    undefined,
-    pos_profile ? undefined : false
+  const { data: posSessionsData } = useFrappeGetCall(
+    'imogi_pos.api.module_select.get_pos_sessions_today'
   )
 
   useEffect(() => {
@@ -53,6 +46,26 @@ function App() {
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
+
+  useEffect(() => {
+    if (moduleData?.context) {
+      setContextState({
+        pos_profile: moduleData.context.pos_profile || null,
+        branch: moduleData.context.branch || null,
+        require_selection: moduleData.context.require_selection || false,
+        available_pos_profiles: moduleData.context.available_pos_profiles || [],
+        is_privileged: moduleData.context.is_privileged || false
+      })
+    }
+  }, [moduleData])
+
+  const contextData = useMemo(() => ({
+    pos_profile: contextState.pos_profile,
+    branch: contextState.branch,
+    require_selection: contextState.require_selection,
+    available_pos_profiles: contextState.available_pos_profiles,
+    is_privileged: contextState.is_privileged
+  }), [contextState])
   
   // Listen for POS session opened events (from POSOpeningModal)
   useEffect(() => {
@@ -92,11 +105,11 @@ function App() {
 
   const handleModuleClick = async (module) => {
     // Set context on server (replaces localStorage)
-    if (pos_profile) {
+    if (contextData.pos_profile) {
       try {
-        await setContext({ 
-          pos_profile: pos_profile,
-          branch: branch
+        await setContextOnServer({
+          pos_profile: contextData.pos_profile,
+          branch: contextData.branch
         })
       } catch (error) {
         console.error('Error setting operational context:', error)
@@ -129,7 +142,7 @@ function App() {
       }
     }
 
-    if (!pos_profile || needsSelection) {
+    if (contextData.require_selection) {
       frappe.msgprint({
         title: 'POS Profile Required',
         message: 'Please select a POS Profile before opening modules.',
@@ -171,7 +184,7 @@ function App() {
   }
 
   // Show loading while profile is being fetched
-  if (profileLoading) {
+  if (modulesLoading) {
     return (
       <div className="module-select-loading">
         <div className="spinner"></div>
@@ -182,38 +195,22 @@ function App() {
 
   // After profile loads, check if user has access
   // Only show error if profileLoading is done AND no profiles available
-  if (error || available_profiles.length === 0) {
+  if (moduleError || (!contextData.is_privileged && contextData.available_pos_profiles.length === 0)) {
     return (
       <div className="module-select-error">
         <div className="error-icon">⚠️</div>
         <h2>POS Profile Required</h2>
-        <p>{error || 'No POS Profiles are assigned to your account.'}</p>
-        {isPrivileged ? (
-          <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-            <p><strong>As a System Manager, you can:</strong></p>
-            <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
-              <li>Create a <a href="/app/pos-profile" style={{ color: '#667eea' }}>POS Profile</a></li>
-              <li>Add yourself to the POS Profile's "Applicable For Users" table</li>
-              <li>Configure a <a href="/app/branch" style={{ color: '#667eea' }}>Branch</a> and link it to the POS Profile</li>
-              <li>Then refresh this page</li>
-            </ul>
-            <p style={{ marginTop: '0.5rem', fontStyle: 'italic' }}>
-              Note: System Managers do not need user defaults. 
-              POS Profile access is controlled via the "Applicable For Users" table only.
-            </p>
-          </div>
-        ) : (
-          <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-            <p>Your administrator needs to:</p>
-            <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
-              <li>Add you to a POS Profile's "Applicable For Users" table</li>
-              <li>Ensure the POS Profile is not disabled</li>
-            </ul>
-            <p style={{ marginTop: '0.5rem' }}>
-              Please contact your system administrator for assistance.
-            </p>
-          </div>
-        )}
+        <p>{moduleError?.message || 'No POS Profiles are assigned to your account.'}</p>
+        <div style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
+          <p>Your administrator needs to:</p>
+          <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '0.5rem' }}>
+            <li>Add you to a POS Profile's "Applicable For Users" table</li>
+            <li>Ensure the POS Profile is not disabled</li>
+          </ul>
+          <p style={{ marginTop: '0.5rem' }}>
+            Please contact your system administrator for assistance.
+          </p>
+        </div>
       </div>
     )
   }
@@ -247,9 +244,27 @@ function App() {
               <label className="header-label">POS Profile:</label>
               <POSProfileSwitcher 
                 showBranch={true}
-                syncOnChange={true}
-                setContext={setContext}
-                availableProfiles={available_profiles}
+                currentProfile={contextData.pos_profile}
+                availableProfiles={contextData.available_pos_profiles}
+                branch={contextData.branch}
+                isLoading={modulesLoading}
+                onProfileChange={async (profileName) => {
+                  try {
+                    const response = await setContextOnServer({
+                      pos_profile: profileName
+                    })
+                    if (response?.success) {
+                      setContextState((prev) => ({
+                        ...prev,
+                        pos_profile: response.context?.pos_profile || profileName,
+                        branch: response.context?.branch || null,
+                        require_selection: false
+                      }))
+                    }
+                  } catch (err) {
+                    console.error('Error setting operational context:', err)
+                  }
+                }}
               />
             </div>
 
@@ -292,9 +307,9 @@ function App() {
           <div className="sidebar-section">
             <h3>POS Profile</h3>
             <div className="profile-info-card">
-              <p className="profile-name">{pos_profile || 'Not Selected'}</p>
-              {branch && (
-                <p className="profile-branch">Branch: {branch}</p>
+              <p className="profile-name">{contextData.pos_profile || 'Not Selected'}</p>
+              {contextData.branch && (
+                <p className="profile-branch">Branch: {contextData.branch}</p>
               )}
             </div>
           </div>
@@ -392,7 +407,7 @@ function App() {
         isOpen={showOpeningModal}
         onClose={handleOpeningClose}
         onSuccess={handleOpeningSuccess}
-        posProfile={pos_profile}
+        posProfile={contextData.pos_profile}
         required={false}
       />
     </div>
