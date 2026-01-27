@@ -211,7 +211,7 @@ imogi_pos.kiosk = {
                         this.settings.printQueueTicket = profile.imogi_kiosk_print_queue_ticket || false;
                         this.settings.allowedItemGroups = profile.imogi_kiosk_allowed_item_groups || [];
                         
-                        // Check if we need an active POS session
+                        // Check if we need an active POS opening
                         if (profile.imogi_require_pos_session && 
                             profile.imogi_enforce_session_on_kiosk &&
                             !this.settings.allowGuest) {
@@ -271,7 +271,7 @@ imogi_pos.kiosk = {
     },
     
     /**
-     * Check for active POS session
+     * Check for active POS opening
      */
     checkActivePOSSession: function() {
         frappe.call({
@@ -283,16 +283,16 @@ imogi_pos.kiosk = {
                 const info = response.message || {};
 
                 if (!info.exists) {
-                    // POS Session feature not available
+                    // POS Opening feature not available
                     this.hidePOSSessionUI();
-                    this.showError('POS Session feature is unavailable. Continuing without session.');
+                    this.showError('POS Opening feature is unavailable. Continuing without session.');
                 } else if (!info.active) {
                     // No active session
                     this.showError(
-                        'No active POS Session found. Please open a POS Session first.',
-                        'Open POS Session',
+                        'No active POS Opening found. Please open a POS Opening first.',
+                        'Open POS Opening',
                         () => {
-                            window.location.href = '/app/pos-session/new-pos-session';
+                            window.location.href = '/app/pos-opening-entry/new';
                         }
                     );
                 }
@@ -6082,7 +6082,7 @@ imogi_pos.cashier_console = {
                             this.settings.branch = profile.imogi_branch;
                         }
                         
-                        // Check if we need an active POS session
+                        // Check if we need an active POS opening
                         if (profile.imogi_require_pos_session && 
                             profile.imogi_enforce_session_on_cashier) {
                             this.checkActivePOSSession();
@@ -6142,7 +6142,7 @@ imogi_pos.cashier_console = {
     },
     
     /**
-     * Check for active POS session
+     * Check for active POS opening
      */
     checkActivePOSSession: function() {
         frappe.call({
@@ -6154,16 +6154,16 @@ imogi_pos.cashier_console = {
                 const info = response.message || {};
 
                 if (!info.exists) {
-                    // POS Session feature not available
+                    // POS Opening feature not available
                     this.hidePOSSessionUI();
-                    this.showError('POS Session feature is unavailable. Continuing without session.');
+                    this.showError('POS Opening feature is unavailable. Continuing without session.');
                 } else if (!info.active) {
                     // No active session
                     this.showError(
-                        'No active POS Session found. Please open a POS Session first.',
-                        'Open POS Session',
+                        'No active POS Opening found. Please open a POS Opening first.',
+                        'Open POS Opening',
                         () => {
-                            window.location.href = '/app/pos-session/new-pos-session';
+                            window.location.href = '/app/pos-opening-entry/new';
                         }
                     );
                 }

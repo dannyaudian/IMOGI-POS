@@ -153,7 +153,7 @@ class CustomPOSProfile(POSProfile):
         Validate session scope field has valid value.
         
         Options:
-        - User: Each user has their own POS session (recommended for individual accountability)
+        - User: Each user has their own POS opening (recommended for individual accountability)
         - POS Profile: All users share one session per POS Profile (shared cash drawer)
         """
         if self.get("imogi_require_pos_session"):
@@ -194,7 +194,7 @@ class CustomPOSProfile(POSProfile):
                 _("Cashier (Counter) module must be enabled in every POS Profile.<br><br>"
                   "<b>Reason:</b> Cashier module is required for:<br>"
                   "• Payment processing (cash, card, QRIS)<br>"
-                  "• POS Session opening and closing<br>"
+                  "• POS Opening Entry opening and closing<br>"
                   "• Order reconciliation and reporting<br>"
                   "• Handling exceptions from Kiosk/Self-Order<br><br>"
                   "<b>Note:</b> All modules support both Dine-In and Take-Away orders.<br>"

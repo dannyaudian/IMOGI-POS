@@ -30,8 +30,6 @@ def _normalize_doctype(doctype: Optional[str]) -> Optional[str]:
     """Map legacy DocType names to ERPNext v15 equivalents."""
     if not doctype:
         return doctype
-    if doctype == "POS Session":
-        return "POS Opening Entry"
     return doctype
 
 # =============================================================================

@@ -886,7 +886,7 @@ def generate_invoice(
             for fieldname, value in customer_details.items():
                 setattr(order_doc, fieldname, value)
 
-    # Validate POS Session
+    # Validate POS Opening Entry
     pos_session = validate_pos_session(order_doc.pos_profile)
     
     # Validate items for templates
@@ -1428,11 +1428,11 @@ def get_session_info(pos_session=None):
 @require_permission("POS Opening Entry", "write")
 def close_session_request(pos_session, closing_amount=None):
     """
-    Prepare data for closing a POS Session.
+    Prepare data for closing a POS Opening Entry.
     Creates a POS Closing Entry draft.
     
     Args:
-        pos_session (str): POS Session name
+        pos_session (str): POS Opening Entry name
         closing_amount (float, optional): Closing cash amount
     
     Returns:

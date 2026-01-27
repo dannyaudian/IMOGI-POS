@@ -58,7 +58,7 @@ def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, note
         if resolution.get("selected") != pos_profile:
             frappe.throw(_('You do not have access to POS Profile {0}').format(pos_profile))
         
-        # Check for existing open session today
+        # Check for existing open opening today
         today = datetime.now().date()
         existing_opening = frappe.db.get_list(
             'POS Opening Entry',
@@ -73,7 +73,7 @@ def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, note
         )
         
         if existing_opening:
-            frappe.throw(_('You already have an open POS session for {0} today. Please close it first.').format(pos_profile))
+            frappe.throw(_('You already have an open POS opening for {0} today. Please close it first.').format(pos_profile))
         
         # Create POS Opening Entry
         opening_entry = frappe.new_doc('POS Opening Entry')
@@ -120,7 +120,7 @@ def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, note
             'company': profile_data.get('company'),
             'branch': profile_data.get('imogi_branch'),
             'timestamp': str(opening_entry.period_start_date),
-            'message': _('POS session opened successfully')
+            'message': _('POS opening entry created successfully')
         }
     
     except frappe.ValidationError:

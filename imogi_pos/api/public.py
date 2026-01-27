@@ -328,8 +328,6 @@ def _get_role_based_redirect(roles):
 
 def _normalize_permission_doctype(doctype):
     """Map legacy DocType names to ERPNext v15 equivalents."""
-    if doctype == "POS Session":
-        return "POS Opening Entry"
     return doctype
 
 

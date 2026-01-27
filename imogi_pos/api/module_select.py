@@ -98,23 +98,24 @@ MODULE_CONFIGS = {
 @frappe.whitelist()
 def get_available_modules():
     """Get list of available modules based on user's roles and operational context.
-    
+
     IMPORTANT: Now uses centralized operational context.
     - No longer accepts pos_profile or branch parameters
     - Context managed server-side via operational_context module
     - Returns BASE URLs only (no query params)
-    
+    - Aggregates active opening + today's sessions in one payload
+
     Returns:
         dict: Available modules list with operational context metadata
     """
     from imogi_pos.utils.operational_context import get_operational_context
-    
+
     try:
         role_context = get_user_role_context()
         if role_context.get("is_guest"):
             frappe.throw(_('Please login to continue'))
-        
-        # Get operational context (authoritative source)
+
+        # Get operational context FIRST (authoritative source)
         context = get_operational_context()
 
         # Get user roles
@@ -122,18 +123,18 @@ def get_available_modules():
 
         # Administrator or System Manager sees all modules
         is_admin = role_context.get("is_admin", False)
-        
+
         # Filter modules based on user roles
         available_modules = []
         for module_type, config in MODULE_CONFIGS.items():
             required_roles = config.get('requires_roles', [])
-            
+
             # Admin bypass: show all modules
             # Regular users: check if they have any of the required roles
             if is_admin or any(role in user_roles for role in required_roles):
                 # Return BASE URL ONLY - no query params
                 module_url = config['url']
-                
+
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],
@@ -147,11 +148,14 @@ def get_available_modules():
                     'requires_active_cashier': config.get('requires_active_cashier', False),
                     'order': config.get('order', 99)
                 })
-        
+
         # Sort by order
         available_modules.sort(key=lambda x: x['order'])
-        
-        # Return modules with operational context
+
+        active_opening = _get_active_pos_opening_for_context(context, frappe.session.user)
+        sessions_today = _get_pos_sessions_today_for_context(context)
+
+        # Return modules with operational context + opening/session info
         return {
             'modules': available_modules,
             'context': {
@@ -160,9 +164,11 @@ def get_available_modules():
                 'require_selection': context.get('require_selection', False),
                 'available_pos_profiles': context.get('available_pos_profiles', []),
                 'is_privileged': context.get('is_privileged', False)
-            }
+            },
+            'active_opening': active_opening,
+            'sessions_today': sessions_today
         }
-    
+
     except Exception as e:
         frappe.log_error(f'Error in get_available_modules: {str(e)}')
         frappe.throw(_('Error loading modules. Please refresh and try again.'))
@@ -302,6 +308,125 @@ def get_user_branch_info():
         frappe.throw(_('Unable to determine branch. Please contact administrator.'))
 
 
+def _empty_active_opening():
+    return {
+        'pos_opening_entry': None,
+        'pos_profile_name': None,
+        'opening_balance': 0,
+        'timestamp': None,
+        'company': None
+    }
+
+
+def _resolve_pos_opening_date_field():
+    if frappe.db.has_column('POS Opening Entry', 'posting_date'):
+        return 'posting_date'
+    if frappe.db.has_column('POS Opening Entry', 'period_start_date'):
+        return 'period_start_date'
+    return 'creation'
+
+
+def _get_active_pos_opening_for_context(context, user):
+    pos_profile = None
+    if isinstance(context, dict):
+        pos_profile = context.get('current_pos_profile') or context.get('pos_profile')
+
+    if not pos_profile:
+        return _empty_active_opening()
+
+    company = frappe.db.get_value('POS Profile', pos_profile, 'company')
+
+    pos_opening = frappe.db.get_list(
+        'POS Opening Entry',
+        filters={
+            'docstatus': 1,  # Submitted
+            'status': 'Open',
+            'user': user,
+            'pos_profile': pos_profile
+        },
+        fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation', 'company'],
+        order_by='creation desc',
+        limit_page_length=1
+    )
+
+    if pos_opening:
+        entry = pos_opening[0]
+        return {
+            'pos_opening_entry': entry.get('name'),
+            'pos_profile_name': entry.get('pos_profile'),
+            'opening_balance': entry.get('opening_balance', 0),
+            'timestamp': entry.get('creation'),
+            'company': entry.get('company')
+        }
+
+    return {
+        'pos_opening_entry': None,
+        'pos_profile_name': pos_profile,
+        'opening_balance': 0,
+        'timestamp': None,
+        'company': company
+    }
+
+
+def _get_pos_sessions_today_for_context(context):
+    branch = None
+    if isinstance(context, dict):
+        branch = context.get('current_branch') or context.get('branch')
+
+    if not branch:
+        return {
+            'sessions': [],
+            'total': 0,
+            'branch': None
+        }
+
+    pos_profiles = frappe.get_list(
+        'POS Profile',
+        filters={'imogi_branch': branch},
+        fields=['name', 'company'],
+        limit_page_length=0
+    )
+
+    if not pos_profiles:
+        return {
+            'sessions': [],
+            'total': 0,
+            'branch': branch
+        }
+
+    profile_names = [p.get('name') for p in pos_profiles]
+    date_field = _resolve_pos_opening_date_field()
+
+    sessions = frappe.get_list(
+        'POS Opening Entry',
+        filters={
+            'docstatus': 1,  # Submitted
+            'status': 'Open',
+            'pos_profile': ['in', profile_names],
+            date_field: ['>=', frappe.utils.today()]
+        },
+        fields=['name', 'pos_profile', 'user', 'opening_balance', date_field, 'status'],
+        order_by=f'{date_field} desc'
+    )
+
+    session_list = []
+    for session in sessions:
+        session_list.append({
+            'name': session.get('name'),
+            'pos_profile': session.get('pos_profile'),
+            'user': session.get('user'),
+            'opening_balance': session.get('opening_balance', 0),
+            'period_start_date': session.get(date_field),
+            'status': session.get('status')
+        })
+
+    return {
+        'sessions': session_list,
+        'total': len(session_list),
+        'branch': branch
+    }
+
+
 @frappe.whitelist()
 def get_active_pos_opening():
     """Get the active POS opening entry for the current user.
@@ -320,81 +445,20 @@ def get_active_pos_opening():
             - company: Company from POS Profile
     """
     from imogi_pos.utils.operational_context import get_active_operational_context
-    
+
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
-            return {
-                'pos_opening_entry': None,
-                'pos_profile_name': None,
-                'opening_balance': 0,
-                'timestamp': None,
-                'company': None
-            }
-        
+            return _empty_active_opening()
+
         # Get operational context (auto-resolves if needed)
         context = get_active_operational_context(user=user, auto_resolve=True)
-        
-        # Get POS Profile from context
-        pos_profile = context.get('pos_profile')
-        
-        if not pos_profile:
-            # No context - return empty (System Manager may not have context)
-            return {
-                'pos_opening_entry': None,
-                'pos_profile_name': None,
-                'opening_balance': 0,
-                'timestamp': None,
-                'company': None
-            }
-        
-        # Get company from profile
-        company = frappe.db.get_value('POS Profile', pos_profile, 'company')
-        
-        # Get active POS opening entry
-        from datetime import datetime
-        today = datetime.now().date()
-        
-        pos_opening = frappe.db.get_list(
-            'POS Opening Entry',
-            filters={
-                'docstatus': 1,  # Submitted
-                'user': user,
-                'pos_profile': pos_profile,
-                'period_start_date': ['>=', str(today)]
-            },
-            fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation', 'company'],
-            order_by='creation desc',
-            limit_page_length=1
-        )
-        
-        if pos_opening:
-            entry = pos_opening[0]
-            return {
-                'pos_opening_entry': entry.get('name'),
-                'pos_profile_name': entry.get('pos_profile'),
-                'opening_balance': entry.get('opening_balance', 0),
-                'timestamp': entry.get('creation'),
-                'company': entry.get('company')
-            }
-        
-        return {
-            'pos_opening_entry': None,
-            'pos_profile_name': pos_profile,
-            'opening_balance': 0,
-            'timestamp': None,
-            'company': company
-        }
-    
+
+        return _get_active_pos_opening_for_context(context, user)
+
     except Exception as e:
         frappe.log_error(f'Error in get_active_pos_opening: {str(e)}')
-        return {
-            'pos_opening_entry': None,
-            'pos_profile_name': None,
-            'opening_balance': 0,
-            'timestamp': None,
-            'company': None
-        }
+        return _empty_active_opening()
 
 
 @frappe.whitelist()
@@ -425,7 +489,7 @@ def set_user_branch(branch):
 @frappe.whitelist()
 def check_active_cashiers():
     """
-    Check if there are any active cashier POS sessions at current branch.
+    Check if there are any active cashier POS openings at current branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
     
     IMPORTANT: Now uses centralized operational context.
@@ -501,7 +565,7 @@ def check_active_cashiers():
             'has_active_cashier': has_active,
             'active_sessions': cashier_sessions,
             'total_cashiers': len(cashier_sessions),
-            'message': 'Active cashier found' if has_active else 'No active cashier sessions. Please ask a cashier to open a POS session first.',
+            'message': 'Active cashier found' if has_active else 'No active cashier sessions. Please ask a cashier to open a POS opening first.',
             'branch': branch
         }
     
@@ -519,81 +583,27 @@ def check_active_cashiers():
 @frappe.whitelist()
 def get_pos_sessions_today():
     """
-    Get all POS sessions opened today at current branch.
-    Used for session selector in module select UI.
+    Get all POS openings created today at current branch.
+    Used for opening selector in module select UI.
     
     IMPORTANT: Now uses centralized operational context.
     - No longer accepts branch parameter
     - Context managed server-side via operational_context module
     """
     from imogi_pos.utils.operational_context import get_active_operational_context
-    
+
     try:
         # Get operational context
         context = get_active_operational_context(user=frappe.session.user, auto_resolve=True)
-        
-        # Get branch from context
-        branch = context.get('branch')
-        
-        if not branch:
-            return {
-                'sessions': [],
-                'total': 0,
-                'branch': None
-            }
-        
-        # Find POS Profiles for this branch
-        pos_profiles = frappe.get_list(
-            'POS Profile',
-            filters={'imogi_branch': branch},
-            fields=['name', 'company'],
-            limit_page_length=0
-        )
-        
-        if not pos_profiles:
-            return {
-                'sessions': [],
-                'total': 0,
-                'branch': branch
-            }
-        
-        profile_names = [p.get('name') for p in pos_profiles]
-        
-        # Get all POS Opening Entries opened today
-        sessions = frappe.get_list(
-            'POS Opening Entry',
-            filters={
-                'docstatus': 1,  # Submitted
-                'pos_profile': ['in', profile_names],
-                'period_start_date': ['>=', frappe.utils.today()]
-            },
-            fields=['name', 'pos_profile', 'user', 'opening_balance', 'period_start_date', 'status'],
-            order_by='period_start_date desc'
-        )
-        
-        session_list = []
-        for session in sessions:
-            session_list.append({
-                'name': session.get('name'),
-                'pos_profile': session.get('pos_profile'),
-                'user': session.get('user'),
-                'opening_balance': session.get('opening_balance', 0),
-                'period_start_date': session.get('period_start_date'),
-                'status': session.get('status')
-            })
-        
-        return {
-            'sessions': session_list,
-            'total': len(session_list),
-            'branch': branch
-        }
-    
+
+        return _get_pos_sessions_today_for_context(context)
+
     except Exception as e:
         frappe.log_error(f'Error in get_pos_sessions_today: {str(e)}')
         return {
             'sessions': [],
             'total': 0,
-            'branch': branch,
+            'branch': context.get('branch') if isinstance(context, dict) else None,
             'error': str(e)
         }
 

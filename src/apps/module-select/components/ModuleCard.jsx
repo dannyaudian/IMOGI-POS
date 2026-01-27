@@ -44,7 +44,7 @@ function ModuleCard({ module, onClick, posOpeningStatus }) {
       role="button"
       tabIndex={isAccessible ? 0 : -1}
       onKeyDown={(e) => isAccessible && e.key === 'Enter' && onClick()}
-      title={needsOpening ? 'Please open a POS session first' : ''}
+      title={needsOpening ? 'Please open a POS opening first' : ''}
     >
       <div className="module-icon">
         <i className={`fa-solid ${getModuleIcon(module.type)}`}></i>

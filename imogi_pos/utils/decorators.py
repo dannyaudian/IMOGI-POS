@@ -363,7 +363,7 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                             "pos_profile": pos_profile
                         })
                     frappe.throw(
-                        _('No active POS Opening found for profile {0}. Please open a POS session first.').format(pos_profile),
+                        _('No active POS Opening found for profile {0}. Please open a POS opening first.').format(pos_profile),
                         frappe.ValidationError
                     )
             
