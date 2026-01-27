@@ -145,17 +145,20 @@ def health():
     }
 
 @frappe.whitelist()
-def get_branding(pos_profile=None):
+def get_branding():
     """
-    Get branding information based on the provided POS Profile or fallback
-    to global settings.
+    Get branding information based on operational context POS Profile.
+    Falls back to global settings if no context.
     
-    Args:
-        pos_profile (str, optional): Name of the POS Profile. Defaults to None.
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile parameter
+    - Context managed server-side via operational_context module
     
     Returns:
         dict: Branding information including logo URLs and colors
     """
+    from imogi_pos.utils.operational_context import get_active_operational_context
+    
     result = {
         "brand_name": frappe.defaults.get_global_default('company') or "IMOGI POS",
         "logo": None,
@@ -167,6 +170,10 @@ def get_branding(pos_profile=None):
         "home_url": get_url(),
         "css_vars": ""
     }
+    
+    # Get POS Profile from operational context
+    context = get_active_operational_context(auto_resolve=True)
+    pos_profile = context.get("pos_profile")
     
     # Try to get branding from POS Profile
     if pos_profile:

@@ -1112,13 +1112,15 @@ def generate_invoice(
 
 @frappe.whitelist()
 @require_permission("POS Order", "read")
-def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, floor=None, order_type=None):
+def list_orders_for_cashier(workflow_state=None, floor=None, order_type=None):
     """
     Lists POS Orders that are ready for billing in the cashier console.
     
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile or branch parameters
+    - Context managed server-side via operational_context module
+    
     Args:
-        pos_profile (str, optional): POS Profile name
-        branch (str, optional): Branch filter
         workflow_state (str, optional): Workflow state filter (Ready/Served)
         floor (str, optional): Floor filter
         order_type (str, optional): Order type filter (Counter/Dine In/Take Away)
@@ -1126,27 +1128,22 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
     Returns:
         list: POS Orders with summarized details
     """
-    if not branch:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
-
-        resolution = resolve_pos_profile(
-            user=frappe.session.user,
-            requested=pos_profile
-        )
-        raise_setup_required_if_no_candidates(resolution)
-        if pos_profile and resolution.get("selected") != pos_profile:
-            frappe.throw(
-                _("You do not have access to POS Profile {0}.").format(pos_profile),
-                frappe.PermissionError,
-            )
-        if resolution.get("needs_selection"):
-            frappe.throw(_("POS Profile selection required. Please select one."))
-
-        pos_profile = resolution.get("selected")
-        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+    from imogi_pos.utils.operational_context import require_operational_context
     
-    if branch:
-        check_branch_access(branch)
+    # Require operational context (throws if not available)
+    context = require_operational_context()
+    
+    # Get branch from context
+    branch = context.get("branch")
+    
+    if not branch:
+        frappe.throw(
+            _("Branch configuration required."),
+            frappe.ValidationError
+        )
+    
+    # Validate branch access
+    check_branch_access(branch)
 
     # Treat explicit 'All' workflow_state as no filter
     if workflow_state == "All":
@@ -1279,8 +1276,14 @@ def prepare_invoice_draft(pos_order):
     return draft_invoice
 
 @frappe.whitelist()
-def check_pos_session(pos_profile=None):
-    """Check whether POS Opening Entry is active for session management."""
+def check_pos_session():
+    """Check whether POS Opening Entry is active for session management.
+    
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile parameter
+    - Context managed server-side via operational_context module
+    """
+    from imogi_pos.utils.operational_context import get_active_operational_context
 
     exists = True
     if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
@@ -1612,82 +1615,43 @@ def request_payment(sales_invoice):
 
 
 @frappe.whitelist()
-def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date=None, limit=50):
+def list_counter_order_history(cashier=None, date=None, limit=50):
     """
     Lists completed POS Orders created by Counter mode for history view.
+    Uses centralized operational context for consistent access control.
     Only shows orders created in Counter mode by the current cashier or all cashiers in branch.
     
-    IMPORTANT: Now uses centralized POS Profile resolver for consistent access control.
-    System Managers can access POS without relying on user defaults.
-    
     Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
-        branch (str, optional): Branch filter (DEPRECATED - derived from pos_profile)
         cashier (str, optional): Filter by specific cashier (defaults to current user)
         date (str, optional): Date filter (defaults to today)
         limit (int, optional): Number of records to return
     
     Returns:
         list: Completed POS Orders with summarized details
-    
-    NOTE ON POS PROFILE RESOLUTION:
-        This function now uses resolve_pos_profile() from the centralized
-        resolver. System Managers can access POS even without defaults.
-        Regular users must have at least one POS Profile assigned via
-        "Applicable for Users" child table.
     """
     from frappe.utils import today, getdate
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+    from imogi_pos.utils.operational_context import require_operational_context
     
     try:
         user = frappe.session.user
-        frappe.logger().debug(f"list_counter_order_history called with: pos_profile={pos_profile}, branch={branch}, user={user}")
+        frappe.logger().debug(f"list_counter_order_history called with: user={user}")
         
-        # CRITICAL: Use centralized resolver for POS Profile access
-        # This handles System Manager bypass and multi-profile scenarios
-        if not pos_profile:
-            resolution = resolve_pos_profile(user=user)
-            from imogi_pos.utils.pos_profile_resolver import raise_setup_required_if_no_candidates
-
-            raise_setup_required_if_no_candidates(resolution)
-
-            # User has access - use resolved profile
-            if resolution['selected']:
-                pos_profile = resolution['selected']
-                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-                frappe.logger().debug(f"Resolved POS Profile: {pos_profile}, Branch: {branch}")
-            elif resolution['needs_selection']:
-                # Multiple profiles - need explicit selection
-                frappe.throw(
-                    _("POS Profile selection required. Please choose one before viewing order history."),
-                    frappe.ValidationError,
-                )
+        # Get operational context
+        context = require_operational_context()
+        pos_profile = context.get("pos_profile")
+        branch = context.get("branch")
         
-        # Validate explicit POS Profile selection when provided
-        if pos_profile:
-            requested_resolution = resolve_pos_profile(user=user, requested=pos_profile)
-            if requested_resolution.get("selected") != pos_profile:
-                frappe.throw(
-                    _("You do not have access to POS Profile {0}.").format(pos_profile),
-                    frappe.PermissionError,
-                )
-
         # Get branch from POS Profile if not already set
-        if pos_profile and not branch:
+        if not branch:
             branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
             frappe.logger().debug(f"Got branch from POS Profile: {branch}")
         
         # If still no branch, throw error
         if not branch:
-            error_msg = _(
-                "No branch configured for POS Profile: {0}. "
-                "Please contact your system administrator to configure a branch."
-            ).format(pos_profile or 'N/A')
-            frappe.log_error(
-                f"No branch found for POS Profile: {pos_profile}",
-                "list_counter_order_history - No Branch"
+            frappe.throw(
+                _("Branch configuration required."),
+                frappe.ValidationError
             )
-            frappe.throw(error_msg, frappe.ValidationError)
         
         frappe.logger().debug(f"Validating branch access for: {branch}")
         # Validate branch access - will throw clear error if no access

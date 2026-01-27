@@ -201,13 +201,12 @@ def set_item_flags(doc, method=None):
 
 
 @frappe.whitelist()
-def get_items_for_counter(pos_profile=None, branch=None, search_term=None, category=None, limit=100):
+def get_items_for_counter(search_term=None, category=None, limit=100):
     """
     Get items for Counter mode item selector with categories, variants, and pricing.
+    Uses centralized operational context for POS Profile and branch resolution.
     
     Args:
-        pos_profile (str, optional): POS Profile name
-        branch (str, optional): Branch filter
         search_term (str, optional): Search query for item name/code
         category (str, optional): Filter by menu category
         limit (int, optional): Number of items to return
@@ -219,36 +218,18 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
         }
     """
     from frappe.utils import flt, cint
+    from imogi_pos.utils.operational_context import require_operational_context
     
     # Authorize API call
     check_doctype_permission("Item")
     
-    # Get POS Profile if not provided (centralized resolver)
-    if not pos_profile:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
-
-        resolution = resolve_pos_profile(user=frappe.session.user)
-        raise_setup_required_if_no_candidates(resolution)
-        if resolution.get("needs_selection"):
-            frappe.throw(_("POS Profile selection required. Please select one."))
-        pos_profile = resolution.get("selected")
-    else:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
-
-        resolution = resolve_pos_profile(user=frappe.session.user, requested=pos_profile)
-        raise_setup_required_if_no_candidates(resolution)
-        if resolution.get("selected") != pos_profile:
-            frappe.throw(
-                _("You do not have access to POS Profile {0}.").format(pos_profile),
-                frappe.PermissionError,
-            )
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    branch = context.get("branch")
     
     # Validate user has access to this POS Profile
     check_doctype_permission("POS Profile", doc=pos_profile)
-    
-    # Get branch from POS Profile if not provided
-    if not branch:
-        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     
     # Additional branch validation for safety
     if branch:

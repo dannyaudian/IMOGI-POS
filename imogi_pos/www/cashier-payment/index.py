@@ -8,6 +8,10 @@ def get_context(context):
     
     This module has been merged into Cashier Console (/counter/pos).
     This handler now redirects to /counter/pos with appropriate filter.
+    
+    IMPORTANT: Now uses centralized operational context.
+    - No longer embeds pos_profile in redirect URL
+    - Context managed server-side via operational_context module
     """
     context.no_cache = 1
     
@@ -16,20 +20,33 @@ def get_context(context):
         frappe.local.flags.redirect_location = '/login'
         raise frappe.Redirect
     
-    # Resolve POS Profile via centralized resolver (DefaultValue is not used)
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
-
-    resolution = resolve_pos_profile(
-        user=frappe.session.user,
-        last_used=frappe.form_dict.get('last_used'),
-        requested=frappe.form_dict.get('pos_profile')
+    # Use operational context (authoritative)
+    from imogi_pos.utils.operational_context import (
+        resolve_operational_context,
+        set_active_operational_context
     )
-    pos_profile = resolution.get('selected')
     
-    # Redirect to /counter/pos with filter=pending query param
-    redirect_url = '/counter/pos?filter=pending'
+    # Handle backward compatibility: URL param as one-time request
+    requested_profile = frappe.form_dict.get('pos_profile')
+    
+    # Resolve operational context
+    resolved = resolve_operational_context(
+        user=frappe.session.user,
+        requested_profile=requested_profile
+    )
+    
+    pos_profile = resolved.get("current_pos_profile")
+    
+    # If profile was resolved, store it in session
     if pos_profile:
-        redirect_url += f'&pos_profile={pos_profile}'
+        set_active_operational_context(
+            user=frappe.session.user,
+            pos_profile=pos_profile,
+            branch=resolved.get("current_branch")
+        )
+    
+    # Redirect to /counter/pos with filter=pending (NO pos_profile in URL)
+    redirect_url = '/counter/pos?filter=pending'
     
     frappe.local.flags.redirect_location = redirect_url
     raise frappe.Redirect

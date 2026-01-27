@@ -8,29 +8,49 @@ from imogi_pos.utils.auth_decorators import require_roles
 
 @require_roles("Cashier", "Branch Manager", "System Manager")
 def get_context(context):
-    """Context builder for Cashier Console page."""
+    """Context builder for Cashier Console page.
+    
+    IMPORTANT: Now uses centralized operational context.
+    - No longer reads pos_profile from URL parameters
+    - Context managed server-side via operational_context module
+    - Backward compatible: accepts URL param as one-time request
+    """
     try:
         # Get branding info
         branding = get_brand_context()
         
-        # Resolve POS Profile via centralized resolver (authoritative)
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
-
-        resolution = resolve_pos_profile(
-            user=frappe.session.user,
-            last_used=frappe.form_dict.get('last_used'),
-            requested=frappe.form_dict.get('pos_profile')
+        # Use operational context (authoritative)
+        from imogi_pos.utils.operational_context import (
+            resolve_operational_context,
+            set_active_operational_context
         )
-        pos_profile = resolution.get("selected")
+        
+        # Handle backward compatibility: URL param as one-time request
+        requested_profile = frappe.form_dict.get('pos_profile')
+        
+        # Resolve operational context
+        resolved = resolve_operational_context(
+            user=frappe.session.user,
+            requested_profile=requested_profile
+        )
+        
+        pos_profile = resolved.get("current_pos_profile")
+        branch = resolved.get("current_branch")
+        
+        # If profile was resolved, store it in session
+        if pos_profile:
+            set_active_operational_context(
+                user=frappe.session.user,
+                pos_profile=pos_profile,
+                branch=branch
+            )
         
         # Get POS Profile details including mode
         pos_mode = "Counter"  # Default
-        branch = None
         
         if pos_profile:
             profile_details = frappe.get_cached_doc("POS Profile", pos_profile)
             pos_mode = profile_details.get("imogi_mode") or "Counter"
-            branch = profile_details.get("imogi_branch")
         
         context.setup_error = False
         context.branding = branding
@@ -42,7 +62,7 @@ def get_context(context):
             'pos_profile': pos_profile,
             'pos_mode': pos_mode,
             'branch': branch,
-            'pos_profile_resolution': resolution
+            'operational_context': resolved
         })
 
         return context

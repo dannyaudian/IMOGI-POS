@@ -127,20 +127,19 @@ def publish_table_update(pos_order, table, event_type="kot_update"):
 
 
 @frappe.whitelist()
-def get_kitchens_and_stations(branch=None):
+def get_kitchens_and_stations():
     """Return active kitchens and kitchen stations for the kitchen display.
-
-    Args:
-        branch (str, optional): Branch name to filter results by.
+    Uses centralized operational context for branch filtering.
 
     Returns:
         dict: A dictionary with ``kitchens`` and ``stations`` lists ready for the
             kitchen display frontend.
     """
-
-    if branch in ("", "null", "None"):
-        branch = None
-
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    context = require_operational_context(allow_optional=True)
+    branch = context.get("branch")
+    
     if branch:
         check_branch_access(branch)
 
@@ -193,46 +192,49 @@ def get_kitchens_and_stations(branch=None):
 
 
 @frappe.whitelist()
-def get_kitchen_stations(branch=None):
+def get_kitchen_stations():
     """Return active kitchen stations for the kitchen display.
-
-    Args:
-        branch (str, optional): Branch name to filter results by.
+    Uses centralized operational context for branch filtering.
 
     Returns:
         list: A list of kitchen stations ready for the kitchen display frontend.
     """
-    result = get_kitchens_and_stations(branch=branch)
+    result = get_kitchens_and_stations()
     return result.get("stations", [])
 
 
 @frappe.whitelist()
-def get_kot_tickets_by_status(station=None, kitchen=None, branch=None):
+def get_kot_tickets_by_status(station=None, kitchen=None):
     """Get KOT tickets organized by their status/workflow_state.
+    Uses centralized operational context for branch filtering.
 
     Args:
         station (str, optional): Kitchen Station to filter by.
         kitchen (str, optional): Kitchen to filter by.
-        branch (str, optional): Branch to filter by.
 
     Returns:
         list: List of KOT tickets with their items.
     """
-    return get_kots_for_kitchen(kitchen=kitchen, station=station, branch=branch)
+    return get_kots_for_kitchen(kitchen=kitchen, station=station)
 
 
 @frappe.whitelist()
-def get_kots_for_kitchen(kitchen=None, station=None, branch=None):
+def get_kots_for_kitchen(kitchen=None, station=None):
     """Get KOT tickets for a specific kitchen or station.
+    Uses centralized operational context for branch filtering.
 
     Args:
         kitchen (str, optional): Kitchen name to filter by.
         station (str, optional): Kitchen Station to filter by.
-        branch (str, optional): Branch to filter by.
+        branch (str, optional): Branch to filter by (DEPRECATED - now uses operational context).
 
     Returns:
         list: List of KOT tickets with their items, ordered by creation time.
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    context = require_operational_context(allow_optional=True)
+    branch = context.get("branch")
 
     filters = {}
     if kitchen:
@@ -750,9 +752,9 @@ def print_kot(pos_order=None, kot_ticket=None, kitchen_station=None, copies=1, r
 
 
 @frappe.whitelist()
-def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None):
+def get_kitchen_orders(station=None, status=None):
     """
-    Get all KOT orders for kitchen display.
+    Get all KOT orders for kitchen display using centralized operational context.
     
     Kitchen display receives orders from ALL sources in the POS Profile:
     - Counter 1, 2, 3 (multiple cashiers)
@@ -760,25 +762,26 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
     - Self Order (QR code)
     - Waiter stations
     
-    Filter by POS Profile (preferred) OR branch, NOT by device/session.
+    Filter by POS Profile from operational context, NOT by device/session.
     
     Args:
-        pos_profile (str, optional): POS Profile name - preferred filter
-        branch (str, optional): Branch name - fallback if no POS Profile
         station (str, optional): Kitchen Station to filter by
         status (str, optional): KOT status filter (Pending, In Progress, Completed)
     
     Returns:
         dict: {
             'orders': List of KOT orders with items,
-            'filter_by': 'pos_profile' or 'branch',
+            'filter_by': 'pos_profile',
             'total_pending': count,
             'total_in_progress': count
         }
     """
     try:
-        # Determine filter method
-        filter_by = 'pos_profile' if pos_profile else 'branch'
+        from imogi_pos.utils.operational_context import require_operational_context
+        
+        context = require_operational_context()
+        pos_profile = context.get("pos_profile")
+        branch = context.get("branch")
         
         # Base filters for KOT Ticket
         filters = {
@@ -796,17 +799,10 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
         if station:
             filters['kitchen_station'] = station
         
-        # Get POS Orders filtered by POS Profile or Branch
-        pos_order_filters = {}
-        if pos_profile:
-            pos_order_filters['pos_profile'] = pos_profile
-        elif branch:
-            pos_order_filters['branch'] = branch
-            check_branch_access(branch)
-        else:
-            frappe.throw(_('Please provide either pos_profile or branch parameter'))
+        # Get POS Orders filtered by POS Profile
+        pos_order_filters = {'pos_profile': pos_profile}
         
-        # Get POS Orders matching the profile/branch
+        # Get POS Orders matching the profile
         pos_orders = frappe.get_all(
             'POS Order',
             filters=pos_order_filters,
@@ -817,10 +813,10 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
         if not pos_orders:
             return {
                 'orders': [],
-                'filter_by': filter_by,
+                'filter_by': 'pos_profile',
                 'total_pending': 0,
                 'total_in_progress': 0,
-                'message': 'No orders found for this POS Profile/Branch'
+                'message': 'No orders found for this POS Profile'
             }
         
         # Add POS Order filter to KOT filters
@@ -882,7 +878,7 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
         
         return {
             'orders': orders,
-            'filter_by': filter_by,
+            'filter_by': 'pos_profile',
             'pos_profile': pos_profile,
             'branch': branch,
             'station': station,
@@ -897,40 +893,35 @@ def get_kitchen_orders(pos_profile=None, branch=None, station=None, status=None)
 
 
 @frappe.whitelist()
-def get_active_kots(pos_profile=None, kitchen=None, station=None, branch=None):
+def get_active_kots(kitchen=None, station=None):
     """
-    Get active KOTs for Kitchen Display System.
+    Get active KOTs for Kitchen Display System using centralized operational context.
     Returns KOTs that are not Served or Cancelled.
     
     Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED - primary filter)
         kitchen (str, optional): Kitchen name to filter
         station (str, optional): Station name to filter
-        branch (str, optional): Branch name (DEPRECATED - use pos_profile)
     
     Returns:
         list: Active KOT documents with items
     """
     try:
-        # Deprecation warning
-        if branch and not pos_profile:
-            frappe.log("DEPRECATION WARNING: get_active_kots(branch=...) is deprecated. Use pos_profile parameter instead.")
+        from imogi_pos.utils.operational_context import require_operational_context
+        
+        context = require_operational_context()
+        pos_profile = context.get("pos_profile")
+        branch = context.get("branch")
         
         filters = {
             "workflow_state": ["not in", ["Served", "Cancelled"]],
             "docstatus": 1
         }
         
-        # Priority: pos_profile > kitchen > branch (deprecated)
-        if pos_profile:
-            # Get branch from POS Profile and filter KOTs by that branch
-            pos_branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-            if pos_branch:
-                filters["branch"] = pos_branch
+        # Get branch from POS Profile and filter KOTs by that branch
+        if branch:
+            filters["branch"] = branch
         elif kitchen:
             filters["kitchen"] = kitchen
-        elif branch:
-            filters["branch"] = branch
         
         if station:
             filters["station"] = station

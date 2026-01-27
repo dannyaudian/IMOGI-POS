@@ -97,35 +97,32 @@ MODULE_CONFIGS = {
 
 
 @frappe.whitelist()
-def get_available_modules(pos_profile=None, branch=None):
-    """Get list of available modules based on user's roles and permissions.
+def get_available_modules():
+    """Get list of available modules based on user's roles and operational context.
     
-    Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED - primary param)
-        branch (str, optional): Branch name (DEPRECATED - for backward compatibility)
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile or branch parameters
+    - Context managed server-side via operational_context module
+    - Returns BASE URLs only (no query params)
     
     Returns:
-        dict: Available modules list with metadata
+        dict: Available modules list with operational context metadata
     """
+    from imogi_pos.utils.operational_context import get_active_operational_context
+    
     try:
         user = frappe.session.user
         if not user or user == 'Guest':
             frappe.throw(_('Please login to continue'))
         
-        # Deprecation warning
-        if branch and not pos_profile:
-            frappe.log("DEPRECATION WARNING: get_available_modules(branch=...) is deprecated. Use pos_profile parameter instead.")
+        # Get operational context (auto-resolves if needed)
+        context = get_active_operational_context(user=user, auto_resolve=True)
         
         # Get user roles
         user_roles = frappe.get_roles(user)
         
         # Administrator or System Manager sees all modules
         is_admin = user == "Administrator" or "System Manager" in user_roles
-        
-        # Derive branch from pos_profile if provided
-        derived_branch = branch
-        if pos_profile and not branch:
-            derived_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
         
         # Filter modules based on user roles
         available_modules = []
@@ -135,14 +132,15 @@ def get_available_modules(pos_profile=None, branch=None):
             # Admin bypass: show all modules
             # Regular users: check if they have any of the required roles
             if is_admin or any(role in user_roles for role in required_roles):
+                # Return BASE URL ONLY - no query params
                 module_url = config['url']
                 
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],
                     'description': config['description'],
-                    'url': module_url,
-                    'base_url': config['url'],  # Original URL without query params
+                    'url': module_url,  # Base URL without params
+                    'base_url': module_url,  # Consistent naming
                     'icon': config['icon'],
                     'requires_session': config.get('requires_session', False),
                     'requires_opening': config.get('requires_opening', False),
@@ -154,12 +152,16 @@ def get_available_modules(pos_profile=None, branch=None):
         # Sort by order
         available_modules.sort(key=lambda x: x['order'])
         
+        # Return modules with operational context
         return {
             'modules': available_modules,
             'user': user,
             'roles': user_roles,
-            'pos_profile': pos_profile,
-            'branch': derived_branch
+            'operational_context': {
+                'pos_profile': context.get('pos_profile'),
+                'branch': context.get('branch'),
+                'has_context': bool(context.get('pos_profile'))
+            }
         }
     
     except Exception as e:
@@ -302,15 +304,13 @@ def get_user_branch_info():
 
 
 @frappe.whitelist()
-def get_active_pos_opening(pos_profile=None, branch=None):
+def get_active_pos_opening():
     """Get the active POS opening entry for the current user.
     
-    IMPORTANT: Now uses centralized POS Profile resolver for consistent behavior.
-    System Managers can check POS opening even without assigned POS Profile.
-    
-    Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED - primary lookup)
-        branch (str, optional): Branch name (DEPRECATED - for backward compatibility only)
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile or branch parameters
+    - Context managed server-side via operational_context module
+    - System Managers can check POS opening even without assigned context
         
     Returns:
         dict: POS Opening Entry information with:
@@ -319,12 +319,8 @@ def get_active_pos_opening(pos_profile=None, branch=None):
             - opening_balance: Opening cash balance
             - timestamp: When session was opened
             - company: Company from POS Profile
-    
-    NOTE ON POS PROFILE RESOLUTION:
-        This function now uses resolve_pos_profile() from the centralized
-        resolver for consistent POS Profile access control.
     """
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+    from imogi_pos.utils.operational_context import get_active_operational_context
     
     try:
         user = frappe.session.user
@@ -337,60 +333,14 @@ def get_active_pos_opening(pos_profile=None, branch=None):
                 'company': None
             }
         
-        # Deprecation warning for branch parameter
-        if branch and not pos_profile:
-            frappe.log("DEPRECATION WARNING: get_active_pos_opening(branch=...) is deprecated. Use pos_profile parameter instead.")
+        # Get operational context (auto-resolves if needed)
+        context = get_active_operational_context(user=user, auto_resolve=True)
         
-        profile_names = []
-        company = None
+        # Get POS Profile from context
+        pos_profile = context.get('pos_profile')
         
-        # Priority 1: Use pos_profile directly if provided
-        if pos_profile:
-            profile_data = frappe.db.get_value(
-                'POS Profile', 
-                pos_profile, 
-                ['name', 'company', 'disabled'],
-                as_dict=True
-            )
-            if profile_data and not profile_data.get('disabled'):
-                resolution = resolve_pos_profile(user=user, requested=pos_profile)
-                if resolution.get("selected") == pos_profile:
-                    profile_names = [pos_profile]
-                    company = profile_data.get('company')
-                else:
-                    frappe.throw(
-                        _("You do not have access to POS Profile {0}.").format(pos_profile),
-                        frappe.PermissionError
-                    )
-        
-        # Priority 2: Fallback to branch (deprecated path)
-        elif branch:
-            pos_profiles = frappe.get_list(
-                'POS Profile',
-                filters={'imogi_branch': branch, 'disabled': 0},
-                fields=['name', 'company'],
-                limit_page_length=0
-            )
-            if pos_profiles:
-                company = pos_profiles[0].get('company')
-                profile_names = [p.get('name') for p in pos_profiles]
-        
-        # Priority 3: Use centralized resolver
-        # CRITICAL: This replaces the complex fallback logic with centralized resolution
-        if not profile_names:
-            resolution = resolve_pos_profile(user=user)
-
-            if resolution['selected']:
-                profile_names = [resolution['selected']]
-                company = frappe.db.get_value("POS Profile", resolution["selected"], "company")
-            elif resolution['has_access'] and resolution.get('candidate_details'):
-                # User has profiles but needs selection - check all available
-                profile_names = [p['name'] for p in resolution['candidate_details']]
-                # Use first profile's company as fallback
-                company = resolution['candidate_details'][0].get('company')
-        
-        # No profiles found - return empty result
-        if not profile_names:
+        if not pos_profile:
+            # No context - return empty (System Manager may not have context)
             return {
                 'pos_opening_entry': None,
                 'pos_profile_name': None,
@@ -398,6 +348,9 @@ def get_active_pos_opening(pos_profile=None, branch=None):
                 'timestamp': None,
                 'company': None
             }
+        
+        # Get company from profile
+        company = frappe.db.get_value('POS Profile', pos_profile, 'company')
         
         # Get active POS opening entry
         from datetime import datetime
@@ -408,7 +361,7 @@ def get_active_pos_opening(pos_profile=None, branch=None):
             filters={
                 'docstatus': 1,  # Submitted
                 'user': user,
-                'pos_profile': ['in', profile_names],
+                'pos_profile': pos_profile,
                 'period_start_date': ['>=', str(today)]
             },
             fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation', 'company'],
@@ -428,10 +381,10 @@ def get_active_pos_opening(pos_profile=None, branch=None):
         
         return {
             'pos_opening_entry': None,
-            'pos_profile_name': profile_names[0] if profile_names else None,
+            'pos_profile_name': pos_profile,
             'opening_balance': 0,
             'timestamp': None,
-            'company': company  # Return company from POS Profile even if no opening
+            'company': company
         }
     
     except Exception as e:
@@ -471,32 +424,25 @@ def set_user_branch(branch):
 
 
 @frappe.whitelist()
-def check_active_cashiers(pos_profile=None, branch=None):
+def check_active_cashiers():
     """
-    Check if there are any active cashier POS sessions at specified branch.
+    Check if there are any active cashier POS sessions at current branch.
     Used to validate that payment can be processed for Waiter/Kiosk/Self-Order modules.
     
-    Args:
-        pos_profile (str, optional): POS Profile name (PREFERRED)
-        branch (str, optional): Branch name (DEPRECATED)
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts pos_profile or branch parameters
+    - Context managed server-side via operational_context module
     """
+    from imogi_pos.utils.operational_context import get_active_operational_context
+    
     try:
-        # Deprecation warning
-        if branch and not pos_profile:
-            frappe.log("DEPRECATION WARNING: check_active_cashiers(branch=...) is deprecated. Use pos_profile parameter instead.")
+        # Get operational context
+        context = get_active_operational_context(user=frappe.session.user, auto_resolve=True)
         
-        # Determine effective branch
-        effective_branch = None
-        if pos_profile:
-            effective_branch = frappe.db.get_value('POS Profile', pos_profile, 'imogi_branch')
-        elif branch:
-            effective_branch = branch
-        else:
-            # Fallback to user's default
-            if frappe.db.has_column('User', 'imogi_default_branch'):
-                effective_branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
+        # Get branch from context
+        branch = context.get('branch')
         
-        if not effective_branch:
+        if not branch:
             return {
                 'has_active_cashier': False,
                 'active_sessions': [],
@@ -508,7 +454,7 @@ def check_active_cashiers(pos_profile=None, branch=None):
         # Find POS Profiles for this branch
         pos_profiles = frappe.get_list(
             'POS Profile',
-            filters={'imogi_branch': effective_branch},
+            filters={'imogi_branch': branch},
             fields=['name', 'company'],
             limit_page_length=0
         )
@@ -518,8 +464,8 @@ def check_active_cashiers(pos_profile=None, branch=None):
                 'has_active_cashier': False,
                 'active_sessions': [],
                 'total_cashiers': 0,
-                'message': f'No POS Profiles configured for branch {effective_branch}',
-                'branch': effective_branch
+                'message': f'No POS Profiles configured for branch {branch}',
+                'branch': branch
             }
         
         profile_names = [p.get('name') for p in pos_profiles]
@@ -557,7 +503,7 @@ def check_active_cashiers(pos_profile=None, branch=None):
             'active_sessions': cashier_sessions,
             'total_cashiers': len(cashier_sessions),
             'message': 'Active cashier found' if has_active else 'No active cashier sessions. Please ask a cashier to open a POS session first.',
-            'branch': effective_branch
+            'branch': branch
         }
     
     except Exception as e:
@@ -572,23 +518,30 @@ def check_active_cashiers(pos_profile=None, branch=None):
 
 
 @frappe.whitelist()
-def get_pos_sessions_today(branch=None):
+def get_pos_sessions_today():
     """
-    Get all POS sessions opened today at specified branch.
+    Get all POS sessions opened today at current branch.
     Used for session selector in module select UI.
+    
+    IMPORTANT: Now uses centralized operational context.
+    - No longer accepts branch parameter
+    - Context managed server-side via operational_context module
     """
+    from imogi_pos.utils.operational_context import get_active_operational_context
+    
     try:
-        # Get current branch if not provided
+        # Get operational context
+        context = get_active_operational_context(user=frappe.session.user, auto_resolve=True)
+        
+        # Get branch from context
+        branch = context.get('branch')
+        
         if not branch:
-            if frappe.db.has_column('User', 'imogi_default_branch'):
-                branch = frappe.db.get_value('User', frappe.session.user, 'imogi_default_branch')
-            
-            if not branch:
-                return {
-                    'sessions': [],
-                    'total': 0,
-                    'branch': None
-                }
+            return {
+                'sessions': [],
+                'total': 0,
+                'branch': None
+            }
         
         # Find POS Profiles for this branch
         pos_profiles = frappe.get_list(
