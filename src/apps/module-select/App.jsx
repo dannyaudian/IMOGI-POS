@@ -226,11 +226,19 @@ function App() {
   const navigateToModule = (module) => {
     const base = module?.base_url || module?.url || ''
     if (!base) {
+      console.error('[module-select] Cannot navigate: no URL provided', module)
       return
     }
 
     const url = new URL(base, window.location.origin)
-    window.location.href = url.pathname
+    console.log('[module-select] Navigating to:', {
+      module_name: module.name,
+      base_url: base,
+      full_url: url.toString()
+    })
+    
+    // Use full URL to preserve query strings and hash
+    window.location.href = url.toString()
   }
 
   const setOperationalContext = async (posProfile, branchOverride) => {
@@ -256,12 +264,40 @@ function App() {
   }
 
   const proceedToModule = async (module, refreshedData = null) => {
+    console.log('[module-select] Proceeding to module:', module.name, {
+      requires_pos_profile: module.requires_pos_profile,
+      current_pos_profile: contextData.pos_profile,
+      url: module.url
+    })
+    
     // Set context on server (replaces localStorage)
-    if (contextData.pos_profile) {
+    if (module.requires_pos_profile && contextData.pos_profile) {
       try {
-        await setOperationalContext(contextData.pos_profile, contextData.branch)
+        console.log('[module-select] Setting operational context before navigation...')
+        const response = await setOperationalContext(contextData.pos_profile, contextData.branch)
+        console.log('[module-select] setOperationalContext response:', response)
+        
+        if (!response?.success) {
+          console.error('[module-select] Failed to set operational context:', response)
+          frappe.msgprint({
+            title: 'Error',
+            message: 'Failed to set POS context. Please try again.',
+            indicator: 'red'
+          })
+          return
+        }
+        console.log('[module-select] Operational context set successfully:', response.context)
+        
+        // Give server a moment to persist the session
+        await new Promise(resolve => setTimeout(resolve, 100))
       } catch (error) {
-        console.error('Error setting operational context:', error)
+        console.error('[module-select] Error setting operational context:', error)
+        frappe.msgprint({
+          title: 'Error',
+          message: 'Failed to set POS context. Please try again.',
+          indicator: 'red'
+        })
+        return
       }
     }
     
