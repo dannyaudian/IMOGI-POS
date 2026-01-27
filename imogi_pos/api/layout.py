@@ -35,42 +35,24 @@ from frappe.utils import cint
 from imogi_pos.utils.permission_manager import check_branch_access
 from imogi_pos.utils.decorators import require_permission
 
-def check_restaurant_domain(pos_profile=None):
+def check_restaurant_domain(pos_profile):
     """
-    Validate that the user's POS Profile has the Restaurant domain enabled.
-
-    If ``pos_profile`` is not provided the profile is resolved from the
-    centralized POS Profile resolver for the current session user.
+    Validate that the POS Profile has the Restaurant domain enabled.
 
     Args:
-        pos_profile (str, optional): POS Profile name.
+        pos_profile (str): POS Profile name (required).
 
     Raises:
-        frappe.ValidationError: If no profile is found or the profile is not for the
-            Restaurant domain.
+        frappe.ValidationError: If the profile is not for the Restaurant domain.
+        
+    Returns:
+        str: The validated pos_profile name
     """
     if not pos_profile:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
-
-        resolution = resolve_pos_profile(user=frappe.session.user)
-        from imogi_pos.utils.pos_profile_resolver import raise_setup_required_if_no_candidates
-
-        raise_setup_required_if_no_candidates(resolution)
-        if resolution.get("needs_selection"):
-            frappe.throw(
-                _("POS Profile selection required. Please choose a POS Profile before continuing."),
-                frappe.ValidationError,
-            )
-        pos_profile = resolution.get("selected")
-    else:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile, raise_setup_required_if_no_candidates
-        resolution = resolve_pos_profile(user=frappe.session.user, requested=pos_profile)
-        raise_setup_required_if_no_candidates(resolution)
-        if resolution.get("selected") != pos_profile:
-            frappe.throw(
-                _("You do not have access to POS Profile {0}.").format(pos_profile),
-                frappe.PermissionError,
-            )
+        frappe.throw(
+            _("POS Profile required for restaurant domain check."),
+            frappe.ValidationError,
+        )
 
     domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain")
     if domain != "Restaurant":
@@ -85,6 +67,7 @@ def check_restaurant_domain(pos_profile=None):
 def get_floors():
     """
     Gets all floors accessible to the current user's branch.
+    Uses centralized operational context for branch resolution.
     
     Returns:
         list: List of floor documents with name and floor_name
@@ -92,16 +75,18 @@ def get_floors():
     Raises:
         frappe.ValidationError: If no POS Profile is found or domain is not Restaurant
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    branch = context.get("branch")
+    
     # Check restaurant domain
-    pos_profile = check_restaurant_domain()
+    check_restaurant_domain(pos_profile)
     
-    # IMPORTANT: POS Profile uses custom field 'imogi_branch' not standard 'branch'
-    # This is consistent with items.py, orders.py, and other modules
-    branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-    
-    if not branch:
-        # Fallback to standard branch field if imogi_branch not set
-        branch = frappe.db.get_value("POS Profile", pos_profile, "branch")
+    # Check restaurant domain
+    check_restaurant_domain(pos_profile)
     
     if not branch:
         frappe.throw(
@@ -124,6 +109,7 @@ def get_floors():
 def get_table_layout(floor):
     """
     Gets the layout for tables on a specific floor.
+    Uses centralized operational context.
     
     Args:
         floor (str): Restaurant Floor name
@@ -131,6 +117,12 @@ def get_table_layout(floor):
     Returns:
         dict: Floor layout data including tables and their positions
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    
     # Get the floor details
     floor_doc = frappe.get_doc("Restaurant Floor", floor)
     
@@ -139,7 +131,7 @@ def get_table_layout(floor):
     check_branch_access(branch)
     
     # Check restaurant domain
-    check_restaurant_domain()
+    check_restaurant_domain(pos_profile)
 
     # Get active layout profile for this floor
     layout_profile = frappe.db.get_value(
@@ -263,6 +255,7 @@ def get_table_layout(floor):
 def save_table_layout(floor, layout_json, profile_name=None, title=None):
     """
     Saves a table layout for a specific floor.
+    Uses centralized operational context.
     If profile_name is provided, updates that profile; otherwise creates a new one.
     
     Args:
@@ -277,6 +270,12 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     Raises:
         frappe.ValidationError: If layout data is invalid
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    
     # Get the floor details
     floor_doc = frappe.get_doc("Restaurant Floor", floor)
     
@@ -285,7 +284,7 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
     check_branch_access(branch)
     
     # Check restaurant domain
-    check_restaurant_domain()
+    check_restaurant_domain(pos_profile)
     
     # Parse layout JSON
     if isinstance(layout_json, str):
@@ -461,6 +460,12 @@ def update_table_status(table, status, order=None):
     Raises:
         frappe.ValidationError: If table not found or permission denied
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    
     # Get table document
     if not frappe.db.exists("Restaurant Table", table):
         frappe.throw(_("Table {0} not found").format(table), frappe.DoesNotExistError)
@@ -473,7 +478,7 @@ def update_table_status(table, status, order=None):
         check_branch_access(floor_branch)
     
     # Check restaurant domain
-    check_restaurant_domain()
+    check_restaurant_domain(pos_profile)
     
     # Validate status value
     valid_statuses = ["Available", "Occupied", "Reserved", "Maintenance"]
@@ -544,6 +549,7 @@ def update_table_status(table, status, order=None):
 def get_table_status(floor=None, tables=None):
     """
     Gets the current status of tables on a floor or specific tables.
+    Uses centralized operational context.
     
     Args:
         floor (str, optional): Restaurant Floor name. Defaults to None.
@@ -552,8 +558,14 @@ def get_table_status(floor=None, tables=None):
     Returns:
         dict: Table status information
     """
+    from imogi_pos.utils.operational_context import require_operational_context
+    
+    # Get operational context
+    context = require_operational_context()
+    pos_profile = context.get("pos_profile")
+    
     # Check restaurant domain
-    check_restaurant_domain()
+    check_restaurant_domain(pos_profile)
     
     # Parse tables if passed as string
     if isinstance(tables, str):
