@@ -112,6 +112,7 @@ def get_fallback_urls(app_name):
 def add_react_context(context, app_name, additional_state=None):
     """
     Add React bundle URLs and initial state to context.
+    Also adds session/defaults data needed by react_app.html template.
     
     Args:
         context (dict): Frappe context object
@@ -133,6 +134,13 @@ def add_react_context(context, app_name, additional_state=None):
     context.react_bundle_js = bundle_urls.get('js')
     context.react_bundle_css = bundle_urls.get('css')
     context.react_bundle_error = bundle_urls.get('error')
+    
+    # Add session data for react_app.html template (avoid Jinja sandbox errors)
+    context.csrf_token = frappe.session.csrf_token
+    context.session_user = frappe.session.user
+    context.session_user_fullname = frappe.session.user_fullname or frappe.session.user
+    context.default_company = frappe.db.get_single_value("Global Defaults", "default_company") or ""
+    context.user_roles = frappe.get_roles()
     
     # Build initial state for React
     initial_state = {

@@ -8,26 +8,27 @@
   {# Load minimal Frappe shim for React apps - provides essential frappe APIs #}
   <script src="/assets/imogi_pos/js/frappe-minimal.js"></script>
   
-  {# Set CSRF token and session info for React apps #}
+  {# Set CSRF token and session info for React apps - all data from context #}
   <script>
-    window.csrf_token = '{{ frappe.session.csrf_token }}';
-    window.frappe_csrf_token = '{{ frappe.session.csrf_token }}';
-    window.FRAPPE_CSRF_TOKEN = '{{ frappe.session.csrf_token }}';
+    // CSRF tokens
+    window.csrf_token = {{ csrf_token | tojson }};
+    window.frappe_csrf_token = {{ csrf_token | tojson }};
+    window.FRAPPE_CSRF_TOKEN = {{ csrf_token | tojson }};
     
     // Set Frappe session info
     if (window.frappe && window.frappe.session) {
-      window.frappe.session.user = '{{ frappe.session.user }}';
-      window.frappe.session.csrf_token = '{{ frappe.session.csrf_token }}';
-      window.frappe.session.user_fullname = '{{ (frappe.session.data and frappe.session.data.get("full_name")) or frappe.session.user }}';
+      window.frappe.session.user = {{ session_user | tojson }};
+      window.frappe.session.csrf_token = {{ csrf_token | tojson }};
+      window.frappe.session.user_fullname = {{ session_user_fullname | tojson }};
     }
     
     // Set boot data
     if (window.frappe && window.frappe.boot) {
       window.frappe.boot.sysdefaults = {
-        company: '{{ frappe.defaults.get_defaults().get("company", "") }}'
+        company: {{ default_company | tojson }}
       };
       window.frappe.boot.user = {
-        roles: {{ frappe.get_roles() | tojson }}
+        roles: {{ user_roles | tojson }}
       };
     }
   </script>
