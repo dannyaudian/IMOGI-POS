@@ -148,12 +148,18 @@ imogi_pos.kiosk = {
                 frappe.call({
                     method: 'imogi_pos.api.public.get_default_pos_profile',
                     args: {
-                        mode: 'Kiosk'
+                        last_used: localStorage.getItem('imogi:last_pos_profile') || localStorage.getItem('imogi_active_pos_profile') || null
                     },
                     callback: (response) => {
-                        if (response.message) {
-                            this.settings.posProfile = response.message;
+                        const data = response.message;
+                        if (data?.selected) {
+                            this.settings.posProfile = data.selected;
+                            localStorage.setItem('imogi:last_pos_profile', data.selected);
+                            localStorage.setItem('imogi_active_pos_profile', data.selected);
                             this.loadProfileSettings().then(resolve).catch(reject);
+                        } else if (data?.needs_selection) {
+                            this.initializePOSProfile();
+                            reject(new Error('POS Profile selection required'));
                         } else {
                             reject(new Error('No POS Profile available'));
                         }
@@ -3203,10 +3209,18 @@ imogi_pos.waiter_order = {
                 // Use default profile
                 frappe.call({
                     method: 'imogi_pos.api.public.get_default_pos_profile',
+                    args: {
+                        last_used: localStorage.getItem('imogi:last_pos_profile') || localStorage.getItem('imogi_active_pos_profile') || null
+                    },
                     callback: (response) => {
-                        if (response.message) {
-                            this.settings.posProfile = response.message;
+                        const data = response.message;
+                        if (data?.selected) {
+                            this.settings.posProfile = data.selected;
+                            localStorage.setItem('imogi:last_pos_profile', data.selected);
+                            localStorage.setItem('imogi_active_pos_profile', data.selected);
                             resolve();
+                        } else if (data?.needs_selection) {
+                            reject(new Error('POS Profile selection required'));
                         } else {
                             reject(new Error('No POS Profile available'));
                         }
@@ -6018,10 +6032,19 @@ imogi_pos.cashier_console = {
                 // Use default profile
                 frappe.call({
                     method: 'imogi_pos.api.public.get_default_pos_profile',
+                    args: {
+                        last_used: localStorage.getItem('imogi:last_pos_profile') || localStorage.getItem('imogi_active_pos_profile') || null
+                    },
                     callback: (response) => {
-                        if (response.message) {
-                            this.settings.posProfile = response.message;
+                        const data = response.message;
+                        if (data?.selected) {
+                            this.settings.posProfile = data.selected;
+                            localStorage.setItem('imogi:last_pos_profile', data.selected);
+                            localStorage.setItem('imogi_active_pos_profile', data.selected);
                             this.loadProfileSettings().then(resolve).catch(reject);
+                        } else if (data?.needs_selection) {
+                            this.initializePOSProfile();
+                            reject(new Error('POS Profile selection required'));
                         } else {
                             reject(new Error('No POS Profile available'));
                         }

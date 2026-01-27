@@ -42,6 +42,8 @@ __all__ = [
     "get_current_user_info",
     "check_permission",
     "get_user_pos_profile_info",
+    "get_allowed_pos_profiles",
+    "get_default_pos_profile",
     "set_user_default_pos_profile",
 ]
 
@@ -238,7 +240,12 @@ def get_active_branch():
     """Return the active branch for the current user.
 
     Checks the user's default branch setting and falls back to the branch
-    associated with their default POS Profile.
+    associated with their resolved POS Profile (centralized resolver).
+
+    NOTE ON DefaultValue:
+        DefaultValue DocType is no longer required for POS access. Branch
+        resolution uses the POS Profile doctype as the authoritative source,
+        and only falls back to defaults when explicitly set by the user.
 
     Returns:
         str | None: Branch name if available.
@@ -248,11 +255,19 @@ def get_active_branch():
     if branch:
         return branch
 
-    pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
-    if pos_profile:
-        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-        if branch:
-            return branch
+    # Resolve branch from centralized POS Profile resolver (authoritative)
+    try:
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+        last_used = frappe.form_dict.get('last_used')
+        resolution = resolve_pos_profile(
+            user=frappe.session.user,
+            last_used=last_used
+        )
+        if resolution.get('selected'):
+            return frappe.db.get_value("POS Profile", resolution["selected"], "imogi_branch")
+    except Exception:
+        pass
 
     return None
 
@@ -408,15 +423,13 @@ def get_user_pos_profile_info():
         - Regular users: Only profiles listed in POS Profile User child table
     
     POS Profile Resolution Priority (via centralized resolver):
-        1. localStorage last_used (from context)
-        2. User.imogi_default_pos_profile (persistent, saved in User doctype)
-        3. frappe.defaults.get_user_default('imogi_pos_profile') (session-based, FALLBACK ONLY)
-        4. Auto-select if user has exactly one available profile
-        5. Return None if multiple profiles (require user selection)
+        1. requested POS Profile (explicit query param)
+        2. last_used POS Profile (client localStorage or User.imogi_default_pos_profile)
+        3. Auto-select when only one candidate
+        4. Return None if multiple profiles (require user selection)
     
     NOTE ON DefaultValue:
-        DefaultValue DocType is NO LONGER REQUIRED for POS access.
-        It may exist as fallback (priority 3) but is never mandatory.
+        DefaultValue DocType is NOT used for POS Profile gating.
         POS Profile DocType is the ONLY authoritative source.
     
     Returns:
@@ -440,7 +453,7 @@ def get_user_pos_profile_info():
             'require_selection': False,
             'has_access': False,          # Frontend shows "Contact admin" message
             'is_privileged': False,
-            'selection_method': 'none_no_access'
+            'selection_method': 'resolver'
         }
         
         >>> # Example 2: User with one profile (auto-selected)
@@ -462,7 +475,7 @@ def get_user_pos_profile_info():
             'require_selection': False,   # No selection needed (only one)
             'has_access': True,
             'is_privileged': False,
-            'selection_method': 'auto_single'
+            'selection_method': 'resolver'
         }
         
         >>> # Example 3: User with multiple profiles (need selection)
@@ -478,7 +491,7 @@ def get_user_pos_profile_info():
             'require_selection': True,    # Frontend shows dropdown selector
             'has_access': True,
             'is_privileged': False,
-            'selection_method': 'none_requires_selection'
+            'selection_method': 'resolver'
         }
         
         >>> # Example 4: System Manager (sees all profiles)
@@ -490,7 +503,7 @@ def get_user_pos_profile_info():
             'require_selection': False,
             'has_access': True,
             'is_privileged': True,
-            'selection_method': 'user_default_persistent'
+            'selection_method': 'resolver'
         }
     
     Frontend Integration:
@@ -517,12 +530,12 @@ def get_user_pos_profile_info():
     
     See Also:
         - set_user_default_pos_profile(): To change user's default profile
-        - imogi_pos.utils.pos_profile_resolver.resolve_pos_profile_for_user(): Core resolver
+        - imogi_pos.utils.pos_profile_resolver.resolve_pos_profile(): Core resolver
     """
     try:
         # CRITICAL: Delegate to centralized resolver
         # This is the ONLY authoritative POS Profile resolution logic
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
         
         user = frappe.session.user
         if not user or user == 'Guest':
@@ -530,25 +543,40 @@ def get_user_pos_profile_info():
         
         # Get resolution from centralized resolver
         # Context can include last_used from localStorage (passed by frontend)
-        result = resolve_pos_profile_for_user(user=user, context={})
+        last_used = frappe.form_dict.get('last_used')
+        requested = frappe.form_dict.get('requested')
+        result = resolve_pos_profile(
+            user=user,
+            requested=requested,
+            last_used=last_used
+        )
         
         # Extract unique branches from available profiles
         branches = list(set([
-            p.get('imogi_branch') 
-            for p in result['available_profiles'] 
-            if p.get('imogi_branch')
+            p.get('branch')
+            for p in result['candidates']
+            if p.get('branch')
         ]))
         
         # Map resolver result to legacy API format
         return {
-            'current_pos_profile': result['pos_profile'],  # Can be None
-            'current_branch': result['branch'],
-            'available_pos_profiles': result['available_profiles'],  # Can be []
+            'current_pos_profile': result['selected'],  # Can be None
+            'current_branch': frappe.db.get_value("POS Profile", result["selected"], "imogi_branch")
+            if result.get("selected") else None,
+            'available_pos_profiles': [
+                {
+                    'name': p.get('name'),
+                    'imogi_branch': p.get('branch'),
+                    'imogi_mode': p.get('mode'),
+                    'company': p.get('company')
+                }
+                for p in result['candidates']
+            ],  # Can be []
             'branches': branches,
             'require_selection': result['needs_selection'],
             'has_access': result['has_access'],
             'is_privileged': result['is_privileged'],
-            'selection_method': result.get('selection_method', 'unknown')  # For debugging
+            'selection_method': 'resolver'  # For debugging
         }
     
     except frappe.AuthenticationError:
@@ -558,6 +586,47 @@ def get_user_pos_profile_info():
     except Exception as e:
         frappe.log_error(f'Error in get_user_pos_profile_info: {str(e)}')
         frappe.throw(_('Error loading POS Profile information. Please try again.'))
+
+
+@frappe.whitelist()
+def get_allowed_pos_profiles():
+    """Get POS Profiles the current user can access (legacy wrapper).
+
+    This is a backwards-compatible wrapper around the centralized resolver.
+    It returns the list of available profiles but does not decide selection
+    independently.
+    """
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+    last_used = frappe.form_dict.get('last_used')
+    result = resolve_pos_profile(
+        user=frappe.session.user,
+        last_used=last_used
+    )
+    return result.get('candidates', [])
+
+
+@frappe.whitelist()
+def get_default_pos_profile(last_used=None, requested=None):
+    """Resolve POS Profile for the current user (legacy wrapper).
+
+    IMPORTANT: This delegates to the centralized resolver so that all POS
+    entry points share the same logic. DefaultValue DocType is NOT required.
+
+    Args:
+        last_used (str, optional): Last used profile from client localStorage.
+        requested (str, optional): Explicitly requested POS Profile name.
+
+    Returns:
+        dict: Resolver result including selected and needs_selection.
+    """
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+    return resolve_pos_profile(
+        user=frappe.session.user,
+        requested=requested or frappe.form_dict.get('requested'),
+        last_used=last_used or frappe.form_dict.get('last_used')
+    )
 
 
 def _get_available_pos_profiles(user, is_privileged):
@@ -573,18 +642,18 @@ def _get_available_pos_profiles(user, is_privileged):
 
 def _resolve_current_pos_profile(user, available_profiles, is_privileged):
     """
-    DEPRECATED: Use imogi_pos.utils.pos_profile_resolver.resolve_pos_profile_for_user() instead.
+    DEPRECATED: Use imogi_pos.utils.pos_profile_resolver.resolve_pos_profile() instead.
     
     This function is kept for backward compatibility only.
     New code should import from the centralized resolver module.
     
     Note: This helper returns only the profile name, not the full resolution result.
     """
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
     
     # Build context from available_profiles for backward compat
-    result = resolve_pos_profile_for_user(user=user)
-    return result.get('pos_profile')
+    result = resolve_pos_profile(user=user)
+    return result.get('selected')
 
 
 @frappe.whitelist()
@@ -665,4 +734,3 @@ def set_user_default_pos_profile(pos_profile, sync_to_server=False):
     except Exception as e:
         frappe.log_error(f'Error in set_user_default_pos_profile: {str(e)}')
         frappe.throw(_('Error setting POS Profile. Please try again.'))
-

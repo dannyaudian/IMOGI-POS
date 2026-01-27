@@ -9,15 +9,16 @@ This test validates the architectural requirements from the refactoring spec:
 1. Single resolver function controls all POS Profile access
 2. System Manager / Administrator bypass default requirements
 3. Regular users must be in "Applicable for Users" table
-4. DefaultValue is optional fallback, never required
+4. DefaultValue is not used for POS Profile gating
 5. Multi-profile selection is deterministic
 """
 
 import frappe
 import unittest
 from unittest.mock import Mock, patch, MagicMock
+from pathlib import Path
 from imogi_pos.utils.pos_profile_resolver import (
-    resolve_pos_profile_for_user,
+    resolve_pos_profile,
     get_available_pos_profiles,
     validate_pos_profile_access,
     get_pos_profile_branch
@@ -44,12 +45,12 @@ class TestPOSProfileResolver(unittest.TestCase):
         """Test that Guest user has no POS access"""
         mock_session.user = 'Guest'
         
-        result = resolve_pos_profile_for_user(user='Guest')
+        result = resolve_pos_profile(user='Guest')
         
         self.assertFalse(result['has_access'])
-        self.assertIsNone(result['pos_profile'])
-        self.assertEqual(result['selection_method'], 'none_no_access')
-        self.assertEqual(len(result['available_profiles']), 0)
+        self.assertIsNone(result['selected'])
+        self.assertFalse(result['needs_selection'])
+        self.assertEqual(len(result['candidates']), 0)
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -67,11 +68,44 @@ class TestPOSProfileResolver(unittest.TestCase):
         ]
         mock_get_all.return_value = mock_profiles
         
-        result = resolve_pos_profile_for_user(user='admin@example.com')
+        result = resolve_pos_profile(user='admin@example.com')
         
         self.assertTrue(result['is_privileged'])
         self.assertTrue(result['has_access'])
-        self.assertEqual(len(result['available_profiles']), 3)
+        self.assertEqual(len(result['candidates']), 3)
+
+    @patch('frappe.session')
+    @patch('frappe.get_roles')
+    @patch('frappe.get_all')
+    def test_system_manager_multiple_profiles_needs_selection(self, mock_get_all, mock_get_roles, mock_session):
+        """Test that System Manager needs selection when multiple profiles exist"""
+        mock_session.user = self.test_admin
+        mock_get_roles.return_value = ['System Manager']
+        mock_get_all.return_value = [
+            {'name': 'Profile-A', 'imogi_branch': 'Branch A', 'company': 'Test Co'},
+            {'name': 'Profile-B', 'imogi_branch': 'Branch B', 'company': 'Test Co'},
+        ]
+
+        result = resolve_pos_profile(user=self.test_admin)
+
+        self.assertTrue(result['needs_selection'])
+        self.assertIsNone(result['selected'])
+
+    @patch('frappe.session')
+    @patch('frappe.get_roles')
+    @patch('frappe.get_all')
+    def test_system_manager_requested_profile(self, mock_get_all, mock_get_roles, mock_session):
+        """Test that System Manager can select requested profile"""
+        mock_session.user = self.test_admin
+        mock_get_roles.return_value = ['System Manager']
+        mock_get_all.return_value = [
+            {'name': 'Profile-A', 'imogi_branch': 'Branch A', 'company': 'Test Co'},
+            {'name': 'Profile-B', 'imogi_branch': 'Branch B', 'company': 'Test Co'},
+        ]
+
+        result = resolve_pos_profile(user=self.test_admin, requested='Profile-B')
+
+        self.assertEqual(result['selected'], 'Profile-B')
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -90,12 +124,12 @@ class TestPOSProfileResolver(unittest.TestCase):
             [{'name': 'Profile-A', 'imogi_branch': 'Branch A', 'company': 'Test Co'}]
         ]
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         self.assertFalse(result['is_privileged'])
         self.assertTrue(result['has_access'])
-        self.assertEqual(len(result['available_profiles']), 1)
-        self.assertEqual(result['available_profiles'][0]['name'], 'Profile-A')
+        self.assertEqual(len(result['candidates']), 1)
+        self.assertEqual(result['candidates'][0]['name'], 'Profile-A')
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -108,12 +142,12 @@ class TestPOSProfileResolver(unittest.TestCase):
         # User not in any POS Profile User table
         mock_get_all.return_value = []
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         self.assertFalse(result['has_access'])
-        self.assertIsNone(result['pos_profile'])
-        self.assertEqual(result['selection_method'], 'none_no_access')
-        self.assertEqual(len(result['available_profiles']), 0)
+        self.assertIsNone(result['selected'])
+        self.assertFalse(result['needs_selection'])
+        self.assertEqual(len(result['candidates']), 0)
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -122,7 +156,7 @@ class TestPOSProfileResolver(unittest.TestCase):
     @patch('frappe.db.get_value')
     def test_auto_select_single_profile(self, mock_get_value, mock_has_column, 
                                        mock_get_all, mock_get_roles, mock_session):
-        """Test auto-selection when user has only one profile"""
+        """Test selection when user has only one profile"""
         mock_session.user = self.test_user
         mock_get_roles.return_value = ['Cashier']
         mock_has_column.return_value = True
@@ -134,11 +168,10 @@ class TestPOSProfileResolver(unittest.TestCase):
             [{'name': 'Profile-A', 'imogi_branch': 'Branch A', 'company': 'Test Co'}]
         ]
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         self.assertTrue(result['has_access'])
-        self.assertEqual(result['pos_profile'], 'Profile-A')
-        self.assertEqual(result['selection_method'], 'auto_single')
+        self.assertEqual(result['selected'], 'Profile-A')
         self.assertFalse(result['needs_selection'])
     
     @patch('frappe.session')
@@ -163,13 +196,12 @@ class TestPOSProfileResolver(unittest.TestCase):
             ]
         ]
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         self.assertTrue(result['has_access'])
-        self.assertIsNone(result['pos_profile'])
+        self.assertIsNone(result['selected'])
         self.assertTrue(result['needs_selection'])
-        self.assertEqual(result['selection_method'], 'none_requires_selection')
-        self.assertEqual(len(result['available_profiles']), 2)
+        self.assertEqual(len(result['candidates']), 2)
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
@@ -196,18 +228,17 @@ class TestPOSProfileResolver(unittest.TestCase):
         # First call is for User field, subsequent for profile validation
         mock_get_value.side_effect = ['Profile-B', False]  # Profile B, not disabled
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         self.assertTrue(result['has_access'])
-        self.assertEqual(result['pos_profile'], 'Profile-B')
-        self.assertEqual(result['selection_method'], 'user_default_persistent')
+        self.assertEqual(result['selected'], 'Profile-B')
         self.assertFalse(result['needs_selection'])
     
     @patch('frappe.session')
     @patch('frappe.get_roles')
     @patch('frappe.get_all')
     def test_context_last_used_priority(self, mock_get_all, mock_get_roles, mock_session):
-        """Test that context.last_used has highest priority"""
+        """Test that last_used has highest priority"""
         mock_session.user = self.test_user
         mock_get_roles.return_value = ['Cashier']
         
@@ -221,15 +252,29 @@ class TestPOSProfileResolver(unittest.TestCase):
             ]
         ]
         
-        with patch('imogi_pos.utils.pos_profile_resolver._is_profile_active', return_value=True):
-            result = resolve_pos_profile_for_user(
-                user=self.test_user, 
-                context={'last_used': 'Profile-C'}
-            )
+        result = resolve_pos_profile(
+            user=self.test_user,
+            last_used='Profile-C'
+        )
         
         self.assertTrue(result['has_access'])
-        self.assertEqual(result['pos_profile'], 'Profile-C')
-        self.assertEqual(result['selection_method'], 'context_last_used')
+        self.assertEqual(result['selected'], 'Profile-C')
+
+    def test_requested_profile_priority(self):
+        """Test that requested profile has highest priority when valid"""
+        with patch('frappe.get_roles', return_value=['Cashier']), \
+             patch('frappe.get_all') as mock_get_all:
+            mock_get_all.side_effect = [
+                ['Profile-A', 'Profile-B'],
+                [
+                    {'name': 'Profile-A', 'imogi_branch': 'Branch A', 'company': 'Test Co'},
+                    {'name': 'Profile-B', 'imogi_branch': 'Branch B', 'company': 'Test Co'}
+                ]
+            ]
+
+            result = resolve_pos_profile(user=self.test_user, requested='Profile-B')
+
+        self.assertEqual(result['selected'], 'Profile-B')
     
     @patch('frappe.db.exists')
     @patch('frappe.db.get_value')
@@ -258,6 +303,18 @@ class TestPOSProfileResolver(unittest.TestCase):
         has_access = validate_pos_profile_access('Profile-A', user=self.test_user)
         
         self.assertTrue(has_access)
+
+    def test_no_defaultvalue_pos_profile_dependency(self):
+        """Ensure no get_user_default('pos_profile') calls exist in codebase."""
+        root = Path(__file__).resolve().parents[1]
+        patterns = ("get_user_default(\"pos_profile\")", "get_user_default('pos_profile')",
+                    "get_user_default(\"imogi_pos_profile\")", "get_user_default('imogi_pos_profile')")
+        for path in root.rglob("*.py"):
+            if path.name.startswith("."):
+                continue
+            content = path.read_text(encoding="utf-8")
+            for pattern in patterns:
+                self.assertNotIn(pattern, content, msg=f"Found forbidden pattern in {path}")
     
     @patch('frappe.db.exists')
     @patch('frappe.db.get_value')
@@ -304,11 +361,11 @@ class TestPOSProfileResolver(unittest.TestCase):
             # Profile-B is disabled, not returned
         ]
         
-        result = resolve_pos_profile_for_user(user=self.test_user)
+        result = resolve_pos_profile(user=self.test_user)
         
         # Only active profile returned
-        self.assertEqual(len(result['available_profiles']), 1)
-        self.assertEqual(result['available_profiles'][0]['name'], 'Profile-A')
+        self.assertEqual(len(result['candidates']), 1)
+        self.assertEqual(result['candidates'][0]['name'], 'Profile-A')
 
 
 def run_tests():

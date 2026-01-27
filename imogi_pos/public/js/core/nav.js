@@ -148,7 +148,7 @@ const IMOGINav = {
             }
 
             // Then try from localStorage
-            const storedProfile = localStorage.getItem('imogi_active_pos_profile');
+            const storedProfile = localStorage.getItem('imogi:last_pos_profile') || localStorage.getItem('imogi_active_pos_profile');
             if (storedProfile) {
                 this.activeProfile = storedProfile;
                 return resolve(this.activeProfile);
@@ -164,13 +164,17 @@ const IMOGINav = {
             frappe.call({
                 method: 'imogi_pos.api.public.get_default_pos_profile',
                 args: {
-                    branch: this.activeBranch
+                    last_used: localStorage.getItem('imogi:last_pos_profile') || localStorage.getItem('imogi_active_pos_profile') || null
                 },
                 silent: true, // Don't show error toast for this
                 callback: (response) => {
-                    if (response && response.message) {
-                        this.activeProfile = response.message;
+                    const data = response?.message;
+                    if (data?.selected) {
+                        this.activeProfile = data.selected;
                         localStorage.setItem('imogi_active_pos_profile', this.activeProfile);
+                        localStorage.setItem('imogi:last_pos_profile', this.activeProfile);
+                    } else if (data?.needs_selection) {
+                        this.activeProfile = null;
                     }
                     resolve(this.activeProfile);
                 },
@@ -588,6 +592,7 @@ const IMOGINav = {
         
         this.activeProfile = profile;
         localStorage.setItem('imogi_active_pos_profile', profile);
+        localStorage.setItem('imogi:last_pos_profile', profile);
         
         // Get profile details
         frappe.call({

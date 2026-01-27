@@ -24,41 +24,29 @@ def get_user_pos_profile(user=None, allow_fallback=True):
     """
     Get POS Profile for the current or specified user.
     
-    Checks user's assigned POS Profile via POS Profile User child table.
-    If not found and allow_fallback is True, returns first available profile.
+    Delegates to the centralized POS Profile resolver to ensure consistent
+    access control and selection behavior.
     
     Args:
         user: User email. If None, uses current session user.
-        allow_fallback: If True, returns default profile when user has none.
+        allow_fallback: If False, requires explicit selection when multiple
+                        profiles are available.
     
     Returns:
         str: POS Profile name, or None if not found
     """
     if not user:
         user = frappe.session.user
-    
-    # Check if user has assigned POS Profile
-    pos_profile = frappe.db.get_value(
-        "POS Profile User",
-        {"user": user},
-        "parent"
+
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+    result = resolve_pos_profile(
+        user=user,
+        last_used=None
     )
-    
-    if pos_profile:
-        return pos_profile
-    
-    # Fallback to first available profile
-    if allow_fallback:
-        profiles = frappe.get_all(
-            "POS Profile",
-            filters={"disabled": 0},
-            fields=["name"],
-            limit=1
-        )
-        if profiles:
-            return profiles[0].name
-    
-    return None
+    if not allow_fallback and result.get("needs_selection"):
+        return None
+    return result.get('selected')
 
 
 @frappe.whitelist(allow_guest=True)

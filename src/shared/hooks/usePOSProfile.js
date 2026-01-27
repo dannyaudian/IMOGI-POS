@@ -5,10 +5,11 @@
  * and optional server sync. Integrates with pos-profile-manager.js.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 
 const STORAGE_KEY = 'imogi_active_pos_profile'
+const LAST_USED_KEY = 'imogi:last_pos_profile'
 const PROFILE_DATA_KEY = 'imogi_pos_profile_data'
 
 /**
@@ -17,7 +18,7 @@ const PROFILE_DATA_KEY = 'imogi_pos_profile_data'
  */
 export function usePOSProfile() {
   const [currentProfile, setCurrentProfile] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) || null
+    return localStorage.getItem(LAST_USED_KEY) || localStorage.getItem(STORAGE_KEY) || null
   })
   
   const [profileData, setProfileData] = useState(() => {
@@ -32,11 +33,12 @@ export function usePOSProfile() {
   const [availableProfiles, setAvailableProfiles] = useState([])
   const [branches, setBranches] = useState([])
   const [isPrivileged, setIsPrivileged] = useState(false)
+  const [needsSelection, setNeedsSelection] = useState(false)
   
   // Fetch available POS Profiles from server
   const { data: profileInfo, isLoading, error, mutate: refetch } = useFrappeGetCall(
     'imogi_pos.api.public.get_user_pos_profile_info',
-    {},
+    { last_used: currentProfile || localStorage.getItem(LAST_USED_KEY) || localStorage.getItem(STORAGE_KEY) || null },
     undefined,
     {
       revalidateOnFocus: false,
@@ -55,6 +57,7 @@ export function usePOSProfile() {
       setAvailableProfiles(profileInfo.available_pos_profiles || [])
       setBranches(profileInfo.branches || [])
       setIsPrivileged(profileInfo.is_privileged || false)
+      setNeedsSelection(!!profileInfo.require_selection)
       
       // If no current profile set, use server's recommendation
       if (!currentProfile && profileInfo.current_pos_profile) {
@@ -65,6 +68,7 @@ export function usePOSProfile() {
         
         setCurrentProfile(serverProfile)
         localStorage.setItem(STORAGE_KEY, serverProfile)
+        localStorage.setItem(LAST_USED_KEY, serverProfile)
         
         if (serverProfileData) {
           const data = normalizeProfileData(serverProfileData)
@@ -78,7 +82,7 @@ export function usePOSProfile() {
   // Listen for cross-tab updates
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === STORAGE_KEY && e.newValue !== currentProfile) {
+      if ((e.key === STORAGE_KEY || e.key === LAST_USED_KEY) && e.newValue !== currentProfile) {
         setCurrentProfile(e.newValue)
       }
       if (e.key === PROFILE_DATA_KEY) {
@@ -134,6 +138,7 @@ export function usePOSProfile() {
       setCurrentProfile(null)
       setProfileData(null)
       localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(LAST_USED_KEY)
       localStorage.removeItem(PROFILE_DATA_KEY)
       return
     }
@@ -146,6 +151,7 @@ export function usePOSProfile() {
     setCurrentProfile(profileName)
     setProfileData(data)
     localStorage.setItem(STORAGE_KEY, profileName)
+    localStorage.setItem(LAST_USED_KEY, profileName)
     
     if (data) {
       localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(data))
@@ -212,6 +218,7 @@ export function usePOSProfile() {
     availableProfiles,
     branches,
     isPrivileged,
+    needsSelection,
     
     // Loading state
     isLoading,

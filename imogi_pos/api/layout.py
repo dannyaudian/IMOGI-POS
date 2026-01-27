@@ -39,8 +39,8 @@ def check_restaurant_domain(pos_profile=None):
     """
     Validate that the user's POS Profile has the Restaurant domain enabled.
 
-    If ``pos_profile`` is not provided the profile is looked up from
-    ``POS Profile User`` for the current session user.
+    If ``pos_profile`` is not provided the profile is resolved from the
+    centralized POS Profile resolver for the current session user.
 
     Args:
         pos_profile (str, optional): POS Profile name.
@@ -50,15 +50,20 @@ def check_restaurant_domain(pos_profile=None):
             Restaurant domain.
     """
     if not pos_profile:
-        pos_profile = frappe.db.get_value(
-            "POS Profile User", {"user": frappe.session.user}, "parent"
-        )
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
 
-    if not pos_profile:
-        frappe.throw(
-            _("No POS Profile found. Please configure a POS Profile for the user."),
-            frappe.ValidationError,
-        )
+        resolution = resolve_pos_profile(user=frappe.session.user)
+        if not resolution.get("has_access"):
+            frappe.throw(
+                _("No POS Profile found. Please configure a POS Profile for the user."),
+                frappe.ValidationError,
+            )
+        if resolution.get("needs_selection"):
+            frappe.throw(
+                _("Multiple POS Profiles available. Please select one before continuing."),
+                frappe.ValidationError,
+            )
+        pos_profile = resolution.get("selected")
 
     domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain")
     if domain != "Restaurant":
@@ -66,6 +71,7 @@ def check_restaurant_domain(pos_profile=None):
             _("Table layout features are only available for Restaurant domain"),
             frappe.ValidationError,
         )
+    return pos_profile
 
 
 @frappe.whitelist(allow_guest=False, methods=['GET', 'POST'])
@@ -80,12 +86,7 @@ def get_floors():
         frappe.ValidationError: If no POS Profile is found or domain is not Restaurant
     """
     # Check restaurant domain
-    check_restaurant_domain()
-    
-    # Get the user's branch from their POS Profile
-    pos_profile = frappe.db.get_value(
-        "POS Profile User", {"user": frappe.session.user}, "parent"
-    )
+    pos_profile = check_restaurant_domain()
     
     # IMPORTANT: POS Profile uses custom field 'imogi_branch' not standard 'branch'
     # This is consistent with items.py, orders.py, and other modules
