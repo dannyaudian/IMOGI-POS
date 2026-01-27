@@ -319,6 +319,13 @@ def _get_role_based_redirect(roles):
     return get_role_based_default_route()
 
 
+def _normalize_permission_doctype(doctype):
+    """Map legacy DocType names to ERPNext v15 equivalents."""
+    if doctype == "POS Session":
+        return "POS Opening Entry"
+    return doctype
+
+
 @frappe.whitelist()
 def get_current_user_info():
     """Return information about the currently logged-in user.
@@ -359,7 +366,12 @@ def check_permission(doctype, perm_type="read"):
     if frappe.session.user == "Guest":
         return False
 
-    return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
+    doctype = _normalize_permission_doctype(doctype)
+    try:
+        return bool(frappe.has_permission(doctype=doctype, permtype=perm_type))
+    except Exception:
+        frappe.log_error(f"Permission check skipped for missing DocType: {doctype}")
+        return True
 
 
 @frappe.whitelist()

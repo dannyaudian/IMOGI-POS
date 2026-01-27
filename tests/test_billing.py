@@ -1426,13 +1426,13 @@ def test_notify_stock_update_publishes_item_and_packed_updates(billing_module):
 
 def test_validate_pos_session_skips_if_doctype_missing(billing_module):
     billing, frappe = billing_module
-    frappe.db.exists_map[("DocType", "POS Session")] = False
+    frappe.db.exists_map[("DocType", "POS Opening Entry")] = False
     assert billing.validate_pos_session("P1") is None
 
 
 def test_get_active_pos_session_returns_none_if_doctype_missing(billing_module):
     billing, frappe = billing_module
-    frappe.db.exists_map[("DocType", "POS Session")] = False
+    frappe.db.exists_map[("DocType", "POS Opening Entry")] = False
     assert billing.get_active_pos_session() is None
 
 
@@ -1491,7 +1491,7 @@ def test_generate_invoice_omits_pos_session_when_none(billing_module):
 
     frappe.db.get_value = get_value2
 
-    frappe.db.exists_map[("DocType", "POS Session")] = False
+    frappe.db.exists_map[("DocType", "POS Opening Entry")] = False
 
     result = billing.generate_invoice('POS-1', mode_of_payment='Cash', amount=10)
 

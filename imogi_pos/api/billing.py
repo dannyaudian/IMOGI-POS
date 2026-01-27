@@ -34,6 +34,13 @@ def validate_pos_session(pos_profile, enforce_session=None):
     Raises:
         frappe.ValidationError: If session is required but not active
     """
+    if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
+        try:
+            if not frappe.db.exists("DocType", "POS Opening Entry"):
+                return None
+        except Exception:
+            return None
+
     # Get POS Profile settings
     profile_doc = frappe.get_doc("POS Profile", pos_profile)
     
@@ -1275,14 +1282,22 @@ def prepare_invoice_draft(pos_order):
 def check_pos_session(pos_profile=None):
     """Check whether POS Opening Entry is active for session management."""
 
+    exists = True
+    if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
+        try:
+            exists = frappe.db.exists("DocType", "POS Opening Entry")
+        except Exception:
+            exists = False
+
     active_session = None
-    try:
-        active_session = get_active_pos_session()
-    except Exception:
-        active_session = None
+    if exists:
+        try:
+            active_session = get_active_pos_session()
+        except Exception:
+            active_session = None
 
     return {
-        "exists": True,  # POS Opening Entry always exists in ERPNext
+        "exists": bool(exists),
         "active": bool(active_session),
         "pos_session": active_session,
     }
@@ -1303,6 +1318,13 @@ def get_active_pos_session(context_scope=None, device_id=None):
     """
     if not context_scope:
         context_scope = "User"
+
+    if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
+        try:
+            if not frappe.db.exists("DocType", "POS Opening Entry"):
+                return None
+        except Exception:
+            return None
 
     user = frappe.session.user
 
