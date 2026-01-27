@@ -13,6 +13,7 @@ function App() {
   const [activeOpening, setActiveOpening] = useState(null)
   const [sessionsToday, setSessionsToday] = useState({ sessions: [], total: 0 })
   const [realtimeBanner, setRealtimeBanner] = useState(null)
+  const [debugInfo, setDebugInfo] = useState(null)
   const [contextState, setContextState] = useState({
     pos_profile: null,
     branch: null,
@@ -59,6 +60,7 @@ function App() {
       errorRetryCount: 1,
       shouldRetryOnError: (error) => !isSessionError(error),
       onError: (error) => {
+        console.error('[module-select] API call failed:', error)
         if (isSessionError(error)) {
           setRealtimeBanner('Realtime disconnected, continuing without realtime')
         }
@@ -70,6 +72,16 @@ function App() {
             sid: maskSid(frappe?.session?.sid)
           })
         }
+      },
+      onSuccess: (data) => {
+        const payload = data?.message ?? data ?? {}
+        console.log('[module-select] API call successful', {
+          has_modules: !!payload.modules,
+          modules_count: payload.modules?.length || 0,
+          has_context: !!payload.context,
+          pos_profile: payload.context?.current_pos_profile,
+          branch: payload.context?.current_branch
+        })
       }
     }
   )
@@ -80,9 +92,20 @@ function App() {
 
   useEffect(() => {
     if (!modulesLoading && moduleData) {
-      setModules(moduleData.modules || [])
-      setActiveOpening(moduleData.active_opening || null)
-      setSessionsToday(moduleData.sessions_today || { sessions: [], total: 0 })
+      console.log('[module-select] Raw API response:', moduleData)
+      
+      // Frappe API wraps response in .message key
+      const payload = moduleData?.message ?? moduleData ?? {}
+      
+      console.log('[module-select] Normalized payload:', payload)
+      console.log('[module-select] Modules count:', payload.modules?.length || 0)
+      console.log('[module-select] Current POS Profile:', payload.context?.current_pos_profile)
+      console.log('[module-select] Context:', payload.context)
+      
+      setModules(payload.modules || [])
+      setActiveOpening(payload.active_opening || null)
+      setSessionsToday(payload.sessions_today || { sessions: [], total: 0 })
+      setDebugInfo(payload.debug_info || null)
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
@@ -147,13 +170,22 @@ function App() {
   }, [realtimeSocket, debugRealtime])
 
   useEffect(() => {
-    if (moduleData?.context) {
+    const payload = moduleData?.message ?? moduleData ?? {}
+    const ctx = payload.context
+    
+    if (ctx) {
+      console.log('[module-select] Setting context state:', {
+        pos_profile: ctx.current_pos_profile,
+        branch: ctx.current_branch,
+        available_profiles_count: ctx.available_pos_profiles?.length || 0
+      })
+      
       setContextState({
-        pos_profile: moduleData.context.current_pos_profile || null,
-        branch: moduleData.context.current_branch || null,
-        require_selection: moduleData.context.require_selection || false,
-        available_pos_profiles: moduleData.context.available_pos_profiles || [],
-        is_privileged: moduleData.context.is_privileged || false
+        pos_profile: ctx.current_pos_profile || null,
+        branch: ctx.current_branch || null,
+        require_selection: ctx.require_selection || false,
+        available_pos_profiles: ctx.available_pos_profiles || [],
+        is_privileged: ctx.is_privileged || false
       })
     }
   }, [moduleData])
@@ -261,7 +293,9 @@ function App() {
 
     // Check if module requires POS opening entry
     if (module.requires_opening) {
-      const openingData = refreshedData?.active_opening || activeOpening
+      // Normalize refreshedData payload (handle .message wrapper)
+      const refreshedPayload = refreshedData?.message ?? refreshedData ?? null
+      const openingData = refreshedPayload?.active_opening || activeOpening
 
       // Check if POS opening exists
       if (!openingData || !openingData.pos_opening_entry) {
@@ -447,7 +481,15 @@ function App() {
           <div className="sidebar-section">
             <h3>POS Profile</h3>
             <div className="profile-info-card">
-              <p className="profile-name">{contextData.pos_profile || 'Not Selected'}</p>
+              <p className="profile-name">
+                {(() => {
+                  // Handle both string and object types for backward compatibility
+                  const profile = contextData.pos_profile
+                  if (!profile) return 'Not Selected'
+                  if (typeof profile === 'string') return profile
+                  return profile.name || 'Not Selected'
+                })()}
+              </p>
               {contextData.branch && (
                 <p className="profile-branch">Branch: {contextData.branch}</p>
               )}
@@ -530,7 +572,24 @@ function App() {
               ))
             ) : (
               <div className="no-modules">
-                <p>No modules available for your role</p>
+                <p className="no-modules-title">No modules available for your role</p>
+                {debugInfo && (
+                  <div className="debug-info">
+                    <p><strong>Debug Information:</strong></p>
+                    <ul>
+                      <li>User: {frappe?.session?.user}</li>
+                      <li>Your Roles: {debugInfo.user_roles?.join(', ') || 'None'}</li>
+                      <li>Is Admin: {debugInfo.is_admin ? 'Yes' : 'No'}</li>
+                      <li>Total Modules Configured: {debugInfo.total_modules_configured}</li>
+                      <li>Modules Available: {debugInfo.modules_available}</li>
+                    </ul>
+                    <p className="help-text">
+                      <i className="fa-solid fa-info-circle"></i>
+                      Please contact your administrator to assign appropriate roles. 
+                      Required roles: Cashier, Waiter, Kitchen Staff, Branch Manager, Area Manager, or System Manager.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

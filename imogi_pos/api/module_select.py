@@ -168,6 +168,17 @@ def get_available_modules():
 
         # Sort by order
         available_modules.sort(key=lambda x: x['order'])
+        
+        # Log for debugging when no modules are available
+        if not available_modules:
+            frappe.log_error(
+                f"No modules available for user: {frappe.session.user}\n"
+                f"User roles: {user_roles}\n"
+                f"Is admin: {is_admin}\n"
+                f"Required roles per module:\n" + 
+                "\n".join([f"  - {k}: {v.get('requires_roles', [])}" for k, v in MODULE_CONFIGS.items()]),
+                "IMOGI POS: No Modules Available"
+            )
 
         active_opening = _get_active_pos_opening_for_context(
             {"current_pos_profile": pos_profile},
@@ -184,10 +195,17 @@ def get_available_modules():
                 'available_pos_profiles': resolved_context.get('available_pos_profiles', []),
                 'branches': resolved_context.get('branches', []),
                 'require_selection': resolved_context.get('require_selection', False),
-                'is_privileged': resolved_context.get('is_privileged', False)
+                'is_privileged': resolved_context.get('is_privileged', False),
+                'roles': user_roles  # Add user roles for frontend filtering if needed
             },
             'active_opening': active_opening,
-            'sessions_today': sessions_today
+            'sessions_today': sessions_today,
+            'debug_info': {
+                'user_roles': user_roles,
+                'is_admin': is_admin,
+                'total_modules_configured': len(MODULE_CONFIGS),
+                'modules_available': len(available_modules)
+            }
         }
 
     except Exception as e:

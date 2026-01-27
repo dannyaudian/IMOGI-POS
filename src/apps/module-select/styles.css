@@ -616,6 +616,7 @@ body {
 .no-modules {
   grid-column: 1 / -1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 300px;
@@ -623,6 +624,61 @@ body {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 1.1rem;
+  padding: var(--spacing-xl);
+}
+
+.no-modules-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.no-modules .debug-info {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: #f8f9fa;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--warning-color);
+  max-width: 600px;
+  width: 100%;
+  text-align: left;
+}
+
+.no-modules .debug-info p {
+  margin-bottom: var(--spacing-sm);
+}
+
+.no-modules .debug-info strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.no-modules .debug-info ul {
+  list-style: none;
+  padding-left: 0;
+  margin: var(--spacing-sm) 0;
+}
+
+.no-modules .debug-info li {
+  padding: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  background: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+}
+
+.no-modules .debug-info .help-text {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background: #fff3cd;
+  border-radius: var(--radius-sm);
+  color: #856404;
+  font-size: 0.9rem;
+}
+
+.no-modules .debug-info .help-text i {
+  margin-right: var(--spacing-xs);
 }
 
 /* ===== MODULE CARD ===== */
