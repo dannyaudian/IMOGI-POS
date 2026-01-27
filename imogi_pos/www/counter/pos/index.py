@@ -13,7 +13,7 @@ def get_context(context):
     IMPORTANT: Now uses centralized operational context.
     - No longer reads pos_profile from URL parameters
     - Context managed server-side via operational_context module
-    - Backward compatible: accepts URL param as one-time request
+    - Context managed via operational_context module
     """
     try:
         # Get branding info
@@ -21,17 +21,18 @@ def get_context(context):
         
         # Use operational context (authoritative)
         from imogi_pos.utils.operational_context import (
+            get_active_operational_context,
             resolve_operational_context,
             set_active_operational_context
         )
-        
-        # Handle backward compatibility: URL param as one-time request
-        requested_profile = frappe.form_dict.get('pos_profile')
-        
-        # Resolve operational context
+
+        active_context = get_active_operational_context(
+            user=frappe.session.user,
+            auto_resolve=False
+        )
         resolved = resolve_operational_context(
             user=frappe.session.user,
-            requested_profile=requested_profile
+            requested_profile=active_context.get("pos_profile") if active_context else None
         )
         
         pos_profile = resolved.get("current_pos_profile")

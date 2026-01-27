@@ -5,13 +5,15 @@ Provides available modules based on user permissions and roles
 
 import frappe
 from frappe import _
-from imogi_pos.api.public import get_user_pos_profile_info
 from imogi_pos.utils.auth_helpers import get_user_role_context
+from imogi_pos.utils.operational_context import (
+    get_active_operational_context,
+    resolve_operational_context
+)
 from imogi_pos.utils.role_permissions import (
     PRIVILEGED_ROLES,
     MANAGEMENT_ROLES
 )
-from urllib.parse import quote
 
 
 # ============================================================================
@@ -29,6 +31,7 @@ MODULE_CONFIGS = {
         'requires_roles': ['Cashier'] + MANAGEMENT_ROLES + PRIVILEGED_ROLES,
         'requires_session': True,
         'requires_opening': True,
+        'requires_pos_profile': True,
         'order': 1
     },
     # NOTE: cashier-payment module deprecated - merged into cashier (counter/pos)
@@ -101,11 +104,11 @@ MODULE_CONFIGS = {
 def get_available_modules():
     """Get list of available modules based on user's roles and operational context.
 
-    IMPORTANT: Uses centralized POS Profile resolver.
+    IMPORTANT: Uses centralized operational context.
     - No longer accepts pos_profile or branch parameters
-    - POS Profile and branch resolved via get_user_pos_profile_info()
+    - POS Profile and branch resolved via operational_context module
     - Aggregates active opening + today's sessions in one payload
-    - Cashier URL includes resolved pos_profile when available
+    - Module URLs are always base routes (no query string)
 
     Returns:
         dict: Available modules list with operational context metadata
@@ -115,12 +118,22 @@ def get_available_modules():
         if role_context.get("is_guest"):
             frappe.throw(_('Please login to continue'))
 
-        # Get POS Profile context FIRST (authoritative source)
-        context = get_user_pos_profile_info()
-        pos_profile = context.get("current_pos_profile")
-        branch = context.get("current_branch")
-        if pos_profile in (None, "", "None"):
-            pos_profile = None
+        # Get operational context (authoritative source)
+        active_context = get_active_operational_context(
+            user=frappe.session.user,
+            auto_resolve=False
+        )
+        resolved_context = resolve_operational_context(
+            user=frappe.session.user,
+            requested_profile=active_context.get("pos_profile") if active_context else None
+        )
+        pos_profile = active_context.get("pos_profile") if active_context else None
+        branch = active_context.get("branch") if active_context else None
+
+        if not pos_profile:
+            pos_profile = resolved_context.get("current_pos_profile")
+        if not branch:
+            branch = resolved_context.get("current_branch")
 
         # Get user roles
         user_roles = role_context.get("roles", [])
@@ -138,13 +151,6 @@ def get_available_modules():
             if is_admin or any(role in user_roles for role in required_roles):
                 module_url = config['url']
                 requires_pos_profile = config.get('requires_pos_profile', False)
-
-                if module_type == 'cashier':
-                    requires_pos_profile = True
-                    if pos_profile and str(pos_profile).strip() and str(pos_profile) != "None":
-                        module_url = f"/counter/pos?pos_profile={quote(str(pos_profile))}"
-                    else:
-                        module_url = None
 
                 available_modules.append({
                     'type': config['type'],
@@ -173,11 +179,12 @@ def get_available_modules():
         return {
             'modules': available_modules,
             'context': {
-                'pos_profile': pos_profile,
-                'branch': branch,
-                'require_selection': context.get('require_selection', False),
-                'available_pos_profiles': context.get('available_pos_profiles', []),
-                'is_privileged': context.get('is_privileged', False)
+                'current_pos_profile': pos_profile,
+                'current_branch': branch,
+                'available_pos_profiles': resolved_context.get('available_pos_profiles', []),
+                'branches': resolved_context.get('branches', []),
+                'require_selection': resolved_context.get('require_selection', False),
+                'is_privileged': resolved_context.get('is_privileged', False)
             },
             'active_opening': active_opening,
             'sessions_today': sessions_today
