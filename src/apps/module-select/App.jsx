@@ -109,6 +109,7 @@ function App() {
     if (currentProfile) {
       localStorage.setItem('imogi_selected_pos_profile', currentProfile)
       localStorage.setItem('imogi_active_pos_profile', currentProfile)
+      localStorage.setItem('imogi:last_pos_profile', currentProfile)
     }
     if (selectedBranch) {
       localStorage.setItem('imogi_selected_branch', selectedBranch)

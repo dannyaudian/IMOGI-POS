@@ -16,13 +16,15 @@ def get_context(context):
         frappe.local.flags.redirect_location = '/login'
         raise frappe.Redirect
     
-    # Get user's default POS Profile
-    pos_profile = None
-    if frappe.db.has_column('User', 'imogi_default_pos_profile'):
-        pos_profile = frappe.db.get_value('User', frappe.session.user, 'imogi_default_pos_profile')
-    
-    if not pos_profile:
-        pos_profile = frappe.defaults.get_user_default("imogi_pos_profile")
+    # Resolve POS Profile via centralized resolver (DefaultValue is not used)
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+    resolution = resolve_pos_profile(
+        user=frappe.session.user,
+        last_used=frappe.form_dict.get('last_used'),
+        requested=frappe.form_dict.get('pos_profile')
+    )
+    pos_profile = resolution.get('selected')
     
     # Redirect to /counter/pos with filter=pending query param
     redirect_url = '/counter/pos?filter=pending'

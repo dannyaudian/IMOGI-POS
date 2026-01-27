@@ -1120,19 +1120,28 @@ def list_orders_for_cashier(pos_profile=None, branch=None, workflow_state=None, 
         list: POS Orders with summarized details
     """
     if not branch:
-        if pos_profile:
-            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
-        else:
-            pos_profile = frappe.db.get_value(
-                "POS Profile User", {"user": frappe.session.user}, "parent"
-            )
-            if not pos_profile:
-                frappe.throw(
-                    _("No POS Profile found for user: {0}").format(
-                        frappe.session.user
-                    )
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+        resolution = resolve_pos_profile(
+            user=frappe.session.user,
+            requested=pos_profile
+        )
+        if not resolution.get("has_access"):
+            frappe.throw(
+                _("No POS Profile found for user: {0}").format(
+                    frappe.session.user
                 )
-            branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
+            )
+        if pos_profile and resolution.get("selected") != pos_profile:
+            frappe.throw(
+                _("You do not have access to POS Profile {0}.").format(pos_profile),
+                frappe.PermissionError,
+            )
+        if resolution.get("needs_selection"):
+            frappe.throw(_("Multiple POS Profiles available. Please select one."))
+
+        pos_profile = resolution.get("selected")
+        branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
     
     if branch:
         check_branch_access(branch)
@@ -1312,10 +1321,12 @@ def get_active_pos_session(context_scope=None, device_id=None):
         filters["user"] = user
     elif context_scope == "POS Profile":
         # Sessions shared per POS Profile
-        pos_profile = frappe.db.get_value("POS Profile User", {"user": user}, "parent")
-        if not pos_profile:
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+        resolution = resolve_pos_profile(user=user)
+        if not resolution.get("selected"):
             return None
-        filters["pos_profile"] = pos_profile
+        filters["pos_profile"] = resolution["selected"]
     elif context_scope == "Device":
         # Get device ID from request header or parameter
         if not device_id:
@@ -1603,13 +1614,13 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
         list: Completed POS Orders with summarized details
     
     NOTE ON POS PROFILE RESOLUTION:
-        This function now uses resolve_pos_profile_for_user() from the centralized
+        This function now uses resolve_pos_profile() from the centralized
         resolver. System Managers can access POS even without defaults.
         Regular users must have at least one POS Profile assigned via
         "Applicable for Users" child table.
     """
     from frappe.utils import today, getdate
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
     
     try:
         user = frappe.session.user
@@ -1618,8 +1629,8 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
         # CRITICAL: Use centralized resolver for POS Profile access
         # This handles System Manager bypass and multi-profile scenarios
         if not pos_profile:
-            resolution = resolve_pos_profile_for_user(user=user)
-            
+            resolution = resolve_pos_profile(user=user)
+
             # Check if user has POS access
             if not resolution['has_access']:
                 # System Manager can still proceed if they explicitly provide branch
@@ -1634,11 +1645,11 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
                         "list_counter_order_history - No POS Profile"
                     )
                     frappe.throw(error_msg, frappe.ValidationError)
-            
+
             # User has access - use resolved profile
-            if resolution['pos_profile']:
-                pos_profile = resolution['pos_profile']
-                branch = resolution['branch']  # Derive branch from profile
+            if resolution['selected']:
+                pos_profile = resolution['selected']
+                branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")
                 frappe.logger().debug(f"Resolved POS Profile: {pos_profile}, Branch: {branch}")
             elif resolution['needs_selection']:
                 # Multiple profiles - need explicit selection
@@ -1647,6 +1658,15 @@ def list_counter_order_history(pos_profile=None, branch=None, cashier=None, date
                 )
                 frappe.throw(error_msg, frappe.ValidationError)
         
+        # Validate explicit POS Profile selection when provided
+        if pos_profile:
+            requested_resolution = resolve_pos_profile(user=user, requested=pos_profile)
+            if requested_resolution.get("selected") != pos_profile:
+                frappe.throw(
+                    _("You do not have access to POS Profile {0}.").format(pos_profile),
+                    frappe.PermissionError,
+                )
+
         # Get branch from POS Profile if not already set
         if pos_profile and not branch:
             branch = frappe.db.get_value("POS Profile", pos_profile, "imogi_branch")

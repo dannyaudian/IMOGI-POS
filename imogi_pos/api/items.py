@@ -223,13 +223,16 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
     # Authorize API call
     check_doctype_permission("Item")
     
-    # Get POS Profile if not provided
+    # Get POS Profile if not provided (centralized resolver)
     if not pos_profile:
-        pos_profile = frappe.db.get_value(
-            "POS Profile User", {"user": frappe.session.user}, "parent"
-        )
-        if not pos_profile:
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+        resolution = resolve_pos_profile(user=frappe.session.user)
+        if not resolution.get("has_access"):
             frappe.throw("No POS Profile found for user: {0}".format(frappe.session.user))
+        if resolution.get("needs_selection"):
+            frappe.throw(_("Multiple POS Profiles available. Please select one."))
+        pos_profile = resolution.get("selected")
     
     # Validate user has access to this POS Profile
     check_doctype_permission("POS Profile", doc=pos_profile)
@@ -346,4 +349,3 @@ def get_items_for_counter(pos_profile=None, branch=None, search_term=None, categ
         "categories": categories,
         "price_list": price_list
     }
-

@@ -13,41 +13,39 @@ ARCHITECTURE PRINCIPLES:
 1. POS Profile DocType is the ONLY source of truth
 2. System Manager / Administrator bypass default requirements
 3. Regular users must be in "Applicable for Users" child table
-4. DefaultValue may exist as fallback but NEVER required
+4. DefaultValue DocType is NOT used for POS gating
 5. Multi-profile selection is deterministic and user-friendly
 
 CRITICAL: This is the ONLY place where POS Profile resolution logic should exist.
-All other modules MUST call resolve_pos_profile_for_user() from this module.
+All other modules MUST call resolve_pos_profile() from this module.
 
 Usage:
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
     
     # Get POS Profile for current user
-    result = resolve_pos_profile_for_user()
+    result = resolve_pos_profile(user=frappe.session.user)
     
     # Get POS Profile with context
-    result = resolve_pos_profile_for_user(
+    result = resolve_pos_profile(
         user='user@example.com',
-        context={'last_used': 'Main-POS', 'require_selection': False}
+        requested='Main-POS'
     )
     
     # Result structure:
     {
-        'pos_profile': 'Main-POS',  # Selected profile name (or None)
-        'branch': 'Main Branch',    # Derived branch
-        'available_profiles': [...],  # List of accessible profiles
-        'is_privileged': True,      # System Manager / Administrator
-        'needs_selection': False,   # True if user must choose from multiple
-        'has_access': True,         # True if user has at least one profile
-        'selection_method': 'auto_single'  # How profile was selected
+        'selected': 'Main-POS',  # Selected profile name (or None)
+        'candidates': [...],     # List of accessible profiles
+        'needs_selection': False,
+        'is_privileged': True,
+        'has_access': True
     }
 """
 
 from __future__ import unicode_literals
 import frappe
-from frappe import _
 
 __all__ = [
+    'resolve_pos_profile',
     'resolve_pos_profile_for_user',
     'get_available_pos_profiles',
     'validate_pos_profile_access',
@@ -58,6 +56,95 @@ __all__ = [
 # ============================================================================
 # MAIN RESOLVER - SINGLE SOURCE OF TRUTH
 # ============================================================================
+
+def resolve_pos_profile(user, *, requested=None, last_used=None):
+    """
+    Canonical POS Profile resolver (single source of truth).
+
+    Args:
+        user (str): User email to resolve for.
+        requested (str | None): Explicitly requested POS Profile (e.g. query param).
+        last_used (str | None): Last used POS Profile from client localStorage.
+
+    Returns:
+        dict: {
+            "selected": str|None,
+            "candidates": [
+                {"name": str, "company": str, "branch": str|None, "mode": str|None}
+            ],
+            "needs_selection": bool,
+            "is_privileged": bool,
+            "has_access": bool
+        }
+    """
+    user = user or frappe.session.user
+
+    if not user or user == 'Guest':
+        return {
+            "selected": None,
+            "candidates": [],
+            "needs_selection": False,
+            "is_privileged": False,
+            "has_access": False
+        }
+
+    user_roles = frappe.get_roles(user)
+    is_privileged = 'System Manager' in user_roles or user == 'Administrator'
+
+    # System Manager/Administrator see all active profiles (authoritative choice)
+    candidates = get_available_pos_profiles(user=user, is_privileged=is_privileged)
+    profile_names = [p['name'] for p in candidates]
+
+    selected = None
+    needs_selection = False
+
+    if requested and requested in profile_names:
+        selected = requested
+    else:
+        # Last-used from client or server-stored preference (User.imogi_default_pos_profile)
+        last_used = last_used or frappe.form_dict.get('last_used')
+        stored = None
+        if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+            stored = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
+
+        for candidate in (last_used, stored):
+            if candidate and candidate in profile_names:
+                selected = candidate
+                break
+
+    if not selected:
+        if len(profile_names) == 1:
+            selected = profile_names[0]
+        else:
+            needs_selection = bool(profile_names)
+
+    result = {
+        "selected": selected,
+        "candidates": [
+            {
+                "name": profile.get("name"),
+                "company": profile.get("company"),
+                "branch": profile.get("imogi_branch"),
+                "mode": profile.get("imogi_mode")
+            }
+            for profile in candidates
+        ],
+        "needs_selection": needs_selection,
+        "is_privileged": is_privileged,
+        "has_access": bool(profile_names)
+    }
+
+    _log_resolution(
+        user=user,
+        requested=requested,
+        last_used=last_used,
+        selected=selected,
+        candidates=len(profile_names),
+        needs_selection=needs_selection
+    )
+
+    return result
+
 
 def resolve_pos_profile_for_user(user=None, context=None):
     """
@@ -81,22 +168,21 @@ def resolve_pos_profile_for_user(user=None, context=None):
         - If zero profiles: Return has_access=False
     
     STEP 3 - Selection Priority (when multiple profiles available):
-        1. context['last_used'] (if still valid)
-        2. User.imogi_default_pos_profile (persistent)
-        3. frappe.defaults.get_user_default('imogi_pos_profile') (session)
-        4. Auto-select if only one profile available
-        5. Return needs_selection=True (require user choice)
+        1. requested POS Profile (explicit query param)
+        2. last_used POS Profile (client localStorage or User.imogi_default_pos_profile)
+        3. Auto-select when only one candidate
+        4. Otherwise require user selection
     
     STEP 4 - Persistence:
         - Selection stored in localStorage (frontend)
         - Optional server sync to User.imogi_default_pos_profile
-        - DefaultValue DocType NEVER required (may exist as fallback only)
+        - DefaultValue DocType is never required for POS access
     
     Args:
         user (str, optional): Username to resolve for. Defaults to current user.
         context (dict, optional): Additional context:
             - last_used (str): Last used POS Profile name
-            - require_selection (bool): Force selection even if one profile
+            - requested (str): Explicitly requested POS Profile name
             - source (str): Calling context for logging
     
     Returns:
@@ -109,19 +195,14 @@ def resolve_pos_profile_for_user(user=None, context=None):
             - needs_selection (bool): True if user must choose
             - has_access (bool): True if user can access POS
             - selection_method (str): How profile was resolved
-                - 'context_last_used': From context.last_used
-                - 'user_default_persistent': From User field
-                - 'user_default_session': From frappe.defaults
-                - 'auto_single': Only one profile available
-                - 'none_requires_selection': Multiple profiles, need choice
-                - 'none_no_access': User has no profiles
+                - 'resolver': Selected by resolve_pos_profile
     
     Raises:
         frappe.AuthenticationError: If user is Guest or not logged in
     
     Examples:
         >>> # System Manager accessing POS
-        >>> result = resolve_pos_profile_for_user()
+        >>> result = resolve_pos_profile_for_user(user=frappe.session.user)
         >>> result['is_privileged']
         True
         >>> result['has_access']
@@ -132,7 +213,7 @@ def resolve_pos_profile_for_user(user=None, context=None):
         >>> result['pos_profile']
         'Main-Cashier'
         >>> result['selection_method']
-        'auto_single'
+        'resolver'
         
         >>> # User with multiple profiles (needs selection)
         >>> result = resolve_pos_profile_for_user(user='manager@example.com')
@@ -146,110 +227,37 @@ def resolve_pos_profile_for_user(user=None, context=None):
         - validate_pos_profile_access(): Checks if user can use specific profile
         - get_pos_profile_branch(): Derives branch from profile
     """
-    # Initialize context
     context = context or {}
     user = user or frappe.session.user
-    
-    # Guest user cannot access POS
-    if not user or user == 'Guest':
-        return {
-            'pos_profile': None,
-            'branch': None,
-            'company': None,
-            'available_profiles': [],
-            'is_privileged': False,
-            'needs_selection': False,
-            'has_access': False,
-            'selection_method': 'none_no_access',
-            'error': 'Authentication required'
-        }
-    
-    # STEP 1: Detect privileged users
-    user_roles = frappe.get_roles(user)
-    is_privileged = 'System Manager' in user_roles or user == 'Administrator'
-    
-    # STEP 2: Get available profiles
-    available_profiles = get_available_pos_profiles(user, is_privileged)
-    
-    # No profiles available
-    if not available_profiles:
-        return {
-            'pos_profile': None,
-            'branch': None,
-            'company': None,
-            'available_profiles': [],
-            'is_privileged': is_privileged,
-            'needs_selection': False,
-            'has_access': False,
-            'selection_method': 'none_no_access',
-            'message': 'No POS Profiles configured' if is_privileged else 'No POS Profiles assigned'
-        }
-    
-    # STEP 3: Apply selection priority
-    selected_profile = None
-    selection_method = None
-    profile_names = [p['name'] for p in available_profiles]
-    
-    # Priority 1: Context last_used (e.g., from localStorage)
-    last_used = context.get('last_used')
-    if last_used and last_used in profile_names:
-        if _is_profile_active(last_used):
-            selected_profile = last_used
-            selection_method = 'context_last_used'
-    
-    # Priority 2: User persistent default (User.imogi_default_pos_profile)
-    if not selected_profile and frappe.db.has_column('User', 'imogi_default_pos_profile'):
-        user_default = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
-        if user_default and user_default in profile_names:
-            if _is_profile_active(user_default):
-                selected_profile = user_default
-                selection_method = 'user_default_persistent'
-    
-    # Priority 3: Session default (frappe.defaults)
-    # NOTE: DefaultValue lookup is used here ONLY as fallback, never required
-    if not selected_profile:
-        try:
-            session_default = frappe.defaults.get_user_default('imogi_pos_profile', user)
-            if session_default and session_default in profile_names:
-                if _is_profile_active(session_default):
-                    selected_profile = session_default
-                    selection_method = 'user_default_session'
-        except Exception:
-            # DefaultValue may not exist or be accessible - this is OK
-            pass
-    
-    # Priority 4: Auto-select if only one profile (unless context prevents it)
-    if not selected_profile and len(profile_names) == 1:
-        if not context.get('require_selection'):
-            selected_profile = profile_names[0]
-            selection_method = 'auto_single'
-    
-    # Priority 5: No selection made - user must choose
-    if not selected_profile:
-        return {
-            'pos_profile': None,
-            'branch': None,
-            'company': None,
-            'available_profiles': available_profiles,
-            'is_privileged': is_privileged,
-            'needs_selection': True,
-            'has_access': True,
-            'selection_method': 'none_requires_selection'
-        }
-    
-    # STEP 4: Get derived data from selected profile
-    profile_data = next((p for p in available_profiles if p['name'] == selected_profile), None)
-    
+
+    resolution = resolve_pos_profile(
+        user=user,
+        requested=context.get('requested'),
+        last_used=context.get('last_used')
+    )
+
+    selected = resolution.get("selected")
+    candidates = resolution.get("candidates", [])
+    profile_data = next((p for p in candidates if p.get("name") == selected), None)
+
     return {
-        'pos_profile': selected_profile,
-        'branch': profile_data.get('imogi_branch') if profile_data else None,
+        'pos_profile': selected,
+        'branch': profile_data.get('branch') if profile_data else None,
         'company': profile_data.get('company') if profile_data else None,
-        'available_profiles': available_profiles,
-        'is_privileged': is_privileged,
-        'needs_selection': False,
-        'has_access': True,
-        'selection_method': selection_method,
-        'profile_data': profile_data  # Full profile metadata
+        'available_profiles': [
+            {
+                'name': p.get('name'),
+                'imogi_branch': p.get('branch'),
+                'imogi_mode': p.get('mode'),
+                'company': p.get('company')
+            }
+            for p in candidates
+        ],
+        'is_privileged': resolution.get('is_privileged', False),
+        'needs_selection': resolution.get('needs_selection', False),
+        'has_access': resolution.get('has_access', False),
+        'selection_method': 'resolver',
+        'profile_data': profile_data
     }
 
 
@@ -418,21 +426,25 @@ def get_pos_profile_branch(pos_profile):
         return None
 
 
-def _is_profile_active(pos_profile):
-    """
-    Internal: Check if a POS Profile is active (not disabled).
-    
-    Args:
-        pos_profile (str): POS Profile name
-    
-    Returns:
-        bool: True if active, False if disabled or doesn't exist
-    """
-    try:
-        is_disabled = frappe.db.get_value('POS Profile', pos_profile, 'disabled')
-        return not is_disabled
-    except Exception:
-        return False
+def _debug_enabled():
+    """Check if POS Profile resolver debug logging is enabled."""
+    return bool(getattr(frappe.conf, "imogi_pos_debug_pos_profile", False))
+
+
+def _log_resolution(user, requested, last_used, selected, candidates, needs_selection):
+    """Log resolver diagnostics when enabled via config flag."""
+    if not _debug_enabled():
+        return
+    logger = frappe.logger("imogi_pos.pos_profile")
+    logger.info({
+        "event": "pos_profile_resolution",
+        "user": user,
+        "requested": requested,
+        "last_used": last_used,
+        "selected": selected,
+        "candidates": candidates,
+        "needs_selection": needs_selection
+    })
 
 
 # ============================================================================
@@ -443,7 +455,7 @@ def get_user_pos_profile(user=None):
     """
     DEPRECATED: Legacy helper for backward compatibility.
     
-    Use resolve_pos_profile_for_user() instead for full context.
+    Use resolve_pos_profile() instead for full context.
     
     This function remains for code that only needs the profile name,
     but new code should use the full resolver.
@@ -454,5 +466,5 @@ def get_user_pos_profile(user=None):
     Returns:
         str|None: POS Profile name or None
     """
-    result = resolve_pos_profile_for_user(user=user)
-    return result.get('pos_profile')
+    result = resolve_pos_profile(user=user)
+    return result.get('selected')

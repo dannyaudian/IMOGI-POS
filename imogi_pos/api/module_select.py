@@ -326,10 +326,10 @@ def get_active_pos_opening(pos_profile=None, branch=None):
             - company: Company from POS Profile
     
     NOTE ON POS PROFILE RESOLUTION:
-        This function now uses resolve_pos_profile_for_user() from the centralized
+        This function now uses resolve_pos_profile() from the centralized
         resolver for consistent POS Profile access control.
     """
-    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+    from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
     
     try:
         user = frappe.session.user
@@ -358,8 +358,15 @@ def get_active_pos_opening(pos_profile=None, branch=None):
                 as_dict=True
             )
             if profile_data and not profile_data.get('disabled'):
-                profile_names = [pos_profile]
-                company = profile_data.get('company')
+                resolution = resolve_pos_profile(user=user, requested=pos_profile)
+                if resolution.get("selected") == pos_profile:
+                    profile_names = [pos_profile]
+                    company = profile_data.get('company')
+                else:
+                    frappe.throw(
+                        _("You do not have access to POS Profile {0}.").format(pos_profile),
+                        frappe.PermissionError
+                    )
         
         # Priority 2: Fallback to branch (deprecated path)
         elif branch:
@@ -376,16 +383,16 @@ def get_active_pos_opening(pos_profile=None, branch=None):
         # Priority 3: Use centralized resolver
         # CRITICAL: This replaces the complex fallback logic with centralized resolution
         if not profile_names:
-            resolution = resolve_pos_profile_for_user(user=user)
-            
-            if resolution['pos_profile']:
-                profile_names = [resolution['pos_profile']]
-                company = resolution['company']
-            elif resolution['has_access'] and resolution['available_profiles']:
+            resolution = resolve_pos_profile(user=user)
+
+            if resolution['selected']:
+                profile_names = [resolution['selected']]
+                company = frappe.db.get_value("POS Profile", resolution["selected"], "company")
+            elif resolution['has_access'] and resolution['candidates']:
                 # User has profiles but needs selection - check all available
-                profile_names = [p['name'] for p in resolution['available_profiles']]
+                profile_names = [p['name'] for p in resolution['candidates']]
                 # Use first profile's company as fallback
-                company = resolution['available_profiles'][0].get('company')
+                company = resolution['candidates'][0].get('company')
         
         # No profiles found - return empty result
         if not profile_names:

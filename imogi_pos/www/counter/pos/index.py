@@ -13,12 +13,15 @@ def get_context(context):
         # Get branding info
         branding = get_brand_context()
         
-        # Get current user's POS Profile
-        pos_profile = frappe.db.get_value(
-            "POS Profile User", 
-            {"user": frappe.session.user},
-            "parent"
+        # Resolve POS Profile via centralized resolver (authoritative)
+        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+
+        resolution = resolve_pos_profile(
+            user=frappe.session.user,
+            last_used=frappe.form_dict.get('last_used'),
+            requested=frappe.form_dict.get('pos_profile')
         )
+        pos_profile = resolution.get("selected")
         
         # Get POS Profile details including mode
         pos_mode = "Counter"  # Default
@@ -38,7 +41,8 @@ def get_context(context):
             'branding': branding,
             'pos_profile': pos_profile,
             'pos_mode': pos_mode,
-            'branch': branch
+            'branch': branch,
+            'pos_profile_resolution': resolution
         })
 
         return context

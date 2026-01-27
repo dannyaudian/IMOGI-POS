@@ -14,6 +14,7 @@
 
 const IMOGIPOSProfile = {
     storageKey: 'imogi_active_pos_profile',
+    lastUsedKey: 'imogi:last_pos_profile',
     profileDataKey: 'imogi_pos_profile_data',
     channelName: 'imogi_pos_profile_updates',
     current: null,
@@ -29,7 +30,7 @@ const IMOGIPOSProfile = {
         if (this.initialized) return;
         
         // Load from localStorage
-        this.current = localStorage.getItem(this.storageKey) || null;
+        this.current = localStorage.getItem(this.lastUsedKey) || localStorage.getItem(this.storageKey) || null;
         
         try {
             const storedData = localStorage.getItem(this.profileDataKey);
@@ -54,6 +55,7 @@ const IMOGIPOSProfile = {
                     this.current = event.data.posProfile;
                     this.currentData = event.data.profileData || null;
                     localStorage.setItem(this.storageKey, this.current);
+                    localStorage.setItem(this.lastUsedKey, this.current);
                     if (this.currentData) {
                         localStorage.setItem(this.profileDataKey, JSON.stringify(this.currentData));
                     }
@@ -90,6 +92,7 @@ const IMOGIPOSProfile = {
         this.current = posProfile;
         this.currentData = profileData;
         localStorage.setItem(this.storageKey, posProfile);
+        localStorage.setItem(this.lastUsedKey, posProfile);
         
         if (profileData) {
             localStorage.setItem(this.profileDataKey, JSON.stringify(profileData));
@@ -180,6 +183,7 @@ const IMOGIPOSProfile = {
         this.current = null;
         this.currentData = null;
         localStorage.removeItem(this.storageKey);
+        localStorage.removeItem(this.lastUsedKey);
         localStorage.removeItem(this.profileDataKey);
         window.CURRENT_POS_PROFILE = null;
         

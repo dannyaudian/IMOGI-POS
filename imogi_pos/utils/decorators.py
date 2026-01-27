@@ -264,7 +264,7 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
     """Decorator to require runtime operational access.
     
     ERPNext v15 Native Pattern for Runtime Modules:
-    - Validates user is in POS Profile User table (if requires_pos_profile)
+    - Validates POS Profile via centralized resolver (if requires_pos_profile)
     - Validates active POS Opening exists (if requires_opening)
     - Administrator and System Manager bypass checks
     
@@ -292,25 +292,29 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                 return fn(*args, **kwargs)
             
             user = frappe.session.user
+            from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
             
             # Validate POS Profile access if required
             if requires_pos_profile:
                 # Get pos_profile from function args/kwargs
                 pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
                 
+                resolution = resolve_pos_profile(user=user, requested=pos_profile)
+                if not pos_profile:
+                    if resolution.get("needs_selection"):
+                        frappe.throw(
+                            _('Multiple POS Profiles available. Please select one.'),
+                            frappe.ValidationError
+                        )
+                    pos_profile = resolution.get("selected")
+
                 if not pos_profile:
                     frappe.throw(
                         _('POS Profile is required for this operation'),
                         frappe.ValidationError
                     )
-                
-                # Check if user is in POS Profile User table
-                has_access = frappe.db.exists('POS Profile User', {
-                    'parent': pos_profile,
-                    'user': user
-                })
-                
-                if not has_access:
+
+                if resolution.get("selected") != pos_profile:
                     user_roles = ", ".join(frappe.get_roles(user))
                     error_msg = _(
                         "Access Denied: You are not assigned to POS Profile '{0}'.\n"
@@ -318,13 +322,16 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                         "Your roles: {2}\n"
                         "Please contact your Branch Manager to assign you to this POS Profile."
                     ).format(pos_profile, user, user_roles)
-                    
+
                     frappe.throw(error_msg, frappe.PermissionError)
             
             # Validate POS Opening if required
             if requires_opening:
                 pos_profile = kwargs.get('pos_profile') or (args[0] if args else None)
-                
+                if not pos_profile:
+                    resolution = resolve_pos_profile(user=user)
+                    pos_profile = resolution.get("selected")
+
                 if not pos_profile:
                     frappe.throw(
                         _('POS Profile is required to check POS Opening'),
@@ -344,6 +351,12 @@ def require_runtime_access(requires_pos_profile=True, requires_opening=False):
                 )
                 
                 if not opening:
+                    if getattr(frappe.conf, "imogi_pos_debug_pos_profile", False):
+                        frappe.logger("imogi_pos.pos_profile").info({
+                            "event": "pos_opening_missing",
+                            "user": user,
+                            "pos_profile": pos_profile
+                        })
                     frappe.throw(
                         _('No active POS Opening found for profile {0}. Please open a POS session first.').format(pos_profile),
                         frappe.ValidationError
