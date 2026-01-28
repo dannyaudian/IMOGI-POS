@@ -50,8 +50,15 @@ function CounterPOSContent({ initialState }) {
   }
   const orderType = MODE_TO_ORDER_TYPE[mode]
   
-  // useOrderHistory now takes posProfile as primary param
-  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(effectivePosProfile, effectiveBranch, orderType)
+  // CRITICAL FIX: Only fetch orders after guard passes
+  // This prevents 417 errors from calling API before operational context is set
+  const shouldFetchOrders = guardPassed && effectivePosProfile
+  
+  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
+    shouldFetchOrders ? effectivePosProfile : null,  // Pass null if guard not passed
+    shouldFetchOrders ? effectiveBranch : null,
+    shouldFetchOrders ? orderType : null
+  )
   
   // State management
   const [selectedOrder, setSelectedOrder] = useState(null)

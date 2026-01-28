@@ -55,19 +55,23 @@ export async function callImogiAPI(method, args = {}) {
  * Billing API hooks
  */
 export function useOrderHistory(posProfile, branch = null, orderType = null) {
+  // CRITICAL FIX: Don't make API call if posProfile is null (guard not passed yet)
+  // This prevents 417 errors when operational context isn't set
+  const shouldFetch = posProfile != null
+  
   // pos_profile is now primary, branch is optional for backward compatibility
-  const params = { pos_profile: posProfile }
-  if (branch) {
+  const params = shouldFetch ? { pos_profile: posProfile } : null
+  if (shouldFetch && branch) {
     params.branch = branch  // Deprecated: for backward compatibility only
   }
-  if (orderType) {
+  if (shouldFetch && orderType) {
     params.order_type = orderType
   }
   
   return useFrappeGetCall(
     'imogi_pos.api.billing.list_orders_for_cashier',
     params,
-    `order-history-${posProfile}-${orderType || 'all'}`,
+    shouldFetch ? `order-history-${posProfile}-${orderType || 'all'}` : null,  // null key = no fetch
     {
       revalidateOnFocus: false,
       refreshInterval: 30000 // Auto refresh every 30 seconds
