@@ -19,7 +19,7 @@ function KitchenContent({ initialState }) {
     posProfile,
     branch,
     redirectToModuleSelect
-  } = usePOSProfileGuard({ requiresOpening: false })
+  } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-kitchen' })
   
   // Fallback to initialState for backward compatibility
   const kitchen = initialState.kitchen || 'Main Kitchen'

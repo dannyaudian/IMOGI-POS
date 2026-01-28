@@ -19,7 +19,7 @@ function WaiterContent({ initialState }) {
     profileData,
     branch,
     redirectToModuleSelect
-  } = usePOSProfileGuard({ requiresOpening: false })
+  } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-waiter' })
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || null

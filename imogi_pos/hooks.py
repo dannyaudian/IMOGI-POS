@@ -153,39 +153,44 @@ on_login_fail = [
 
 # Website route redirects for new architecture
 website_route_rules = [
-    # Entry Points
+    # Entry Points - DEPRECATED: Use /app/imogi-module-select instead
     {"from_route": "/shared/login", "to_route": "/shared/login"},
-    {"from_route": "/shared/module-select", "to_route": "/shared/module-select"},
-    {"from_route": "/shared/module_select", "to_route": "/shared/module-select"},  # Handle underscore variant
+    {"from_route": "/shared/module-select", "to_route": "/app/imogi-module-select"},
+    {"from_route": "/shared/module_select", "to_route": "/app/imogi-module-select"},
     
-    # POS Applications (operational)
-    {"from_route": "/counter/pos", "to_route": "/counter/pos"},
-    {"from_route": "/restaurant/kitchen", "to_route": "/restaurant/kitchen"},
-    {"from_route": "/restaurant/waiter", "to_route": "/restaurant/waiter"},
-    {"from_route": "/restaurant/tables", "to_route": "/restaurant/tables"},
-    {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},
-    {"from_route": "/devices/displays", "to_route": "/devices/displays"},
+    # POS Applications (operational) - HYBRID: Desk pages only
+    # Deleted: /counter/pos → Use /app/imogi-cashier
+    # Deleted: /restaurant/waiter → Use /app/imogi-waiter  
+    # Deleted: /restaurant/kitchen → Use /app/imogi-kitchen
+    # Deleted: /restaurant/tables → Use /app/imogi-tables
+    # Deleted: /devices/displays → Use /app/imogi-displays
+    {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},  # Guest access - WWW only
     
     # Tools & Editors (admin/manager only)
     {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
     {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
-    {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},  # Handle capital variant
+    {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},
     
-    # Legacy/Deprecated Routes - redirect to new locations
+    # Legacy/Deprecated Routes - redirect to new desk pages
+    {"from_route": "/counter/pos", "to_route": "/app/imogi-cashier"},
+    {"from_route": "/restaurant/waiter", "to_route": "/app/imogi-waiter"},
+    {"from_route": "/restaurant/kitchen", "to_route": "/app/imogi-kitchen"},
+    {"from_route": "/restaurant/tables", "to_route": "/app/imogi-tables"},
+    {"from_route": "/devices/displays", "to_route": "/app/imogi-displays"},
     {"from_route": "/devices/customer-display-editor", "to_route": "/customer_display_editor"},
     {"from_route": "/devices/table-display-editor", "to_route": "/table_layout_editor"},
     
-    # Friendly Aliases
+    # Friendly Aliases → Desk Pages
     {"from_route": "/imogi-login", "to_route": "/shared/login"},
-    {"from_route": "/module-select", "to_route": "/shared/module-select"},
-    {"from_route": "/module_select", "to_route": "/shared/module-select"},  # Handle underscore variant
-    {"from_route": "/cashier-console", "to_route": "/counter/pos"},
-    {"from_route": "/kitchen_display", "to_route": "/restaurant/kitchen"},
-    {"from_route": "/waiter_order", "to_route": "/restaurant/waiter"},
-    {"from_route": "/create-order", "to_route": "/restaurant/waiter"},
-    {"from_route": "/kiosk", "to_route": "/restaurant/waiter?mode=kiosk"},
-    {"from_route": "/table_display", "to_route": "/restaurant/tables"},
-    {"from_route": "/customer-display", "to_route": "/devices/displays"},
+    {"from_route": "/module-select", "to_route": "/app/imogi-module-select"},
+    {"from_route": "/module_select", "to_route": "/app/imogi-module-select"},
+    {"from_route": "/cashier-console", "to_route": "/app/imogi-cashier"},
+    {"from_route": "/kitchen_display", "to_route": "/app/imogi-kitchen"},
+    {"from_route": "/waiter_order", "to_route": "/app/imogi-waiter"},
+    {"from_route": "/create-order", "to_route": "/app/imogi-waiter"},
+    {"from_route": "/kiosk", "to_route": "/app/imogi-waiter?mode=kiosk"},
+    {"from_route": "/table_display", "to_route": "/app/imogi-tables"},
+    {"from_route": "/customer-display", "to_route": "/app/imogi-displays"},
     {"from_route": "/customer-display-editor", "to_route": "/customer_display_editor"},
     {"from_route": "/table-display-editor", "to_route": "/table_layout_editor"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},

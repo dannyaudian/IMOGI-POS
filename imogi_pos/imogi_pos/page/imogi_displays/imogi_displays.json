@@ -7,18 +7,15 @@
  "modified": "2025-01-30 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "IMOGI POS",
- "name": "imogi-module-select",
+ "name": "imogi-displays",
  "owner": "Administrator",
- "page_name": "imogi-module-select",
+ "page_name": "imogi-displays",
  "roles": [
   {
-   "role": "Cashier"
+   "role": "Guest"
   },
   {
    "role": "Waiter"
-  },
-  {
-   "role": "Kitchen Staff"
   },
   {
    "role": "Restaurant Manager"
@@ -32,5 +29,5 @@
  ],
  "standard": "Yes",
  "system_page": 0,
- "title": "Module Select"
+ "title": "Customer Display"
 }

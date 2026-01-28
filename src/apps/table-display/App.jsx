@@ -1,20 +1,36 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useTables } from '@/shared/api/imogi-api'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 
 function TableDisplayContent({ initialState }) {
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
-  const branch = initialState.branch || 'Default'
   
-  const { data: tables, error, isLoading } = useTables(branch)
+  // POS Profile guard - table display doesn't require opening, just profile
+  const {
+    isLoading: guardLoading,
+    guardPassed,
+    posProfile,
+    branch,
+    redirectToModuleSelect
+  } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-tables' })
+  
+  // Fallback to initialState for backward compatibility
+  const effectiveBranch = branch || initialState.branch || 'Default'
+  
+  const { data: tables, error, isLoading } = useTables(effectiveBranch)
 
-  if (authLoading) {
+  if (authLoading || guardLoading) {
     return <LoadingSpinner message="Authenticating..." />
   }
 
   if (authError || !hasAccess) {
     return <ErrorMessage error={authError || 'Access denied - Waiter or Manager role required'} />
+  }
+  
+  if (!guardPassed) {
+    return <LoadingSpinner message="Checking operational context..." />
   }
 
   if (isLoading) {
