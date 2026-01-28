@@ -269,14 +269,18 @@ function App() {
       timestamp: new Date().toISOString()
     })
     
+    // Add timestamp to force reload on target page (prevents stale data)
+    const separator = url.search ? '&' : '?'
+    const urlWithReload = url.pathname + url.search + `${separator}_reload=${Date.now()}`
+    
     // Use deskNavigate for SPA transition (preserves module-select state)
-    deskNavigate(url.pathname + url.search, {
+    deskNavigate(urlWithReload, {
       logPrefix: `[module-select → ${module.type}]`
     })
     
     // Log after navigation call
     console.log('🚀 [ROUTE TRANSITION END] deskNavigate called', {
-      to_route: url.pathname,
+      to_route: urlWithReload,
       frappe_current_route_after: frappe.get_route_str(),
       timestamp: new Date().toISOString()
     })

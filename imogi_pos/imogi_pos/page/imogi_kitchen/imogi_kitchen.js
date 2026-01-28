@@ -45,10 +45,15 @@ frappe.pages['imogi-kitchen'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-kitchen'].on_page_show = function(wrapper) {
+	// Check if this is a fresh navigation from module-select (has _reload param)
+	const urlParams = new URLSearchParams(window.location.search);
+	const shouldReload = urlParams.has('_reload');
+	
 	console.log('🟢 [DESK PAGE SHOW] Kitchen', {
 		route: frappe.get_route_str(),
 		timestamp: new Date().toISOString(),
-		isBackNavigation: window.performance && window.performance.navigation.type === 2
+		isBackNavigation: window.performance && window.performance.navigation.type === 2,
+		shouldReload: shouldReload
 	});
 	
 	// Get container reference from wrapper
@@ -62,7 +67,15 @@ frappe.pages['imogi-kitchen'].on_page_show = function(wrapper) {
 
 	// Load React widget directly - let React handle operational context checking
 	// React usePOSProfileGuard will handle redirect to module-select if needed
-	loadReactWidget(container, page);
+	// Force reload if _reload param exists (fresh navigation from module-select)
+	loadReactWidget(container, page, shouldReload);
+	
+	// Clean up _reload param from URL to avoid reload loops
+	if (shouldReload) {
+		urlParams.delete('_reload');
+		const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+		window.history.replaceState({}, '', cleanUrl);
+	}
 };
 
 function loadReactWidget(container, page, forceReload = false) {
