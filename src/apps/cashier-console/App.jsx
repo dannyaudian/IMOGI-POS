@@ -127,10 +127,6 @@ function CounterPOSContent({ initialState }) {
     return <LoadingSpinner message="Verifying POS opening..." />
   }
 
-  if (!effectivePosProfile) {
-    return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
-  }
-
   // Event handlers
   const handleSelectOrder = (order) => {
     setSelectedOrder(order)

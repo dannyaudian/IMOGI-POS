@@ -39,10 +39,6 @@ function KioskContent({ initialState }) {
     return <LoadingSpinner message="Loading..." />
   }
 
-  if (!effectivePosProfile) {
-    return <ErrorMessage error="POS Profile selection required for kiosk mode." />
-  }
-
   return (
     <div className="imogi-app">
       <AppHeader title={`Self-Service Kiosk - ${serviceType}`} user="Guest" />

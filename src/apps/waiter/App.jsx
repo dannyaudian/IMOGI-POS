@@ -90,10 +90,6 @@ function WaiterContent({ initialState }) {
     return <LoadingSpinner message="Verifying access..." />
   }
 
-  if (!effectivePosProfile) {
-    return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
-  }
-
   // Get unique categories
   const categories = items && items.length > 0
     ? [...new Set(items.map(item => item.item_group).filter(Boolean))]
