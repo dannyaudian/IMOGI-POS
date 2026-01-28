@@ -26,33 +26,42 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 	page.main.html('');
 	page.main.append(container);
 
+	// Store container reference in wrapper for Phase 4 safety
+	page.wrapper.__imogiModuleSelectRoot = container[0];
+
 	// Load React bundle and mount widget
 	loadReactWidget(container, page);
 };
 
-frappe.pages['imogi-module-select'].on_page_show = function() {
+frappe.pages['imogi-module-select'].on_page_show = function(wrapper) {
 	// Page shown - widget already mounted
 	console.count('[Desk] Module Select page shown');
 	
-	// Phase 4: Restore UI visibility
-	const container = document.querySelector('#imogi-module-select-root');
+	// Phase 4: Restore UI visibility using wrapper reference
+	const container = wrapper.__imogiModuleSelectRoot;
 	if (container) {
 		container.style.display = '';
 		console.log('[Desk] Module Select UI restored (display reset)');
 	}
+	
+	// Set active flag for portal rendering
+	window.__imogiModuleSelectActive = true;
 };
 
-frappe.pages['imogi-module-select'].on_page_hide = function() {
+frappe.pages['imogi-module-select'].on_page_hide = function(wrapperwrapper) {
 	// Page hidden - keep widget mounted (preserve state)
 	// Note: Frappe may reuse the same page instance, so we don't unmount
 	console.count('[Desk] Module Select page hidden');
 	
-	// Phase 4: Hide UI to prevent DOM overlay/clash with other pages
-	const container = document.querySelector('#imogi-module-select-root');
+	// Phase 4: Hide UI to prevent DOM overlay/clash (using wrapper reference)
+	const container = wrapper.__imogiModuleSelectRoot;
 	if (container) {
 		container.style.display = 'none';
 		console.log('[Desk] Module Select UI hidden (display:none)');
 	}
+	
+	// Set inactive flag for portal cleanup
+	window.__imogiModuleSelectActive = false;
 	
 	// Optional: Uncomment below to force unmount on hide (may cause state loss)
 	// if (container && window.imogiModuleSelectUnmount) {

@@ -18,22 +18,26 @@
   to_route: "/app/imogi-cashier",
   module_type: "cashier",
   module_name: "Cashier Console",
-  script_tags_total: 1,
-  module_select_scripts: 1,
+  scripts_by_app: { "module-select": 1 },  // ← UPDATED: byApp map
+  scripts_total: 1,
   timestamp: "2026-01-28T..."
 }
+[module-select → cashier] Navigating to: { ... }  // ← NEW: deskNavigate log
 
-// On cashier load:
+// On cashier load (SPA transition, no reload):
 [Desk] Cashier page on_page_load: 1
 📍 [ROUTE LOADED] Cashier Console mounted {
   current_route: "/app/imogi-cashier",
-  script_tags_total: 2,  // module-select + cashier-console
-  cashier_console_scripts: 1,
+  scripts_by_app: {  // ← UPDATED: byApp map shows both
+    "module-select": 1,
+    "cashier-console": 1
+  },
+  scripts_total: 2,
   initial_state: true,
   timestamp: "2026-01-28T..."
 }
 
-// On navigate back:
+// On navigate back (SPA, no reload):
 [Desk] Module Select page shown: 1
 [Desk] Module Select UI restored (display reset)
 ```
@@ -41,8 +45,9 @@
 **Verification:**
 - ✅ Module-select → cashier transition logged with emoji 🚀
 - ✅ Cashier mount logged with emoji 📍
-- ✅ Script tag count = 2 (both bundles loaded)
-- ✅ Module-select UI restored when navigating back
+- ✅ **NEW:** `scripts_by_app` map shows per-app count
+- ✅ **NEW:** Navigation uses SPA (no full reload)
+- ✅ Module-select state preserved (count persists)
 
 ---
 
@@ -78,13 +83,14 @@
 // After hard reload:
 [Desk] Cashier page on_page_load: 1  // Counter resets
 📍 [ROUTE LOADED] Cashier Console mounted {
-  script_tags_total: 1,  // Only cashier script (module-select gone)
-  cashier_console_scripts: 1
+  scripts_by_app: { "cashier-console": 1 },  // ← Only cashier (module-select gone)
+  scripts_total: 1,
 }
 ```
 
 **Verification:**
 - ✅ Script tag count = 1 (old bundle removed on reload)
+- ✅ `scripts_by_app` only shows cashier-console
 - ✅ No stale module-select script tags
 - ✅ Page functions normally after reload
 
@@ -190,6 +196,12 @@ document.getElementById('imogi-module-select-root').style.display
 **Debug:**
 ```javascript
 [...document.querySelectorAll('script[data-imogi-app]')].map(s => s.dataset.imogiApp)
+
+// NEW: Check byApp count manually
+const scripts = [...document.querySelectorAll('script[data-imogi-app]')]
+const byApp = scripts.reduce((a,s)=>((a[s.dataset.imogiApp]=(a[s.dataset.imogiApp]||0)+1),a),{})
+console.log(byApp)
+// Expected: { "module-select": 1, "cashier-console": 1 }
 // Should show array like: ['module-select', 'cashier-console']
 ```
 **Fix:** Check manifest.json build output, verify data attributes

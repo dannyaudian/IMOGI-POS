@@ -729,9 +729,10 @@ body {
 
 /* Module Locked State */
 .module-card.module-locked {
-  opacity: 0.6;
+  opacity: 0.9; /* Changed from 0.6 to make it more visible */
   cursor: not-allowed;
-  background-color: #f8f9fa;
+  background-color: #ffffff; /* Changed from #f8f9fa to keep white background */
+  position: relative;
 }
 
 .module-card.module-locked:hover {
@@ -741,7 +742,7 @@ body {
 }
 
 .module-card.module-locked::before {
-  background-color: #bdc3c7;
+  background-color: #95a5a6; /* Lighter gray for locked indicator */
 }
 
 .module-card.module-locked:hover::before {

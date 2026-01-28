@@ -17,13 +17,17 @@ import './App.css'
 function CounterPOSContent({ initialState }) {
   // Phase 5: Route transition instrumentation on mount
   useEffect(() => {
-    const scriptTagCount = document.querySelectorAll('script[data-imogi-app]').length
-    const cashierScripts = document.querySelectorAll('script[data-imogi-app="cashier-console"]').length
+    const scripts = [...document.querySelectorAll('script[data-imogi-app]')]
+    const byApp = scripts.reduce((acc, s) => {
+      const app = s.dataset.imogiApp
+      acc[app] = (acc[app] || 0) + 1
+      return acc
+    }, {})
     
     console.log('📍 [ROUTE LOADED] Cashier Console mounted', {
       current_route: window.location.pathname,
-      script_tags_total: scriptTagCount,
-      cashier_console_scripts: cashierScripts,
+      scripts_by_app: byApp,
+      scripts_total: scripts.length,
       initial_state: !!initialState,
       timestamp: new Date().toISOString()
     })

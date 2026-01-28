@@ -6,6 +6,7 @@ import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
 import POSProfileSelectModal from './components/POSProfileSelectModal'
+import { deskNavigate } from '../../shared/utils/deskNavigate'
 
 function App() {
   const [modules, setModules] = useState([])
@@ -251,26 +252,31 @@ function App() {
       return
     }
 
+    // Normalize to path + search (handle both relative and absolute URLs)
     const url = new URL(base, window.location.origin)
     
-    // Phase 5: Route transition instrumentation
-    const scriptTagCount = document.querySelectorAll('script[data-imogi-app]').length
-    const moduleSelectScripts = document.querySelectorAll('script[data-imogi-app="module-select"]').length
+    // Phase 5: Route transition instrumentation with byApp counting
+    const scripts = [...document.querySelectorAll('script[data-imogi-app]')]
+    const byApp = scripts.reduce((acc, s) => {
+      const app = s.dataset.imogiApp
+      acc[app] = (acc[app] || 0) + 1
+      return acc
+    }, {})
     
     console.log('🚀 [ROUTE TRANSITION] Module-select → ' + module.name, {
       from_route: window.location.pathname,
       to_route: url.pathname,
       module_type: module.type,
       module_name: module.name,
-      base_url: base,
-      full_url: url.toString(),
-      script_tags_total: scriptTagCount,
-      module_select_scripts: moduleSelectScripts,
+      scripts_by_app: byApp,
+      scripts_total: scripts.length,
       timestamp: new Date().toISOString()
     })
     
-    // Use full URL to preserve query strings and hash
-    window.location.href = url.toString()
+    // Use deskNavigate for SPA transition (preserves module-select state)
+    deskNavigate(url.pathname + url.search, {
+      logPrefix: `[module-select → ${module.type}]`
+    })
   }
 
   const setOperationalContext = async (posProfile, branchOverride) => {
