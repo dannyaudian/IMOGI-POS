@@ -36,11 +36,15 @@ export function usePOSProfileGuard(options = {}) {
     contextRequired,
     hasAccess,
     isLoading: contextLoading,
-    error: contextError
+    error: contextError,
+    refetch
   } = useOperationalContext()
   
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [guardPassed, setGuardPassed] = useState(false)
+  const [contextRetries, setContextRetries] = useState(0)
+  const MAX_CONTEXT_RETRIES = 3
+  const RETRY_DELAY_MS = 300
   
   // Fetch POS Opening Entry if required
   const { data: posOpening, isLoading: openingLoading } = useFrappeGetCall(
@@ -61,7 +65,9 @@ export function usePOSProfileGuard(options = {}) {
       contextRequired,
       needsSelection,
       hasOpening: !!posOpening,
-      posOpeningEntry: posOpening?.pos_opening_entry
+      posOpeningEntry: posOpening?.pos_opening_entry,
+      contextRetries,
+      maxRetries: MAX_CONTEXT_RETRIES
     })
     
     // Still loading
@@ -70,9 +76,10 @@ export function usePOSProfileGuard(options = {}) {
       return
     }
     
-    // No POS Profile available
+    // No POS Profile available (no access, no profiles)
     if (contextRequired && !pos_profile && available_profiles.length === 0 && !hasAccess) {
       console.log('[usePOSProfileGuard] No POS Profile available, redirecting...')
+      console.trace('🔍 [REDIRECT SOURCE] usePOSProfileGuard → No POS Profile available')
       if (autoRedirect) {
         const redirectUrl = targetModule 
           ? `${MODULE_SELECT_URL}?reason=missing_pos_profile&target=${targetModule}`
@@ -84,23 +91,50 @@ export function usePOSProfileGuard(options = {}) {
     }
     
     // No current profile selected but profiles are available
+    // FIX: Retry context fetch before redirecting (handles race condition)
     if (contextRequired && !pos_profile && available_profiles.length > 0 && needsSelection) {
-      console.log('[usePOSProfileGuard] No POS Profile selected but profiles available, redirecting...')
+      // Haven't maxed retries yet → retry context fetch
+      if (contextRetries < MAX_CONTEXT_RETRIES) {
+        console.log(`[usePOSProfileGuard] Context not ready, retrying (${contextRetries + 1}/${MAX_CONTEXT_RETRIES})`)
+        const retryTimer = setTimeout(() => {
+          setContextRetries(prev => prev + 1)
+          if (refetch) {
+            console.log('[usePOSProfileGuard] Re-fetching operational context...')
+            refetch()
+          }
+        }, RETRY_DELAY_MS)
+        return () => clearTimeout(retryTimer)
+      }
+      
+      // Max retries reached → now redirect
+      console.warn(`[usePOSProfileGuard] Max retries (${MAX_CONTEXT_RETRIES}) reached, redirecting to module-select`)
+      console.trace('🔍 [REDIRECT SOURCE] usePOSProfileGuard → Max retries reached')
       if (autoRedirect) {
         const redirectUrl = targetModule 
           ? `${MODULE_SELECT_URL}?reason=missing_pos_profile&target=${targetModule}`
           : MODULE_SELECT_URL
-        console.log('[POSProfileGuard] No POS Profile selected, redirecting to:', redirectUrl)
+        console.log('[POSProfileGuard] Redirecting to:', redirectUrl)
         window.location.href = redirectUrl
       }
       return
+    }
+    
+    // Profile found → reset retry counter
+    if (pos_profile && contextRetries > 0) {
+      console.log('[usePOSProfileGuard] ✅ Context resolved after retries:', {
+        pos_profile,
+        retriesTaken: contextRetries
+      })
+      setContextRetries(0)
     }
     
     // Check opening requirement
     if (requiresOpening && pos_profile) {
       console.log('[usePOSProfileGuard] Checking opening requirement:', {
         pos_profile,
-        hasOpening: !!posOpening,
+        hasOp,
+    contextRetries,
+    refetchening: !!posOpening,
         posOpeningEntry: posOpening?.pos_opening_entry
       })
       
@@ -144,6 +178,7 @@ export function usePOSProfileGuard(options = {}) {
   
   // Handle opening modal cancel - redirect to module-select
   const handleOpeningCancel = useCallback(() => {
+    console.trace('🔍 [REDIRECT SOURCE] POSOpeningModal → User cancelled')
     window.location.href = MODULE_SELECT_URL
   }, [])
   

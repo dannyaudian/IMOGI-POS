@@ -116,6 +116,7 @@ function CounterPOSContent({ initialState }) {
     if (!guardLoading && !authLoading && !guardPassed && !showOpeningModal) {
       const timeout = setTimeout(() => {
         console.error('POS Profile guard failed - redirecting to module select')
+        console.trace('🔍 [REDIRECT SOURCE] Cashier App.jsx → Guard timeout fallback')
         window.location.href = '/app/imogi-module-select'
       }, 10000)
       return () => clearTimeout(timeout)

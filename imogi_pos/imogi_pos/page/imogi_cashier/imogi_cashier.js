@@ -32,11 +32,13 @@ function checkOperationalContext(container, page) {
 	frappe.call({
 		method: 'imogi_pos.utils.operational_context.get_operational_context',
 		callback: function(r) {
-			if (r.message && r.message.pos_profile) {
+			if (r.message && r.message.current_pos_profile) {
 				// Context exists - load widget
+				console.log('[Desk] Context check passed, loading cashier widget...');
 				loadReactWidget(container, page);
 			} else {
 				// No context - redirect to module-select with reason
+				console.warn('[Desk] No context found, redirecting to module-select');
 				const reason = 'missing_pos_profile';
 				const target = 'imogi-cashier';
 				frappe.set_route('imogi-module-select', { reason, target });
