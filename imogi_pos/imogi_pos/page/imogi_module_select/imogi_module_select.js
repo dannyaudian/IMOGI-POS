@@ -46,12 +46,14 @@ function loadReactWidget(container, page) {
 	}
 
 	// Load React bundle
-	const manifestPath = '/assets/imogi_pos/react/module-select/.vite/manifest.json';
-	
-	fetch(manifestPath)
-		.then(res => res.json())
+	const manifestCandidates = [
+		'/assets/imogi_pos/react/module-select/manifest.json',
+		'/assets/imogi_pos/react/module-select/.vite/manifest.json'
+	];
+
+	fetchManifest(manifestCandidates)
 		.then(manifest => {
-			const entry = manifest['main.jsx'];
+			const entry = findManifestEntry(manifest);
 			if (!entry) {
 				throw new Error('Entry point not found in manifest');
 			}
@@ -91,6 +93,36 @@ function loadReactWidget(container, page) {
 			console.error('[Desk] Failed to load module-select bundle:', error);
 			showBundleError(container, 'module-select');
 		});
+}
+
+function fetchManifest(candidates) {
+	const [current, ...rest] = candidates;
+	if (!current) {
+		return Promise.reject(new Error('No manifest paths available'));
+	}
+
+	return fetch(current).then(response => {
+		if (!response.ok) {
+			if (rest.length === 0) {
+				throw new Error(`Manifest not found: ${current}`);
+			}
+			return fetchManifest(rest);
+		}
+		return response.json();
+	});
+}
+
+function findManifestEntry(manifest) {
+	if (!manifest) {
+		return null;
+	}
+
+	if (manifest['main.jsx']) {
+		return manifest['main.jsx'];
+	}
+
+	const entries = Object.values(manifest);
+	return entries.find((entry) => entry && entry.isEntry) || null;
 }
 
 function mountWidget(container, page) {
