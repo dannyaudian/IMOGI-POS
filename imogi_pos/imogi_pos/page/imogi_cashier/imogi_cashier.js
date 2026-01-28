@@ -154,12 +154,12 @@ function mountWidget(container, page) {
 			csrf_token: frappe.session.csrf_token
 		};
 
-		safeMount(window.imogiCashierMount, container[0], { initialState });
+		safeMount(window.imogiCashierMount, container, { initialState });
 		console.log('[Desk] Cashier React mounted');
 
 	} catch (error) {
 		console.error('[Desk] Failed to mount cashier-console widget:', error);
-		showMountError(container, error);
+		showMountError($(container), error);
 	}
 }
 
