@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { apiCall } from '@/shared/utils/api'
 
 /**
  * useQRISPayment Hook
@@ -49,15 +50,14 @@ export function useQRISPayment() {
     // In production, this would poll QRIS provider API
     // For now, we return mock status
     try {
-      const response = await frappe.call({
-        method: 'imogi_pos.api.cashier.check_qris_payment',
-        args: { transaction_id: transactionId }
+      const result = await apiCall('imogi_pos.api.cashier.check_qris_payment', {
+        transaction_id: transactionId
       })
       
-      setPaymentStatus(response.message.status)
-      return response.message.status
+      setPaymentStatus(result.status)
+      return result.status
     } catch (error) {
-      console.error('Error checking payment status:', error)
+      console.error('[imogi][qris] Error checking payment status:', error)
       return 'pending'
     }
   }, [])

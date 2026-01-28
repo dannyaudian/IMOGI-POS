@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { apiCall } from '@/shared/utils/api'
 
 /**
  * CustomerInfo Component
@@ -31,22 +32,19 @@ export function CustomerInfo({
 
     setSearching(true)
     try {
-      const results = await frappe.call({
-        method: 'frappe.client.get_list',
-        args: {
-          doctype: 'Customer',
-          filters: [
-            ['customer_name', 'like', `%${term}%`],
-            ['OR'],
-            ['mobile_no', 'like', `%${term}%`]
-          ],
-          fields: ['name', 'customer_name', 'mobile_no', 'email'],
-          limit: 10
-        }
+      const results = await apiCall('frappe.client.get_list', {
+        doctype: 'Customer',
+        filters: [
+          ['customer_name', 'like', `%${term}%`],
+          ['OR'],
+          ['mobile_no', 'like', `%${term}%`]
+        ],
+        fields: ['name', 'customer_name', 'mobile_no', 'email'],
+        limit: 10
       })
-      setSearchResults(results.message || [])
+      setSearchResults(results || [])
     } catch (error) {
-      console.error('Error searching customers:', error)
+      console.error('[imogi][customer] Error searching customers:', error)
     } finally {
       setSearching(false)
     }
@@ -71,34 +69,36 @@ export function CustomerInfo({
     }
 
     try {
-      const customer = await frappe.call({
-        method: 'frappe.client.insert',
-        args: {
-          doc: {
-            doctype: 'Customer',
-            customer_name: newCustomer.customer_name,
-            mobile_no: newCustomer.mobile_no,
-            email: newCustomer.email,
-            customer_type: 'Individual',
-            customer_group: 'Individual'
-          }
+      const customer = await apiCall('frappe.client.insert', {
+        doc: {
+          doctype: 'Customer',
+          customer_name: newCustomer.customer_name,
+          mobile_no: newCustomer.mobile_no,
+          email: newCustomer.email,
+          customer_type: 'Individual',
+          customer_group: 'Individual'
         }
       })
 
-      if (customer.message) {
-        onCustomerCreate(customer.message)
+      if (customer) {
+        onCustomerCreate(customer)
         setShowCreateForm(false)
         setNewCustomer({ customer_name: '', mobile_no: '', email: '' })
-        frappe.show_alert({
-          message: 'Customer created successfully',
-          indicator: 'green'
-        })
+        if (window.frappe && window.frappe.show_alert) {
+          frappe.show_alert({
+            message: 'Customer created successfully',
+            indicator: 'green'
+          })
+        }
       }
     } catch (error) {
-      frappe.show_alert({
-        message: 'Error creating customer',
-        indicator: 'red'
-      })
+      console.error('[imogi][customer] Error creating customer:', error)
+      if (window.frappe && window.frappe.show_alert) {
+        frappe.show_alert({
+          message: 'Error creating customer',
+          indicator: 'red'
+        })
+      }
     }
   }
 
