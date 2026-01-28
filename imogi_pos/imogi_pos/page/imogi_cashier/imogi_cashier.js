@@ -1,15 +1,19 @@
 /**
  * IMOGI Cashier Console - True Hybrid Desk Page
  * 
- * This page mounts the React cashier-console widget directly in Frappe Desk.
- * NO redirect to WWW - unified desk world.
+ * CRITICAL FIX: React mounting moved to on_page_show for SPA routing.
  * 
- * GATE: Checks operational context, redirects to module-select if missing.
+ * WHY: Frappe's on_page_load only runs ONCE per session. Subsequent route
+ * transitions (module-select → cashier) only trigger on_page_show.
+ * Without this fix, first navigation fails to mount React (double-click needed).
+ * 
+ * ARCHITECTURE:
+ * - on_page_load: One-time DOM setup (page structure)
+ * - on_page_show: React mounting logic (runs every navigation)
  */
 
 frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
-	// Phase 5: Log page load event
-	console.count('[Desk] Cashier page on_page_load');
+	console.count('[Desk] Cashier on_page_load (one-time setup)');
 	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
@@ -17,15 +21,32 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
-	// Create container for React widget
+	// Create container for React widget (one-time)
 	const container = $(document.createElement('div'));
 	container.attr('id', 'imogi-cashier-root');
 	container.attr('style', 'width: 100%; height: calc(100vh - 60px); overflow: auto;');
 	page.main.html('');
 	page.main.append(container);
 
+	// Store references in wrapper for on_page_show access
+	wrapper.__imogiCashierPage = page;
+	wrapper.__imogiCashierRoot = container[0];
+};
+
+frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
+	console.log('[Desk] Cashier page shown');
+	
+	// Get container reference from wrapper
+	const container = wrapper.__imogiCashierRoot;
+	const page = wrapper.__imogiCashierPage;
+	
+	if (!container) {
+		console.error('[Desk] Cashier container not found - on_page_load not run?');
+		return;
+	}
+
 	// Check operational context before loading widget
-	checkOperationalContext(container, page);
+	checkOperationalContext($(container), page);
 };
 
 function checkOperationalContext(container, page) {
@@ -64,9 +85,11 @@ function loadReactWidget(container, page) {
 	fetch(manifestPath)
 		.then(res => res.json())
 		.then(manifest => {
-			const entry = manifest['main.jsx'];
-			if (!entry) {
-				throw new Error('Entry point not found in manifest');
+			// Vite manifest key is the full source path
+			const entry = manifest['src/apps/cashier-console/main.jsx'];
+			if (!entry || !entry.file) {
+				console.error('[Desk] Manifest structure:', manifest);
+				throw new Error('Entry point not found in manifest. Check console for manifest structure.');
 			}
 
 			const scriptUrl = `/assets/imogi_pos/react/cashier-console/${entry.file}`;
@@ -90,6 +113,8 @@ function loadReactWidget(container, page) {
 			script.type = 'module';
 			script.src = scriptUrl;
 			script.dataset.imogiApp = 'cashier-console';
+			
+			console.log('[Desk] Cashier script injected:', scriptUrl);
 			
 			script.onload = () => {
 				console.log('[Desk] cashier-console bundle loaded');
@@ -130,7 +155,7 @@ function mountWidget(container, page) {
 		};
 
 		safeMount(window.imogiCashierMount, container[0], { initialState });
-		console.log('[Desk] cashier-console widget mounted');
+		console.log('[Desk] Cashier React mounted');
 
 	} catch (error) {
 		console.error('[Desk] Failed to mount cashier-console widget:', error);
