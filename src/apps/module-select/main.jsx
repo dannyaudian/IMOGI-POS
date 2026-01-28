@@ -5,6 +5,8 @@ import App from './App'
 import '@/shared/styles/global.css'
 
 // Expose mount/unmount functions for Desk page integration
+const MODULE_SELECT_ROOT_KEY = '__imogiModuleSelectRoot'
+
 window.imogiModuleSelectMount = function(element, options = {}) {
   if (!(element instanceof HTMLElement)) {
     console.error('[module-select] Mount target must be an HTMLElement.', element)
@@ -12,8 +14,12 @@ window.imogiModuleSelectMount = function(element, options = {}) {
   }
 
   const state = options.initialState || window.__INITIAL_STATE__ || {}
-  const root = ReactDOM.createRoot(element)
-  root.render(
+
+  if (!element[MODULE_SELECT_ROOT_KEY]) {
+    element[MODULE_SELECT_ROOT_KEY] = ReactDOM.createRoot(element)
+  }
+
+  element[MODULE_SELECT_ROOT_KEY].render(
     <React.StrictMode>
       <FrappeProvider
         url={window.location.origin}
@@ -23,8 +29,7 @@ window.imogiModuleSelectMount = function(element, options = {}) {
       </FrappeProvider>
     </React.StrictMode>
   )
-  element._reactRoot = root
-  return root
+  return element[MODULE_SELECT_ROOT_KEY]
 }
 
 window.imogiModuleSelectUnmount = function(element) {
@@ -33,8 +38,8 @@ window.imogiModuleSelectUnmount = function(element) {
     return
   }
 
-  if (element._reactRoot) {
-    element._reactRoot.unmount()
-    element._reactRoot = null
+  if (element[MODULE_SELECT_ROOT_KEY]) {
+    element[MODULE_SELECT_ROOT_KEY].unmount()
+    element[MODULE_SELECT_ROOT_KEY] = null
   }
 }
