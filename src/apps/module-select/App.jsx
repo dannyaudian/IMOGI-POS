@@ -37,7 +37,7 @@ function App() {
     if (reason === 'missing_pos_profile' && target && modules.length > 0) {
       // Find the target module
       const targetModule = modules.find(m => m.type === target.replace('imogi-', ''))
-      if (targetModule && targetModule.requires_pos_profile && contextData.available_pos_profiles.length > 0) {
+      if (targetModule && targetModule.requires_pos_profile && contextState.available_pos_profiles.length > 0) {
         // Auto-open profile selection modal
         console.log('[Module Select] Auto-opening profile modal for:', target)
         setPendingProfileModule(targetModule)
@@ -47,7 +47,7 @@ function App() {
         window.history.replaceState({}, '', window.location.pathname)
       }
     }
-  }, [modules, contextData.available_pos_profiles])
+  }, [modules, contextState.available_pos_profiles])
 
   // Fetch available modules - no parameters needed
   const frappeContext = useContext(FrappeContext)

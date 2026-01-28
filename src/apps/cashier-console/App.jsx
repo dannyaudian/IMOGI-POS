@@ -98,7 +98,7 @@ function CounterPOSContent({ initialState }) {
     if (!guardLoading && !authLoading && !guardPassed && !showOpeningModal) {
       const timeout = setTimeout(() => {
         console.error('POS Profile guard failed - redirecting to module select')
-        window.location.href = '/shared/module-select'
+        window.location.href = '/app/imogi-module-select'
       }, 10000)
       return () => clearTimeout(timeout)
     }
@@ -118,7 +118,7 @@ function CounterPOSContent({ initialState }) {
         onSuccess={handleOpeningSuccess}
         posProfile={effectivePosProfile}
         required={true}
-        redirectOnCancel="/shared/module-select"
+        redirectOnCancel="/app/imogi-module-select"
       />
     )
   }

@@ -45,7 +45,7 @@ function App() {
         
         // Get redirect URL from query params or default
         const urlParams = new URLSearchParams(window.location.search)
-        const next = urlParams.get('next') || '/shared/module-select'
+        const next = urlParams.get('next') || '/app/imogi-module-select'
         
         // Redirect after successful login
         window.location.href = next

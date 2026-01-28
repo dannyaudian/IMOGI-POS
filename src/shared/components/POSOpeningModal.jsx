@@ -26,7 +26,7 @@ export function POSOpeningModal({
   onSuccess,
   posProfile,
   required = false,
-  redirectOnCancel = '/shared/module-select'
+  redirectOnCancel = '/app/imogi-module-select'
 }) {
   const [openingAmount, setOpeningAmount] = useState('')
   const [modeOfPayment, setModeOfPayment] = useState('')

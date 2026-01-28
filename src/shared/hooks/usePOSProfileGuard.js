@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from './useOperationalContext'
 
-const MODULE_SELECT_URL = '/shared/module-select'
+const MODULE_SELECT_URL = '/app/imogi-module-select'
 
 /**
  * Guard hook for app entries that require POS Profile

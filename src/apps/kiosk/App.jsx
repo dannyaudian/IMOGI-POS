@@ -29,7 +29,7 @@ function KioskContent({ initialState }) {
     if (!guardLoading && !authLoading && !effectivePosProfile) {
       const timeout = setTimeout(() => {
         console.error('POS Profile required for kiosk - redirecting to module select')
-        window.location.href = '/shared/module-select'
+        window.location.href = '/app/imogi-module-select'
       }, 3000)
       return () => clearTimeout(timeout)
     }

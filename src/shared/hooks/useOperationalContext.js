@@ -180,7 +180,7 @@ export function useOperationalContext(options = {}) {
     // Check if context is required for user's role
     if (!context) {
       if (redirect) {
-        window.location.href = '/shared/module-select'
+        window.location.href = '/app/imogi-module-select'
         return null
       }
       throw new Error('Operational context required but not set')
@@ -191,7 +191,7 @@ export function useOperationalContext(options = {}) {
       if (context.require_selection) {
         // User has profiles but needs to select one
         if (redirect) {
-          window.location.href = '/shared/module-select'
+          window.location.href = '/app/imogi-module-select'
           return null
         }
         throw new Error('POS Profile selection required')
@@ -204,7 +204,7 @@ export function useOperationalContext(options = {}) {
       
       // Should not reach here
       if (redirect) {
-        window.location.href = '/shared/module-select'
+        window.location.href = '/app/imogi-module-select'
         return null
       }
       throw new Error('Operational context required')
