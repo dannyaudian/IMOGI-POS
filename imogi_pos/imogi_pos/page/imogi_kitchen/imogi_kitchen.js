@@ -75,21 +75,29 @@ function loadReactWidget(container, page) {
 				unmountFnName: 'imogiKitchenUnmount',
 				containerId: 'imogi-kitchen-root',
 				makeContainer: () => container,
-			onReadyMount: async (mountFn, containerEl) => {				// CRITICAL FIX: Wait for operational context utility to be available
-				// imogi_loader.js may not be fully loaded yet
-				await window.waitForFetchOperationalContext();
-								// CRITICAL FIX: Fetch operational context using shared utility
-				// This ensures React app receives the context that was set by module-select
-				const operationalContext = await window.fetchOperationalContext();
-				
-				const initialState = {
-					user: frappe.session.user,
-					csrf_token: frappe.session.csrf_token,
-					// Spread operational context into initialState
-					...operationalContext
-				};
-				
-				safeMount(mountFn, containerEl, { initialState });
+				onReadyMount: async (mountFn, containerEl) => {
+					// CRITICAL FIX: Wait for operational context utility to be available
+					// imogi_loader.js may not be fully loaded yet
+					if (typeof window.waitForFetchOperationalContext === 'function') {
+						await window.waitForFetchOperationalContext();
+					} else {
+						console.warn('[Kitchen] waitForFetchOperationalContext not available, using fallback');
+					}
+					
+					// CRITICAL FIX: Fetch operational context using shared utility
+					// This ensures React app receives the context that was set by module-select
+					const operationalContext = typeof window.fetchOperationalContext === 'function'
+						? await window.fetchOperationalContext()
+						: null;
+					
+					const initialState = {
+						user: frappe.session.user,
+						csrf_token: frappe.session.csrf_token,
+						// Spread operational context into initialState
+						...operationalContext
+					};
+					
+					safeMount(mountFn, containerEl, { initialState });
 				},
 				page: page,
 				logPrefix: '[Kitchen Display]'

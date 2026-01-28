@@ -85,11 +85,17 @@ function loadReactWidget(container, page) {
 				onReadyMount: async (mountFn, containerEl) => {
 					// CRITICAL FIX: Wait for operational context utility to be available
 					// imogi_loader.js may not be fully loaded yet
-					await window.waitForFetchOperationalContext();
+					if (typeof window.waitForFetchOperationalContext === 'function') {
+						await window.waitForFetchOperationalContext();
+					} else {
+						console.warn('[Waiter] waitForFetchOperationalContext not available, using fallback');
+					}
 					
 					// CRITICAL FIX: Fetch operational context using shared utility
 					// This ensures React app receives the context that was set by module-select
-					const operationalContext = await window.fetchOperationalContext();
+					const operationalContext = typeof window.fetchOperationalContext === 'function'
+						? await window.fetchOperationalContext()
+						: null;
 					
 					const initialState = {
 						user: frappe.session.user,
