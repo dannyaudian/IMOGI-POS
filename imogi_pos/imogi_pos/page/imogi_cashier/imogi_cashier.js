@@ -15,9 +15,9 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 	});
 
 	// Create container for React widget
-	const container = document.createElement('div');
-	container.id = 'imogi-cashier-root';
-	container.style.cssText = 'width: 100%; height: calc(100vh - 60px); overflow: auto;';
+	const container = $(document.createElement('div'));
+	container.attr('id', 'imogi-cashier-root');
+	container.attr('style', 'width: 100%; height: calc(100vh - 60px); overflow: auto;');
 	page.main.html('');
 	page.main.append(container);
 
@@ -107,7 +107,7 @@ function mountWidget(container, page) {
 			csrf_token: frappe.session.csrf_token
 		};
 
-		window.imogiCashierMount(container, { initialState });
+		safeMount(window.imogiCashierMount, container[0], { initialState });
 		console.log('[Desk] cashier-console widget mounted');
 
 	} catch (error) {
@@ -116,8 +116,18 @@ function mountWidget(container, page) {
 	}
 }
 
+function safeMount(mountFn, element, options) {
+	if (!(element instanceof HTMLElement)) {
+		throw new Error('Invalid mount element: expected HTMLElement for cashier-console');
+	}
+	if (typeof mountFn !== 'function') {
+		throw new Error('Cashier mount function is not available');
+	}
+	return mountFn(element, options);
+}
+
 function showBundleError(container, appName) {
-	container.innerHTML = `
+	container[0].innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
@@ -130,7 +140,7 @@ function showBundleError(container, appName) {
 }
 
 function showMountError(container, error) {
-	container.innerHTML = `
+	container[0].innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626;">
 			<h3>Widget Mount Error</h3>
 			<p>${error.message || 'Failed to mount React widget'}</p>
