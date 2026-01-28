@@ -208,7 +208,7 @@ const TESTS = [
 const PAGE_ROUTES = [
   // Entry Points
   { url: "/shared/login", name: "Login Page", roles: [] },
-  { url: "/shared/module-select", name: "Module Select", roles: [] },
+  { url: "/app/imogi-module-select", name: "Module Select", roles: [] },
   
   // POS Applications (correct routes from hooks.py)
   { url: "/counter/pos", name: "Counter POS", roles: ["Cashier", "Branch Manager", "System Manager"] },

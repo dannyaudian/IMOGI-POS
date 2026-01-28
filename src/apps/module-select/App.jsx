@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react'
-import { FrappeContext, useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
+import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -106,10 +106,6 @@ function App() {
         })
       }
     }
-  )
-
-  const { call: setContextOnServer } = useFrappePostCall(
-    'imogi_pos.utils.operational_context.set_operational_context'
   )
 
   useEffect(() => {
@@ -291,10 +287,28 @@ function App() {
     })
 
     try {
-      // Ensure we properly await the call
-      const response = await setContextOnServer({
-        pos_profile: posProfile,
-        branch: branchOverride || null
+      // Use frappe.call directly (includes CSRF token automatically)
+      const response = await new Promise((resolve, reject) => {
+        frappe.call({
+          method: 'imogi_pos.utils.operational_context.set_operational_context',
+          args: {
+            pos_profile: posProfile,
+            branch: branchOverride || null
+          },
+          callback: (r) => {
+            // Frappe sometimes sends exceptions in r.exc (status 200 but failed)
+            if (r.exc) {
+              console.error('[module-select] Server exception in response:', r.exc)
+              reject(new Error(r.exc || 'Server error'))
+            } else {
+              resolve(r)
+            }
+          },
+          error: (err) => {
+            console.error('[module-select] Network/auth error:', err)
+            reject(err)
+          }
+        })
       })
 
       console.log('[module-select] setOperationalContext raw response:', response)

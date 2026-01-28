@@ -180,7 +180,7 @@
         if (results.failed.length === 0) {
             console.log('✅ ALL TESTS PASSED! Branch fix is working correctly.');
             console.log('\nNext steps:');
-            console.log('1. Navigate to /shared/module-select');
+            console.log('1. Navigate to /app/imogi-module-select');
             console.log('2. Verify module selection UI loads correctly');
             console.log('3. Test clicking on a module (e.g., Cashier)');
         } else {

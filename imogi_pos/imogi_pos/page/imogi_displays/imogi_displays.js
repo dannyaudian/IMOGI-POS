@@ -50,6 +50,7 @@ frappe.pages['imogi-displays'].on_page_load = function(wrapper) {
 						const script = document.createElement('script');
 						script.src = jsPath;
 						script.type = 'module';
+						script.dataset.imogiApp = 'customer-display';
 						script.onload = function() {
 							mountWidget(container[0], page);
 						};

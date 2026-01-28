@@ -68,9 +68,26 @@ function loadReactWidget(container, page) {
 			}
 
 			const scriptUrl = `/assets/imogi_pos/react/cashier-console/${entry.file}`;
+			const scriptSelector = `script[data-imogi-app="cashier-console"][src="${scriptUrl}"]`;
+			const existingScript = document.querySelector(scriptSelector);
+
+			// Guard: Don't re-inject if script already exists
+			if (existingScript) {
+				console.log('[Desk] cashier-console script already loaded, re-mounting...');
+				// Script exists, just re-mount the widget
+				const checkMount = setInterval(() => {
+					if (window.imogiCashierMount) {
+						clearInterval(checkMount);
+						mountWidget(container, page);
+					}
+				}, 100);
+				return;
+			}
+
 			const script = document.createElement('script');
 			script.type = 'module';
 			script.src = scriptUrl;
+			script.dataset.imogiApp = 'cashier-console';
 			
 			script.onload = () => {
 				console.log('[Desk] cashier-console bundle loaded');

@@ -222,7 +222,7 @@ async function verifyAdminAccess() {
   console.log('----------------------------');
   
   const pagesToTest = [
-    { name: 'Module Select', url: '/shared/module-select' },
+    { name: 'Module Select', url: '/app/imogi-module-select' },
     { name: 'Counter POS', url: '/counter/pos' },
     { name: 'Kitchen Display', url: '/restaurant/kitchen' },
     { name: 'Waiter Order', url: '/restaurant/waiter' },

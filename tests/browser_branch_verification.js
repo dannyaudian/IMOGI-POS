@@ -230,7 +230,7 @@ async function verifyBranchConfig() {
     console.log('✅ Branch list is accessible');
     console.log('✅ IMOGI APIs work correctly');
     console.log('');
-    console.log('You should be able to access /shared/module-select without "No branch configured" error.');
+    console.log('You should be able to access /app/imogi-module-select without "No branch configured" error.');
   } else {
     console.error('⚠️  ISSUES FOUND:');
     results.errors.forEach((err, idx) => {

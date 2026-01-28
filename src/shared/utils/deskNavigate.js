@@ -60,7 +60,14 @@ export function deskNavigate(path, options = {}) {
       // Parse path to extract route segments
       // frappe.set_route expects: set_route('app', 'imogi-module-select')
       const pathWithoutQuery = fullUrl.split('?')[0]
-      const routeParts = pathWithoutQuery.split('/').filter(Boolean)
+      
+      // Normalize: strip leading /app/ if present (frappe.set_route adds it)
+      // e.g., '/app/imogi-cashier' → ['app', 'imogi-cashier']
+      const normalizedPath = pathWithoutQuery.startsWith('/app/') 
+        ? pathWithoutQuery.slice(1) // Remove leading '/'
+        : pathWithoutQuery
+      
+      const routeParts = normalizedPath.split('/').filter(Boolean)
       
       // If query params exist, frappe.set_route can't handle them
       // Fall back to window.location for complex URLs

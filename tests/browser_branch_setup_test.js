@@ -275,7 +275,7 @@ function displayResults(results) {
     console.log('🎉 SUCCESS! Module Select should work now.');
     console.log('');
     console.log('Next steps:');
-    console.log('1. Navigate to: /shared/module-select');
+    console.log('1. Navigate to: /app/imogi-module-select');
     console.log('2. Or click "Open POS" from IMOGI POS workspace');
     console.log('');
   } else {

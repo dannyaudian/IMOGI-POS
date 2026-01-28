@@ -163,7 +163,7 @@ function diagnoseWorkspaceRouting() {
     console.log('');
     console.log('📝 RECOMMENDATIONS:');
     console.log('   1. Check workspace shortcut configuration');
-    console.log('   2. Ensure "Link to" field is set to: /shared/module-select');
+    console.log('   2. Ensure "Link to" field is set to: /app/imogi-module-select');
     console.log('   3. Or set shortcut Label to exactly: "Open POS"');
   }
   console.log('');
@@ -247,7 +247,7 @@ function diagnoseAllShortcuts() {
       predictedUrl = linkTo;
     } else {
       const shortcut_urls = {
-        'Open POS': '/shared/module-select',
+        'Open POS': '/app/imogi-module-select',
         'Cashier Console': '/counter/pos',
         'Kitchen Display': '/restaurant/kitchen',
       };

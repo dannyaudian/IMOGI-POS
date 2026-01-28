@@ -70,6 +70,7 @@ frappe.pages['imogi-kitchen'].on_page_load = function(wrapper) {
 						const script = document.createElement('script');
 						script.src = jsPath;
 						script.type = 'module';
+						script.dataset.imogiApp = 'kitchen';
 						script.onload = function() {
 							mountWidget(container[0], page);
 						};

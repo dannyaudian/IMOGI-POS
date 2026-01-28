@@ -70,6 +70,7 @@ frappe.pages['imogi-waiter'].on_page_load = function(wrapper) {
 						const script = document.createElement('script');
 						script.src = jsPath;
 						script.type = 'module';
+						script.dataset.imogiApp = 'waiter';
 						script.onload = function() {
 							mountWidget(container[0], page);
 						};
