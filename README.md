@@ -137,7 +137,33 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 
 ## Documentation
 
-For detailed documentation, refer to the [User Guide](link-to-docs) and [Developer Reference](link-to-dev-docs).
+### For Developers
+- **[Architecture Overview](IMOGI_POS_ARCHITECTURE.md)** - System architecture and design patterns
+- **[React Architecture](REACT_ARCHITECTURE.md)** - React app structure and patterns
+- **[React Quickstart](REACT_QUICKSTART.md)** - Quick development guide
+- **[API & Session Handling](API_SESSION_HANDLING_FIX.md)** - API call patterns and session management
+- **[Navigation Patterns](ROUTE_TRANSITION_FIX.md)** - SPA navigation and route handling
+- **[Loader Implementation](REACT_LOADER_REFACTOR.md)** - React bundle loading system
+
+### For Operations
+- **[Production Deploy Guide](PRODUCTION_DEPLOY_GUIDE.md)** - Complete deployment procedures
+- **[Testing Guide](TESTING_GUIDE.md)** - Comprehensive testing procedures
+- **[Security Summary](SECURITY_SUMMARY.md)** - Security measures and best practices
+
+### For Maintenance
+- **[Cleanup Audit](CLEANUP_AUDIT.md)** - Code audit and cleanup findings
+- **[Permanent Cleanup Implementation](PERMANENT_CLEANUP_IMPLEMENTATION.md)** - Cleanup execution guide
+- **[Centralized Modules Architecture](CENTRALIZED_MODULES_ARCHITECTURE.md)** - Module system architecture
+- **[POS Profile Centralization](POS_PROFILE_CENTRALIZATION.md)** - Operational context patterns
+
+### Legacy Documentation (Archived)
+The following phase-specific docs have been consolidated into the guides above:
+- Phase summaries and interim refactoring notes
+- Temporary patch documentation
+- Session expiry testing scenarios
+- Go/No-Go checklists
+
+For the latest information, always refer to the current documentation above.
 
 ## Printing Setup
 
