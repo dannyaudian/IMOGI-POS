@@ -8,6 +8,7 @@
  * ARCHITECTURE:
  * - on_page_load: One-time DOM setup (page structure)
  * - on_page_show: React mounting logic (runs every navigation)
+ * - Uses shared imogi_loader.js for reliable injection/mounting
  */
 
 frappe.pages['imogi-displays'].on_page_load = function(wrapper) {
@@ -32,7 +33,7 @@ frappe.pages['imogi-displays'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-displays'].on_page_show = function(wrapper) {
-	console.log('[Desk] Customer Display page shown');
+	console.log('[Desk] Customer Display page shown, route:', frappe.get_route_str());
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiDisplaysRoot;
@@ -44,17 +45,11 @@ frappe.pages['imogi-displays'].on_page_show = function(wrapper) {
 	}
 
 	// Mount directly without context gate (guest-accessible)
-	loadReactWidget($(container), page);
+	loadReactWidget(container, page);
 };
 
 function loadReactWidget(container, page) {
-	// Check if bundle already loaded
-	if (window.imogiDisplaysMount) {
-		mountWidget(container[0], page);
-		return;
-	}
-
-	// Load React bundle
+	// Load React bundle using shared loader
 	const manifestPath = '/assets/imogi_pos/react/customer-display/.vite/manifest.json';
 	
 	fetch(manifestPath)
@@ -63,78 +58,43 @@ function loadReactWidget(container, page) {
 			// Vite manifest key is the full source path
 			const entry = manifest['src/apps/customer-display/main.jsx'];
 			if (!entry || !entry.file) {
-				console.error('[Desk] Manifest structure:', manifest);
+				console.error('[Desk] Customer Display manifest structure:', manifest);
 				throw new Error('Entry point not found in manifest');
 			}
 
 			const scriptUrl = `/assets/imogi_pos/react/customer-display/${entry.file}`;
-			const scriptSelector = `script[data-imogi-app="customer-display"][src="${scriptUrl}"]`;
-			const existingScript = document.querySelector(scriptSelector);
+			const cssUrl = entry.css && entry.css.length > 0 
+				? `/assets/imogi_pos/react/customer-display/${entry.css[0]}` 
+				: null;
 
-			// Guard: Don't re-inject if script already exists
-			if (existingScript) {
-				console.log('[Desk] customer-display script already loaded, re-mounting...');
-				const checkMount = setInterval(() => {
-					if (window.imogiDisplaysMount) {
-						clearInterval(checkMount);
-						mountWidget(container[0], page);
-					}
-				}, 100);
-				return;
-			}
+			// Use shared loader
+			window.loadImogiReactApp({
+				appKey: 'customer-display',
+				scriptUrl: scriptUrl,
+				cssUrl: cssUrl,
+				mountFnName: 'imogiDisplaysMount',
+				unmountFnName: 'imogiDisplaysUnmount',
+				containerId: 'imogi-displays-root',
+				makeContainer: () => container,
+				onReadyMount: (mountFn, containerEl) => {
+					const initialState = {
+						user: frappe.session.user,
+						csrf_token: frappe.session.csrf_token
+					};
 
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = scriptUrl;
-			script.dataset.imogiApp = 'customer-display';
-			
-			console.log('[Desk] Customer Display script injected:', scriptUrl);
-			
-			script.onload = () => {
-				console.log('[Desk] customer-display bundle loaded');
-				const checkMount = setInterval(() => {
-					if (window.imogiDisplaysMount) {
-						clearInterval(checkMount);
-						mountWidget(container[0], page);
-					}
-				}, 100);
-			};
-
-			script.onerror = () => {
+					safeMount(mountFn, containerEl, { initialState });
+				},
+				page: page,
+				logPrefix: '[Customer Display]'
+			}).catch(error => {
+				console.error('[Desk] Failed to load customer-display:', error);
 				showBundleError(container, 'customer-display');
-			};
-
-			document.head.appendChild(script);
-
-			// Load CSS if available
-			if (entry.css && entry.css.length > 0) {
-				const cssUrl = `/assets/imogi_pos/react/customer-display/${entry.css[0]}`;
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = cssUrl;
-				document.head.appendChild(link);
-			}
+			});
 		})
 		.catch(error => {
-			console.error('[Desk] Failed to load customer-display bundle:', error);
+			console.error('[Desk] Failed to fetch customer-display manifest:', error);
 			showBundleError(container, 'customer-display');
 		});
-}
-
-function mountWidget(container, page) {
-	try {
-		const initialState = {
-			user: frappe.session.user,
-			csrf_token: frappe.session.csrf_token
-		};
-
-		safeMount(window.imogiDisplaysMount, container, { initialState });
-		console.log('[Desk] Customer Display React mounted');
-
-	} catch (error) {
-		console.error('[Desk] Failed to mount customer-display widget:', error);
-		showMountError($(container), error);
-	}
 }
 
 function safeMount(mountFn, element, options) {
@@ -148,24 +108,15 @@ function safeMount(mountFn, element, options) {
 }
 
 function showBundleError(container, appName) {
-	container[0].innerHTML = `
+	const element = container instanceof HTMLElement ? container : container;
+	element.innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
 			<div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
 				<div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
-				<div>VITE_APP=${appName} npx vite build</div>
+				<div>npm run build</div>
 			</div>
-		</div>
-	`;
-}
-
-function showMountError(container, error) {
-	container[0].innerHTML = `
-		<div style="padding: 2rem; text-align: center; color: #dc2626;">
-			<h3>Widget Mount Error</h3>
-			<p>${error.message || 'Failed to mount React widget'}</p>
-			<button class="btn btn-primary btn-sm" onclick="location.reload()">Reload Page</button>
 		</div>
 	`;
 }

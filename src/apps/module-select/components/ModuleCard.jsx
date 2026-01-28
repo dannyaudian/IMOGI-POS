@@ -1,6 +1,6 @@
 import React from 'react'
 
-function ModuleCard({ module, onClick, posOpeningStatus }) {
+function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading }) {
   const getModuleIcon = (type) => {
     const icons = {
       'cashier': 'fa-cash-register',
@@ -36,22 +36,29 @@ function ModuleCard({ module, onClick, posOpeningStatus }) {
   // Determine if module is accessible
   const isAccessible = !module.requires_opening || posOpeningStatus?.hasOpening
   const needsOpening = module.requires_opening && !posOpeningStatus?.hasOpening
+  const isDisabled = !isAccessible || isNavigating
 
   return (
     <div 
-      className={`module-card ${getModuleColor(module.type)} ${!isAccessible ? 'module-locked' : ''}`}
-      onClick={isAccessible ? onClick : undefined}
+      className={`module-card ${getModuleColor(module.type)} ${!isAccessible ? 'module-locked' : ''} ${isNavigating ? 'module-navigating' : ''} ${isLoading ? 'module-loading' : ''}`}
+      onClick={!isDisabled ? onClick : undefined}
       role="button"
-      tabIndex={isAccessible ? 0 : -1}
-      onKeyDown={(e) => isAccessible && e.key === 'Enter' && onClick()}
-      title={needsOpening ? 'Please open a POS opening first' : ''}
+      tabIndex={!isDisabled ? 0 : -1}
+      onKeyDown={(e) => !isDisabled && e.key === 'Enter' && onClick()}
+      title={needsOpening ? 'Please open a POS opening first' : isNavigating ? 'Navigation in progress...' : ''}
     >
       <div className="module-icon">
-        <i className={`fa-solid ${getModuleIcon(module.type)}`}></i>
-        {needsOpening && (
-          <div className="module-lock-overlay">
-            <i className="fa-solid fa-lock"></i>
-          </div>
+        {isLoading ? (
+          <div className="loading-spinner"></div>
+        ) : (
+          <>
+            <i className={`fa-solid ${getModuleIcon(module.type)}`}></i>
+            {needsOpening && (
+              <div className="module-lock-overlay">
+                <i className="fa-solid fa-lock"></i>
+              </div>
+            )}
+          </>
         )}
       </div>
       

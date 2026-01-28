@@ -1,0 +1,383 @@
+/**
+ * IMOGI POS - Robust API Call Utility
+ * =====================================
+ * 
+ * PERMANENT FIX for 417/401/403 errors causing blank screens and login redirects.
+ * 
+ * KEY FEATURES:
+ * - Uses frappe.call if available (includes CSRF automatically)
+ * - Falls back to fetch with proper CSRF token handling
+ * - Normalizes all responses to r.message format
+ * - Explicit handling of r.exc (Frappe error format)
+ * - Session expiry detection (401/403/417 + Guest user + login HTML)
+ * - Shows full-screen "Session Expired" UI (no instant redirect)
+ * - Retry logic for network errors ONLY (not auth errors)
+ * - Comprehensive error logging with [imogi-api] tag
+ * 
+ * USAGE:
+ *   import { apiCall } from '@/shared/utils/api'
+ *   
+ *   // Simple call
+ *   const orders = await apiCall('imogi_pos.api.billing.list_orders_for_cashier', {
+ *     order_type: 'Counter'
+ *   })
+ *   
+ *   // With options
+ *   const result = await apiCall('imogi_pos.api.orders.submit_order', 
+ *     { order_name: 'POS-001' },
+ *     { 
+ *       freeze: true,        // Show loading overlay
+ *       silent: false,       // Show errors to user
+ *       retry: 3,           // Retry on network error
+ *       onSessionExpired: () => showExpiredUI()  // Custom handler
+ *     }
+ *   )
+ */
+
+// Global session expired state
+let sessionExpiredHandlerCalled = false
+
+/**
+ * Main API call function - USE THIS for all API requests
+ * 
+ * @param {string} method - Frappe method path (e.g., 'imogi_pos.api.billing.list_orders_for_cashier')
+ * @param {Object} args - Method arguments
+ * @param {Object} options - Call options
+ * @returns {Promise} Promise resolving with response.message or rejecting with error
+ */
+export async function apiCall(method, args = {}, options = {}) {
+  const {
+    freeze = false,           // Show loading overlay
+    silent = false,           // Don't show error toasts
+    retry = 2,               // Retry count for network errors
+    timeout = 30000,         // Request timeout (30s)
+    onSessionExpired = null, // Custom session expired handler
+  } = options
+
+  // Check if user is already Guest before making the call
+  if (isSessionExpired()) {
+    console.error('[imogi-api] Session already expired (Guest user detected)')
+    handleSessionExpired(onSessionExpired)
+    throw new Error('Session expired. Please log in again.')
+  }
+
+  console.log(`[imogi-api] Calling ${method}`, args)
+
+  try {
+    let response
+
+    // Prefer frappe.call if available (more reliable, includes CSRF automatically)
+    if (window.frappe && typeof window.frappe.call === 'function') {
+      response = await callViaFrappe(method, args, { freeze, timeout })
+    } else {
+      // Fallback to fetch (e.g., in WWW context without Desk)
+      response = await callViaFetch(method, args, { timeout })
+    }
+
+    // Normalize response format
+    const normalized = normalizeResponse(response)
+
+    // Check if response contains login HTML (session expired)
+    if (isLoginPage(normalized)) {
+      console.error('[imogi-api] Login page detected in response')
+      handleSessionExpired(onSessionExpired)
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    console.log(`[imogi-api] Success ${method}`, normalized)
+    return normalized
+
+  } catch (error) {
+    // Log full error details
+    console.error(`[imogi-api] Error calling ${method}:`, {
+      method,
+      args,
+      error: error.message,
+      stack: error.stack,
+      httpStatus: error.httpStatus,
+      responseText: error.responseText
+    })
+
+    // Check if this is an auth error (401/403/417)
+    if (isAuthError(error)) {
+      console.error('[imogi-api] Authentication error detected:', error.httpStatus)
+      handleSessionExpired(onSessionExpired)
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    // Check if this is a network error that should be retried
+    if (shouldRetry(error) && retry > 0) {
+      console.warn(`[imogi-api] Retrying ${method} (${retry} attempts left)`)
+      await sleep(1000) // Wait 1s before retry
+      return apiCall(method, args, { ...options, retry: retry - 1 })
+    }
+
+    // Show error to user unless silent
+    if (!silent) {
+      showError(error)
+    }
+
+    throw error
+  }
+}
+
+/**
+ * Call API using frappe.call (preferred method)
+ */
+function callViaFrappe(method, args, options) {
+  const { freeze, timeout } = options
+
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Request timeout after ${timeout}ms`))
+    }, timeout)
+
+    window.frappe.call({
+      method: method,
+      args: args,
+      freeze: freeze,
+      callback: (r) => {
+        clearTimeout(timeoutId)
+        resolve(r)
+      },
+      error: (r) => {
+        clearTimeout(timeoutId)
+        const error = new Error(r.exception || r.message || 'API call failed')
+        error.httpStatus = r.httpStatus || (r.responseJSON && r.responseJSON.httpStatus)
+        error.responseText = r.responseText
+        error._frappe_error = r
+        reject(error)
+      }
+    })
+  })
+}
+
+/**
+ * Call API using fetch (fallback method)
+ */
+async function callViaFetch(method, args, options) {
+  const { timeout } = options
+
+  // Get CSRF token
+  const csrfToken = getCSRFToken()
+  if (!csrfToken) {
+    throw new Error('CSRF token not found. Session may have expired.')
+  }
+
+  // Create abort controller for timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(`/api/method/${method}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Frappe-CSRF-Token': csrfToken
+      },
+      credentials: 'include', // Critical for session cookies
+      body: JSON.stringify(args),
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    // Check HTTP status
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}: ${response.statusText}`)
+      error.httpStatus = response.status
+      error.responseText = await response.text().catch(() => '')
+      throw error
+    }
+
+    // Parse JSON response
+    const data = await response.json()
+
+    // Return in frappe.call format
+    return {
+      message: data.message,
+      exc: data.exc,
+      exception: data.exception,
+      _exc_source: data._exc_source
+    }
+
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`)
+    }
+    throw error
+  }
+}
+
+/**
+ * Normalize response to consistent format
+ */
+function normalizeResponse(response) {
+  // Frappe response format: { message: ..., exc: ..., exception: ... }
+  if (response && typeof response === 'object') {
+    // Check for Frappe exception first
+    if (response.exc || response.exception) {
+      const error = new Error(response.exception || 'API returned an exception')
+      error.exc = response.exc
+      error.exception = response.exception
+      error._exc_source = response._exc_source
+      throw error
+    }
+
+    // Return message content
+    return response.message
+  }
+
+  // Direct value
+  return response
+}
+
+/**
+ * Check if session has expired
+ */
+function isSessionExpired() {
+  // Check if frappe.session.user is Guest
+  if (window.frappe && window.frappe.session) {
+    return window.frappe.session.user === 'Guest'
+  }
+  return false
+}
+
+/**
+ * Check if response contains login page HTML
+ */
+function isLoginPage(response) {
+  if (typeof response === 'string') {
+    return response.includes('<!DOCTYPE html>') && 
+           (response.includes('login') || response.includes('Login'))
+  }
+  return false
+}
+
+/**
+ * Check if error is an authentication error
+ */
+function isAuthError(error) {
+  const authStatuses = [401, 403, 417]
+  return error.httpStatus && authStatuses.includes(error.httpStatus)
+}
+
+/**
+ * Check if error should be retried
+ */
+function shouldRetry(error) {
+  // Don't retry auth errors
+  if (isAuthError(error)) {
+    return false
+  }
+
+  // Retry network errors
+  if (error.message && (
+    error.message.includes('timeout') ||
+    error.message.includes('network') ||
+    error.message.includes('Failed to fetch')
+  )) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Get CSRF token from various sources
+ */
+function getCSRFToken() {
+  // Try frappe object first
+  if (window.frappe && window.frappe.csrf_token) {
+    return window.frappe.csrf_token
+  }
+
+  // Try window.FRAPPE_CSRF_TOKEN (set by polyfill)
+  if (window.FRAPPE_CSRF_TOKEN) {
+    return window.FRAPPE_CSRF_TOKEN
+  }
+
+  // Try reading from cookie
+  const cookies = document.cookie.split(';')
+  for (let cookie of cookies) {
+    const [name, value] = cookie.trim().split('=')
+    if (name === 'csrf_token') {
+      return value
+    }
+  }
+
+  return null
+}
+
+/**
+ * Handle session expiration
+ */
+function handleSessionExpired(customHandler) {
+  // Prevent multiple handlers
+  if (sessionExpiredHandlerCalled) {
+    return
+  }
+  sessionExpiredHandlerCalled = true
+
+  console.error('[imogi-api] Session expired - showing UI')
+
+  // Use custom handler if provided
+  if (typeof customHandler === 'function') {
+    customHandler()
+    return
+  }
+
+  // Dispatch event for SessionExpired component to catch
+  window.dispatchEvent(new CustomEvent('imogi-session-expired', {
+    detail: { message: 'Your session has expired. Please log in again.' }
+  }))
+}
+
+/**
+ * Show error to user
+ */
+function showError(error) {
+  const message = getErrorMessage(error)
+
+  // Try frappe.msgprint first
+  if (window.frappe && window.frappe.msgprint) {
+    window.frappe.msgprint({
+      title: 'Error',
+      indicator: 'red',
+      message: message
+    })
+    return
+  }
+
+  // Fallback to alert
+  alert(`Error: ${message}`)
+}
+
+/**
+ * Get user-friendly error message
+ */
+function getErrorMessage(error) {
+  if (error.exception) {
+    return error.exception
+  }
+  if (error.message) {
+    return error.message
+  }
+  return 'An unexpected error occurred'
+}
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Reset session expired flag (for testing)
+ */
+export function resetSessionExpiredFlag() {
+  sessionExpiredHandlerCalled = false
+}

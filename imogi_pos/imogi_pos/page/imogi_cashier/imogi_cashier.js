@@ -10,9 +10,12 @@
  * ARCHITECTURE:
  * - on_page_load: One-time DOM setup (page structure)
  * - on_page_show: React mounting logic (runs every navigation)
+ * - Uses shared imogi_loader.js for reliable injection/mounting
  */
 
 frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
+	console.count('[Desk] Cashier on_page_load (one-time setup)');
+	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'IMOGI Cashier Console',
@@ -32,6 +35,8 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
+	console.log('[Desk] Cashier page shown, route:', frappe.get_route_str());
+	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiCashierRoot;
 	const page = wrapper.__imogiCashierPage;
@@ -47,13 +52,7 @@ frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 };
 
 function loadReactWidget(container, page) {
-	// Check if bundle already loaded
-	if (window.imogiCashierMount) {
-		mountWidget(container, page);
-		return;
-	}
-
-	// Load React bundle
+	// Load React bundle using shared loader
 	const manifestPath = '/assets/imogi_pos/react/cashier-console/.vite/manifest.json';
 	
 	fetch(manifestPath)
@@ -62,74 +61,43 @@ function loadReactWidget(container, page) {
 			// Vite manifest key is the full source path
 			const entry = manifest['src/apps/cashier-console/main.jsx'];
 			if (!entry || !entry.file) {
-				console.error('[Desk] Manifest structure:', manifest);
+				console.error('[Desk] Cashier manifest structure:', manifest);
 				throw new Error('Entry point not found in manifest. Check console for manifest structure.');
 			}
 
 			const scriptUrl = `/assets/imogi_pos/react/cashier-console/${entry.file}`;
-			const scriptSelector = `script[data-imogi-app="cashier-console"][src="${scriptUrl}"]`;
-			const existingScript = document.querySelector(scriptSelector);
+			const cssUrl = entry.css && entry.css.length > 0 
+				? `/assets/imogi_pos/react/cashier-console/${entry.css[0]}` 
+				: null;
 
-			// Guard: Don't re-inject if script already exists
-			if (existingScript) {
-				// Script exists, just re-mount the widget
-				const checkMount = setInterval(() => {
-					if (window.imogiCashierMount) {
-						clearInterval(checkMount);
-						mountWidget(container, page);
-					}
-				}, 100);
-				return;
-			}
+			// Use shared loader
+			window.loadImogiReactApp({
+				appKey: 'cashier-console',
+				scriptUrl: scriptUrl,
+				cssUrl: cssUrl,
+				mountFnName: 'imogiCashierMount',
+				unmountFnName: 'imogiCashierUnmount',
+				containerId: 'imogi-cashier-root',
+				makeContainer: () => container,
+				onReadyMount: (mountFn, containerEl) => {
+					const initialState = {
+						user: frappe.session.user,
+						csrf_token: frappe.session.csrf_token
+					};
 
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = scriptUrl;
-			script.dataset.imogiApp = 'cashier-console';
-			
-			script.onload = () => {
-				const checkMount = setInterval(() => {
-					if (window.imogiCashierMount) {
-						clearInterval(checkMount);
-						mountWidget(container, page);
-					}
-				}, 100);
-			};
-
-			script.onerror = () => {
+					safeMount(mountFn, containerEl, { initialState });
+				},
+				page: page,
+				logPrefix: '[Cashier Console]'
+			}).catch(error => {
+				console.error('[Desk] Failed to load cashier-console:', error);
 				showBundleError(container, 'cashier-console');
-			};
-
-			document.head.appendChild(script);
-
-			// Load CSS if available
-			if (entry.css && entry.css.length > 0) {
-				const cssUrl = `/assets/imogi_pos/react/cashier-console/${entry.css[0]}`;
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = cssUrl;
-				document.head.appendChild(link);
-			}
+			});
 		})
 		.catch(error => {
-			console.error('[Desk] Failed to load cashier-console bundle:', error);
+			console.error('[Desk] Failed to fetch cashier-console manifest:', error);
 			showBundleError(container, 'cashier-console');
 		});
-}
-
-function mountWidget(container, page) {
-	try {
-		const initialState = {
-			user: frappe.session.user,
-			csrf_token: frappe.session.csrf_token
-		};
-
-		safeMount(window.imogiCashierMount, container, { initialState });
-
-	} catch (error) {
-		console.error('[Desk] Failed to mount cashier-console widget:', error);
-		showMountError(container, error);
-	}
 }
 
 function safeMount(mountFn, element, options) {
@@ -151,20 +119,8 @@ function showBundleError(container, appName) {
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
 			<div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
 				<div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
-				<div>VITE_APP=${appName} npx vite build</div>
+				<div>npm run build</div>
 			</div>
-		</div>
-	`;
-}
-
-function showMountError(container, error) {
-	// Ensure we're working with raw HTMLElement
-	const element = container instanceof HTMLElement ? container : container[0];
-	element.innerHTML = `
-		<div style="padding: 2rem; text-align: center; color: #dc2626;">
-			<h3>Widget Mount Error</h3>
-			<p>${error.message || 'Failed to mount React widget'}</p>
-			<button class="btn btn-primary btn-sm" onclick="location.reload()">Reload Page</button>
 		</div>
 	`;
 }

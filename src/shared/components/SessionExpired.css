@@ -1,0 +1,241 @@
+/**
+ * Session Expired Component Styles
+ * ==================================
+ */
+
+.session-expired-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.session-expired-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem 2.5rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s ease-out;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.session-expired-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: #fff3cd;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: #ff9800;
+}
+
+.session-expired-icon i {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.session-expired-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 1rem;
+}
+
+.session-expired-message {
+  font-size: 1.1rem;
+  color: #546e7a;
+  margin: 0 0 2rem;
+  line-height: 1.6;
+}
+
+.session-expired-details {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.session-expired-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  color: #5a6c7d;
+  font-size: 0.95rem;
+}
+
+.session-expired-detail-item:not(:last-child) {
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+.session-expired-detail-item i {
+  color: #007bff;
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.session-expired-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.btn-session-reload,
+.btn-session-login {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-session-reload {
+  background: #007bff;
+  color: white;
+}
+
+.btn-session-reload:hover {
+  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-session-login {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-session-login:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.session-expired-countdown {
+  font-size: 0.9rem;
+  color: #868e96;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.session-expired-help {
+  padding-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.session-expired-help strong {
+  color: #495057;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .session-expired-modal {
+    padding: 2rem 1.5rem;
+    width: 95%;
+  }
+
+  .session-expired-title {
+    font-size: 1.5rem;
+  }
+
+  .session-expired-message {
+    font-size: 1rem;
+  }
+
+  .session-expired-actions {
+    flex-direction: column;
+  }
+
+  .btn-session-reload,
+  .btn-session-login {
+    width: 100%;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .session-expired-modal {
+    background: #1e2936;
+    color: #e9ecef;
+  }
+
+  .session-expired-title {
+    color: #f8f9fa;
+  }
+
+  .session-expired-message {
+    color: #adb5bd;
+  }
+
+  .session-expired-details {
+    background: #2c3e50;
+  }
+
+  .session-expired-detail-item {
+    color: #ced4da;
+  }
+
+  .session-expired-help {
+    border-top-color: #495057;
+    color: #adb5bd;
+  }
+
+  .session-expired-help strong {
+    color: #e9ecef;
+  }
+}

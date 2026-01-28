@@ -37,6 +37,16 @@ export function deskNavigate(path, options = {}) {
     logPrefix = '[deskNavigate]'
   } = options
 
+  // Check navigation lock - prevent duplicate navigations
+  if (window.__imogiNavigationLock) {
+    console.warn(`${logPrefix} \u26d4 Navigation locked - ignoring duplicate request to:`, path)
+    return
+  }
+
+  // Acquire global navigation lock
+  window.__imogiNavigationLock = true
+  console.log(`${logPrefix} \ud83d\udd12 Navigation lock ACQUIRED`)
+
   // Build full URL with query params
   let fullUrl = path
   const queryParams = new URLSearchParams(params)
@@ -51,7 +61,8 @@ export function deskNavigate(path, options = {}) {
     path,
     params,
     fullUrl,
-    method: typeof frappe !== 'undefined' && frappe.set_route ? 'frappe.set_route' : 'window.location'
+    method: typeof frappe !== 'undefined' && frappe.set_route ? 'frappe.set_route' : 'window.location',
+    timestamp: new Date().toISOString()
   })
 
   // Prefer frappe.set_route for SPA navigation (no page reload)
@@ -78,15 +89,25 @@ export function deskNavigate(path, options = {}) {
         } else {
           window.location.href = fullUrl
         }
+        // Lock will be cleared by page load
         return
       }
       
       // Use frappe.set_route for clean Desk navigation
+      console.log(`${logPrefix} \ud83d\ude80 Calling frappe.set_route(${routeParts.join(', ')})`)
       frappe.set_route(...routeParts)
-      console.log(`${logPrefix} Navigation via frappe.set_route`)
+      console.log(`${logPrefix} Navigation via frappe.set_route completed`)
+      
+      // Release lock after successful navigation (with delay to prevent race)
+      setTimeout(() => {
+        window.__imogiNavigationLock = false
+        console.log(`${logPrefix} \ud83d\udd13 Navigation lock RELEASED (after route change)`)
+      }, 2000)
+      
       return
     } catch (error) {
       console.warn(`${logPrefix} frappe.set_route failed, falling back to window.location:`, error)
+      // Lock will be cleared by page load
     }
   }
 
@@ -97,6 +118,7 @@ export function deskNavigate(path, options = {}) {
     window.location.href = fullUrl
   }
   console.log(`${logPrefix} Navigation via window.location`)
+  // Lock will be cleared by page load
 }
 
 /**

@@ -10,6 +10,7 @@
  * ARCHITECTURE:
  * - on_page_load: One-time DOM setup (page structure)
  * - on_page_show: React mounting logic (runs every navigation)
+ * - Uses shared imogi_loader.js for reliable injection/mounting
  */
 
 frappe.pages['imogi-waiter'].on_page_load = function(wrapper) {
@@ -34,7 +35,7 @@ frappe.pages['imogi-waiter'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
-	console.log('[Desk] Waiter page shown');
+	console.log('[Desk] Waiter page shown, route:', frappe.get_route_str());
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiWaiterRoot;
@@ -47,17 +48,11 @@ frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
 
 	// Load React widget directly - let React handle operational context checking
 	// React usePOSProfileGuard will handle redirect to module-select if needed
-	loadReactWidget($(container), page);
+	loadReactWidget(container, page);
 };
 
 function loadReactWidget(container, page) {
-	// Check if bundle already loaded
-	if (window.imogiWaiterMount) {
-		mountWidget(container[0], page);
-		return;
-	}
-
-	// Load React bundle
+	// Load React bundle using shared loader
 	const manifestPath = '/assets/imogi_pos/react/waiter/.vite/manifest.json';
 	
 	fetch(manifestPath)
@@ -66,79 +61,43 @@ function loadReactWidget(container, page) {
 			// Vite manifest key is the full source path
 			const entry = manifest['src/apps/waiter/main.jsx'];
 			if (!entry || !entry.file) {
-				console.error('[Desk] Manifest structure:', manifest);
+				console.error('[Desk] Waiter manifest structure:', manifest);
 				throw new Error('Entry point not found in manifest. Check console for manifest structure.');
 			}
 
 			const scriptUrl = `/assets/imogi_pos/react/waiter/${entry.file}`;
-			const scriptSelector = `script[data-imogi-app="waiter"][src="${scriptUrl}"]`;
-			const existingScript = document.querySelector(scriptSelector);
+			const cssUrl = entry.css && entry.css.length > 0 
+				? `/assets/imogi_pos/react/waiter/${entry.css[0]}` 
+				: null;
 
-			// Guard: Don't re-inject if script already exists
-			if (existingScript) {
-				console.log('[Desk] waiter script already loaded, re-mounting...');
-				// Script exists, just re-mount the widget
-				const checkMount = setInterval(() => {
-					if (window.imogiWaiterMount) {
-						clearInterval(checkMount);
-						mountWidget(container[0], page);
-					}
-				}, 100);
-				return;
-			}
+			// Use shared loader
+			window.loadImogiReactApp({
+				appKey: 'waiter',
+				scriptUrl: scriptUrl,
+				cssUrl: cssUrl,
+				mountFnName: 'imogiWaiterMount',
+				unmountFnName: 'imogiWaiterUnmount',
+				containerId: 'imogi-waiter-root',
+				makeContainer: () => container,
+				onReadyMount: (mountFn, containerEl) => {
+					const initialState = {
+						user: frappe.session.user,
+						csrf_token: frappe.session.csrf_token
+					};
 
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = scriptUrl;
-			script.dataset.imogiApp = 'waiter';
-			
-			console.log('[Desk] Waiter script injected:', scriptUrl);
-			
-			script.onload = () => {
-				console.log('[Desk] waiter bundle loaded');
-				const checkMount = setInterval(() => {
-					if (window.imogiWaiterMount) {
-						clearInterval(checkMount);
-						mountWidget(container[0], page);
-					}
-				}, 100);
-			};
-
-			script.onerror = () => {
+					safeMount(mountFn, containerEl, { initialState });
+				},
+				page: page,
+				logPrefix: '[Waiter Console]'
+			}).catch(error => {
+				console.error('[Desk] Failed to load waiter:', error);
 				showBundleError(container, 'waiter');
-			};
-
-			document.head.appendChild(script);
-
-			// Load CSS if available
-			if (entry.css && entry.css.length > 0) {
-				const cssUrl = `/assets/imogi_pos/react/waiter/${entry.css[0]}`;
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = cssUrl;
-				document.head.appendChild(link);
-			}
+			});
 		})
 		.catch(error => {
-			console.error('[Desk] Failed to load waiter bundle:', error);
+			console.error('[Desk] Failed to fetch waiter manifest:', error);
 			showBundleError(container, 'waiter');
 		});
-}
-
-function mountWidget(container, page) {
-	try {
-		const initialState = {
-			user: frappe.session.user,
-			csrf_token: frappe.session.csrf_token
-		};
-
-		safeMount(window.imogiWaiterMount, container, { initialState });
-		console.log('[Desk] Waiter React mounted');
-
-	} catch (error) {
-		console.error('[Desk] Failed to mount waiter widget:', error);
-		showMountError($(container), error);
-	}
 }
 
 function safeMount(mountFn, element, options) {
@@ -152,24 +111,15 @@ function safeMount(mountFn, element, options) {
 }
 
 function showBundleError(container, appName) {
-	container[0].innerHTML = `
+	const element = container instanceof HTMLElement ? container : container;
+	element.innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
 			<div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
 				<div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
-				<div>VITE_APP=${appName} npx vite build</div>
+				<div>npm run build</div>
 			</div>
-		</div>
-	`;
-}
-
-function showMountError(container, error) {
-	container[0].innerHTML = `
-		<div style="padding: 2rem; text-align: center; color: #dc2626;">
-			<h3>Widget Mount Error</h3>
-			<p>${error.message || 'Failed to mount React widget'}</p>
-			<button class="btn btn-primary btn-sm" onclick="location.reload()">Reload Page</button>
 		</div>
 	`;
 }

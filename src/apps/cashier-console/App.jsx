@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
+import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
@@ -336,9 +337,11 @@ function CounterPOSContent({ initialState }) {
 
 function App({ initialState }) {
   return (
-    <ImogiPOSProvider initialState={initialState}>
-      <CounterPOSContent initialState={initialState} />
-    </ImogiPOSProvider>
+    <SessionExpiredProvider>
+      <ImogiPOSProvider initialState={initialState}>
+        <CounterPOSContent initialState={initialState} />
+      </ImogiPOSProvider>
+    </SessionExpiredProvider>
   )
 }
 

@@ -1,8 +1,12 @@
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk'
+import { apiCall } from '@/shared/utils/api'
 
 /**
  * Centralized API calls untuk IMOGI POS
  * Semua API endpoints di sini bisa dipakai oleh counter, kitchen, waiter, dll
+ * 
+ * PERMANENT FIX: Now uses apiCall() for proper session/CSRF handling
+ * and session expiry detection (401/403/417 errors).
  */
 
 /**
@@ -20,35 +24,18 @@ export function useImogiAPI(method, onSuccess, onError) {
 }
 
 /**
- * Call IMOGI POS API dengan fetch
- * Alternative untuk component yang tidak menggunakan hooks
+ * Call IMOGI POS API
+ * NOW USES: Shared apiCall() utility with proper session handling
  * 
- * NOTE: Consider using frappe.call() instead for consistency with polyfill
- * and better error handling. This function is kept for backward compatibility.
+ * REPLACES: Direct fetch calls that were causing 417 errors
+ * 
+ * @param {string} method - Frappe method path
+ * @param {Object} args - Method arguments
+ * @param {Object} options - Call options (freeze, silent, retry)
+ * @returns {Promise} Promise resolving with response data
  */
-export async function callImogiAPI(method, args = {}) {
-  // Use standardized CSRF token from polyfill
-  const csrfToken = window.FRAPPE_CSRF_TOKEN || 
-                    (typeof frappe !== 'undefined' && frappe.csrf_token) || 
-                    '';
-  
-  const response = await fetch('/api/method/' + method, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Frappe-CSRF-Token': csrfToken,
-    },
-    credentials: 'include',
-    body: JSON.stringify(args),
-  })
-
-  const data = await response.json()
-  
-  if (data.exc) {
-    throw new Error(data.exc)
-  }
-  
-  return data.message
+export async function callImogiAPI(method, args = {}, options = {}) {
+  return apiCall(method, args, options)
 }
 
 /**

@@ -12,6 +12,7 @@ app_email = "support@imogi.com"
 app_license = "MIT"
 
 app_include_js = [
+    '/assets/imogi_pos/js/imogi_loader.js',  # Shared React app loader (must load first)
     '/assets/imogi_pos/js/escpos_printing.js',
 ]
 app_include_css = []

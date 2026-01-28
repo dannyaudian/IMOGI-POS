@@ -8,9 +8,12 @@
  * - Desk Page shell (this file)
  * - React widget mount (window.imogiModuleSelectMount)
  * - Single source of truth for operational context
+ * - Uses shared imogi_loader.js for reliable injection/mounting
  */
 
 frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
+	console.count('[Desk] Module Select on_page_load (one-time setup)');
+	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'IMOGI Module Select',
@@ -24,31 +27,47 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 	page.main.html('');
 	page.main.append(container);
 
-	// Store container reference in wrapper for Phase 4 safety
-	page.wrapper.__imogiModuleSelectRoot = container[0];
-
-	// Load React bundle and mount widget
-	loadReactWidget(container, page);
+	// Store references in wrapper for on_page_show access
+	wrapper.__imogiModuleSelectRoot = container[0];
+	wrapper.__imogiModuleSelectPage = page;
 };
 
 frappe.pages['imogi-module-select'].on_page_show = function(wrapper) {
-	// Page shown - widget already mounted
+	console.log('\ud83d\udfe2 [DESK PAGE SHOW] Module Select', {
+		route: frappe.get_route_str(),
+		navigation_lock: window.__imogiNavigationLock,
+		timestamp: new Date().toISOString()
+	});
 	
-	// Phase 4: Restore UI visibility using wrapper reference
-	const container = wrapper.__imogiModuleSelectRoot;
-	if (container) {
-		container.style.display = '';
+	// CRITICAL: Check if we're navigating away - don't remount if so
+	if (window.__imogiNavigationLock) {
+		console.log('\u26d4 [DESK] Module Select skipping mount - navigation in progress');
+		return;
 	}
+	
+	// Get container reference from wrapper
+	const container = wrapper.__imogiModuleSelectRoot;
+	const page = wrapper.__imogiModuleSelectPage;
+	
+	if (!container) {
+		console.error('[Desk] Module Select container not found - on_page_load not run?');
+		return;
+	}
+	
+	// Restore UI visibility
+	container.style.display = '';
 	
 	// Set active flag for portal rendering
 	window.__imogiModuleSelectActive = true;
+
+	// Load React widget using shared loader
+	loadReactWidget(container, page);
 };
 
 frappe.pages['imogi-module-select'].on_page_hide = function(wrapper) {
-	// Page hidden - keep widget mounted (preserve state)
-	// Note: Frappe may reuse the same page instance, so we don't unmount
+	console.log('[Desk] Module Select page hidden');
 	
-	// Phase 4: Hide UI to prevent DOM overlay/clash (using wrapper reference)
+	// Get container reference from wrapper
 	const container = wrapper.__imogiModuleSelectRoot;
 	if (container) {
 		container.style.display = 'none';
@@ -56,116 +75,62 @@ frappe.pages['imogi-module-select'].on_page_hide = function(wrapper) {
 	
 	// Set inactive flag for portal cleanup
 	window.__imogiModuleSelectActive = false;
-	
-	// Optional: Uncomment below to force unmount on hide (may cause state loss)
-	// if (container && window.imogiModuleSelectUnmount) {
-	//   window.imogiModuleSelectUnmount(container);
-	//   container.__imogiModuleSelectMounted = false;
-	// }
 };
 
 function loadReactWidget(container, page) {
-	// ✅ GUARD: Check both mount function AND script tag with exact src validation
-	const scriptExists = [...document.querySelectorAll('script[data-imogi-app="module-select"]')]
-		.some(s => (s.src || '').includes('/assets/imogi_pos/react/module-select/'));
+	// Load React bundle using shared loader
+	const manifestPath = '/assets/imogi_pos/react/module-select/.vite/manifest.json';
 	
-	if (window.imogiModuleSelectMount && scriptExists) {
-		mountWidget(container, page);
-		return;
-	}
+	fetch(manifestPath)
+		.then(res => res.json())
+		.then(manifest => {
+			// Vite manifest key is the full source path
+			const entry = findManifestEntry(manifest);
+			if (!entry || !entry.file) {
+				console.error('[Desk] Module Select manifest structure:', manifest);
+				throw new Error('Entry point not found in manifest. Check console for manifest structure.');
+			}
 
-	// Guard: ensure bundle only loads once even if page is re-mounted
-	if (!window.__imogiModuleSelectLoading) {
-		window.__imogiModuleSelectLoading = new Promise((resolve, reject) => {
-			const manifestCandidates = [
-				'/assets/imogi_pos/react/module-select/.vite/manifest.json'
-			];
+			const scriptUrl = `/assets/imogi_pos/react/module-select/${entry.file}`;
+			const cssUrl = entry.css && entry.css.length > 0 
+				? `/assets/imogi_pos/react/module-select/${entry.css[0]}` 
+				: null;
 
-			fetchManifest(manifestCandidates)
-				.then(manifest => {
-					const entry = findManifestEntry(manifest);
-					if (!entry) {
-						throw new Error('Entry point not found in manifest');
+			// Use shared loader
+			window.loadImogiReactApp({
+				appKey: 'module-select',
+				scriptUrl: scriptUrl,
+				cssUrl: cssUrl,
+				mountFnName: 'imogiModuleSelectMount',
+				unmountFnName: 'imogiModuleSelectUnmount',
+				containerId: 'imogi-module-select-root',
+				makeContainer: () => container,
+				onReadyMount: (mountFn, containerEl) => {
+					// Prevent duplicate mounting
+					if (containerEl.__imogiModuleSelectMounted) {
+						console.log('[Desk] Module Select already mounted, skipping...');
+						return;
 					}
 
-					const scriptUrl = `/assets/imogi_pos/react/module-select/${entry.file}`;
-					const scriptSelector = `script[data-imogi-app="module-select"][src="${scriptUrl}"]`;
-					const existingScript = document.querySelector(scriptSelector);
+					const initialState = {
+						user: frappe.session.user,
+						csrf_token: frappe.session.csrf_token
+					};
 
-					if (!existingScript) {
-						const script = document.createElement('script');
-						script.type = 'module';
-						script.src = scriptUrl;
-						script.dataset.imogiApp = 'module-select';
-
-						script.onload = () => {
-							resolve(true);
-						};
-
-						script.onerror = () => {
-							reject(new Error('Failed to load module-select script'));
-						};
-
-						document.head.appendChild(script);
-					} else {
-						resolve(true);
-					}
-
-					// Load CSS if available
-					if (entry.css && entry.css.length > 0) {
-						const cssUrl = `/assets/imogi_pos/react/module-select/${entry.css[0]}`;
-						const cssSelector = `link[data-imogi-app="module-select"][href="${cssUrl}"]`;
-						if (!document.querySelector(cssSelector)) {
-							const link = document.createElement('link');
-							link.rel = 'stylesheet';
-							link.href = cssUrl;
-							link.dataset.imogiApp = 'module-select';
-							document.head.appendChild(link);
-						}
-					}
-				})
-				.catch(reject);
-		});
-	}
-
-	window.__imogiModuleSelectLoading
-		.then(() => {
-			// Wait for mount function to be available
-			const checkMount = setInterval(() => {
-				if (window.imogiModuleSelectMount) {
-					clearInterval(checkMount);
-					mountWidget(container, page);
-				}
-			}, 100);
+					safeMount(mountFn, containerEl, { initialState });
+					containerEl.__imogiModuleSelectMounted = true;
+				},
+				page: page,
+				logPrefix: '[Module Select]'
+			}).catch(error => {
+				console.error('[Desk] Failed to load module-select:', error);
+				showBundleError(container, 'module-select');
+			});
 		})
 		.catch(error => {
-			if (error.manifestNotFound) {
-				console.error(`[Desk] Module Select manifest not found: ${error.manifestPath}`);
-			} else {
-				console.error('[Desk] Failed to load module-select bundle:', error);
-			}
+			console.error('[Desk] Failed to fetch module-select manifest:', error);
 			showBundleError(container, 'module-select');
 		});
-}
-
-function fetchManifest(candidates) {
-	const [current, ...rest] = candidates;
-	if (!current) {
-		return Promise.reject(new Error('No manifest paths available'));
-	}
-
-	return fetch(current).then(response => {
-		if (!response.ok) {
-			if (rest.length === 0) {
-				const error = new Error(`Manifest not found: ${current}`);
-				error.manifestNotFound = true;
-				error.manifestPath = current;
-				throw error;
-			}
-			return fetchManifest(rest);
-		}
-		return response.json();
-	});
 }
 
 function findManifestEntry(manifest) {
@@ -181,28 +146,6 @@ function findManifestEntry(manifest) {
 	return entries.find((entry) => entry && entry.isEntry) || null;
 }
 
-function mountWidget(container, page) {
-	try {
-		if (container[0].__imogiModuleSelectMounted) {
-			return;
-		}
-
-		// Prepare initial state
-		const initialState = {
-			user: frappe.session.user,
-			csrf_token: frappe.session.csrf_token
-		};
-
-		// Mount React widget
-		safeMount(window.imogiModuleSelectMount, container[0], { initialState });
-		container[0].__imogiModuleSelectMounted = true;
-
-	} catch (error) {
-		console.error('[Desk] Failed to mount module-select widget:', error);
-		showMountError(container, error);
-	}
-}
-
 function safeMount(mountFn, element, options) {
 	if (!(element instanceof HTMLElement)) {
 		throw new Error('Invalid mount element: expected HTMLElement for module-select');
@@ -214,27 +157,18 @@ function safeMount(mountFn, element, options) {
 }
 
 function showBundleError(container, appName) {
-	container[0].innerHTML = `
+	const element = container instanceof HTMLElement ? container : container;
+	element.innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
 			<div style="background: #1f2937; color: #10b981; padding: 1rem; border-radius: 4px; font-family: monospace; text-align: left;">
 				<div style="color: #6b7280; margin-bottom: 0.5rem;"># Build the React app:</div>
-				<div>VITE_APP=${appName} npx vite build</div>
+				<div>npm run build</div>
 			</div>
 			<p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
 				After building, refresh this page.
 			</p>
-		</div>
-	`;
-}
-
-function showMountError(container, error) {
-	container[0].innerHTML = `
-		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto;">
-			<h3>Widget Mount Error</h3>
-			<p>${error.message || 'Failed to mount React widget'}</p>
-			<button class="btn btn-primary btn-sm" onclick="location.reload()">Reload Page</button>
 		</div>
 	`;
 }

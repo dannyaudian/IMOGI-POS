@@ -38,6 +38,10 @@ function App() {
   const [pendingModule, setPendingModule] = useState(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [pendingProfileModule, setPendingProfileModule] = useState(null)
+  
+  // Navigation lock to prevent duplicate clicks and route bounces
+  const [navigationLock, setNavigationLock] = useState(false)
+  const [navigatingToModule, setNavigatingToModule] = useState(null)
 
   // Check for reason and target parameters from URL (redirected from gated modules)
   useEffect(() => {
@@ -228,9 +232,20 @@ function App() {
       console.error('[module-select] Cannot navigate: no URL provided', module)
       return
     }
+    
+    // Check navigation lock
+    if (navigationLock) {
+      console.warn('[module-select] Navigation already in progress, ignoring duplicate request')
+      return
+    }
 
     // Normalize to path + search (handle both relative and absolute URLs)
     const url = new URL(base, window.location.origin)
+    
+    // Acquire navigation lock
+    console.log('🔒 [NAVIGATION LOCK] Acquired for', module.name)
+    setNavigationLock(true)
+    setNavigatingToModule(module.type)
     
     // Phase 5: Route transition instrumentation with byApp counting
     const scripts = [...document.querySelectorAll('script[data-imogi-app]')]
@@ -240,13 +255,16 @@ function App() {
       return acc
     }, {})
     
-    console.log('🚀 [ROUTE TRANSITION] Module-select → ' + module.name, {
+    // Log before navigation
+    console.log('🚀 [ROUTE TRANSITION START] Module-select → ' + module.name, {
       from_route: window.location.pathname,
       to_route: url.pathname,
       module_type: module.type,
       module_name: module.name,
       scripts_by_app: byApp,
       scripts_total: scripts.length,
+      frappe_current_route: frappe.get_route_str(),
+      navigation_lock: true,
       timestamp: new Date().toISOString()
     })
     
@@ -254,6 +272,20 @@ function App() {
     deskNavigate(url.pathname + url.search, {
       logPrefix: `[module-select → ${module.type}]`
     })
+    
+    // Log after navigation call
+    console.log('🚀 [ROUTE TRANSITION END] deskNavigate called', {
+      to_route: url.pathname,
+      frappe_current_route_after: frappe.get_route_str(),
+      timestamp: new Date().toISOString()
+    })
+    
+    // Release lock after delay (in case navigation fails)
+    setTimeout(() => {
+      console.log('🔓 [NAVIGATION LOCK] Released after timeout')
+      setNavigationLock(false)
+      setNavigatingToModule(null)
+    }, 3000)
   }
 
   const setOperationalContext = async (posProfile, branchOverride) => {
@@ -340,10 +372,24 @@ function App() {
       try {
         logEvent('Setting operational context...', { 
           pos_profile: contextData.pos_profile,
-          branch: contextData.branch
+          branch: contextData.branch,
+          module: module.name
+        })
+        
+        console.log('⚙️  [CONTEXT SET START]', {
+          pos_profile: contextData.pos_profile,
+          branch: contextData.branch,
+          module: module.name,
+          timestamp: new Date().toISOString()
         })
         
         const response = await setOperationalContext(contextData.pos_profile, contextData.branch)
+        
+        console.log('⚙️  [CONTEXT SET END]', {
+          success: response?.success,
+          has_context: !!response?.context,
+          timestamp: new Date().toISOString()
+        })
         
         logEvent('setOperationalContext response received', {
           has_success: !!response?.success,
@@ -357,6 +403,8 @@ function App() {
             response: JSON.stringify(response)
           })
           
+          console.error('❌ [CONTEXT SET FAILED]', response)
+          
           frappe.msgprint({
             title: 'Error',
             message: response?.message || 'Failed to set POS context. Please try again.',
@@ -367,11 +415,18 @@ function App() {
         
         logEvent('Context set successfully', { context: response.context })
         
+        console.log('✅ [CONTEXT SET SUCCESS]', { context: response.context })
+        
         // Give server MORE time to persist the session (increased from 100ms)
         await new Promise(resolve => setTimeout(resolve, 500))
         
       } catch (error) {
         logEvent('ERROR: Exception setting context', { 
+          error: error.message,
+          stack: error.stack
+        })
+        
+        console.error('❌ [CONTEXT SET EXCEPTION]', {
           error: error.message,
           stack: error.stack
         })
@@ -431,6 +486,18 @@ function App() {
   }
 
   const handleModuleClick = async (module) => {
+    // Prevent duplicate clicks during navigation
+    if (navigationLock) {
+      console.warn('[module-select] Navigation in progress, ignoring click')
+      return
+    }
+    
+    console.log('🖱️  [MODULE CLICK]', module.name, {
+      requires_pos_profile: module.requires_pos_profile,
+      current_pos_profile: contextData.pos_profile,
+      navigation_lock: navigationLock
+    })
+    
     if (module.requires_pos_profile && !contextData.pos_profile) {
       if (contextData.available_pos_profiles.length === 0) {
         frappe.msgprint({
@@ -717,6 +784,8 @@ function App() {
                   module={module}
                   onClick={() => handleModuleClick(module)}
                   posOpeningStatus={posOpeningStatus}
+                  isNavigating={navigationLock}
+                  isLoading={navigatingToModule === module.type}
                 />
               ))
             ) : (
