@@ -105,16 +105,22 @@ function loadReactWidget(container, page) {
 				unmountFnName: 'imogiModuleSelectUnmount',
 				containerId: 'imogi-module-select-root',
 				makeContainer: () => container,
-				onReadyMount: (mountFn, containerEl) => {
+				onReadyMount: async (mountFn, containerEl) => {
 					// Prevent duplicate mounting
 					if (containerEl.__imogiModuleSelectMounted) {
 						console.log('[Desk] Module Select already mounted, skipping...');
 						return;
 					}
 
+					// CRITICAL FIX: Fetch operational context using shared utility
+					// This ensures React app has current context state
+					const operationalContext = await window.fetchOperationalContext();
+					
 					const initialState = {
 						user: frappe.session.user,
-						csrf_token: frappe.session.csrf_token
+						csrf_token: frappe.session.csrf_token,
+						// Spread operational context into initialState
+						...operationalContext
 					};
 
 					safeMount(mountFn, containerEl, { initialState });

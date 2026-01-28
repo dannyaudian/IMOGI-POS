@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "VITE_APP=cashier-console vite",
     "dev:cashier": "VITE_APP=cashier-console vite",
-    "dev:cashier-payment": "VITE_APP=cashier-payment vite",
     "dev:kitchen": "VITE_APP=kitchen vite",
     "dev:waiter": "VITE_APP=waiter vite",
     "dev:kiosk": "VITE_APP=kiosk vite",
@@ -19,9 +18,8 @@
     "dev:table-layout-editor": "VITE_APP=table-layout-editor vite",
     "dev:module-select": "VITE_APP=module-select vite",
     "build": "npm run build:all",
-    "build:all": "npm run build:cashier && npm run build:cashier-payment && npm run build:kitchen && npm run build:waiter && npm run build:kiosk && npm run build:self-order && npm run build:customer-display && npm run build:table-display && npm run build:customer-display-editor && npm run build:table-display-editor && npm run build:table-layout-editor && npm run build:module-select",
+    "build:all": "npm run build:cashier && npm run build:kitchen && npm run build:waiter && npm run build:kiosk && npm run build:self-order && npm run build:customer-display && npm run build:table-display && npm run build:customer-display-editor && npm run build:table-display-editor && npm run build:table-layout-editor && npm run build:module-select",
     "build:cashier": "VITE_APP=cashier-console vite build",
-    "build:cashier-payment": "VITE_APP=cashier-payment vite build",
     "build:kitchen": "VITE_APP=kitchen vite build",
     "build:waiter": "VITE_APP=waiter vite build",
     "build:kiosk": "VITE_APP=kiosk vite build",

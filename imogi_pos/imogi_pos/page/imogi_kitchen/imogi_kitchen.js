@@ -75,8 +75,19 @@ function loadReactWidget(container, page) {
 				unmountFnName: 'imogiKitchenUnmount',
 				containerId: 'imogi-kitchen-root',
 				makeContainer: () => container,
-				onReadyMount: (mountFn, containerEl) => {
-					safeMount(mountFn, containerEl, { page });
+			onReadyMount: async (mountFn, containerEl) => {
+				// CRITICAL FIX: Fetch operational context using shared utility
+				// This ensures React app receives the context that was set by module-select
+				const operationalContext = await window.fetchOperationalContext();
+				
+				const initialState = {
+					user: frappe.session.user,
+					csrf_token: frappe.session.csrf_token,
+					// Spread operational context into initialState
+					...operationalContext
+				};
+				
+				safeMount(mountFn, containerEl, { initialState });
 				},
 				page: page,
 				logPrefix: '[Kitchen Display]'

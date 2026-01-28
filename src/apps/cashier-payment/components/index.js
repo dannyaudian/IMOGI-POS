@@ -1,6 +1,0 @@
-export { OrderList } from './OrderList'
-export { OrderDetails } from './OrderDetails'
-export { PaymentPanel } from './PaymentPanel'
-export { InvoicePreview } from './InvoicePreview'
-export { CustomerInfo } from './CustomerInfo'
-export { CashierHeader } from './CashierHeader'

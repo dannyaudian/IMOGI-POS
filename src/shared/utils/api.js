@@ -410,6 +410,57 @@ function sleep(ms) {
 }
 
 /**
+ * Check if an error object represents a session expiry
+ * This is useful for checking errors caught from API calls
+ * 
+ * @param {Error|Object} error - Error object from API call
+ * @returns {boolean} True if error indicates session expiry
+ */
+export function isSessionExpiredFromError(error) {
+  if (!error) return false
+  
+  const status = error?.httpStatus || error?.status || error?.response?.status
+  const message = error?.message || error?.response?.data?.message || error?.exception
+  
+  // 503 with "Session Stopped" exception
+  if (status === 503) {
+    if (error?.exc_type === 'SessionStopped') return true
+    if (typeof message === 'string' && message.toLowerCase().includes('session stopped')) return true
+    return true // Assume 503 is session issue
+  }
+  
+  // 401/403 unauthorized
+  if (status === 401 || status === 403) return true
+  
+  // 417 expectation failed (sometimes used for session issues)
+  if (status === 417) {
+    // Check if it's really a session issue vs validation error
+    if (typeof message === 'string') {
+      const lowerMessage = message.toLowerCase()
+      if (lowerMessage.includes('session') || 
+          lowerMessage.includes('authentication') ||
+          lowerMessage.includes('permission')) {
+        return true
+      }
+    }
+    return false // Don't assume all 417 are session issues
+  }
+  
+  // Check message content for session keywords
+  if (typeof message === 'string') {
+    const lowerMessage = message.toLowerCase()
+    if (lowerMessage.includes('session stopped') || 
+        lowerMessage.includes('session expired') ||
+        lowerMessage.includes('not logged in') ||
+        lowerMessage.includes('authentication required')) {
+      return true
+    }
+  }
+  
+  return false
+}
+
+/**
  * Reset session expired flag (for testing)
  */
 export function resetSessionExpiredFlag() {

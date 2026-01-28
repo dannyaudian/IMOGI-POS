@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
-import { isSessionExpired } from '../utils/session-manager'
+import { isSessionExpiredFromError } from '../utils/api'
 import storage from '../utils/storage'
 import './POSOpeningModal.css'
 
@@ -48,7 +48,7 @@ export function POSOpeningModal({
         console.error('[POSOpeningModal] Payment methods API failed:', error)
         
         // Use centralized session expiry detection
-        if (isSessionExpired(error)) {
+        if (isSessionExpiredFromError(error)) {
           console.warn('[POSOpeningModal] Session expired - user needs to re-authenticate through Frappe desk')
           // Just show error, don't redirect
           setError('Session expired. Please login through Frappe desk and try again.')

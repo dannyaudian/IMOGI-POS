@@ -178,8 +178,6 @@ website_route_rules = [
     {"from_route": "/restaurant/kitchen", "to_route": "/app/imogi-kitchen"},
     {"from_route": "/restaurant/tables", "to_route": "/app/imogi-tables"},
     {"from_route": "/devices/displays", "to_route": "/app/imogi-displays"},
-    {"from_route": "/devices/customer-display-editor", "to_route": "/customer_display_editor"},
-    {"from_route": "/devices/table-display-editor", "to_route": "/table_layout_editor"},
     
     # Friendly Aliases → Desk Pages
     {"from_route": "/imogi-login", "to_route": "/login"},  # Use Frappe's built-in login
