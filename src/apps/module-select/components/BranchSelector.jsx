@@ -1,32 +1,30 @@
 import React from 'react'
+import { apiCall } from '@/shared/utils/api'
+import { setItem } from '@/shared/utils/storage'
 
 function BranchSelector({ currentBranch, branches, onBranchChange }) {
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const branch = e.target.value
     onBranchChange(branch)
-    // Store in localStorage
-    localStorage.setItem('imogi_selected_branch', branch)
+    // Store in storage
+    setItem('selected_branch', branch)
     
     // Update user preference in backend
-    frappe.call({
-      method: 'imogi_pos.api.public.set_user_branch',
-      args: { branch },
-      callback: (r) => {
-        if (r.message && r.message.success) {
-          // Trigger parent component to refetch data (no reload)
-          // Parent component should handle this via callback
-          console.log('Branch updated successfully:', branch)
-        }
-      },
-      error: (err) => {
-        console.error('Failed to update branch:', err)
+    try {
+      const result = await apiCall('imogi_pos.api.public.set_user_branch', { branch })
+      if (result && result.success) {
+        console.log('[imogi][branch] Branch updated successfully:', branch)
+      }
+    } catch (error) {
+      console.error('[imogi][branch] Failed to update branch:', error)
+      if (window.frappe && window.frappe.msgprint) {
         frappe.msgprint({
           title: 'Error',
           message: 'Failed to update branch. Please try again.',
           indicator: 'red'
         })
       }
-    })
+    }
   }
 
   // Get display name for current branch

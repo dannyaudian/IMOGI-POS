@@ -5,6 +5,7 @@ import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { POSOpeningModal } from '@/shared/components/POSOpeningModal'
+import { apiCall } from '@/shared/utils/api'
 import { OrderListSidebar } from './components/OrderListSidebar'
 import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { ActionButtons } from './components/ActionButtons'
@@ -179,20 +180,12 @@ function CounterPOSContent({ initialState }) {
       return
     }
 
-    if (!window.frappe) {
-      alert('System not ready. Please refresh the page.')
-      return
-    }
-
     try {
       // Call API to add item to order
-      await window.frappe.call({
-        method: 'imogi_pos.api.orders.add_item_to_order',
-        args: {
-          order_name: selectedOrder.name,
-          item_code: itemName,
-          qty: 1
-        }
+      await apiCall('imogi_pos.api.orders.add_item_to_order', {
+        order_name: selectedOrder.name,
+        item_code: itemName,
+        qty: 1
       })
 
       alert('Item added to order successfully')
@@ -206,19 +199,11 @@ function CounterPOSContent({ initialState }) {
   const convertTemplateToVariant = async (orderItemRow, variantName) => {
     if (!selectedOrder) return
 
-    if (!window.frappe) {
-      alert('System not ready. Please refresh the page.')
-      return
-    }
-
     try {
-      await window.frappe.call({
-        method: 'imogi_pos.api.variants.choose_variant_for_order_item',
-        args: {
-          pos_order: selectedOrder.name,
-          order_item_row: orderItemRow,
-          variant_item: variantName
-        }
+      await apiCall('imogi_pos.api.variants.choose_variant_for_order_item', {
+        pos_order: selectedOrder.name,
+        order_item_row: orderItemRow,
+        variant_item: variantName
       })
 
       alert('Template converted to variant successfully')

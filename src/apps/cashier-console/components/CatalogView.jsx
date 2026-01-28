@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiCall } from '@/shared/utils/api'
 
 export function CatalogView({ posProfile, onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
@@ -18,24 +19,13 @@ export function CatalogView({ posProfile, onSelectItem }) {
   }, [selectedGroup, posProfile])
 
   const loadItemGroups = async () => {
-    if (!window.frappe) {
-      console.error('frappe not available')
-      return
-    }
-
     try {
-      const response = await window.frappe.call({
-        method: 'imogi_pos.api.variants.get_item_groups',
-        args: {
-          pos_profile: posProfile
-        }
+      const groups = await apiCall('imogi_pos.api.variants.get_item_groups', {
+        pos_profile: posProfile
       })
-
-      if (response.message) {
-        setItemGroups(response.message)
-      }
+      setItemGroups(groups || [])
     } catch (err) {
-      console.error('Error loading item groups:', err)
+      console.error('[imogi][catalog] Error loading item groups:', err)
     }
   }
 
@@ -43,27 +33,15 @@ export function CatalogView({ posProfile, onSelectItem }) {
     setLoading(true)
     setError(null)
 
-    if (!window.frappe) {
-      setError('System not ready. Please refresh the page.')
-      setLoading(false)
-      return
-    }
-
     try {
-      const response = await window.frappe.call({
-        method: 'imogi_pos.api.variants.get_template_items',
-        args: {
-          pos_profile: posProfile,
-          item_group: selectedGroup === 'all' ? null : selectedGroup
-        }
+      const items = await apiCall('imogi_pos.api.variants.get_template_items', {
+        pos_profile: posProfile,
+        item_group: selectedGroup === 'all' ? null : selectedGroup
       })
-
-      if (response.message) {
-        setItems(response.message)
-      }
+      setItems(items || [])
     } catch (err) {
       setError('Failed to load items')
-      console.error('Error loading items:', err)
+      console.error('[imogi][catalog] Error loading items:', err)
     } finally {
       setLoading(false)
     }

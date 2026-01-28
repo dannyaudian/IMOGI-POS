@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiCall } from '@/shared/utils/api'
 
 export function VariantPickerModal({ 
   isOpen, 
@@ -23,27 +24,15 @@ export function VariantPickerModal({
     setLoading(true)
     setError(null)
 
-    if (!window.frappe) {
-      setError('System not ready. Please refresh the page.')
-      setLoading(false)
-      return
-    }
-
     try {
-      const response = await window.frappe.call({
-        method: 'imogi_pos.api.variants.get_item_variants',
-        args: {
-          template: templateName
-        }
+      const result = await apiCall('imogi_pos.api.variants.get_item_variants', {
+        template: templateName
       })
-
-      if (response.message) {
-        setVariants(response.message.variants || [])
-        setAttributes(response.message.attributes || [])
-      }
+      setVariants(result.variants || [])
+      setAttributes(result.attributes || [])
     } catch (err) {
       setError('Failed to load variants')
-      console.error('Error loading variants:', err)
+      console.error('[imogi][variants] Error loading variants:', err)
     } finally {
       setLoading(false)
     }
