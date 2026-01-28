@@ -45,48 +45,70 @@ function loadReactWidget(container, page) {
 		return;
 	}
 
-	// Load React bundle
-	const manifestCandidates = [
-		'/assets/imogi_pos/react/module-select/.vite/manifest.json'
-	];
+	// Guard: ensure bundle only loads once even if page is re-mounted
+	if (!window.__imogiModuleSelectLoading) {
+		window.__imogiModuleSelectLoading = new Promise((resolve, reject) => {
+			const manifestCandidates = [
+				'/assets/imogi_pos/react/module-select/.vite/manifest.json'
+			];
 
-	fetchManifest(manifestCandidates)
-		.then(manifest => {
-			const entry = findManifestEntry(manifest);
-			if (!entry) {
-				throw new Error('Entry point not found in manifest');
-			}
-
-			const scriptUrl = `/assets/imogi_pos/react/module-select/${entry.file}`;
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = scriptUrl;
-			
-			script.onload = () => {
-				console.log('[Desk] Module Select bundle loaded');
-				// Wait for mount function to be available
-				const checkMount = setInterval(() => {
-					if (window.imogiModuleSelectMount) {
-						clearInterval(checkMount);
-						mountWidget(container, page);
+			fetchManifest(manifestCandidates)
+				.then(manifest => {
+					const entry = findManifestEntry(manifest);
+					if (!entry) {
+						throw new Error('Entry point not found in manifest');
 					}
-				}, 100);
-			};
 
-			script.onerror = () => {
-				showBundleError(container, 'module-select');
-			};
+					const scriptUrl = `/assets/imogi_pos/react/module-select/${entry.file}`;
+					const scriptSelector = `script[data-imogi-app="module-select"][src="${scriptUrl}"]`;
+					const existingScript = document.querySelector(scriptSelector);
 
-			document.head.appendChild(script);
+					if (!existingScript) {
+						const script = document.createElement('script');
+						script.type = 'module';
+						script.src = scriptUrl;
+						script.dataset.imogiApp = 'module-select';
 
-			// Load CSS if available
-			if (entry.css && entry.css.length > 0) {
-				const cssUrl = `/assets/imogi_pos/react/module-select/${entry.css[0]}`;
-				const link = document.createElement('link');
-				link.rel = 'stylesheet';
-				link.href = cssUrl;
-				document.head.appendChild(link);
-			}
+						script.onload = () => {
+							console.log('[Desk] Module Select bundle loaded');
+							resolve(true);
+						};
+
+						script.onerror = () => {
+							reject(new Error('Failed to load module-select script'));
+						};
+
+						document.head.appendChild(script);
+					} else {
+						resolve(true);
+					}
+
+					// Load CSS if available
+					if (entry.css && entry.css.length > 0) {
+						const cssUrl = `/assets/imogi_pos/react/module-select/${entry.css[0]}`;
+						const cssSelector = `link[data-imogi-app="module-select"][href="${cssUrl}"]`;
+						if (!document.querySelector(cssSelector)) {
+							const link = document.createElement('link');
+							link.rel = 'stylesheet';
+							link.href = cssUrl;
+							link.dataset.imogiApp = 'module-select';
+							document.head.appendChild(link);
+						}
+					}
+				})
+				.catch(reject);
+		});
+	}
+
+	window.__imogiModuleSelectLoading
+		.then(() => {
+			// Wait for mount function to be available
+			const checkMount = setInterval(() => {
+				if (window.imogiModuleSelectMount) {
+					clearInterval(checkMount);
+					mountWidget(container, page);
+				}
+			}, 100);
 		})
 		.catch(error => {
 			if (error.manifestNotFound) {
