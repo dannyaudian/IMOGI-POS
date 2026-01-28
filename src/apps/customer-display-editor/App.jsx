@@ -14,7 +14,6 @@ import {
   useDuplicateProfile,
   useCreateProfile
 } from '../../shared/api/imogi-api'
-import { useAuth } from '../../shared/hooks/useAuth'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
 import './styles.css'
 
@@ -23,7 +22,7 @@ import './styles.css'
  * Manages configuration of customer-facing displays
  */
 function App() {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Branch Manager', 'System Manager'])
+  // No need for useAuth - www page with @require_roles decorator handles authentication
   // State
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [config, setConfig] = useState({})
@@ -31,15 +30,6 @@ function App() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
   const [sampleData, setSampleData] = useState(null)
   const [hasChanges, setHasChanges] = useState(false)
-
-  // Check authentication
-  if (authLoading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Authenticating...</div>
-  }
-
-  if (authError || !hasAccess) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>{authError || 'Access denied - Manager role required'}</div>
-  }
 
   // API Hooks
   const { data: profilesData, isLoading: loadingProfiles, error: profilesError, mutate: refreshProfiles } = useCustomerDisplayProfiles()

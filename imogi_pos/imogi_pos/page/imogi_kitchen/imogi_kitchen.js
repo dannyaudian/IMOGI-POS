@@ -8,29 +8,9 @@ frappe.pages['imogi-kitchen'].on_page_load = function(wrapper) {
 	const container = page.main.find('.page-content');
 	container.attr('id', 'imogi-kitchen-root');
 
-	// Gate: Check operational context before mounting widget
-	frappe.call({
-		method: 'imogi_pos.utils.operational_context.get_operational_context',
-		callback: function(r) {
-			if (r.message && r.message.pos_profile) {
-				console.log('[imogi-kitchen] Operational context found:', r.message);
-				loadReactWidget(container, page);
-			} else {
-				console.warn('[imogi-kitchen] No operational context found. Redirecting to module-select...');
-				frappe.set_route('imogi-module-select', { 
-					reason: 'missing_pos_profile', 
-					target: 'imogi-kitchen' 
-				});
-			}
-		},
-		error: function(err) {
-			console.error('[imogi-kitchen] Failed to check operational context:', err);
-			frappe.set_route('imogi-module-select', { 
-				reason: 'missing_pos_profile', 
-				target: 'imogi-kitchen' 
-			});
-		}
-	});
+	// Load React widget directly - let React handle operational context checking
+	// React usePOSProfileGuard will handle redirect to module-select if needed
+	loadReactWidget(container, page);
 
 	function loadReactWidget(container, page) {
 		// Fetch manifest from build output

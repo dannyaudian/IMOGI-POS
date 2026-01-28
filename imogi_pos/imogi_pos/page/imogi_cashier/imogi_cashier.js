@@ -45,42 +45,10 @@ frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 		return;
 	}
 
-	// Check operational context before loading widget
-	checkOperationalContext(container, page);
+	// Load React widget directly - let React handle operational context checking
+	// React usePOSProfileGuard will handle redirect to module-select if needed
+	loadReactWidget(container, page);
 };
-
-function checkOperationalContext(container, page) {
-	frappe.call({
-		method: 'imogi_pos.utils.operational_context.get_operational_context',
-		callback: function(r) {
-			console.log('[Desk] Operational context response:', r);
-			if (r.message && r.message.current_pos_profile) {
-				// Context exists - load widget
-				console.log('[Desk] Context check passed, loading cashier widget...');
-				// Ensure we pass raw HTMLElement, not jQuery object
-				const element = container instanceof HTMLElement ? container : container[0];
-				loadReactWidget(element, page);
-			} else {
-				// No context - redirect to module-select with reason
-				console.warn('[Desk] No context found, redirecting to module-select');
-				const reason = 'missing_pos_profile';
-				const target = 'imogi-cashier';
-				// Guard against redirect loop
-				if (window.location.hash !== '#imogi-module-select') {
-					frappe.set_route('imogi-module-select', { reason, target });
-				}
-			}
-		},
-		error: function(err) {
-			// Error checking context - redirect to module-select
-			console.error('[Desk] Error checking operational context:', err);
-			// Guard against redirect loop
-			if (window.location.hash !== '#imogi-module-select') {
-				frappe.set_route('imogi-module-select');
-			}
-		}
-	});
-}
 
 function loadReactWidget(container, page) {
 	// Check if bundle already loaded

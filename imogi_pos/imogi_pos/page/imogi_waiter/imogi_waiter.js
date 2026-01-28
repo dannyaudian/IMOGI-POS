@@ -45,29 +45,10 @@ frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
 		return;
 	}
 
-	// Check operational context before loading widget
-	checkOperationalContext($(container), page);
+	// Load React widget directly - let React handle operational context checking
+	// React usePOSProfileGuard will handle redirect to module-select if needed
+	loadReactWidget($(container), page);
 };
-
-function checkOperationalContext(container, page) {
-	frappe.call({
-		method: 'imogi_pos.utils.operational_context.get_operational_context',
-		callback: function(r) {
-			if (r.message && r.message.pos_profile) {
-				console.log('[Desk] Context check passed, loading waiter widget...');
-				loadReactWidget(container, page);
-			} else {
-				console.warn('[Desk] No context found, redirecting to module-select');
-				const reason = 'missing_pos_profile';
-				const target = 'imogi-waiter';
-				frappe.set_route('imogi-module-select', { reason, target });
-			}
-		},
-		error: function() {
-			frappe.set_route('imogi-module-select');
-		}
-	});
-}
 
 function loadReactWidget(container, page) {
 	// Check if bundle already loaded

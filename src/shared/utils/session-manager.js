@@ -47,8 +47,9 @@ export function isSessionExpired(error) {
 }
 
 /**
- * Handle session expiry by redirecting to login
- * Prevents multiple simultaneous redirects
+ * Handle session expiry by logging the error
+ * No redirect - let Frappe handle authentication for Desk Pages
+ * Prevents multiple simultaneous error logging
  * 
  * @param {string} source - Source of the session expiry (for logging)
  */

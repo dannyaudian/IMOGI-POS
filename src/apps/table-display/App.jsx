@@ -1,11 +1,10 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useTables } from '@/shared/api/imogi-api'
-import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 
 function TableDisplayContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
+  // No need for useAuth - Frappe Desk already handles authentication
   
   // POS Profile guard - table display doesn't require opening, just profile
   const {
@@ -21,12 +20,8 @@ function TableDisplayContent({ initialState }) {
   
   const { data: tables, error, isLoading } = useTables(effectiveBranch)
 
-  if (authLoading || guardLoading) {
-    return <LoadingSpinner message="Authenticating..." />
-  }
-
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied - Waiter or Manager role required'} />
+  if (guardLoading) {
+    return <LoadingSpinner message="Loading..." />
   }
   
   if (!guardPassed) {

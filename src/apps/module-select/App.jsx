@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
 import { isSessionExpired, handleSessionExpiry } from '../../shared/utils/session-manager'
+import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -10,6 +11,15 @@ import POSProfileSelectModal from './components/POSProfileSelectModal'
 import { deskNavigate } from '../../shared/utils/deskNavigate'
 
 function App() {
+  // Use operational context hook to manage POS Profile
+  const {
+    pos_profile: contextPosProfile,
+    branch: contextBranch,
+    available_profiles: contextAvailableProfiles,
+    setContext: setContextOnServer,
+    isLoading: contextLoading
+  } = useOperationalContext()
+  
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeOpening, setActiveOpening] = useState(null)
