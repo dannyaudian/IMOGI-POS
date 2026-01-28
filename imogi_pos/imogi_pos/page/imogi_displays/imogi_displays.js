@@ -33,7 +33,10 @@ frappe.pages['imogi-displays'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-displays'].on_page_show = function(wrapper) {
-	console.log('[Desk] Customer Display page shown, route:', frappe.get_route_str());
+	console.log('🟢 [DESK PAGE SHOW] Customer Display', {
+		route: frappe.get_route_str(),
+		timestamp: new Date().toISOString()
+	});
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiDisplaysRoot;

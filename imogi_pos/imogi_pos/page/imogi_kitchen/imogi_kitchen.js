@@ -28,7 +28,10 @@ frappe.pages['imogi-kitchen'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-kitchen'].on_page_show = function(wrapper) {
-	console.log('[Desk] Kitchen page shown, route:', frappe.get_route_str());
+	console.log('🟢 [DESK PAGE SHOW] Kitchen', {
+		route: frappe.get_route_str(),
+		timestamp: new Date().toISOString()
+	});
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiKitchenRoot;

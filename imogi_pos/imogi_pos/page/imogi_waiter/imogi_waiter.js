@@ -35,7 +35,10 @@ frappe.pages['imogi-waiter'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
-	console.log('[Desk] Waiter page shown, route:', frappe.get_route_str());
+	console.log('🟢 [DESK PAGE SHOW] Waiter', {
+		route: frappe.get_route_str(),
+		timestamp: new Date().toISOString()
+	});
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiWaiterRoot;

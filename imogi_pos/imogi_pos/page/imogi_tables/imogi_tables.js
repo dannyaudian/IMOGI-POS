@@ -30,7 +30,10 @@ frappe.pages['imogi-tables'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-tables'].on_page_show = function(wrapper) {
-	console.log('[Desk] Table Display page shown');
+	console.log('🟢 [DESK PAGE SHOW] Table Display', {
+		route: frappe.get_route_str(),
+		timestamp: new Date().toISOString()
+	});
 	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiTablesRoot;
