@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
-import { isSessionExpired, handleSessionExpiry } from '../../shared/utils/session-manager'
 import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
@@ -77,11 +76,6 @@ function App() {
     if (sid.length <= 8) return `${sid.slice(0, 2)}***${sid.slice(-2)}`
     return `${sid.slice(0, 4)}***${sid.slice(-4)}`
   }
-  
-  // Use centralized session manager
-  const checkIsSessionError = (error) => {
-    return isSessionExpired(error)
-  }
 
   const { data: moduleData, isLoading: modulesLoading, error: moduleError, mutate: refetchModuleData } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_available_modules',
@@ -89,14 +83,10 @@ function App() {
     undefined,
     {
       errorRetryCount: 1,
-      shouldRetryOnError: (error) => !checkIsSessionError(error),
+      shouldRetryOnError: true,
       onError: (error) => {
         console.error('[module-select] API call failed:', error)
-        if (checkIsSessionError(error)) {
-          // Session expired - redirect to login
-          handleSessionExpiry('module-select-api')
-          return
-        }
+        // Let Frappe handle session errors - we're a Desk Page
         if (debugRealtime) {
           console.warn('[module-select] module fetch error', {
             status: error?.httpStatus || error?.status || error?.response?.status,
@@ -107,29 +97,15 @@ function App() {
         }
       },
       onSuccess: (data) => {
-        const payload = data?.message ?? data ?? {}
-        console.log('[module-select] API call successful', {
-          has_modules: !!payload.modules,
-          modules_count: payload.modules?.length || 0,
-          has_context: !!payload.context,
-          pos_profile: payload.context?.current_pos_profile,
-          branch: payload.context?.current_branch
-        })
+        // Data loaded successfully
       }
     }
   )
 
   useEffect(() => {
     if (!modulesLoading && moduleData) {
-      console.log('[module-select] Raw API response:', moduleData)
-      
       // Frappe API wraps response in .message key
       const payload = moduleData?.message ?? moduleData ?? {}
-      
-      console.log('[module-select] Normalized payload:', payload)
-      console.log('[module-select] Modules count:', payload.modules?.length || 0)
-      console.log('[module-select] Current POS Profile:', payload.context?.current_pos_profile)
-      console.log('[module-select] Context:', payload.context)
       
       setModules(payload.modules || [])
       setActiveOpening(payload.active_opening || null)
@@ -203,12 +179,6 @@ function App() {
     const ctx = payload.context
     
     if (ctx) {
-      console.log('[module-select] Setting context state:', {
-        pos_profile: ctx.current_pos_profile,
-        branch: ctx.current_branch,
-        available_profiles_count: ctx.available_pos_profiles?.length || 0
-      })
-      
       setContextState({
         pos_profile: ctx.current_pos_profile || null,
         branch: ctx.current_branch || null,
@@ -288,14 +258,8 @@ function App() {
 
   const setOperationalContext = async (posProfile, branchOverride) => {
     if (!posProfile) {
-      console.warn('[module-select] setOperationalContext called without posProfile')
       return null
     }
-
-    console.log('[module-select] Calling setOperationalContext API:', {
-      pos_profile: posProfile,
-      branch: branchOverride || null
-    })
 
     try {
       // Use frappe.call directly (includes CSRF token automatically)
@@ -309,28 +273,21 @@ function App() {
           callback: (r) => {
             // Frappe sometimes sends exceptions in r.exc (status 200 but failed)
             if (r.exc) {
-              console.error('[module-select] Server exception in response:', r.exc)
               reject(new Error(r.exc || 'Server error'))
             } else {
               resolve(r)
             }
           },
           error: (err) => {
-            console.error('[module-select] Network/auth error:', err)
             reject(err)
           }
         })
       })
 
-      console.log('[module-select] setOperationalContext raw response:', response)
-      console.log('[module-select] Response type:', typeof response)
-      console.log('[module-select] Response.success:', response?.success)
-
       // frappe-react-sdk might wrap response in .message
       const actualResponse = response?.message || response
 
       if (actualResponse?.success) {
-        console.log('[module-select] Context set successfully:', actualResponse.context)
         setContextState((prev) => ({
           ...prev,
           pos_profile: actualResponse.context?.pos_profile || posProfile,
@@ -339,23 +296,17 @@ function App() {
         }))
         return actualResponse
       } else {
-        console.error('[module-select] setOperationalContext failed:', actualResponse)
         return actualResponse
       }
     } catch (error) {
-      console.error('[module-select] setOperationalContext exception:', error)
       throw error
     }
   }
 
   const proceedToModule = async (module, refreshedData = null) => {
-    // Persistent logging for debugging redirect issues
+    // Store critical info for debugging if needed
     const logEvent = (message, data = {}) => {
-      const timestamp = new Date().toISOString()
-      const logEntry = { timestamp, message, ...data }
-      console.log(`[module-select] ${message}`, data)
-      
-      // Store in localStorage for persistence across redirects
+      // Only store in localStorage for debugging, no console spam
       try {
         const logs = JSON.parse(localStorage.getItem('imogi_debug_logs') || '[]')
         logs.push(logEntry)

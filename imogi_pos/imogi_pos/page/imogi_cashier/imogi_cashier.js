@@ -13,8 +13,6 @@
  */
 
 frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
-	console.count('[Desk] Cashier on_page_load (one-time setup)');
-	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'IMOGI Cashier Console',
@@ -34,8 +32,6 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 };
 
 frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
-	console.log('[Desk] Cashier page shown');
-	
 	// Get container reference from wrapper
 	const container = wrapper.__imogiCashierRoot;
 	const page = wrapper.__imogiCashierPage;
@@ -76,7 +72,6 @@ function loadReactWidget(container, page) {
 
 			// Guard: Don't re-inject if script already exists
 			if (existingScript) {
-				console.log('[Desk] cashier-console script already loaded, re-mounting...');
 				// Script exists, just re-mount the widget
 				const checkMount = setInterval(() => {
 					if (window.imogiCashierMount) {
@@ -92,10 +87,7 @@ function loadReactWidget(container, page) {
 			script.src = scriptUrl;
 			script.dataset.imogiApp = 'cashier-console';
 			
-			console.log('[Desk] Cashier script injected:', scriptUrl);
-			
 			script.onload = () => {
-				console.log('[Desk] cashier-console bundle loaded');
 				const checkMount = setInterval(() => {
 					if (window.imogiCashierMount) {
 						clearInterval(checkMount);
@@ -133,7 +125,6 @@ function mountWidget(container, page) {
 		};
 
 		safeMount(window.imogiCashierMount, container, { initialState });
-		console.log('[Desk] Cashier React mounted');
 
 	} catch (error) {
 		console.error('[Desk] Failed to mount cashier-console widget:', error);

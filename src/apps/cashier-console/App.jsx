@@ -14,24 +14,6 @@ import { CatalogView } from './components/CatalogView'
 import './App.css'
 
 function CounterPOSContent({ initialState }) {
-  // Phase 5: Route transition instrumentation on mount
-  useEffect(() => {
-    const scripts = [...document.querySelectorAll('script[data-imogi-app]')]
-    const byApp = scripts.reduce((acc, s) => {
-      const app = s.dataset.imogiApp
-      acc[app] = (acc[app] || 0) + 1
-      return acc
-    }, {})
-    
-    console.log('📍 [ROUTE LOADED] Cashier Console mounted', {
-      current_route: window.location.pathname,
-      scripts_by_app: byApp,
-      scripts_total: scripts.length,
-      initial_state: !!initialState,
-      timestamp: new Date().toISOString()
-    })
-  }, [])
-
   // POS Profile guard - this module requires opening
   // No need for useAuth - Frappe Desk already handles authentication
   const {
@@ -48,18 +30,6 @@ function CounterPOSContent({ initialState }) {
     requiresOpening: true,
     targetModule: 'imogi-cashier'
   })
-  
-  // Debug logging
-  useEffect(() => {
-    console.log('[cashier-console] Guard state:', {
-      guardLoading,
-      guardPassed,
-      posProfile,
-      branch,
-      hasOpening: !!posOpening,
-      showOpeningModal
-    })
-  }, [guardLoading, guardPassed, posProfile, branch, posOpening, showOpeningModal])
   
   // Use centralized POS context as fallback
   const { mode: contextMode } = useImogiPOS()
@@ -111,8 +81,6 @@ function CounterPOSContent({ initialState }) {
   useEffect(() => {
     if (!guardLoading && !guardPassed && !showOpeningModal) {
       const timeout = setTimeout(() => {
-        console.error('POS Profile guard failed - redirecting to module select')
-        console.trace('🔍 [REDIRECT SOURCE] Cashier App.jsx → Guard timeout fallback')
         window.location.href = '/app/imogi-module-select'
       }, 10000)
       return () => clearTimeout(timeout)

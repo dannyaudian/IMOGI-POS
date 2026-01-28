@@ -11,8 +11,6 @@
  */
 
 frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
-	console.count('[Desk] on_page_load called');
-	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'IMOGI Module Select',
@@ -35,13 +33,11 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 
 frappe.pages['imogi-module-select'].on_page_show = function(wrapper) {
 	// Page shown - widget already mounted
-	console.count('[Desk] Module Select page shown');
 	
 	// Phase 4: Restore UI visibility using wrapper reference
 	const container = wrapper.__imogiModuleSelectRoot;
 	if (container) {
 		container.style.display = '';
-		console.log('[Desk] Module Select UI restored (display reset)');
 	}
 	
 	// Set active flag for portal rendering
@@ -51,13 +47,11 @@ frappe.pages['imogi-module-select'].on_page_show = function(wrapper) {
 frappe.pages['imogi-module-select'].on_page_hide = function(wrapper) {
 	// Page hidden - keep widget mounted (preserve state)
 	// Note: Frappe may reuse the same page instance, so we don't unmount
-	console.count('[Desk] Module Select page hidden');
 	
 	// Phase 4: Hide UI to prevent DOM overlay/clash (using wrapper reference)
 	const container = wrapper.__imogiModuleSelectRoot;
 	if (container) {
 		container.style.display = 'none';
-		console.log('[Desk] Module Select UI hidden (display:none)');
 	}
 	
 	// Set inactive flag for portal cleanup
@@ -71,14 +65,11 @@ frappe.pages['imogi-module-select'].on_page_hide = function(wrapper) {
 };
 
 function loadReactWidget(container, page) {
-	console.count('[Desk] loadReactWidget called');
-	
 	// ✅ GUARD: Check both mount function AND script tag with exact src validation
 	const scriptExists = [...document.querySelectorAll('script[data-imogi-app="module-select"]')]
 		.some(s => (s.src || '').includes('/assets/imogi_pos/react/module-select/'));
 	
 	if (window.imogiModuleSelectMount && scriptExists) {
-		console.log('[Desk] Bundle already loaded (verified src), using existing mount function');
 		mountWidget(container, page);
 		return;
 	}
@@ -102,14 +93,12 @@ function loadReactWidget(container, page) {
 					const existingScript = document.querySelector(scriptSelector);
 
 					if (!existingScript) {
-						console.count('[Desk] Injecting new script tag');
 						const script = document.createElement('script');
 						script.type = 'module';
 						script.src = scriptUrl;
 						script.dataset.imogiApp = 'module-select';
 
 						script.onload = () => {
-							console.log('[Desk] Module Select bundle loaded');
 							resolve(true);
 						};
 
@@ -193,12 +182,8 @@ function findManifestEntry(manifest) {
 }
 
 function mountWidget(container, page) {
-	console.count('[Desk] mountWidget called');
-	console.log('[Desk] Mount stack trace:', new Error().stack);
-	
 	try {
 		if (container[0].__imogiModuleSelectMounted) {
-			console.warn('[Desk] Module Select widget already mounted, skipping');
 			return;
 		}
 
@@ -211,7 +196,6 @@ function mountWidget(container, page) {
 		// Mount React widget
 		safeMount(window.imogiModuleSelectMount, container[0], { initialState });
 		container[0].__imogiModuleSelectMounted = true;
-		console.log('[Desk] Module Select widget mounted');
 
 	} catch (error) {
 		console.error('[Desk] Failed to mount module-select widget:', error);
