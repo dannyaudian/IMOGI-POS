@@ -87,7 +87,8 @@ http://localhost:3000  # Saat run npm run dev:login
 
 ### Production
 ```
-http://your-site.com/shared/login
+http://your-site.com/shared/login  # ONLY for standalone WWW apps (self-order, kiosk)
+http://your-site.com/login  # Frappe built-in login for Desk Pages
 http://your-site.com/service-select  
 http://your-site.com/device-select
 http://your-site.com/opening-balance?device=kiosk&next=/service-select
@@ -137,7 +138,8 @@ npm run build:login
 # Jalankan Frappe server
 bench start
 
-# Akses http://localhost:8000/shared/login
+# Akses http://localhost:8000/shared/login  # ONLY for testing standalone WWW apps
+# For Desk Pages, use: http://localhost:8000/login (Frappe built-in)
 ```
 
 ### 4. Deploy to Production

@@ -99,7 +99,8 @@ const { user, loading, hasAccess, error } = useAuth(['Cashier', 'Branch Manager'
 
 Otomatis:
 - Check authentication status
-- Redirect ke `/shared/login` jika Guest
+- Redirect ke `/login` (Frappe built-in) jika Guest - ONLY for standalone WWW apps
+- Desk Pages rely on Frappe's built-in authentication - NO custom redirects
 - Verify role-based access
 - Get initial state dari server
 

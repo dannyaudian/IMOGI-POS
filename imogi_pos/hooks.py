@@ -154,7 +154,7 @@ on_login_fail = [
 # Website route redirects for new architecture
 website_route_rules = [
     # Entry Points - DEPRECATED: Use /app/imogi-module-select instead
-    {"from_route": "/shared/login", "to_route": "/shared/login"},
+    # {"from_route": "/shared/login", "to_route": "/shared/login"},  # DISABLED: Use Frappe's /login instead
     {"from_route": "/shared/module-select", "to_route": "/app/imogi-module-select"},
     {"from_route": "/shared/module_select", "to_route": "/app/imogi-module-select"},
     
@@ -181,7 +181,7 @@ website_route_rules = [
     {"from_route": "/devices/table-display-editor", "to_route": "/table_layout_editor"},
     
     # Friendly Aliases → Desk Pages
-    {"from_route": "/imogi-login", "to_route": "/shared/login"},
+    {"from_route": "/imogi-login", "to_route": "/login"},  # Use Frappe's built-in login
     {"from_route": "/module-select", "to_route": "/app/imogi-module-select"},
     {"from_route": "/module_select", "to_route": "/app/imogi-module-select"},
     {"from_route": "/cashier-console", "to_route": "/app/imogi-cashier"},

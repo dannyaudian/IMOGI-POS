@@ -51,7 +51,7 @@ Test that old URLs automatically redirect to new URLs:
 | `/customer-display` | `/devices/displays` | ⬜ |
 | `/kitchen_display` | `/restaurant/kitchen` | ⬜ |
 | `/table_display` | `/restaurant/tables` | ⬜ |
-| `/imogi-login` | `/shared/login` | ⬜ |
+| `/imogi-login` | `/login` (Frappe built-in) | ⬜ |
 | `/so` | `/restaurant/self-order` | ⬜ |
 
 **How to test:**
@@ -66,8 +66,9 @@ Test that old URLs automatically redirect to new URLs:
 
 #### B.1 Login System
 
-**Login Page** (`/shared/login`)
+**Login Page** (`/shared/login`) - **ONLY for standalone WWW apps (self-order, kiosk)**
 - ⬜ Login form displays correctly
+- ⚠️ **Desk Pages use `/login` (Frappe built-in) - NOT `/shared/login`**
 - ⬜ Can login with valid credentials
 - ⬜ Invalid credentials show error
 - ⬜ After login, redirects based on role:
