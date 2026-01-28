@@ -143,24 +143,8 @@ def allow_guest_if_configured(setting_field="imogi_allow_guest_access", setting_
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if frappe.session.user == "Guest":
-                try:
-                    # Check if settings DocType exists
-                    if not frappe.db.exists("DocType", setting_doctype):
-                        raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
-                    
-                    # Get settings
-                    settings = frappe.get_cached_doc(setting_doctype)
-                    
-                    # Check if guest access is allowed
-                    if n# Use Frappe's built-in login page instead of deleted /imogi-login
-                        raise frappe.Redirect(f"/
-                        raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
-                except frappe.DoesNotExistError:
-                    # Use Frappe's built-in login page instead of deleted /imogi-login
-                    raise frappe.Redirect(f"/equire login
-                    raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
-            
+            # Allow guest access without checking settings or redirecting
+            # This decorator simply allows the function to proceed for both guests and authenticated users
             args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
