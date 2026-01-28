@@ -32,12 +32,33 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 	// Store references in wrapper for on_page_show access
 	wrapper.__imogiCashierPage = page;
 	wrapper.__imogiCashierRoot = container[0];
+	
+	// Setup popstate listener for back button auto-reload
+	// This ensures React remounts with fresh data when navigating back
+	if (!wrapper.__imogiPopstateHandler) {
+		wrapper.__imogiPopstateHandler = function(event) {
+			console.log('🔄 [POPSTATE] Back navigation detected, reloading Cashier', {
+				state: event.state,
+				route: frappe.get_route_str()
+			});
+			
+			// Check if we're on the cashier route
+			if (frappe.get_route_str().includes('imogi-cashier')) {
+				// Force remount React with fresh data
+				if (wrapper.__imogiCashierRoot) {
+					loadReactWidget(wrapper.__imogiCashierRoot, wrapper.__imogiCashierPage, true);
+				}
+			}
+		};
+		window.addEventListener('popstate', wrapper.__imogiPopstateHandler);
+	}
 };
 
 frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 	console.log('🟢 [DESK PAGE SHOW] Cashier', {
 		route: frappe.get_route_str(),
-		timestamp: new Date().toISOString()
+		timestamp: new Date().toISOString(),
+		isBackNavigation: window.performance && window.performance.navigation.type === 2
 	});
 	
 	// Get container reference from wrapper
@@ -54,7 +75,17 @@ frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 	loadReactWidget(container, page);
 };
 
-function loadReactWidget(container, page) {
+function loadReactWidget(container, page, forceReload = false) {
+	// If force reload, unmount existing React first
+	if (forceReload && container && window.imogiCashierUnmount) {
+		console.log('🔄 [FORCE RELOAD] Unmounting existing Cashier React instance');
+		try {
+			window.imogiCashierUnmount(container);
+		} catch (err) {
+			console.warn('[Cashier] Unmount error (non-critical):', err);
+		}
+	}
+	
 	// Load React bundle using shared loader
 	const manifestPath = '/assets/imogi_pos/react/cashier-console/.vite/manifest.json';
 	

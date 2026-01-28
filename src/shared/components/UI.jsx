@@ -27,7 +27,14 @@ export function ErrorMessage({ error, onRetry }) {
 
 export function NavBar({ title, user, showBackButton = true }) {
   const handleBack = () => {
-    window.location.href = '/app/imogi-pos'
+    // Use browser history API for proper back navigation
+    // This triggers popstate event for reload detection
+    if (window.history.length > 1) {
+      window.history.back()
+    } else {
+      // Fallback if no history
+      window.location.href = '/app/imogi-pos'
+    }
   }
 
   const handleLogout = () => {

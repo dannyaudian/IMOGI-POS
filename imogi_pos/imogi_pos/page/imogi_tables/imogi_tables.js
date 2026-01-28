@@ -27,12 +27,30 @@ frappe.pages['imogi-tables'].on_page_load = function(wrapper) {
 	// Store references in wrapper for on_page_show access
 	wrapper.__imogiTablesPage = page;
 	wrapper.__imogiTablesRoot = container[0];
+	
+	// Setup popstate listener for back button auto-reload
+	if (!wrapper.__imogiPopstateHandler) {
+		wrapper.__imogiPopstateHandler = function(event) {
+			console.log('🔄 [POPSTATE] Back navigation detected, reloading Table Display', {
+				state: event.state,
+				route: frappe.get_route_str()
+			});
+			
+			if (frappe.get_route_str().includes('imogi-tables')) {
+				if (wrapper.__imogiTablesRoot) {
+					loadReactWidget(wrapper.__imogiTablesRoot, wrapper.__imogiTablesPage, true);
+				}
+			}
+		};
+		window.addEventListener('popstate', wrapper.__imogiPopstateHandler);
+	}
 };
 
 frappe.pages['imogi-tables'].on_page_show = function(wrapper) {
 	console.log('🟢 [DESK PAGE SHOW] Table Display', {
 		route: frappe.get_route_str(),
-		timestamp: new Date().toISOString()
+		timestamp: new Date().toISOString(),
+		isBackNavigation: window.performance && window.performance.navigation.type === 2
 	});
 	
 	// Get container reference from wrapper
@@ -49,9 +67,19 @@ frappe.pages['imogi-tables'].on_page_show = function(wrapper) {
 	loadReactWidget($(container), page);
 };
 
-function loadReactWidget(container, page) {
+function loadReactWidget(container, page, forceReload = false) {
+	// If force reload, unmount existing React first
+	if (forceReload && container instanceof jQuery && window.imogiTablesUnmount) {
+		console.log('🔄 [FORCE RELOAD] Unmounting existing Table Display React instance');
+		try {
+			window.imogiTablesUnmount(container[0]);
+		} catch (err) {
+			console.warn('[Table Display] Unmount error (non-critical):', err);
+		}
+	}
+	
 	// Check if bundle already loaded
-	if (window.imogiTablesMount) {
+	if (window.imogiTablesMount && !forceReload) {
 		mountWidget(container[0], page);
 		return;
 	}

@@ -97,7 +97,23 @@ export function useOperationalContext(options = {}) {
     
     // Cache for faster subsequent renders
     storage.setItem('operational_context_cache', activeContext)
-  }, [serverContext])
+    
+    // CRITICAL FIX: Auto-set context on server if resolved but not in session
+    // This ensures server session is synchronized with client state
+    // Only auto-set if:
+    // 1. A profile was resolved (current_pos_profile exists)
+    // 2. No active_context in response (meaning it wasn't in session)
+    // 3. Auto-resolve is enabled (default behavior)
+    if (autoResolve && serverContext.current_pos_profile && !serverContext.active_context) {
+      // Silently set context on server to sync session
+      setContextOnServer({
+        pos_profile: serverContext.current_pos_profile,
+        branch: serverContext.current_branch || null
+      }).catch(err => {
+        console.warn('[OperationalContext] Failed to auto-set context on server:', err)
+      })
+    }
+  }, [serverContext, autoResolve, setContextOnServer])
   
   /**
    * Set operational context (server-side storage)

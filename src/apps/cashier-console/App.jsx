@@ -116,9 +116,8 @@ function CounterPOSContent({ initialState }) {
 
   const loadBranding = async () => {
     try {
-      const result = await apiCall('imogi_pos.api.branding.get_branding', {
-        pos_profile: effectivePosProfile
-      })
+      // API get_branding is in public.py and uses operational context
+      const result = await apiCall('imogi_pos.api.public.get_branding')
       if (result) {
         setBranding(result)
         console.log('[Cashier] Branding loaded:', result)

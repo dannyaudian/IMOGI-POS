@@ -32,12 +32,30 @@ frappe.pages['imogi-waiter'].on_page_load = function(wrapper) {
 	// Store references in wrapper for on_page_show access
 	wrapper.__imogiWaiterPage = page;
 	wrapper.__imogiWaiterRoot = container[0];
+	
+	// Setup popstate listener for back button auto-reload
+	if (!wrapper.__imogiPopstateHandler) {
+		wrapper.__imogiPopstateHandler = function(event) {
+			console.log('🔄 [POPSTATE] Back navigation detected, reloading Waiter', {
+				state: event.state,
+				route: frappe.get_route_str()
+			});
+			
+			if (frappe.get_route_str().includes('imogi-waiter')) {
+				if (wrapper.__imogiWaiterRoot) {
+					loadReactWidget(wrapper.__imogiWaiterRoot, wrapper.__imogiWaiterPage, true);
+				}
+			}
+		};
+		window.addEventListener('popstate', wrapper.__imogiPopstateHandler);
+	}
 };
 
 frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
 	console.log('🟢 [DESK PAGE SHOW] Waiter', {
 		route: frappe.get_route_str(),
-		timestamp: new Date().toISOString()
+		timestamp: new Date().toISOString(),
+		isBackNavigation: window.performance && window.performance.navigation.type === 2
 	});
 	
 	// Get container reference from wrapper
@@ -54,7 +72,17 @@ frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
 	loadReactWidget(container, page);
 };
 
-function loadReactWidget(container, page) {
+function loadReactWidget(container, page, forceReload = false) {
+	// If force reload, unmount existing React first
+	if (forceReload && container && window.imogiWaiterUnmount) {
+		console.log('🔄 [FORCE RELOAD] Unmounting existing Waiter React instance');
+		try {
+			window.imogiWaiterUnmount(container);
+		} catch (err) {
+			console.warn('[Waiter] Unmount error (non-critical):', err);
+		}
+	}
+	
 	// Load React bundle using shared loader
 	const manifestPath = '/assets/imogi_pos/react/waiter/.vite/manifest.json';
 	

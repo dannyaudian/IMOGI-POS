@@ -67,26 +67,21 @@ export function ActionButtons({
       <div className="header-left">
         {/* Branding Logo */}
         {branding?.logo && (
-          <div className="branding-logo" style={{ marginRight: '1rem' }}>
+          <div className="branding-logo">
             <img 
               src={branding.logo} 
               alt={branding.company_name || 'Logo'} 
-              style={{ height: '40px', width: 'auto' }}
             />
           </div>
         )}
         
         {/* Mode Badge */}
-        <div className="mode-badge" style={{
-          backgroundColor: branding?.primary_color || (isCounterMode ? '#ff9800' : '#2196f3'),
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          fontWeight: '600'
-        }}>
+        <div 
+          className="mode-badge" 
+          style={{
+            backgroundColor: branding?.primary_color || (isCounterMode ? '#ff9800' : '#2196f3')
+          }}
+        >
           <i className={`fa ${isCounterMode ? 'fa-cash-register' : 'fa-utensils'}`}></i>
           {posMode} Mode
           {selectedTable && (
@@ -213,7 +208,7 @@ export function ActionButtons({
           disabled={creatingOrder}
         >
           <i className={creatingOrder ? "fa fa-spinner fa-spin" : "fa fa-plus"}></i>
-          {creatingOrder ? 'Creating...' : (isCounterMode ? 'New Counter Order' : 'New Table Order')}
+          {creatingOrder ? 'Creating...' : (isCounterMode ? 'New Order' : 'New Table')}
         </button>
         
         <button 

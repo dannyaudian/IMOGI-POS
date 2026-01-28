@@ -155,8 +155,11 @@ def get_branding():
     """
     from imogi_pos.utils.operational_context import get_active_operational_context
     
+    company = frappe.defaults.get_global_default('company') or "IMOGI POS"
+    
     result = {
-        "brand_name": frappe.defaults.get_global_default('company') or "IMOGI POS",
+        "brand_name": company,
+        "company_name": company,  # Alias for compatibility
         "logo": None,
         "logo_dark": None,
         "primary_color": PRIMARY_COLOR,

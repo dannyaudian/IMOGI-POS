@@ -12,12 +12,12 @@ export function OrderListSidebar({
   // Explicitly define mode-specific labels and icons
   const MODE_CONFIG = {
     'Counter': {
-      label: 'Counter Mode',
+      label: 'Counter',
       icon: 'fa-cash-register',
       color: '#ff9800'
     },
     'Table': {
-      label: 'Table/Waiter Mode',
+      label: 'Table/Waiter',
       icon: 'fa-utensils',
       color: '#2196f3'
     }
