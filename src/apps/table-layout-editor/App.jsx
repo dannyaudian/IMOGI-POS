@@ -1,6 +1,7 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useTables } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
+import { apiCall } from '../../shared/utils/api'
 import { useState } from 'react'
 
 function TableLayoutEditorContent({ initialState }) {
@@ -20,14 +21,13 @@ function TableLayoutEditorContent({ initialState }) {
 
   const handleSaveLayout = async () => {
     try {
-      await window.frappe.call({
-        method: 'imogi_pos.api.layout.save_table_layout',
-        args: { branch, tables }
-      })
-      window.frappe.show_alert({ message: 'Layout saved!', indicator: 'green' })
+      await apiCall('imogi_pos.api.layout.save_table_layout', { branch, tables })
+      if (window.frappe && window.frappe.show_alert) {
+        window.frappe.show_alert({ message: 'Layout saved!', indicator: 'green' })
+      }
       setEditMode(false)
     } catch (error) {
-      console.error('Save failed:', error)
+      console.error('[imogi][layout] Save failed:', error)
     }
   }
 

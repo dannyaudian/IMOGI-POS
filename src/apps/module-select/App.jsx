@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
+import { apiCall } from '../../shared/utils/api'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -294,41 +295,21 @@ function App() {
     }
 
     try {
-      // Use frappe.call directly (includes CSRF token automatically)
-      const response = await new Promise((resolve, reject) => {
-        frappe.call({
-          method: 'imogi_pos.utils.operational_context.set_operational_context',
-          args: {
-            pos_profile: posProfile,
-            branch: branchOverride || null
-          },
-          callback: (r) => {
-            // Frappe sometimes sends exceptions in r.exc (status 200 but failed)
-            if (r.exc) {
-              reject(new Error(r.exc || 'Server error'))
-            } else {
-              resolve(r)
-            }
-          },
-          error: (err) => {
-            reject(err)
-          }
-        })
+      const response = await apiCall('imogi_pos.utils.operational_context.set_operational_context', {
+        pos_profile: posProfile,
+        branch: branchOverride || null
       })
 
-      // frappe-react-sdk might wrap response in .message
-      const actualResponse = response?.message || response
-
-      if (actualResponse?.success) {
+      if (response?.success) {
         setContextState((prev) => ({
           ...prev,
-          pos_profile: actualResponse.context?.pos_profile || posProfile,
-          branch: actualResponse.context?.branch || null,
+          pos_profile: response.context?.pos_profile || posProfile,
+          branch: response.context?.branch || null,
           require_selection: false
         }))
-        return actualResponse
+        return response
       } else {
-        return actualResponse
+        return response
       }
     } catch (error) {
       throw error
@@ -443,20 +424,18 @@ function App() {
     // Check if module requires active cashier (for Waiter, Kiosk, Self-Order)
     if (module.requires_active_cashier) {
       try {
-        const response = await frappe.call({
-          method: 'imogi_pos.api.module_select.check_active_cashiers'
-        })
+        const response = await apiCall('imogi_pos.api.module_select.check_active_cashiers')
         
-        if (!response.message.has_active_cashier) {
+        if (!response.has_active_cashier) {
           frappe.msgprint({
             title: 'No Active Cashier',
-            message: response.message.message || 'No active cashier sessions found. Please ask a cashier to open a POS opening first.',
+            message: response.message || 'No active cashier sessions found. Please ask a cashier to open a POS opening first.',
             indicator: 'orange'
           })
           return
         }
       } catch (err) {
-        console.error('Error checking active cashiers:', err)
+        console.error('[imogi][module-select] Error checking active cashiers:', err)
         frappe.msgprint({
           title: 'Error',
           message: 'Could not verify cashier sessions. Please try again.',

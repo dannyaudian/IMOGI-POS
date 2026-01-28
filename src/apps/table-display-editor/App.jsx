@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
+import { apiCall } from '../../shared/utils/api'
 import './styles.css'
 
 function App() {
@@ -39,97 +40,81 @@ function App() {
     }
   }, [selectedDisplay])
 
-  const loadDisplayConfig = () => {
+  const loadDisplayConfig = async () => {
     setLoading(true)
-    frappe.call({
-      method: 'imogi_pos.api.table_display_editor.get_display_config',
-      args: { display: selectedDisplay },
-      callback: (r) => {
-        if (r.message) {
-          setConfig(r.message.config || {})
-        }
-        setLoading(false)
-      },
-      error: () => {
-        setLoading(false)
-        frappe.show_alert({
-          message: 'Error loading display config',
-          indicator: 'red'
-        }, 3)
+    try {
+      const result = await apiCall('imogi_pos.api.table_display_editor.get_display_config', { display: selectedDisplay })
+      if (result) {
+        setConfig(result.config || {})
       }
-    })
+    } catch (error) {
+      console.error('[imogi][table-display] Error loading display config:', error)
+      if (window.frappe && window.frappe.show_alert) {
+        frappe.show_alert({ message: 'Error loading display config', indicator: 'red' }, 3)
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSaveConfig = () => {
+  const handleSaveConfig = async () => {
     if (!selectedDisplay) return
     
     setSaving(true)
-    frappe.call({
-      method: 'imogi_pos.api.table_display_editor.save_display_config',
-      args: {
+    try {
+      const result = await apiCall('imogi_pos.api.table_display_editor.save_display_config', {
         display: selectedDisplay,
         config: config
-      },
-      callback: (r) => {
-        if (r.message && r.message.success) {
-          frappe.show_alert({
-            message: 'Configuration saved successfully',
-            indicator: 'green'
-          }, 3)
-          setSaved(true)
-          setTimeout(() => setSaved(false), 2000)
+      })
+      if (result && result.success) {
+        if (window.frappe && window.frappe.show_alert) {
+          frappe.show_alert({ message: 'Configuration saved successfully', indicator: 'green' }, 3)
         }
-        setSaving(false)
-      },
-      error: () => {
-        frappe.show_alert({
-          message: 'Error saving configuration',
-          indicator: 'red'
-        }, 3)
-        setSaving(false)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
       }
-    })
+    } catch (error) {
+      console.error('[imogi][table-display] Error saving configuration:', error)
+      if (window.frappe && window.frappe.show_alert) {
+        frappe.show_alert({ message: 'Error saving configuration', indicator: 'red' }, 3)
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleResetConfig = () => {
+  const handleResetConfig = async () => {
     if (!selectedDisplay) return
     
     if (!confirm('Reset to default configuration?')) return
     
-    frappe.call({
-      method: 'imogi_pos.api.table_display_editor.reset_display_config',
-      args: { display: selectedDisplay },
-      callback: (r) => {
-        if (r.message && r.message.success) {
-          loadDisplayConfig()
-          frappe.show_alert({
-            message: 'Configuration reset to defaults',
-            indicator: 'green'
-          }, 3)
+    try {
+      const result = await apiCall('imogi_pos.api.table_display_editor.reset_display_config', { display: selectedDisplay })
+      if (result && result.success) {
+        loadDisplayConfig()
+        if (window.frappe && window.frappe.show_alert) {
+          frappe.show_alert({ message: 'Configuration reset to defaults', indicator: 'green' }, 3)
         }
-      },
-      error: () => {
-        frappe.show_alert({
-          message: 'Error resetting configuration',
-          indicator: 'red'
-        }, 3)
       }
-    })
+    } catch (error) {
+      console.error('[imogi][table-display] Error resetting configuration:', error)
+      if (window.frappe && window.frappe.show_alert) {
+        frappe.show_alert({ message: 'Error resetting configuration', indicator: 'red' }, 3)
+      }
+    }
   }
 
-  const handleTestDisplay = () => {
+  const handleTestDisplay = async () => {
     if (!selectedDisplay) return
     
-    frappe.call({
-      method: 'imogi_pos.api.table_display_editor.test_display',
-      args: { display: selectedDisplay },
-      callback: () => {
-        frappe.show_alert({
-          message: 'Test message sent to display',
-          indicator: 'blue'
-        }, 3)
+    try {
+      await apiCall('imogi_pos.api.table_display_editor.test_display', { display: selectedDisplay })
+      if (window.frappe && window.frappe.show_alert) {
+        frappe.show_alert({ message: 'Test message sent to display', indicator: 'blue' }, 3)
       }
-    })
+    } catch (error) {
+      console.error('[imogi][table-display] Error testing display:', error)
+    }
   }
 
   const handleConfigChange = (key, value) => {

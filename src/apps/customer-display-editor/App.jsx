@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { apiCall } from '../../shared/utils/api'
 import {
   DeviceSelector,
   PreviewPanel,
@@ -98,15 +99,20 @@ function App() {
   // Load sample data
   useEffect(() => {
     if (selectedDevice) {
-      frappe.call({
-        method: 'imogi_pos.api.customer_display_editor.get_preview_data',
-        args: { device: selectedDevice, sample_type: 'restaurant' },
-        callback: (r) => {
-          if (r.message) {
-            setSampleData(r.message)
+      const loadSampleData = async () => {
+        try {
+          const result = await apiCall('imogi_pos.api.customer_display_editor.get_preview_data', {
+            device: selectedDevice,
+            sample_type: 'restaurant'
+          })
+          if (result) {
+            setSampleData(result)
           }
+        } catch (error) {
+          console.error('[imogi][customer-display] Error loading sample data:', error)
         }
-      })
+      }
+      loadSampleData()
     }
   }, [selectedDevice])
 
