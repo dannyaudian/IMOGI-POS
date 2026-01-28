@@ -46,22 +46,30 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
   // This prevents 417 errors when operational context isn't set
   const shouldFetch = posProfile != null
   
-  // pos_profile is now primary, branch is optional for backward compatibility
-  const params = shouldFetch ? { pos_profile: posProfile } : null
-  if (shouldFetch && branch) {
-    params.branch = branch  // Deprecated: for backward compatibility only
-  }
-  if (shouldFetch && orderType) {
-    params.order_type = orderType
+  // Build params only if shouldFetch
+  let params = null
+  let cacheKey = null
+  
+  if (shouldFetch) {
+    params = { pos_profile: posProfile }
+    if (branch) {
+      params.branch = branch  // Deprecated: for backward compatibility only
+    }
+    if (orderType) {
+      params.order_type = orderType
+    }
+    cacheKey = `order-history-${posProfile}-${orderType || 'all'}`
   }
   
+  // IMPORTANT: Pass null for BOTH params AND key to disable fetch completely
+  // frappe-react-sdk will not fetch if params is null
   return useFrappeGetCall(
     'imogi_pos.api.billing.list_orders_for_cashier',
-    params,
-    shouldFetch ? `order-history-${posProfile}-${orderType || 'all'}` : null,  // null key = no fetch
+    params,  // null = don't fetch
+    cacheKey,  // null = no cache key needed
     {
       revalidateOnFocus: false,
-      refreshInterval: 30000 // Auto refresh every 30 seconds
+      refreshInterval: shouldFetch ? 30000 : 0 // Only auto-refresh if actively fetching
     }
   )
 }
@@ -117,11 +125,21 @@ export function useSendToKitchen() {
  * Items & Variants API
  */
 export function useItems(posProfile, branch = null) {
-  // pos_profile is now primary, branch derived from profile on server
+  // CRITICAL FIX: Don't make API call if posProfile is null (guard not passed yet)
+  const shouldFetch = posProfile != null
+  
+  let params = null
+  let cacheKey = null
+  
+  if (shouldFetch) {
+    params = { pos_profile: posProfile, branch }
+    cacheKey = `items-${posProfile}`
+  }
+  
   return useFrappeGetCall(
     'imogi_pos.api.items.get_items',
-    { pos_profile: posProfile, branch },
-    `items-${posProfile}`,
+    params,  // null = don't fetch
+    cacheKey,  // null = no cache key
     {
       revalidateOnFocus: false
     }
@@ -207,14 +225,24 @@ export function useCreateProfile() {
  * Table Management API (untuk restaurant)
  */
 export function useTables(posProfile, branch = null) {
-  // pos_profile is primary, branch derived from profile on server
+  // CRITICAL FIX: Don't make API call if posProfile is null (guard not passed yet)
+  const shouldFetch = posProfile != null
+  
+  let params = null
+  let cacheKey = null
+  
+  if (shouldFetch) {
+    params = { pos_profile: posProfile, branch }
+    cacheKey = `tables-${posProfile}`
+  }
+  
   return useFrappeGetCall(
     'imogi_pos.api.layout.get_tables',
-    { pos_profile: posProfile, branch },
-    `tables-${posProfile}`,
+    params,  // null = don't fetch
+    cacheKey,  // null = no cache key
     {
-      refreshInterval: 10000, // Auto refresh tiap 10 detik
-      revalidateOnFocus: true
+      refreshInterval: shouldFetch ? 10000 : 0, // Only auto-refresh if actively fetching
+      revalidateOnFocus: shouldFetch
     }
   )
 }
@@ -227,19 +255,27 @@ export function useUpdateTableStatus() {
  * Cashier API (Phase 2)
  */
 export function usePendingOrders(posProfile = null, branch = null, filters = {}) {
-  // pos_profile is primary for POS Profile-first architecture
-  const params = { pos_profile: posProfile, ...filters }
-  if (branch) {
-    params.branch = branch  // Deprecated: for backward compatibility
+  // CRITICAL FIX: Don't make API call if posProfile is null (guard not passed yet)
+  const shouldFetch = posProfile != null
+  
+  let params = null
+  let cacheKey = null
+  
+  if (shouldFetch) {
+    params = { pos_profile: posProfile, ...filters }
+    if (branch) {
+      params.branch = branch  // Deprecated: for backward compatibility
+    }
+    cacheKey = `pending-orders-${posProfile || 'all'}`
   }
   
   return useFrappeGetCall(
     'imogi_pos.api.cashier.get_pending_orders',
-    params,
-    `pending-orders-${posProfile || 'all'}`,
+    params,  // null = don't fetch
+    cacheKey,  // null = no cache key
     {
-      refreshInterval: 10000, // Auto refresh every 10 seconds
-      revalidateOnFocus: true
+      refreshInterval: shouldFetch ? 10000 : 0, // Only auto-refresh if actively fetching
+      revalidateOnFocus: shouldFetch
     }
   )
 }

@@ -83,19 +83,17 @@ function loadReactWidget(container, page) {
 				containerId: 'imogi-cashier-root',
 				makeContainer: () => container,
 				onReadyMount: async (mountFn, containerEl) => {
-					// CRITICAL FIX: Wait for operational context utility to be available
-					// imogi_loader.js may not be fully loaded yet
-					if (typeof window.waitForFetchOperationalContext === 'function') {
-						await window.waitForFetchOperationalContext();
+					// Fetch operational context using shared utility
+					let operationalContext = null;
+					if (typeof window.fetchOperationalContext === 'function') {
+						try {
+							operationalContext = await window.fetchOperationalContext();
+						} catch (err) {
+							console.warn('[Cashier] Failed to fetch operational context:', err);
+						}
 					} else {
-						console.warn('[Cashier] waitForFetchOperationalContext not available, using fallback');
+						console.warn('[Cashier] fetchOperationalContext not available');
 					}
-					
-					// CRITICAL FIX: Fetch operational context using shared utility
-					// This ensures React app receives the context that was set by module-select
-					const operationalContext = typeof window.fetchOperationalContext === 'function'
-						? await window.fetchOperationalContext()
-						: null;
 					
 					const initialState = {
 						user: frappe.session.user,

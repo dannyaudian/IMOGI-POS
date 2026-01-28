@@ -76,20 +76,17 @@ function loadReactWidget(container, page) {
 				containerId: 'imogi-kitchen-root',
 				makeContainer: () => container,
 				onReadyMount: async (mountFn, containerEl) => {
-					// CRITICAL FIX: Wait for operational context utility to be available
-					// imogi_loader.js may not be fully loaded yet
-					if (typeof window.waitForFetchOperationalContext === 'function') {
-						await window.waitForFetchOperationalContext();
-					} else {
-						console.warn('[Kitchen] waitForFetchOperationalContext not available, using fallback');
+				// Fetch operational context using shared utility
+				let operationalContext = null;
+				if (typeof window.fetchOperationalContext === 'function') {
+					try {
+						operationalContext = await window.fetchOperationalContext();
+					} catch (err) {
+						console.warn('[Kitchen] Failed to fetch operational context:', err);
 					}
-					
-					// CRITICAL FIX: Fetch operational context using shared utility
-					// This ensures React app receives the context that was set by module-select
-					const operationalContext = typeof window.fetchOperationalContext === 'function'
-						? await window.fetchOperationalContext()
-						: null;
-					
+				} else {
+					console.warn('[Kitchen] fetchOperationalContext not available');
+				}
 					const initialState = {
 						user: frappe.session.user,
 						csrf_token: frappe.session.csrf_token,
