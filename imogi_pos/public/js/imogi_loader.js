@@ -257,6 +257,35 @@ window.__imogiDebugScripts = function() {
 console.log('[IMOGI Loader] Shared utility loaded. Use window.__imogiDebugScripts() for debugging.');
 
 /**
+ * Wait for fetchOperationalContext to be available
+ * Returns once function is ready or after timeout
+ * 
+ * @returns {Promise<Function|null>} The fetchOperationalContext function or null if timeout
+ */
+window.waitForFetchOperationalContext = async function(timeout = 5000) {
+	const startTime = Date.now();
+	
+	// Check if already available
+	if (typeof window.fetchOperationalContext === 'function') {
+		return window.fetchOperationalContext;
+	}
+	
+	// Poll for function availability
+	return new Promise((resolve) => {
+		const interval = setInterval(() => {
+			if (typeof window.fetchOperationalContext === 'function') {
+				clearInterval(interval);
+				resolve(window.fetchOperationalContext);
+			} else if (Date.now() - startTime > timeout) {
+				clearInterval(interval);
+				console.warn('[IMOGI Loader] Timeout waiting for fetchOperationalContext, continuing without it');
+				resolve(null);
+			}
+		}, 100);
+	});
+};
+
+/**
  * Fetch operational context from server
  * Returns operational context to be included in initialState
  * 

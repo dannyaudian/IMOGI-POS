@@ -75,8 +75,10 @@ function loadReactWidget(container, page) {
 				unmountFnName: 'imogiKitchenUnmount',
 				containerId: 'imogi-kitchen-root',
 				makeContainer: () => container,
-			onReadyMount: async (mountFn, containerEl) => {
-				// CRITICAL FIX: Fetch operational context using shared utility
+			onReadyMount: async (mountFn, containerEl) => {				// CRITICAL FIX: Wait for operational context utility to be available
+				// imogi_loader.js may not be fully loaded yet
+				await window.waitForFetchOperationalContext();
+								// CRITICAL FIX: Fetch operational context using shared utility
 				// This ensures React app receives the context that was set by module-select
 				const operationalContext = await window.fetchOperationalContext();
 				

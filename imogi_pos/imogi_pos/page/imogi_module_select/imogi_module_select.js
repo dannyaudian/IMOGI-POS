@@ -112,6 +112,10 @@ function loadReactWidget(container, page) {
 						return;
 					}
 
+					// CRITICAL FIX: Wait for operational context utility to be available
+					// imogi_loader.js may not be fully loaded yet
+					await window.waitForFetchOperationalContext();
+					
 					// CRITICAL FIX: Fetch operational context using shared utility
 					// This ensures React app has current context state
 					const operationalContext = await window.fetchOperationalContext();
