@@ -74,10 +74,14 @@ export function useOperationalContext(options = {}) {
     }
     
     // Check if this is a full resolution or active context
-    const activeContext = serverContext.active_context || {
-      pos_profile: serverContext.current_pos_profile,
-      branch: serverContext.current_branch
-    }
+    // BUGFIX: Use active_context only if it has pos_profile, otherwise use current_pos_profile
+    const hasActiveContext = serverContext.active_context?.pos_profile
+    const activeContext = hasActiveContext 
+      ? serverContext.active_context
+      : {
+          pos_profile: serverContext.current_pos_profile,
+          branch: serverContext.current_branch
+        }
     
     const newContext = {
       pos_profile: activeContext.pos_profile || null,
@@ -95,8 +99,10 @@ export function useOperationalContext(options = {}) {
     
     setContextState(newContext)
     
-    // Cache for faster subsequent renders
-    storage.setItem('operational_context_cache', activeContext)
+    // Cache for faster subsequent renders - only cache if we have a profile
+    if (activeContext.pos_profile) {
+      storage.setItem('operational_context_cache', activeContext)
+    }
     
     // CRITICAL FIX: Auto-set context on server if resolved but not in session
     // This ensures server session is synchronized with client state
