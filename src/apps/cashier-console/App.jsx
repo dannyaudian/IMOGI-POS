@@ -13,6 +13,8 @@ import { PaymentView } from './components/PaymentView'
 import { SplitBillView } from './components/SplitBillView'
 import { VariantPickerModal } from './components/VariantPickerModal'
 import { CatalogView } from './components/CatalogView'
+import { TableSelector } from './components/TableSelector'
+import { useCustomerDisplay } from './components/CustomerDisplay'
 import './App.css'
 
 function CounterPOSContent({ initialState }) {
@@ -60,11 +62,35 @@ function CounterPOSContent({ initialState }) {
   // 3. effectiveBranch should exist (though API can handle null)
   const shouldFetchOrders = guardPassed && effectivePosProfile && !guardLoading
   
-  const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
-    shouldFetchOrders ? effectivePosProfile : null,  // Pass null if guard not passed
+  // Fetch orders for current mode (Counter or Dine In)
+  const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
+    shouldFetchOrders ? effectivePosProfile : null,
     shouldFetchOrders ? effectiveBranch : null,
     shouldFetchOrders ? orderType : null
   )
+  
+  // Fetch Self Order orders - only if enabled in POS Profile
+  const shouldFetchSelfOrder = shouldFetchOrders && profileData?.imogi_enable_self_order === 1
+  const { data: selfOrders } = useOrderHistory(
+    shouldFetchSelfOrder ? effectivePosProfile : null,
+    shouldFetchSelfOrder ? effectiveBranch : null,
+    shouldFetchSelfOrder ? 'Self Order' : null
+  )
+  
+  // Fetch Kiosk orders - only if enabled in POS Profile
+  const shouldFetchKiosk = shouldFetchOrders && profileData?.imogi_enable_kiosk === 1
+  const { data: kioskOrders } = useOrderHistory(
+    shouldFetchKiosk ? effectivePosProfile : null,
+    shouldFetchKiosk ? effectiveBranch : null,
+    shouldFetchKiosk ? 'Kiosk' : null
+  )
+  
+  // Combine all orders
+  const orders = [
+    ...(modeOrders || []),
+    ...(selfOrders || []),
+    ...(kioskOrders || [])
+  ]
   
   // State management
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -73,6 +99,34 @@ function CounterPOSContent({ initialState }) {
   const [showSplit, setShowSplit] = useState(false)
   const [showVariantPicker, setShowVariantPicker] = useState(false)
   const [variantPickerContext, setVariantPickerContext] = useState(null)
+  const [showTableSelector, setShowTableSelector] = useState(false)
+  const [selectedTable, setSelectedTable] = useState(null)
+  const [creatingOrder, setCreatingOrder] = useState(false)
+  const [branding, setBranding] = useState(null)
+  
+  // Customer Display
+  const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
+
+  // Load branding on mount
+  useEffect(() => {
+    if (effectivePosProfile) {
+      loadBranding()
+    }
+  }, [effectivePosProfile])
+
+  const loadBranding = async () => {
+    try {
+      const result = await apiCall('imogi_pos.api.branding.get_branding', {
+        pos_profile: effectivePosProfile
+      })
+      if (result) {
+        setBranding(result)
+        console.log('[Cashier] Branding loaded:', result)
+      }
+    } catch (err) {
+      console.warn('[Cashier] Failed to load branding:', err)
+    }
+  }
 
   // Listen for variant selection events from OrderDetailPanel
   useEffect(() => {
@@ -136,9 +190,87 @@ function CounterPOSContent({ initialState }) {
   }
 
   const handleNewOrder = () => {
-    setViewMode('catalog')
+    console.log('[Cashier] New Order clicked, mode:', mode)
+    
+    if (mode === 'Counter') {
+      // Counter mode: Create order immediately and go to catalog
+      createCounterOrder()
+    } else {
+      // Table mode: Show table selector first
+      setShowTableSelector(true)
+    }
+    
     setShowPayment(false)
     setShowSplit(false)
+  }
+  
+  const createCounterOrder = async () => {
+    setCreatingOrder(true)
+    
+    try {
+      const result = await apiCall('imogi_pos.api.orders.create_order', {
+        pos_profile: effectivePosProfile,
+        branch: effectiveBranch,
+        order_type: 'Counter'
+      })
+      
+      if (result?.order_name) {
+        console.log('[Cashier] Counter order created:', result.order_name)
+        
+        // Fetch the newly created order details
+        const orderDetails = await apiCall('imogi_pos.api.orders.get_order', {
+          order_name: result.order_name
+        })
+        
+        if (orderDetails) {
+          setSelectedOrder(orderDetails)
+          console.log('[Cashier] Order selected:', orderDetails)
+        }
+        
+        setViewMode('catalog')
+      }
+    } catch (err) {
+      console.error('[Cashier] Failed to create counter order:', err)
+      alert('Failed to create order: ' + (err.message || 'Unknown error'))
+    } finally {
+      setCreatingOrder(false)
+    }
+  }
+  
+  const createTableOrder = async (table) => {
+    setCreatingOrder(true)
+    setShowTableSelector(false)
+    
+    try {
+      const result = await apiCall('imogi_pos.api.orders.create_order', {
+        pos_profile: effectivePosProfile,
+        branch: effectiveBranch,
+        order_type: 'Dine In',
+        table: table.name
+      })
+      
+      if (result?.order_name) {
+        console.log('[Cashier] Table order created:', result.order_name)
+        
+        // Fetch the newly created order details
+        const orderDetails = await apiCall('imogi_pos.api.orders.get_order', {
+          order_name: result.order_name
+        })
+        
+        if (orderDetails) {
+          setSelectedOrder(orderDetails)
+          setSelectedTable(table)
+          console.log('[Cashier] Order selected:', orderDetails)
+        }
+        
+        setViewMode('catalog')
+      }
+    } catch (err) {
+      console.error('[Cashier] Failed to create table order:', err)
+      alert('Failed to create order: ' + (err.message || 'Unknown error'))
+    } finally {
+      setCreatingOrder(false)
+    }
   }
 
   const handleCatalogItemSelect = (item) => {
@@ -257,6 +389,17 @@ function CounterPOSContent({ initialState }) {
           <ActionButtons
             selectedOrder={selectedOrder}
             viewMode={viewMode}
+            posMode={mode}
+            selectedTable={selectedTable}
+            creatingOrder={creatingOrder}
+            posProfile={effectivePosProfile}
+            branch={effectiveBranch}
+            posOpening={posOpening}
+            branding={branding}
+            profileData={profileData}
+            isCustomerDisplayOpen={isCustomerDisplayOpen}
+            onOpenCustomerDisplay={openCustomerDisplay}
+            onCloseCustomerDisplay={closeCustomerDisplay}
             onViewChange={setViewMode}
             onNewOrder={handleNewOrder}
             onPrintBill={handlePrintBill}
@@ -312,6 +455,15 @@ function CounterPOSContent({ initialState }) {
         mode={variantPickerContext?.mode || 'add'}
         onSelectVariant={handleVariantSelect}
       />
+      
+      {/* Table Selector Modal */}
+      {showTableSelector && (
+        <TableSelector
+          branch={effectiveBranch}
+          onSelectTable={createTableOrder}
+          onClose={() => setShowTableSelector(false)}
+        />
+      )}
     </div>
   )
 }

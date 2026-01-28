@@ -7,7 +7,7 @@ export function OrderListSidebar({
   posMode 
 }) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('Ready')
+  const [filterStatus, setFilterStatus] = useState('All')
 
   // Explicitly define mode-specific labels and icons
   const MODE_CONFIG = {
@@ -27,11 +27,13 @@ export function OrderListSidebar({
   const modeConfig = MODE_CONFIG[currentMode] || MODE_CONFIG['Counter']
   const modeLabel = modeConfig.label
   const modeIcon = modeConfig.icon
+  const isCounterMode = currentMode === 'Counter'
+  const isTableMode = currentMode === 'Table'
 
   // Filter orders
   const filteredOrders = orders.filter(order => {
-    // Status filter
-    if (filterStatus !== 'All' && order.status !== filterStatus) {
+    // Status filter (only for Table mode)
+    if (isTableMode && filterStatus !== 'All' && order.status !== filterStatus) {
       return false
     }
     
@@ -86,17 +88,20 @@ export function OrderListSidebar({
           </button>
         </div>
         
-        <div className="filter-buttons">
-          {['Ready', 'Served', 'All'].map(status => (
-            <button
-              key={status}
-              className={`filter-button ${filterStatus === status ? 'active' : ''}`}
-              onClick={() => setFilterStatus(status)}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+        {/* Status filters only for Table mode */}
+        {isTableMode && (
+          <div className="filter-buttons">
+            {['Ready', 'Served', 'All'].map(status => (
+              <button
+                key={status}
+                className={`filter-button ${filterStatus === status ? 'active' : ''}`}
+                onClick={() => setFilterStatus(status)}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       
       <div className="order-list">
@@ -115,13 +120,26 @@ export function OrderListSidebar({
               <div className="order-card-header">
                 <span className="order-card-number">{order.name}</span>
                 <div className="order-card-badges">
-                  {order.table_name && (
+                  {/* Order Type Badge */}
+                  {order.order_type === 'Self Order' && (
+                    <span className="order-card-badge badge-self-order">
+                      <i className="fa fa-mobile-alt"></i>
+                      Self Order
+                    </span>
+                  )}
+                  {order.order_type === 'Kiosk' && (
+                    <span className="order-card-badge badge-kiosk">
+                      <i className="fa fa-desktop"></i>
+                      Kiosk
+                    </span>
+                  )}
+                  {order.order_type === 'Dine In' && order.table_name && (
                     <span className="order-card-badge badge-table">
                       <i className="fa fa-utensils"></i>
                       {order.table_name}
                     </span>
                   )}
-                  {!order.table_name && currentMode === 'Counter' && (
+                  {order.order_type === 'Counter' && (
                     <span className="order-card-badge badge-counter">
                       <i className="fa fa-cash-register"></i>
                       Counter

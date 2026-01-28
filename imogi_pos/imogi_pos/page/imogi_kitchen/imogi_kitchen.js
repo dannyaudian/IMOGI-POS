@@ -85,7 +85,8 @@ function loadReactWidget(container, page) {
 						console.warn('[Kitchen] Failed to fetch operational context:', err);
 					}
 				} else {
-					console.warn('[Kitchen] fetchOperationalContext not available');
+					// Not critical - React will fetch context itself using useOperationalContext hook
+					console.debug('[Kitchen] window.fetchOperationalContext not available, React will fetch context');
 				}
 					const initialState = {
 						user: frappe.session.user,

@@ -121,7 +121,8 @@ function loadReactWidget(container, page) {
 							console.warn('[Module Select] Failed to fetch operational context:', err);
 						}
 					} else {
-						console.warn('[Module Select] fetchOperationalContext not available');
+						// Not critical - React will fetch context itself using useOperationalContext hook
+						console.debug('[Module Select] window.fetchOperationalContext not available, React will fetch context');
 					}
 					
 					const initialState = {

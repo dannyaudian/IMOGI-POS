@@ -45,36 +45,41 @@
  * 
  * @returns {Promise<Object>} Operational context object
  */
-window.fetchOperationalContext = async function() {
-	try {
-		const response = await frappe.call({
-			method: 'imogi_pos.utils.operational_context.get_operational_context',
-			freeze: false
-		});
-		
-		if (response && response.message) {
-			const ctx = response.message;
-			const operationalContext = {
-				pos_profile: ctx.current_pos_profile || ctx.active_context?.pos_profile || null,
-				branch: ctx.current_branch || ctx.active_context?.branch || null,
-				available_pos_profiles: ctx.available_pos_profiles || [],
-				require_selection: ctx.require_selection || false,
-				has_access: ctx.has_access !== false,
-				is_privileged: ctx.is_privileged || false
-			};
+if (!window.fetchOperationalContext) {
+	window.fetchOperationalContext = async function() {
+		try {
+			const response = await frappe.call({
+				method: 'imogi_pos.utils.operational_context.get_operational_context',
+				freeze: false
+			});
 			
-			console.log('[IMOGI Loader] Operational context loaded:', operationalContext);
-			return operationalContext;
+			if (response && response.message) {
+				const ctx = response.message;
+				const operationalContext = {
+					pos_profile: ctx.current_pos_profile || ctx.active_context?.pos_profile || null,
+					branch: ctx.current_branch || ctx.active_context?.branch || null,
+					available_pos_profiles: ctx.available_pos_profiles || [],
+					require_selection: ctx.require_selection || false,
+					has_access: ctx.has_access !== false,
+					is_privileged: ctx.is_privileged || false
+				};
+				
+				console.log('[IMOGI Loader] Operational context loaded:', operationalContext);
+				return operationalContext;
+			}
+			
+			console.warn('[IMOGI Loader] No operational context in server response');
+			return null;
+		} catch (error) {
+			console.warn('[IMOGI Loader] Failed to fetch operational context:', error);
+			// Return null instead of throwing - let React handle redirect if needed
+			return null;
 		}
-		
-		console.warn('[IMOGI Loader] No operational context in server response');
-		return null;
-	} catch (error) {
-		console.warn('[IMOGI Loader] Failed to fetch operational context:', error);
-		// Return null instead of throwing - let React handle redirect if needed
-		return null;
-	}
-};
+	};
+	console.log('[IMOGI Loader] window.fetchOperationalContext registered');
+} else {
+	console.log('[IMOGI Loader] window.fetchOperationalContext already exists');
+}
 
 window.loadImogiReactApp = function(config) {
 	const {
