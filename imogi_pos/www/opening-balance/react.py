@@ -10,7 +10,7 @@ def get_context(context):
     
     # Get device and next params from query
     device = frappe.form_dict.get('device', 'kiosk')
-    next_url = frappe.form_dict.get('next', '/module-select')
+    next_url = frappe.form_dict.get('next', '/app/imogi-module-select')
     
     # Add React bundle URLs and initial state
     add_react_context(context, 'opening-balance', {

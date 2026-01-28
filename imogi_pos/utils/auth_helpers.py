@@ -296,14 +296,14 @@ def get_role_based_default_route(user=None):
         return "/app/dashboard-view/area-performance"
     
     if "Branch Manager" in roles:
-        return "/module-select"  # Branch managers can access multiple modules
+        return "/app/imogi-module-select"  # Branch managers can access multiple modules
     
     if "Finance Controller" in roles:
         return "/app/query-report/financial-summary"
     
     # POS operational roles → Module Select (multi-module support)
     if any(role in roles for role in ["Cashier", "Waiter", "Kitchen Staff", "Kiosk"]):
-        return "/module-select"
+        return "/app/imogi-module-select"
     
     # Default to desk
     return "/app"

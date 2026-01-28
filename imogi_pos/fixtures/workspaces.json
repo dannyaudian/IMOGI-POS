@@ -76,7 +76,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "imogi-pos-launch",
+        "link_to": "imogi-module-select",
         "type": "Page"
       },
       {
@@ -140,7 +140,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "imogi-pos-launch",
+        "link_to": "imogi-module-select",
         "type": "Page"
       },
       {
@@ -189,7 +189,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "imogi-pos-launch",
+        "link_to": "imogi-module-select",
         "type": "Page"
       },
       {
@@ -248,7 +248,7 @@
       },
       {
         "label": "Open POS",
-        "link_to": "imogi-pos-launch",
+        "link_to": "imogi-module-select",
         "type": "Page"
       }
     ],

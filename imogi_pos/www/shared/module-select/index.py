@@ -20,7 +20,7 @@ def get_context(context):
     # Redirect if not logged in
     if not user or user == 'Guest':
         frappe.local.response['type'] = 'redirect'
-        frappe.local.response['location'] = '/login?redirect-to=/shared/module-select'
+        frappe.local.response['location'] = '/login?redirect-to=/app/imogi-module-select'
         return
     
     # Lightweight branding (logo, colors only)
