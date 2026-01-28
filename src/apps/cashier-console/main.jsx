@@ -7,14 +7,17 @@ import '@/shared/styles/global.css'
 // Get initial state from server
 const initialState = window.__INITIAL_STATE__ || {}
 
-// Mount React app
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ImogiPOSProvider initialState={initialState}>
-      <App initialState={initialState} />
-    </ImogiPOSProvider>
-  </React.StrictMode>
-)
+// Mount React app (only if root element exists - for standalone mode)
+const rootElement = document.getElementById('root')
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <ImogiPOSProvider initialState={initialState}>
+        <App initialState={initialState} />
+      </ImogiPOSProvider>
+    </React.StrictMode>
+  )
+}
 
 // Expose mount/unmount functions for Desk page integration
 window.imogiCashierMount = function(element, options = {}) {

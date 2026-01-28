@@ -60,8 +60,15 @@ function WaiterContent({ initialState }) {
   useEffect(() => {
     if (!guardLoading && !authLoading && !guardPassed) {
       const timeout = setTimeout(() => {
-        console.error('POS Profile guard failed - redirecting to module select')
-        window.location.href = '/app/imogi-module-select'
+        console.error('[Waiter] POS Profile guard failed - redirecting to module select')
+        if (typeof frappe !== 'undefined' && frappe.set_route) {
+          frappe.set_route('imogi-module-select', { 
+            reason: 'missing_pos_profile', 
+            target: 'imogi-waiter' 
+          })
+        } else {
+          window.location.href = '/app/imogi-module-select'
+        }
       }, 10000)
       return () => clearTimeout(timeout)
     }
