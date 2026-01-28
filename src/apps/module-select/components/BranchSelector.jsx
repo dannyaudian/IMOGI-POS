@@ -13,8 +13,9 @@ function BranchSelector({ currentBranch, branches, onBranchChange }) {
       args: { branch },
       callback: (r) => {
         if (r.message && r.message.success) {
-          // Reload to apply new branch context
-          window.location.reload()
+          // Trigger parent component to refetch data (no reload)
+          // Parent component should handle this via callback
+          console.log('Branch updated successfully:', branch)
         }
       },
       error: (err) => {

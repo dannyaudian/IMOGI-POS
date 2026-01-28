@@ -1341,12 +1341,12 @@ def get_active_pos_session(context_scope=None, device_id=None):
         filters["user"] = user
     elif context_scope == "POS Profile":
         # Sessions shared per POS Profile
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+        from imogi_pos.utils.operational_context import resolve_operational_context
 
-        resolution = resolve_pos_profile(user=user)
-        if not resolution.get("selected"):
+        context = resolve_operational_context(user=user)
+        if not context.get("current_pos_profile"):
             return None
-        filters["pos_profile"] = resolution["selected"]
+        filters["pos_profile"] = context["current_pos_profile"]
     elif context_scope == "Device":
         # Get device ID from request header or parameter
         if not device_id:

@@ -258,17 +258,18 @@ def get_active_branch():
     if branch:
         return branch
 
-    # Resolve branch from centralized POS Profile resolver (authoritative)
+    # DEPRECATED: Use operational_context.get_operational_context() instead
+    # Kept for backward compatibility with legacy clients
     try:
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+        from imogi_pos.utils.operational_context import resolve_operational_context
 
         last_used = frappe.form_dict.get('last_used')
-        resolution = resolve_pos_profile(
+        context = resolve_operational_context(
             user=frappe.session.user,
-            last_used=last_used
+            requested_profile=last_used
         )
-        if resolution.get('selected'):
-            return frappe.db.get_value("POS Profile", resolution["selected"], "imogi_branch")
+        if context.get('current_pos_profile'):
+            return frappe.db.get_value("POS Profile", context["current_pos_profile"], "imogi_branch")
     except Exception:
         pass
 

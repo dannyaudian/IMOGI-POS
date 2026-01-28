@@ -28,6 +28,27 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [pendingProfileModule, setPendingProfileModule] = useState(null)
 
+  // Check for reason and target parameters from URL (redirected from gated modules)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const reason = urlParams.get('reason')
+    const target = urlParams.get('target')
+    
+    if (reason === 'missing_pos_profile' && target && modules.length > 0) {
+      // Find the target module
+      const targetModule = modules.find(m => m.type === target.replace('imogi-', ''))
+      if (targetModule && targetModule.requires_pos_profile && contextData.available_pos_profiles.length > 0) {
+        // Auto-open profile selection modal
+        console.log('[Module Select] Auto-opening profile modal for:', target)
+        setPendingProfileModule(targetModule)
+        setShowProfileModal(true)
+        
+        // Clear URL parameters
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [modules, contextData.available_pos_profiles])
+
   // Fetch available modules - no parameters needed
   const frappeContext = useContext(FrappeContext)
   const realtimeSocket = frappeContext?.socket
@@ -286,7 +307,26 @@ function App() {
   }
 
   const proceedToModule = async (module, refreshedData = null) => {
-    console.log('[module-select] Proceeding to module:', module.name, {
+    // Persistent logging for debugging redirect issues
+    const logEvent = (message, data = {}) => {
+      const timestamp = new Date().toISOString()
+      const logEntry = { timestamp, message, ...data }
+      console.log(`[module-select] ${message}`, data)
+      
+      // Store in localStorage for persistence across redirects
+      try {
+        const logs = JSON.parse(localStorage.getItem('imogi_debug_logs') || '[]')
+        logs.push(logEntry)
+        // Keep only last 50 logs
+        if (logs.length > 50) logs.shift()
+        localStorage.setItem('imogi_debug_logs', JSON.stringify(logs))
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+
+    logEvent('Proceeding to module', {
+      module_name: module.name,
       requires_pos_profile: module.requires_pos_profile,
       current_pos_profile: contextData.pos_profile,
       url: module.url
@@ -295,6 +335,7 @@ function App() {
     // WAJIB: Set context on server if module requires POS Profile
     if (module.requires_pos_profile) {
       if (!contextData.pos_profile) {
+        logEvent('ERROR: No POS Profile', { module: module.name })
         frappe.msgprint({
           title: 'POS Profile Required',
           message: 'Please select a POS Profile first.',
@@ -304,13 +345,25 @@ function App() {
       }
 
       try {
-        console.log('[module-select] Setting operational context before navigation...')
+        logEvent('Setting operational context...', { 
+          pos_profile: contextData.pos_profile,
+          branch: contextData.branch
+        })
+        
         const response = await setOperationalContext(contextData.pos_profile, contextData.branch)
-        console.log('[module-select] setOperationalContext response:', response)
-        console.log('[module-select] setOperationalContext full response:', JSON.stringify(response, null, 2))
+        
+        logEvent('setOperationalContext response received', {
+          has_success: !!response?.success,
+          success: response?.success,
+          has_context: !!response?.context,
+          response_type: typeof response
+        })
         
         if (!response?.success) {
-          console.error('[module-select] Failed to set operational context:', response)
+          logEvent('ERROR: Context setting failed', { 
+            response: JSON.stringify(response)
+          })
+          
           frappe.msgprint({
             title: 'Error',
             message: response?.message || 'Failed to set POS context. Please try again.',
@@ -319,12 +372,17 @@ function App() {
           return // HARD STOP - don't navigate if context failed
         }
         
-        console.log('[module-select] Operational context set successfully:', response.context)
+        logEvent('Context set successfully', { context: response.context })
         
-        // Give server a moment to persist the session
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Give server MORE time to persist the session (increased from 100ms)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
       } catch (error) {
-        console.error('[module-select] Error setting operational context:', error)
+        logEvent('ERROR: Exception setting context', { 
+          error: error.message,
+          stack: error.stack
+        })
+        
         frappe.msgprint({
           title: 'Error',
           message: `Failed to set POS context: ${error.message || 'Unknown error'}. Please try again.`,
@@ -419,6 +477,24 @@ function App() {
     setPendingProfileModule(null)
   }
 
+  const showDebugLogs = () => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('imogi_debug_logs') || '[]')
+      console.log('=== DEBUG LOGS ===')
+      logs.forEach(log => {
+        console.log(`[${log.timestamp}] ${log.message}`, log)
+      })
+      alert(`Found ${logs.length} debug logs. Check browser console (F12) for details.`)
+    } catch (e) {
+      alert('No debug logs found')
+    }
+  }
+
+  const clearDebugLogs = () => {
+    localStorage.removeItem('imogi_debug_logs')
+    alert('Debug logs cleared')
+  }
+
   const handleProfileSelection = async (profileName) => {
     if (!profileName || !pendingProfileModule) {
       handleProfileModalClose()
@@ -426,17 +502,27 @@ function App() {
     }
 
     try {
-      await setOperationalContext(profileName)
+      // CRITICAL: Await context setting and validate success
+      console.log('[Module Select] Setting context for profile:', profileName)
+      const response = await setOperationalContext(profileName)
+      
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to set operational context')
+      }
+      
+      console.log('[Module Select] Context set successfully, refreshing module data...')
       const refreshed = await refetchModuleData()
+      
       setShowProfileModal(false)
       const moduleToOpen = pendingProfileModule
       setPendingProfileModule(null)
+      
       await proceedToModule(moduleToOpen, refreshed)
     } catch (error) {
-      console.error('Error setting operational context:', error)
+      console.error('[Module Select] Error setting operational context:', error)
       frappe.msgprint({
         title: 'Error',
-        message: 'Failed to set POS Profile. Please try again.',
+        message: error.message || 'Failed to set POS Profile. Please try again.',
         indicator: 'red'
       })
     }
@@ -537,6 +623,7 @@ function App() {
             )}
             
             <span className="user-name">{frappe?.session?.user_fullname || frappe?.session?.user}</span>
+            <button onClick={showDebugLogs} className="logout-btn" style={{ marginRight: '10px' }}>Debug Logs</button>
             <a href="/api/method/frappe.auth.logout" className="logout-btn">Logout</a>
           </div>
         </div>

@@ -18,3 +18,28 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </FrappeProvider>
   </React.StrictMode>
 )
+
+// Expose mount/unmount functions for Desk page integration
+window.imogiModuleSelectMount = function(element, options = {}) {
+  const state = options.initialState || window.__INITIAL_STATE__ || {}
+  const root = ReactDOM.createRoot(element)
+  root.render(
+    <React.StrictMode>
+      <FrappeProvider
+        url={window.location.origin}
+        tokenParams={{ useToken: false, type: 'Bearer' }}
+      >
+        <App initialState={state} />
+      </FrappeProvider>
+    </React.StrictMode>
+  )
+  element._reactRoot = root
+  return root
+}
+
+window.imogiModuleSelectUnmount = function(element) {
+  if (element._reactRoot) {
+    element._reactRoot.unmount()
+    element._reactRoot = null
+  }
+}

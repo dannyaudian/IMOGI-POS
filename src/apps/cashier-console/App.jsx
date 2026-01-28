@@ -28,7 +28,10 @@ function CounterPOSContent({ initialState }) {
     showOpeningModal,
     handleOpeningSuccess,
     handleOpeningCancel
-  } = usePOSProfileGuard({ requiresOpening: true })
+  } = usePOSProfileGuard({ 
+    requiresOpening: true,
+    targetModule: 'imogi-cashier'
+  })
   
   // Debug logging
   useEffect(() => {

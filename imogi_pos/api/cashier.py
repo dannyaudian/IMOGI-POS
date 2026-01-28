@@ -51,11 +51,11 @@ def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, note
         if profile_data.get('disabled'):
             frappe.throw(_('POS Profile {0} is disabled').format(pos_profile))
         
-        # Check if user has access to this POS Profile via centralized resolver
-        from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile
+        # Check if user has access to this POS Profile via centralized operational context
+        from imogi_pos.utils.operational_context import resolve_operational_context
 
-        resolution = resolve_pos_profile(user=user, requested=pos_profile)
-        if resolution.get("selected") != pos_profile:
+        context = resolve_operational_context(user=user, requested_profile=pos_profile)
+        if context.get("current_pos_profile") != pos_profile:
             frappe.throw(_('You do not have access to POS Profile {0}').format(pos_profile))
         
         # Check for existing open opening today

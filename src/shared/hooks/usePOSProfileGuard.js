@@ -18,12 +18,14 @@ const MODULE_SELECT_URL = '/shared/module-select'
  * @param {Object} options
  * @param {boolean} options.requiresOpening - Whether this module requires POS Opening Entry
  * @param {boolean} options.autoRedirect - Auto-redirect to module-select if no profile (default: true)
+ * @param {string} options.targetModule - Module identifier for reason-based redirect (e.g. 'imogi-cashier')
  * @returns {Object} Guard state and helpers
  */
 export function usePOSProfileGuard(options = {}) {
   const { 
     requiresOpening = false,
-    autoRedirect = true 
+    autoRedirect = true,
+    targetModule = null
   } = options
   
   const {
@@ -72,8 +74,11 @@ export function usePOSProfileGuard(options = {}) {
     if (contextRequired && !pos_profile && available_profiles.length === 0 && !hasAccess) {
       console.log('[usePOSProfileGuard] No POS Profile available, redirecting...')
       if (autoRedirect) {
-        console.log('[POSProfileGuard] No POS Profile available, redirecting to module-select')
-        window.location.href = MODULE_SELECT_URL
+        const redirectUrl = targetModule 
+          ? `${MODULE_SELECT_URL}?reason=missing_pos_profile&target=${targetModule}`
+          : MODULE_SELECT_URL
+        console.log('[POSProfileGuard] No POS Profile available, redirecting to:', redirectUrl)
+        window.location.href = redirectUrl
       }
       return
     }
@@ -82,8 +87,11 @@ export function usePOSProfileGuard(options = {}) {
     if (contextRequired && !pos_profile && available_profiles.length > 0 && needsSelection) {
       console.log('[usePOSProfileGuard] No POS Profile selected but profiles available, redirecting...')
       if (autoRedirect) {
-        console.log('[POSProfileGuard] No POS Profile selected, redirecting to module-select')
-        window.location.href = MODULE_SELECT_URL
+        const redirectUrl = targetModule 
+          ? `${MODULE_SELECT_URL}?reason=missing_pos_profile&target=${targetModule}`
+          : MODULE_SELECT_URL
+        console.log('[POSProfileGuard] No POS Profile selected, redirecting to:', redirectUrl)
+        window.location.href = redirectUrl
       }
       return
     }

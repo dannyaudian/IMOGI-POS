@@ -13,3 +13,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ImogiPOSProvider>
   </React.StrictMode>
 )
+
+// Expose mount/unmount functions for Desk page integration
+window.imogiKitchenMount = function(element, options = {}) {
+  const state = options.initialState || window.__INITIAL_STATE__ || {}
+  const root = ReactDOM.createRoot(element)
+  root.render(
+    <React.StrictMode>
+      <ImogiPOSProvider initialState={state}>
+        <App initialState={state} />
+      </ImogiPOSProvider>
+    </React.StrictMode>
+  )
+  element._reactRoot = root
+  return root
+}
+
+window.imogiKitchenUnmount = function(element) {
+  if (element._reactRoot) {
+    element._reactRoot.unmount()
+    element._reactRoot = null
+  }
+}
