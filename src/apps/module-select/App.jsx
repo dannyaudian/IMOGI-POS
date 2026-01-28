@@ -292,22 +292,33 @@ function App() {
       url: module.url
     })
     
-    // Set context on server (replaces localStorage)
-    if (module.requires_pos_profile && contextData.pos_profile) {
+    // WAJIB: Set context on server if module requires POS Profile
+    if (module.requires_pos_profile) {
+      if (!contextData.pos_profile) {
+        frappe.msgprint({
+          title: 'POS Profile Required',
+          message: 'Please select a POS Profile first.',
+          indicator: 'orange'
+        })
+        return // HARD STOP
+      }
+
       try {
         console.log('[module-select] Setting operational context before navigation...')
         const response = await setOperationalContext(contextData.pos_profile, contextData.branch)
         console.log('[module-select] setOperationalContext response:', response)
+        console.log('[module-select] setOperationalContext full response:', JSON.stringify(response, null, 2))
         
         if (!response?.success) {
           console.error('[module-select] Failed to set operational context:', response)
           frappe.msgprint({
             title: 'Error',
-            message: 'Failed to set POS context. Please try again.',
+            message: response?.message || 'Failed to set POS context. Please try again.',
             indicator: 'red'
           })
-          return
+          return // HARD STOP - don't navigate if context failed
         }
+        
         console.log('[module-select] Operational context set successfully:', response.context)
         
         // Give server a moment to persist the session
@@ -316,10 +327,10 @@ function App() {
         console.error('[module-select] Error setting operational context:', error)
         frappe.msgprint({
           title: 'Error',
-          message: 'Failed to set POS context. Please try again.',
+          message: `Failed to set POS context: ${error.message || 'Unknown error'}. Please try again.`,
           indicator: 'red'
         })
-        return
+        return // HARD STOP - don't navigate if exception occurred
       }
     }
     

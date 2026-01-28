@@ -99,7 +99,7 @@
                 top: 20px;
                 right: 20px;
                 padding: 12px 20px;
-                background: ${indicator === 'green' ? '#28a745' : indicator === 'red' ? '#dc3545' : '#007bff'};
+                background: ${indicator === 'green' ? '#28a745' : indicator === 'red' ? '#dc3545' : indicator === 'orange' ? '#ff9800' : '#007bff'};
                 color: white;
                 border-radius: 4px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -113,6 +113,32 @@
                 toast.style.animation = 'slideOut 0.3s ease-in';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        },
+
+        // Message print helper (for compatibility with Frappe Desk)
+        msgprint: function(options) {
+            if (typeof options === 'string') {
+                // Simple string message
+                alert(options);
+                return;
+            }
+            
+            const title = options?.title || 'Message';
+            const message = options?.message || '';
+            const indicator = options?.indicator || 'blue';
+            
+            // Use native alert for now (can be upgraded to custom modal later)
+            if (title && title !== 'Message') {
+                alert(`${title}\n\n${message}`);
+            } else {
+                alert(message);
+            }
+            
+            // Also show toast for non-blocking feedback
+            this.show_alert({
+                message: message,
+                indicator: indicator
+            });
         },
 
         // API call helper
