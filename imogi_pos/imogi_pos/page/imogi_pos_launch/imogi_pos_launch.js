@@ -17,7 +17,7 @@
  */
 
 frappe.pages['imogi-pos-launch'].on_page_load = function(wrapper) {
-	// Immediate redirect to module-select WWW route
-	// This ensures clean Desk → WWW transition
-	window.location.href = '/shared/module-select';
+	// Immediate redirect to module-select Desk route
+	// This ensures clean Desk → Desk transition for hybrid pages
+	window.location.href = '/app/imogi-module-select';
 };
