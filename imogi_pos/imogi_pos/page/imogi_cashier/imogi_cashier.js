@@ -46,7 +46,7 @@ frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 	}
 
 	// Check operational context before loading widget
-	checkOperationalContext($(container), page);
+	checkOperationalContext(container, page);
 };
 
 function checkOperationalContext(container, page) {
@@ -56,7 +56,9 @@ function checkOperationalContext(container, page) {
 			if (r.message && r.message.current_pos_profile) {
 				// Context exists - load widget
 				console.log('[Desk] Context check passed, loading cashier widget...');
-				loadReactWidget(container, page);
+				// Ensure we pass raw HTMLElement, not jQuery object
+				const element = container instanceof HTMLElement ? container : container[0];
+				loadReactWidget(element, page);
 			} else {
 				// No context - redirect to module-select with reason
 				console.warn('[Desk] No context found, redirecting to module-select');
@@ -159,7 +161,7 @@ function mountWidget(container, page) {
 
 	} catch (error) {
 		console.error('[Desk] Failed to mount cashier-console widget:', error);
-		showMountError($(container), error);
+		showMountError(container, error);
 	}
 }
 
@@ -174,7 +176,9 @@ function safeMount(mountFn, element, options) {
 }
 
 function showBundleError(container, appName) {
-	container[0].innerHTML = `
+	// Ensure we're working with raw HTMLElement
+	const element = container instanceof HTMLElement ? container : container[0];
+	element.innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
@@ -187,7 +191,9 @@ function showBundleError(container, appName) {
 }
 
 function showMountError(container, error) {
-	container[0].innerHTML = `
+	// Ensure we're working with raw HTMLElement
+	const element = container instanceof HTMLElement ? container : container[0];
+	element.innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626;">
 			<h3>Widget Mount Error</h3>
 			<p>${error.message || 'Failed to mount React widget'}</p>
