@@ -4,28 +4,13 @@ import { FrappeProvider } from 'frappe-react-sdk'
 import App from './App'
 import '@/shared/styles/global.css'
 
-// Get initial state from server
-const initialState = window.__INITIAL_STATE__ || {}
-
-// Mount React app when running as standalone page
-const rootElement = document.getElementById('root')
-if (rootElement) {
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <FrappeProvider
-        url={window.location.origin}
-        tokenParams={{ useToken: false, type: 'Bearer' }}
-      >
-        <App initialState={initialState} />
-      </FrappeProvider>
-    </React.StrictMode>
-  )
-} else {
-  console.warn('[module-select] Root element not found; waiting for manual mount.')
-}
-
 // Expose mount/unmount functions for Desk page integration
 window.imogiModuleSelectMount = function(element, options = {}) {
+  if (!(element instanceof HTMLElement)) {
+    console.error('[module-select] Mount target must be an HTMLElement.', element)
+    return null
+  }
+
   const state = options.initialState || window.__INITIAL_STATE__ || {}
   const root = ReactDOM.createRoot(element)
   root.render(
@@ -43,6 +28,11 @@ window.imogiModuleSelectMount = function(element, options = {}) {
 }
 
 window.imogiModuleSelectUnmount = function(element) {
+  if (!(element instanceof HTMLElement)) {
+    console.error('[module-select] Unmount target must be an HTMLElement.', element)
+    return
+  }
+
   if (element._reactRoot) {
     element._reactRoot.unmount()
     element._reactRoot = null
