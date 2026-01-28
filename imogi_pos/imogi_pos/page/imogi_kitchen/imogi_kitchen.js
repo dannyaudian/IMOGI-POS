@@ -107,17 +107,27 @@ frappe.pages['imogi-kitchen'].on_page_load = function(wrapper) {
 	}
 
 	function mountWidget(element, page) {
-		if (typeof window.imogiKitchenMount === 'function') {
+		try {
 			console.log('[imogi-kitchen] Mounting widget...');
-			window.imogiKitchenMount(element, { page });
-		} else {
-			console.error('[imogi-kitchen] window.imogiKitchenMount not found');
+			safeMount(window.imogiKitchenMount, element, { page });
+		} catch (error) {
+			console.error('[imogi-kitchen] window.imogiKitchenMount not found', error);
 			frappe.msgprint({
 				title: 'Widget Mount Error',
 				indicator: 'red',
-				message: 'Widget mount function not available. Please refresh the page.'
+				message: error.message || 'Widget mount function not available. Please refresh the page.'
 			});
 		}
+	}
+
+	function safeMount(mountFn, element, options) {
+		if (!(element instanceof HTMLElement)) {
+			throw new Error('Invalid mount element: expected HTMLElement for kitchen');
+		}
+		if (typeof mountFn !== 'function') {
+			throw new Error('Kitchen mount function is not available');
+		}
+		return mountFn(element, options);
 	}
 };
 

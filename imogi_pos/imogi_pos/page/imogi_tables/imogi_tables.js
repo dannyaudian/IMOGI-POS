@@ -107,17 +107,27 @@ frappe.pages['imogi-tables'].on_page_load = function(wrapper) {
 	}
 
 	function mountWidget(element, page) {
-		if (typeof window.imogiTablesMount === 'function') {
+		try {
 			console.log('[imogi-tables] Mounting widget...');
-			window.imogiTablesMount(element, { page });
-		} else {
-			console.error('[imogi-tables] window.imogiTablesMount not found');
+			safeMount(window.imogiTablesMount, element, { page });
+		} catch (error) {
+			console.error('[imogi-tables] window.imogiTablesMount not found', error);
 			frappe.msgprint({
 				title: 'Widget Mount Error',
 				indicator: 'red',
-				message: 'Widget mount function not available. Please refresh the page.'
+				message: error.message || 'Widget mount function not available. Please refresh the page.'
 			});
 		}
+	}
+
+	function safeMount(mountFn, element, options) {
+		if (!(element instanceof HTMLElement)) {
+			throw new Error('Invalid mount element: expected HTMLElement for tables');
+		}
+		if (typeof mountFn !== 'function') {
+			throw new Error('Tables mount function is not available');
+		}
+		return mountFn(element, options);
 	}
 };
 

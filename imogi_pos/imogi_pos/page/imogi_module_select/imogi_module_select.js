@@ -18,9 +18,9 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 	});
 
 	// Create container for React widget
-	const container = document.createElement('div');
-	container.id = 'imogi-module-select-root';
-	container.style.cssText = 'width: 100%; height: calc(100vh - 60px); overflow: auto;';
+	const container = $(document.createElement('div'));
+	container.attr('id', 'imogi-module-select-root');
+	container.attr('style', 'width: 100%; height: calc(100vh - 60px); overflow: auto;');
 	page.main.html('');
 	page.main.append(container);
 
@@ -47,7 +47,6 @@ function loadReactWidget(container, page) {
 
 	// Load React bundle
 	const manifestCandidates = [
-		'/assets/imogi_pos/react/module-select/manifest.json',
 		'/assets/imogi_pos/react/module-select/.vite/manifest.json'
 	];
 
@@ -90,7 +89,11 @@ function loadReactWidget(container, page) {
 			}
 		})
 		.catch(error => {
-			console.error('[Desk] Failed to load module-select bundle:', error);
+			if (error.manifestNotFound) {
+				console.error(`[Desk] Module Select manifest not found: ${error.manifestPath}`);
+			} else {
+				console.error('[Desk] Failed to load module-select bundle:', error);
+			}
 			showBundleError(container, 'module-select');
 		});
 }
@@ -104,7 +107,10 @@ function fetchManifest(candidates) {
 	return fetch(current).then(response => {
 		if (!response.ok) {
 			if (rest.length === 0) {
-				throw new Error(`Manifest not found: ${current}`);
+				const error = new Error(`Manifest not found: ${current}`);
+				error.manifestNotFound = true;
+				error.manifestPath = current;
+				throw error;
 			}
 			return fetchManifest(rest);
 		}
@@ -134,7 +140,7 @@ function mountWidget(container, page) {
 		};
 
 		// Mount React widget
-		window.imogiModuleSelectMount(container, { initialState });
+		safeMount(window.imogiModuleSelectMount, container[0], { initialState });
 		console.log('[Desk] Module Select widget mounted');
 
 	} catch (error) {
@@ -143,8 +149,18 @@ function mountWidget(container, page) {
 	}
 }
 
+function safeMount(mountFn, element, options) {
+	if (!(element instanceof HTMLElement)) {
+		throw new Error('Invalid mount element: expected HTMLElement for module-select');
+	}
+	if (typeof mountFn !== 'function') {
+		throw new Error('Module-select mount function is not available');
+	}
+	return mountFn(element, options);
+}
+
 function showBundleError(container, appName) {
-	container.innerHTML = `
+	container[0].innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto; border: 2px solid #dc2626; border-radius: 8px; background: #fef2f2;">
 			<h3 style="margin-bottom: 1rem;">⚠️ React Bundle Not Found</h3>
 			<p style="margin-bottom: 1rem;">The React bundle for <strong>${appName}</strong> needs to be built.</p>
@@ -160,7 +176,7 @@ function showBundleError(container, appName) {
 }
 
 function showMountError(container, error) {
-	container.innerHTML = `
+	container[0].innerHTML = `
 		<div style="padding: 2rem; text-align: center; color: #dc2626; max-width: 600px; margin: 2rem auto;">
 			<h3>Widget Mount Error</h3>
 			<p>${error.message || 'Failed to mount React widget'}</p>

@@ -87,17 +87,27 @@ frappe.pages['imogi-displays'].on_page_load = function(wrapper) {
 	}
 
 	function mountWidget(element, page) {
-		if (typeof window.imogiDisplaysMount === 'function') {
+		try {
 			console.log('[imogi-displays] Mounting widget...');
-			window.imogiDisplaysMount(element, { page });
-		} else {
-			console.error('[imogi-displays] window.imogiDisplaysMount not found');
+			safeMount(window.imogiDisplaysMount, element, { page });
+		} catch (error) {
+			console.error('[imogi-displays] window.imogiDisplaysMount not found', error);
 			frappe.msgprint({
 				title: 'Widget Mount Error',
 				indicator: 'red',
-				message: 'Widget mount function not available. Please refresh the page.'
+				message: error.message || 'Widget mount function not available. Please refresh the page.'
 			});
 		}
+	}
+
+	function safeMount(mountFn, element, options) {
+		if (!(element instanceof HTMLElement)) {
+			throw new Error('Invalid mount element: expected HTMLElement for displays');
+		}
+		if (typeof mountFn !== 'function') {
+			throw new Error('Displays mount function is not available');
+		}
+		return mountFn(element, options);
 	}
 };
 
