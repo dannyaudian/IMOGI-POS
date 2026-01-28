@@ -155,6 +155,11 @@ function findManifestEntry(manifest) {
 
 function mountWidget(container, page) {
 	try {
+		if (container[0].__imogiModuleSelectMounted) {
+			console.warn('[Desk] Module Select widget already mounted');
+			return;
+		}
+
 		// Prepare initial state
 		const initialState = {
 			user: frappe.session.user,
@@ -163,6 +168,7 @@ function mountWidget(container, page) {
 
 		// Mount React widget
 		safeMount(window.imogiModuleSelectMount, container[0], { initialState });
+		container[0].__imogiModuleSelectMounted = true;
 		console.log('[Desk] Module Select widget mounted');
 
 	} catch (error) {
