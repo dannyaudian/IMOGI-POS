@@ -61,7 +61,8 @@ def require_login(redirect_to=None):
         def wrapper(*args, **kwargs):
             if frappe.session.user == "Guest":
                 redirect_path = redirect_to or frappe.request.path
-                raise frappe.Redirect(f"/imogi-login?redirect={redirect_path}")
+                # Use Frappe's built-in login page instead of deleted /imogi-login
+                raise frappe.Redirect(f"/login?redirect={redirect_path}")
             args, kwargs = _get_context_from_call(func, args, kwargs)
             return func(*args, **kwargs)
         return wrapper
@@ -93,7 +94,8 @@ def require_roles(*roles):
             
             # Check if user is logged in
             if frappe.session.user == "Guest":
-                raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
+                # Use Frappe's built-in login page instead of deleted /imogi-login
+                raise frappe.Redirect(f"/login?redirect={frappe.request.path}")
             
             # Check if user has required role
             user_roles = frappe.get_roles(frappe.session.user)
@@ -151,10 +153,12 @@ def allow_guest_if_configured(setting_field="imogi_allow_guest_access", setting_
                     settings = frappe.get_cached_doc(setting_doctype)
                     
                     # Check if guest access is allowed
-                    if not settings.get(setting_field):
+                    if n# Use Frappe's built-in login page instead of deleted /imogi-login
+                        raise frappe.Redirect(f"/
                         raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
                 except frappe.DoesNotExistError:
-                    # Settings doc doesn't exist, require login
+                    # Use Frappe's built-in login page instead of deleted /imogi-login
+                    raise frappe.Redirect(f"/equire login
                     raise frappe.Redirect(f"/imogi-login?redirect={frappe.request.path}")
             
             args, kwargs = _get_context_from_call(func, args, kwargs)

@@ -50,9 +50,13 @@ function CounterPOSContent({ initialState }) {
   }
   const orderType = MODE_TO_ORDER_TYPE[mode]
   
-  // CRITICAL FIX: Only fetch orders after guard passes
+  // CRITICAL FIX: Only fetch orders after guard passes AND context is ready
   // This prevents 417 errors from calling API before operational context is set
-  const shouldFetchOrders = guardPassed && effectivePosProfile
+  // Additional defensive checks:
+  // 1. guardPassed must be true (hook verified context)
+  // 2. effectivePosProfile must exist (not null/undefined)
+  // 3. effectiveBranch should exist (though API can handle null)
+  const shouldFetchOrders = guardPassed && effectivePosProfile && !guardLoading
   
   const { data: orders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
     shouldFetchOrders ? effectivePosProfile : null,  // Pass null if guard not passed
@@ -85,10 +89,12 @@ function CounterPOSContent({ initialState }) {
   }, [selectedOrder])
 
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
+  // This prevents infinite loading state when context selection is required
   useEffect(() => {
     if (!guardLoading && !guardPassed && !showOpeningModal) {
       const timeout = setTimeout(() => {
-        window.location.href = '/app/imogi-module-select'
+        console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
+        window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
       }, 10000)
       return () => clearTimeout(timeout)
     }

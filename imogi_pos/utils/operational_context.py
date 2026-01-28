@@ -390,7 +390,7 @@ def require_operational_context(
         dict: Active context
         
     Raises:
-        frappe.ValidationError: If context required but not available
+        frappe.ValidationError: If context required but not available (HTTP 400)
     """
     if not user:
         user = frappe.session.user
@@ -413,21 +413,27 @@ def require_operational_context(
             resolved = resolve_operational_context(user=user)
             
             if not resolved.get("has_access"):
+                # Return structured error for client handling (HTTP 400)
                 frappe.throw(
-                    _("No POS Profiles configured for your account. Contact administrator."),
-                    frappe.ValidationError
+                    msg=_("No POS Profiles configured for your account. Contact administrator."),
+                    exc=frappe.ValidationError,
+                    title=_("Access Denied")
                 )
             
             if resolved.get("require_selection"):
+                # Return structured error for client handling (HTTP 400)
+                # Client should redirect to module-select
                 frappe.throw(
-                    _("POS Profile required. Please select one."),
-                    frappe.ValidationError
+                    msg=_("POS Profile required. Please select one from module selection page."),
+                    exc=frappe.ValidationError,
+                    title=_("Context Required")
                 )
             
-            # Should not reach here
+            # Should not reach here - fallback error
             frappe.throw(
-                _("POS Profile required. Please select one."),
-                frappe.ValidationError
+                msg=_("POS Profile required. Please configure operational context."),
+                exc=frappe.ValidationError,
+                title=_("Context Required")
             )
         
         return context
