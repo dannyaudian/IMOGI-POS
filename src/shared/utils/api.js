@@ -9,10 +9,10 @@
  * - Falls back to fetch with proper CSRF token handling
  * - Normalizes all responses to r.message format
  * - Explicit handling of r.exc (Frappe error format)
- * - Session expiry detection (401/403/417 + Guest user + login HTML)
+ * - Session expiry detection (401/403 + intelligent 417 handling)
  * - Shows full-screen "Session Expired" UI (no instant redirect)
  * - Retry logic for network errors ONLY (not auth errors)
- * - Comprehensive error logging with [imogi-api] tag
+ * - Standard logging with [imogi][api] format
  * 
  * USAGE:
  *   import { apiCall } from '@/shared/utils/api'
@@ -33,6 +33,8 @@
  *     }
  *   )
  */
+
+import * as logger from './logger'
 
 // Global session expired state
 let sessionExpiredHandlerCalled = false
@@ -56,12 +58,12 @@ export async function apiCall(method, args = {}, options = {}) {
 
   // Check if user is already Guest before making the call
   if (isSessionExpired()) {
-    console.error('[imogi-api] Session already expired (Guest user detected)')
+    logger.error('api', 'Session already expired (Guest user detected)')
     handleSessionExpired(onSessionExpired)
     throw new Error('Session expired. Please log in again.')
   }
 
-  console.log(`[imogi-api] Calling ${method}`, args)
+  logger.log('api', `Calling ${method}`, args)
 
   try {
     let response
@@ -79,35 +81,39 @@ export async function apiCall(method, args = {}, options = {}) {
 
     // Check if response contains login HTML (session expired)
     if (isLoginPage(normalized)) {
-      console.error('[imogi-api] Login page detected in response')
+      logger.error('api', 'Login page detected in response')
       handleSessionExpired(onSessionExpired)
       throw new Error('Session expired. Please log in again.')
     }
 
-    console.log(`[imogi-api] Success ${method}`, normalized)
+    logger.log('api', `Success: ${method}`, normalized)
     return normalized
 
   } catch (error) {
     // Log full error details
-    console.error(`[imogi-api] Error calling ${method}:`, {
+    logger.error('api', `Error calling ${method}`, {
       method,
       args,
       error: error.message,
       stack: error.stack,
       httpStatus: error.httpStatus,
-      responseText: error.responseText
+      responseText: error.responseText,
+      exc: error.exc
     })
 
-    // Check if this is an auth error (401/403/417)
+    // Check if this is an auth error (401/403, or 417 with auth-related exc)
     if (isAuthError(error)) {
-      console.error('[imogi-api] Authentication error detected:', error.httpStatus)
+      logger.error('api', `Authentication error detected: ${error.httpStatus}`, {
+        exc: error.exc,
+        exception: error.exception
+      })
       handleSessionExpired(onSessionExpired)
       throw new Error('Session expired. Please log in again.')
     }
 
     // Check if this is a network error that should be retried
     if (shouldRetry(error) && retry > 0) {
-      console.warn(`[imogi-api] Retrying ${method} (${retry} attempts left)`)
+      logger.warn('api', `Retrying ${method} (${retry} attempts left)`)
       await sleep(1000) // Wait 1s before retry
       return apiCall(method, args, { ...options, retry: retry - 1 })
     }
@@ -258,10 +264,38 @@ function isLoginPage(response) {
 
 /**
  * Check if error is an authentication error
+ * 
+ * 401/403 are always auth errors.
+ * 417 (Expectation Failed) needs further inspection:
+ *   - If r.exc contains "SessionExpired", "AuthenticationError", "PermissionError" → auth error
+ *   - Otherwise (validation errors, business logic) → NOT auth error
  */
 function isAuthError(error) {
-  const authStatuses = [401, 403, 417]
-  return error.httpStatus && authStatuses.includes(error.httpStatus)
+  const status = error.httpStatus
+  
+  // 401/403 are always auth errors
+  if (status === 401 || status === 403) {
+    logger.debug('api', `Auth error detected: ${status}`)
+    return true
+  }
+  
+  // 417 requires checking r.exc content
+  if (status === 417) {
+    const exc = error.exc || error.exception || ''
+    const authKeywords = ['SessionExpired', 'AuthenticationError', 'PermissionError', 'Unauthorized', 'Forbidden']
+    
+    const isAuth = authKeywords.some(keyword => exc.includes(keyword))
+    
+    if (isAuth) {
+      logger.debug('api', `417 is auth error: ${exc}`)
+    } else {
+      logger.debug('api', `417 is NOT auth error (validation/business logic): ${exc}`)
+    }
+    
+    return isAuth
+  }
+  
+  return false
 }
 
 /**

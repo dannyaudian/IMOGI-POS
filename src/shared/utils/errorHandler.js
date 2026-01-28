@@ -21,6 +21,8 @@
  *   }
  */
 
+import * as logger from './logger'
+
 /**
  * Custom API Error class
  */
@@ -40,7 +42,7 @@ export class APIError extends Error {
  * @param {Object} context - Additional context (module, action, etc.)
  */
 export function handleAPIError(error, context = {}) {
-  console.error('[Error Handler]', {
+  logger.error('error', 'API error occurred', {
     error: {
       name: error.name,
       message: error.message,
@@ -53,7 +55,7 @@ export function handleAPIError(error, context = {}) {
   // Session expired - handled by SessionExpiredProvider
   // Don't show additional message, provider will display modal
   if (error.name === 'SessionExpiredError') {
-    console.log('[Error Handler] Session expired - delegating to SessionExpiredProvider')
+    logger.log('error', 'Session expired - delegating to SessionExpiredProvider')
     return
   }
   

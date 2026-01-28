@@ -20,6 +20,10 @@
  *   })
  */
 
+import * as logger from './logger'
+
+import * as logger from './logger'
+
 /**
  * Navigate to a Desk page route
  * 
@@ -39,13 +43,13 @@ export function deskNavigate(path, options = {}) {
 
   // Check navigation lock - prevent duplicate navigations
   if (window.__imogiNavigationLock) {
-    console.warn(`${logPrefix} \u26d4 Navigation locked - ignoring duplicate request to:`, path)
+    logger.warn('nav', '⛔ Navigation locked - ignoring duplicate request', { path })
     return
   }
 
   // Acquire global navigation lock
   window.__imogiNavigationLock = true
-  console.log(`${logPrefix} \ud83d\udd12 Navigation lock ACQUIRED`)
+  logger.debug('nav', '🔒 Navigation lock ACQUIRED')
 
   // Build full URL with query params
   let fullUrl = path
@@ -57,7 +61,7 @@ export function deskNavigate(path, options = {}) {
     fullUrl = `${path}${separator}${queryString}`
   }
 
-  console.log(`${logPrefix} Navigating to:`, {
+  logger.log('nav', 'Navigating to:', {
     path,
     params,
     fullUrl,
@@ -83,7 +87,7 @@ export function deskNavigate(path, options = {}) {
       // If query params exist, frappe.set_route can't handle them
       // Fall back to window.location for complex URLs
       if (queryString) {
-        console.log(`${logPrefix} Query params detected, using window.location fallback`)
+        logger.log('nav', 'Query params detected, using window.location fallback')
         if (replace) {
           window.location.replace(fullUrl)
         } else {
@@ -94,19 +98,19 @@ export function deskNavigate(path, options = {}) {
       }
       
       // Use frappe.set_route for clean Desk navigation
-      console.log(`${logPrefix} \ud83d\ude80 Calling frappe.set_route(${routeParts.join(', ')})`)
+      logger.log('nav', `🚀 Calling frappe.set_route(${routeParts.join(', ')})`)
       frappe.set_route(...routeParts)
-      console.log(`${logPrefix} Navigation via frappe.set_route completed`)
+      logger.log('nav', 'Navigation via frappe.set_route completed')
       
       // Release lock after successful navigation (with delay to prevent race)
       setTimeout(() => {
         window.__imogiNavigationLock = false
-        console.log(`${logPrefix} \ud83d\udd13 Navigation lock RELEASED (after route change)`)
+        logger.log('nav', '🔓 Navigation lock RELEASED (after route change)')
       }, 2000)
       
       return
     } catch (error) {
-      console.warn(`${logPrefix} frappe.set_route failed, falling back to window.location:`, error)
+      logger.warn('nav', 'frappe.set_route failed, falling back to window.location', error)
       // Lock will be cleared by page load
     }
   }
@@ -117,7 +121,7 @@ export function deskNavigate(path, options = {}) {
   } else {
     window.location.href = fullUrl
   }
-  console.log(`${logPrefix} Navigation via window.location`)
+  logger.log('nav', 'Navigation via window.location')
   // Lock will be cleared by page load
 }
 
