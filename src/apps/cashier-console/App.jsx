@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
-import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
@@ -33,9 +32,8 @@ function CounterPOSContent({ initialState }) {
     })
   }, [])
 
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
-  
   // POS Profile guard - this module requires opening
+  // No need for useAuth - Frappe Desk already handles authentication
   const {
     isLoading: guardLoading,
     guardPassed,
@@ -59,11 +57,9 @@ function CounterPOSContent({ initialState }) {
       posProfile,
       branch,
       hasOpening: !!posOpening,
-      showOpeningModal,
-      authLoading,
-      hasAccess
+      showOpeningModal
     })
-  }, [guardLoading, guardPassed, posProfile, branch, posOpening, showOpeningModal, authLoading, hasAccess])
+  }, [guardLoading, guardPassed, posProfile, branch, posOpening, showOpeningModal])
   
   // Use centralized POS context as fallback
   const { mode: contextMode } = useImogiPOS()
@@ -113,7 +109,7 @@ function CounterPOSContent({ initialState }) {
 
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
   useEffect(() => {
-    if (!guardLoading && !authLoading && !guardPassed && !showOpeningModal) {
+    if (!guardLoading && !guardPassed && !showOpeningModal) {
       const timeout = setTimeout(() => {
         console.error('POS Profile guard failed - redirecting to module select')
         console.trace('🔍 [REDIRECT SOURCE] Cashier App.jsx → Guard timeout fallback')
@@ -121,10 +117,11 @@ function CounterPOSContent({ initialState }) {
       }, 10000)
       return () => clearTimeout(timeout)
     }
-  }, [guardLoading, authLoading, guardPassed, showOpeningModal])
+  }, [guardLoading, guardPassed, showOpeningModal])
 
-  // Show loading while checking auth and guard
-  if (authLoading || guardLoading) {
+  // Show loading while checking guard
+  // No auth loading needed - Frappe Desk handles authentication
+  if (guardLoading) {
     return <LoadingSpinner message="Loading Cashier Console..." />
   }
   
@@ -149,10 +146,6 @@ function CounterPOSContent({ initialState }) {
 
   if (!effectivePosProfile) {
     return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
-  }
-
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied'} />
   }
 
   // Event handlers

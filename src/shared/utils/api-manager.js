@@ -184,6 +184,22 @@ async function makeAPICallWithRetry(
         const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
         error.status = response.status;
 
+        // 503 with Session Stopped = session expired, just throw error
+        if (response.status === 503) {
+          try {
+            const errorData = await response.json();
+            if (errorData.exc_type === 'SessionStopped' || 
+                (errorData.exception && errorData.exception.includes('Session Stopped'))) {
+              console.warn('[api-manager] Session expired (503) - user needs to re-authenticate');
+              // Just throw error to let UI handle it
+              error.sessionExpired = true;
+              throw error;
+            }
+          } catch (parseError) {
+            // If JSON parse fails, continue with normal error handling
+          }
+        }
+
         // Don't retry on 401/403 (auth issues)
         if (response.status === 401 || response.status === 403) {
           throw error;
@@ -230,8 +246,17 @@ async function makeAPICallWithRetry(
  * Check if error is retryable
  */
 function isRetryableError(error) {
+  // Session expired errors should NOT be retried (redirect already triggered)
+  if (error.sessionExpired) {
+    return false;
+  }
+
   // Network errors are retryable
   if (!error.status || error.status >= 500) {
+    // But NOT 503 Session Stopped (handled above)
+    if (error.status === 503) {
+      return false;
+    }
     return true;
   }
 

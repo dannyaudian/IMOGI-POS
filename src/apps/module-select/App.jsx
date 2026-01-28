@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
+import { isSessionExpired, handleSessionExpiry } from '../../shared/utils/session-manager'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -66,12 +67,10 @@ function App() {
     if (sid.length <= 8) return `${sid.slice(0, 2)}***${sid.slice(-2)}`
     return `${sid.slice(0, 4)}***${sid.slice(-4)}`
   }
-  const isSessionError = (error) => {
-    if (!error) return false
-    const status = error?.httpStatus || error?.status || error?.response?.status
-    if (status === 401 || status === 403 || status === 417) return true
-    const message = error?.message || error?.response?.data?.message
-    return typeof message === 'string' && message.toLowerCase().includes('session stopped')
+  
+  // Use centralized session manager
+  const checkIsSessionError = (error) => {
+    return isSessionExpired(error)
   }
 
   const { data: moduleData, isLoading: modulesLoading, error: moduleError, mutate: refetchModuleData } = useFrappeGetCall(
@@ -80,11 +79,13 @@ function App() {
     undefined,
     {
       errorRetryCount: 1,
-      shouldRetryOnError: (error) => !isSessionError(error),
+      shouldRetryOnError: (error) => !checkIsSessionError(error),
       onError: (error) => {
         console.error('[module-select] API call failed:', error)
-        if (isSessionError(error)) {
-          setRealtimeBanner('Realtime disconnected, continuing without realtime')
+        if (checkIsSessionError(error)) {
+          // Session expired - redirect to login
+          handleSessionExpiry('module-select-api')
+          return
         }
         if (debugRealtime) {
           console.warn('[module-select] module fetch error', {

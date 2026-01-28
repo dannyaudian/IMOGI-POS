@@ -1,25 +1,16 @@
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
-import { useAuth } from '@/shared/hooks/useAuth'
 import { useTables } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
 import { useState } from 'react'
 
 function TableLayoutEditorContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Branch Manager', 'System Manager'])
+  // No need for useAuth - Frappe Desk already handles authentication
   
   const branch = initialState.branch || 'Default'
   const { data: tables, error: tablesError, isLoading: tablesLoading, mutate } = useTables(branch)
   
   const [editMode, setEditMode] = useState(false)
   const [selectedTable, setSelectedTable] = useState(null)
-
-  if (authLoading) {
-    return <LoadingSpinner message="Authenticating..." />
-  }
-
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied - Manager role required'} />
-  }
 
   const handleTableClick = (table) => {
     if (editMode) {

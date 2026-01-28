@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
-import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useKOTList } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
@@ -10,7 +9,7 @@ import { groupKOTsByState, getStationsFromKOTs } from './utils'
 import './kitchen.css'
 
 function KitchenContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Kitchen Staff', 'Branch Manager', 'System Manager'])
+  // No need for useAuth - Frappe Desk already handles authentication
   
   // POS Profile guard - kitchen doesn't require opening, just profile
   const {
@@ -68,27 +67,23 @@ function KitchenContent({ initialState }) {
 
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
   useEffect(() => {
-    if (!guardLoading && !authLoading && !guardPassed) {
+    if (!guardLoading && !guardPassed) {
       const timeout = setTimeout(() => {
         console.error('POS Profile guard failed - redirecting to module select')
         window.location.href = '/app/imogi-module-select'
       }, 10000)
       return () => clearTimeout(timeout)
     }
-  }, [guardLoading, authLoading, guardPassed])
+  }, [guardLoading, guardPassed])
 
-  // Show loading while checking auth and guard
-  if (authLoading || guardLoading) {
+  // Show loading while checking guard
+  if (guardLoading) {
     return <LoadingSpinner message="Loading Kitchen Display..." />
   }
   
   // Wait for guard to pass
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying access..." />
-  }
-
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied'} />
   }
 
   // Group KOTs by workflow state

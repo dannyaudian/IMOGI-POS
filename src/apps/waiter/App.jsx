@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
-import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useTables, useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
@@ -9,7 +8,7 @@ import { useCart, useTableOrder } from './hooks'
 import './waiter.css'
 
 function WaiterContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Waiter', 'Branch Manager', 'System Manager'])
+  // No need for useAuth - Frappe Desk already handles authentication
   
   // POS Profile guard - waiter doesn't require opening, just profile
   const {
@@ -58,7 +57,7 @@ function WaiterContent({ initialState }) {
 
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
   useEffect(() => {
-    if (!guardLoading && !authLoading && !guardPassed) {
+    if (!guardLoading && !guardPassed) {
       const timeout = setTimeout(() => {
         console.error('[Waiter] POS Profile guard failed - redirecting to module select')
         if (typeof frappe !== 'undefined' && frappe.set_route) {
@@ -72,10 +71,10 @@ function WaiterContent({ initialState }) {
       }, 10000)
       return () => clearTimeout(timeout)
     }
-  }, [guardLoading, authLoading, guardPassed])
+  }, [guardLoading, guardPassed])
 
-  // Show loading while checking auth and guard
-  if (authLoading || guardLoading) {
+  // Show loading while checking guard
+  if (guardLoading) {
     return <LoadingSpinner message="Loading Waiter App..." />
   }
   
@@ -86,10 +85,6 @@ function WaiterContent({ initialState }) {
 
   if (!effectivePosProfile) {
     return <ErrorMessage error="POS Profile selection required. Please choose a POS Profile." />
-  }
-
-  if (authError || !hasAccess) {
-    return <ErrorMessage error={authError || 'Access denied'} />
   }
 
   // Get unique categories

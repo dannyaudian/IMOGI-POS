@@ -23,13 +23,12 @@ export function useAuth(requiredRoles = []) {
   )
 
   useEffect(() => {
-    // Only redirect to login for auth errors (401/403), not server errors (500)
+    // Auth check - no redirect, just set error state
     if (currentUser === 'Guest' || !currentUser) {
       // Check if this is an actual auth issue vs server error
       if (!userError || userError.httpStatus === 401 || userError.httpStatus === 403) {
-        // Redirect ke login page only for auth issues
-        const currentPath = window.location.pathname
-        window.location.href = `/shared/login?redirect=${encodeURIComponent(currentPath)}`
+        setError('Authentication required. Please login through Frappe desk.')
+        setHasAccess(false)
         return
       }
     }
