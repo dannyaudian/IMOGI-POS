@@ -104,7 +104,17 @@ export function useOperationalContext(options = {}) {
     // 1. A profile was resolved (current_pos_profile exists)
     // 2. No active_context in response (meaning it wasn't in session)
     // 3. Auto-resolve is enabled (default behavior)
-    if (autoResolve && serverContext.current_pos_profile && !serverContext.active_context) {
+    // 
+    // ENHANCEMENT: Also check if session context differs from resolved context
+    const hasServerContext = serverContext.active_context?.pos_profile
+    const resolvedProfile = serverContext.current_pos_profile
+    const needsSyncToServer = resolvedProfile && (!hasServerContext || hasServerContext !== resolvedProfile)
+    
+    if (autoResolve && needsSyncToServer) {
+      console.log('[OperationalContext] Auto-setting context on server:', {
+        resolved: resolvedProfile,
+        serverHas: hasServerContext || 'none'
+      })
       // Silently set context on server to sync session
       setContextOnServer({
         pos_profile: serverContext.current_pos_profile,

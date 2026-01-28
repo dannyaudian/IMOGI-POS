@@ -112,11 +112,11 @@ export function ActionButtons({
             <div className="pos-info-body">
               <div className="info-row">
                 <span className="info-label">POS Profile:</span>
-                <span className="info-value">{posProfile || 'N/A'}</span>
+                <span className="info-value">{posProfile?.name || posProfile || 'N/A'}</span>
               </div>
               <div className="info-row">
                 <span className="info-label">Branch:</span>
-                <span className="info-value">{branch || 'N/A'}</span>
+                <span className="info-value">{branch?.name || branch || 'N/A'}</span>
               </div>
               {posOpening && (
                 <>
