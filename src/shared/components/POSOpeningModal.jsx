@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import { isSessionExpired } from '../utils/session-manager'
-import { storage } from '../utils/storage'
+import storage from '../utils/storage'
 import './POSOpeningModal.css'
 
 /**

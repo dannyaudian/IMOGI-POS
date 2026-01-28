@@ -25,7 +25,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
-import { storage } from '../utils/storage'
+import storage from '../utils/storage'
 
 // No localStorage keys - server session is source of truth
 const CACHE_KEY = 'imogi_operational_context_cache'

@@ -22,8 +22,6 @@
 
 import * as logger from './logger'
 
-import * as logger from './logger'
-
 /**
  * Navigate to a Desk page route
  * 
