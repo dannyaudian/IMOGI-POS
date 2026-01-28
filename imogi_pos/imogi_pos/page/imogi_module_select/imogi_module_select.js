@@ -48,7 +48,7 @@ frappe.pages['imogi-module-select'].on_page_show = function(wrapper) {
 	window.__imogiModuleSelectActive = true;
 };
 
-frappe.pages['imogi-module-select'].on_page_hide = function(wrapperwrapper) {
+frappe.pages['imogi-module-select'].on_page_hide = function(wrapper) {
 	// Page hidden - keep widget mounted (preserve state)
 	// Note: Frappe may reuse the same page instance, so we don't unmount
 	console.count('[Desk] Module Select page hidden');

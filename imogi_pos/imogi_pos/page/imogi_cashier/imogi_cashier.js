@@ -50,9 +50,17 @@ frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
 };
 
 function checkOperationalContext(container, page) {
+	// Check if user is logged in first
+	if (!frappe.session.user || frappe.session.user === 'Guest') {
+		console.warn('[Desk] User not logged in, redirecting to login');
+		frappe.set_route('login');
+		return;
+	}
+
 	frappe.call({
 		method: 'imogi_pos.utils.operational_context.get_operational_context',
 		callback: function(r) {
+			console.log('[Desk] Operational context response:', r);
 			if (r.message && r.message.current_pos_profile) {
 				// Context exists - load widget
 				console.log('[Desk] Context check passed, loading cashier widget...');
@@ -64,12 +72,19 @@ function checkOperationalContext(container, page) {
 				console.warn('[Desk] No context found, redirecting to module-select');
 				const reason = 'missing_pos_profile';
 				const target = 'imogi-cashier';
-				frappe.set_route('imogi-module-select', { reason, target });
+				// Guard against redirect loop
+				if (window.location.hash !== '#imogi-module-select') {
+					frappe.set_route('imogi-module-select', { reason, target });
+				}
 			}
 		},
-		error: function() {
+		error: function(err) {
 			// Error checking context - redirect to module-select
-			frappe.set_route('imogi-module-select');
+			console.error('[Desk] Error checking operational context:', err);
+			// Guard against redirect loop
+			if (window.location.hash !== '#imogi-module-select') {
+				frappe.set_route('imogi-module-select');
+			}
 		}
 	});
 }
