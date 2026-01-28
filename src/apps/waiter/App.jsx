@@ -5,6 +5,7 @@ import { useTables, useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { TableLayout, OrderCart, MenuCatalog } from './components'
 import { useCart, useTableOrder } from './hooks'
+import { deskNavigate } from '../../shared/utils/deskNavigate'
 import './waiter.css'
 
 function WaiterContent({ initialState }) {
@@ -59,15 +60,11 @@ function WaiterContent({ initialState }) {
   useEffect(() => {
     if (!guardLoading && !guardPassed) {
       const timeout = setTimeout(() => {
-        console.error('[Waiter] POS Profile guard failed - redirecting to module select')
-        if (typeof frappe !== 'undefined' && frappe.set_route) {
-          frappe.set_route('imogi-module-select', { 
-            reason: 'missing_pos_profile', 
-            target: 'imogi-waiter' 
-          })
-        } else {
-          window.location.href = '/app/imogi-module-select'
-        }
+        console.error('[imogi][waiter] POS Profile guard failed - redirecting to module select')
+        deskNavigate('imogi-module-select', { 
+          reason: 'missing_pos_profile', 
+          target: 'imogi-waiter' 
+        })
       }, 10000)
       return () => clearTimeout(timeout)
     }

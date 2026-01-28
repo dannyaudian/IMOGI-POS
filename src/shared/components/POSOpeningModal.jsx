@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import { isSessionExpired } from '../utils/session-manager'
+import { storage } from '../utils/storage'
 import './POSOpeningModal.css'
 
 /**
@@ -95,7 +96,7 @@ export function POSOpeningModal({
 
       if (result.success) {
         // Store in localStorage for immediate use
-        localStorage.setItem('imogi_pos_opening_entry', result.pos_opening_entry)
+        storage.setItem('pos_opening_entry', result.pos_opening_entry)
         
         // Dispatch event for other components
         window.dispatchEvent(new CustomEvent('posSessionOpened', {

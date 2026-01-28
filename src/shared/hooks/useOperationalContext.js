@@ -25,6 +25,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
+import { storage } from '../utils/storage'
 
 // No localStorage keys - server session is source of truth
 const CACHE_KEY = 'imogi_operational_context_cache'
@@ -41,12 +42,7 @@ export function useOperationalContext(options = {}) {
   // Local state (mirrors server session)
   const [context, setContextState] = useState(() => {
     // Try to load from cache for faster initial render
-    try {
-      const cached = sessionStorage.getItem(CACHE_KEY)
-      return cached ? JSON.parse(cached) : null
-    } catch {
-      return null
-    }
+    return storage.getItem('operational_context_cache') || null
   })
   
   // Fetch context from server (authoritative source)
@@ -100,11 +96,7 @@ export function useOperationalContext(options = {}) {
     setContextState(newContext)
     
     // Cache for faster subsequent renders
-    try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify(activeContext))
-    } catch {
-      // Ignore storage errors
-    }
+    storage.setItem('operational_context_cache', activeContext)
   }, [serverContext])
   
   /**
@@ -136,11 +128,7 @@ export function useOperationalContext(options = {}) {
         })
         
         // Update cache
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(updatedContext))
-        } catch {
-          // Ignore
-        }
+        storage.setItem('operational_context_cache', updatedContext)
         
         // Dispatch event for other components
         window.dispatchEvent(new CustomEvent('operationalContextChanged', {
