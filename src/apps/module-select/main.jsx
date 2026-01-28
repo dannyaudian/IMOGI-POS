@@ -32,6 +32,15 @@ window.imogiModuleSelectMount = function(element, options = {}) {
   return element[MODULE_SELECT_ROOT_KEY]
 }
 
+const mountDescriptor = Object.getOwnPropertyDescriptor(window, 'imogiModuleSelectMount')
+if (!mountDescriptor || mountDescriptor.configurable) {
+  Object.defineProperty(window, 'imogiModuleSelectMount', {
+    configurable: false,
+    writable: false,
+    value: window.imogiModuleSelectMount
+  })
+}
+
 window.imogiModuleSelectUnmount = function(element) {
   if (!(element instanceof HTMLElement)) {
     console.error('[module-select] Unmount target must be an HTMLElement.', element)
