@@ -7,6 +7,9 @@ import '@/shared/styles/global.css'
 // Expose mount/unmount functions for Desk page integration
 const MODULE_SELECT_ROOT_KEY = '__imogiModuleSelectRoot'
 
+// Export root key for external verification/debugging
+window.__imogiModuleSelectRootKey = MODULE_SELECT_ROOT_KEY;
+
 // Version stamp for debugging (updated: 2026-01-28)
 window.__imogiModuleSelectMountVersion = 'phase2-scan-fix-20260128';
 console.log('[module-select] Bundle loaded, mount version:', window.__imogiModuleSelectMountVersion);

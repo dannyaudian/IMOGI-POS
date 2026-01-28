@@ -252,10 +252,21 @@ function App() {
     }
 
     const url = new URL(base, window.location.origin)
-    console.log('[module-select] Navigating to:', {
+    
+    // Phase 5: Route transition instrumentation
+    const scriptTagCount = document.querySelectorAll('script[data-imogi-app]').length
+    const moduleSelectScripts = document.querySelectorAll('script[data-imogi-app="module-select"]').length
+    
+    console.log('🚀 [ROUTE TRANSITION] Module-select → ' + module.name, {
+      from_route: window.location.pathname,
+      to_route: url.pathname,
+      module_type: module.type,
       module_name: module.name,
       base_url: base,
-      full_url: url.toString()
+      full_url: url.toString(),
+      script_tags_total: scriptTagCount,
+      module_select_scripts: moduleSelectScripts,
+      timestamp: new Date().toISOString()
     })
     
     // Use full URL to preserve query strings and hash

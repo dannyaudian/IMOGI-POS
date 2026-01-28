@@ -8,6 +8,9 @@
  */
 
 frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
+	// Phase 5: Log page load event
+	console.count('[Desk] Cashier page on_page_load');
+	
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: 'IMOGI Cashier Console',

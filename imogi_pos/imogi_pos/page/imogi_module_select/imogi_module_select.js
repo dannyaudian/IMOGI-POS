@@ -32,21 +32,44 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 
 frappe.pages['imogi-module-select'].on_page_show = function() {
 	// Page shown - widget already mounted
-	console.log('[Desk] Module Select page shown');
+	console.count('[Desk] Module Select page shown');
+	
+	// Phase 4: Restore UI visibility
+	const container = document.querySelector('#imogi-module-select-root');
+	if (container) {
+		container.style.display = '';
+		console.log('[Desk] Module Select UI restored (display reset)');
+	}
 };
 
 frappe.pages['imogi-module-select'].on_page_hide = function() {
 	// Page hidden - keep widget mounted (preserve state)
-	console.log('[Desk] Module Select page hidden');
+	// Note: Frappe may reuse the same page instance, so we don't unmount
+	console.count('[Desk] Module Select page hidden');
+	
+	// Phase 4: Hide UI to prevent DOM overlay/clash with other pages
+	const container = document.querySelector('#imogi-module-select-root');
+	if (container) {
+		container.style.display = 'none';
+		console.log('[Desk] Module Select UI hidden (display:none)');
+	}
+	
+	// Optional: Uncomment below to force unmount on hide (may cause state loss)
+	// if (container && window.imogiModuleSelectUnmount) {
+	//   window.imogiModuleSelectUnmount(container);
+	//   container.__imogiModuleSelectMounted = false;
+	// }
 };
 
 function loadReactWidget(container, page) {
 	console.count('[Desk] loadReactWidget called');
 	
-	// ✅ GUARD: Check both mount function AND script tag to prevent double-injection
-	const scriptExists = document.querySelector('script[data-imogi-app="module-select"]');
+	// ✅ GUARD: Check both mount function AND script tag with exact src validation
+	const scriptExists = [...document.querySelectorAll('script[data-imogi-app="module-select"]')]
+		.some(s => (s.src || '').includes('/assets/imogi_pos/react/module-select/'));
+	
 	if (window.imogiModuleSelectMount && scriptExists) {
-		console.log('[Desk] Bundle already loaded, using existing mount function');
+		console.log('[Desk] Bundle already loaded (verified src), using existing mount function');
 		mountWidget(container, page);
 		return;
 	}

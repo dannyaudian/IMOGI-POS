@@ -15,6 +15,20 @@ import { CatalogView } from './components/CatalogView'
 import './App.css'
 
 function CounterPOSContent({ initialState }) {
+  // Phase 5: Route transition instrumentation on mount
+  useEffect(() => {
+    const scriptTagCount = document.querySelectorAll('script[data-imogi-app]').length
+    const cashierScripts = document.querySelectorAll('script[data-imogi-app="cashier-console"]').length
+    
+    console.log('📍 [ROUTE LOADED] Cashier Console mounted', {
+      current_route: window.location.pathname,
+      script_tags_total: scriptTagCount,
+      cashier_console_scripts: cashierScripts,
+      initial_state: !!initialState,
+      timestamp: new Date().toISOString()
+    })
+  }, [])
+
   const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Cashier', 'Branch Manager', 'System Manager'])
   
   // POS Profile guard - this module requires opening
