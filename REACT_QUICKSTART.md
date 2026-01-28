@@ -51,12 +51,6 @@ Jika tidak menggunakan script:
 ```bash
 cd imogi_pos/www
 
-# Login
-mv shared/login/index.html shared/login/index.html.legacy
-mv shared/login/index.py shared/login/index.py.legacy
-mv shared/login/react.html shared/login/index.html
-mv shared/login/react.py shared/login/index.py
-
 # Service Select
 mv shared/service-select/index.html shared/service-select/index.html.legacy
 mv shared/service-select/react.html shared/service-select/index.html
@@ -87,8 +81,7 @@ http://localhost:3000  # Saat run npm run dev:login
 
 ### Production
 ```
-http://your-site.com/shared/login  # ONLY for standalone WWW apps (self-order, kiosk)
-http://your-site.com/login  # Frappe built-in login for Desk Pages
+http://your-site.com/login  # Frappe built-in login (Desk Pages)
 http://your-site.com/service-select  
 http://your-site.com/device-select
 http://your-site.com/opening-balance?device=kiosk&next=/service-select
@@ -98,7 +91,7 @@ http://your-site.com/opening-balance?device=kiosk&next=/service-select
 
 ```
 src/apps/
-├── login/
+├── cashier-console/
 │   ├── main.jsx       # Entry point
 │   ├── App.jsx        # Main component
 │   └── styles.css     # Styles
@@ -107,7 +100,7 @@ src/apps/
 └── opening-balance/
 
 imogi_pos/www/
-├── shared/login/
+├── restaurant/self-order/
 │   ├── index.html     # 👈 Aktif setelah migration
 │   ├── index.py       # 👈 Aktif setelah migration
 │   ├── index.html.legacy  # Backup
@@ -119,8 +112,8 @@ imogi_pos/www/
 
 ### 1. Development
 ```bash
-# Edit di src/apps/login/App.jsx
-npm run dev:login
+# Edit di src/apps/cashier-console/App.jsx
+npm run dev:cashier-console
 
 # Test perubahan
 # Edit lagi...
@@ -129,8 +122,8 @@ npm run dev:login
 
 ### 2. Build
 ```bash
-npm run build:login
-# Output: imogi_pos/public/react/login/
+VITE_APP=cashier-console npm run build
+# Output: imogi_pos/public/react/cashier-console/
 ```
 
 ### 3. Test Build Locally
@@ -138,15 +131,15 @@ npm run build:login
 # Jalankan Frappe server
 bench start
 
-# Akses http://localhost:8000/shared/login  # ONLY for testing standalone WWW apps
-# For Desk Pages, use: http://localhost:8000/login (Frappe built-in)
+# Akses http://localhost:8000/app/imogi-module-select  # Desk Pages
+# For standalone WWW, use: http://localhost:8000/restaurant/self-order
 ```
 
 ### 4. Deploy to Production
 ```bash
 # Commit & push
 git add .
-git commit -m "Update login page"
+git commit -m "Update cashier console"
 git push
 
 # Di server production:
@@ -161,17 +154,17 @@ bench restart
 ### Build Error
 ```bash
 # Clean dan rebuild
-rm -rf imogi_pos/public/react/login
-npm run build:login
+rm -rf imogi_pos/public/react/cashier-console
+VITE_APP=cashier-console npm run build
 ```
 
 ### React Bundle Not Found
 ```bash
 # Pastikan sudah build
-npm run build:all
+VITE_APP=cashier-console npm run build
 
 # Check output
-ls -la imogi_pos/public/react/login/
+ls -la imogi_pos/public/react/cashier-console/
 ```
 
 ### Page Tidak Muncul

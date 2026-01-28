@@ -207,8 +207,7 @@ const TESTS = [
 
 const PAGE_ROUTES = [
   // Entry Points
-  { url: "/shared/login", name: "Login Page (Standalone WWW apps only)", roles: [] },
-  { url: "/login", name: "Frappe Built-in Login (Desk Pages)", roles: [] },
+  { url: "/login", name: "Frappe Built-in Login", roles: [] },
   { url: "/app/imogi-module-select", name: "Module Select", roles: [] },
   
   // POS Applications (correct routes from hooks.py)

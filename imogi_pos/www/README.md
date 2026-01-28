@@ -11,7 +11,6 @@ www/
 ├── customer-display-editor/  # Customer display editor (React app: src/apps/customer-display-editor)
 ├── kiosk/              # Self-service kiosk (React app: src/apps/kiosk)
 ├── kitchen/            # Kitchen Display System (React app: src/apps/kitchen)
-├── login/              # Authentication page (React app: src/apps/login)
 ├── module-select/      # Multi-module selector (React app: src/apps/module-select)
 ├── self-order/         # QR-based self-ordering (React app: src/apps/self-order)
 ├── table-display/      # Table layout display (React app: src/apps/table-display)
@@ -35,7 +34,6 @@ www/customer-display/     → src/apps/customer-display/
 www/customer-display-editor/ → src/apps/customer-display-editor/
 www/kiosk/                → src/apps/kiosk/
 www/kitchen/              → src/apps/kitchen/
-www/login/                → src/apps/login/
 www/module-select/        → src/apps/module-select/
 www/self-order/           → src/apps/self-order/
 www/table-display/        → src/apps/table-display/

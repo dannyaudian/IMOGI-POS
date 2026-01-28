@@ -45,8 +45,7 @@ activate_react() {
 cd "$(dirname "$0")"
 cd imogi_pos/www
 
-# Activate all 4 React apps
-activate_react "shared/login" "Login"
+# Activate all React apps
 activate_react "shared/service-select" "Service Select"
 activate_react "shared/device-select" "Device Select"
 activate_react "opening-balance" "Opening Balance"
@@ -59,8 +58,7 @@ echo "Next steps:"
 echo "1. Restart bench: bench restart"
 echo "2. Clear cache: bench clear-cache"
 echo "3. Test apps:"
-echo "   - http://your-site.com/shared/login  # Standalone WWW apps only"
-echo "   - http://your-site.com/login  # Frappe built-in for Desk Pages"
+echo "   - http://your-site.com/login  # Frappe built-in (Desk Pages)"
 echo "   - http://your-site.com/service-select"
 echo "   - http://your-site.com/device-select"
 echo "   - http://your-site.com/opening-balance"

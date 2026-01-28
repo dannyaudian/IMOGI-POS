@@ -66,9 +66,8 @@ Test that old URLs automatically redirect to new URLs:
 
 #### B.1 Login System
 
-**Login Page** (`/shared/login`) - **ONLY for standalone WWW apps (self-order, kiosk)**
+**Login** - Use Frappe's built-in `/login` for all apps
 - ⬜ Login form displays correctly
-- ⚠️ **Desk Pages use `/login` (Frappe built-in) - NOT `/shared/login`**
 - ⬜ Can login with valid credentials
 - ⬜ Invalid credentials show error
 - ⬜ After login, redirects based on role:

@@ -45,11 +45,6 @@ MIGRATIONS = {
         'title': 'Table Layout Editor',
         'roles': ['Branch Manager', 'System Manager']
     },
-    'shared/login': {
-        'react_app': 'login',
-        'title': 'Login',
-        'roles': []  # Public
-    },
     'shared/device-select': {
         'react_app': 'device-select',
         'title': 'Select Device',

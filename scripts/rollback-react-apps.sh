@@ -44,8 +44,7 @@ rollback_react() {
 cd "$(dirname "$0")"
 cd imogi_pos/www
 
-# Rollback all 4 React apps
-rollback_react "shared/login" "Login"
+# Rollback all React apps
 rollback_react "shared/service-select" "Service Select"
 rollback_react "shared/device-select" "Device Select"
 rollback_react "opening-balance" "Opening Balance"
