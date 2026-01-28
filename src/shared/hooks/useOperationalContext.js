@@ -73,7 +73,10 @@ export function useOperationalContext(options = {}) {
   
   // Update local state when server context changes
   useEffect(() => {
+    console.log('[useOperationalContext] Server context received:', serverContext)
+    
     if (!serverContext) {
+      console.log('[useOperationalContext] No server context yet')
       return
     }
     
@@ -83,7 +86,9 @@ export function useOperationalContext(options = {}) {
       branch: serverContext.current_branch
     }
     
-    setContextState({
+    console.log('[useOperationalContext] Active context:', activeContext)
+    
+    const newContext = {
       pos_profile: activeContext.pos_profile || null,
       branch: activeContext.branch || null,
       
@@ -95,7 +100,10 @@ export function useOperationalContext(options = {}) {
       role_class: serverContext.role_class || null,
       is_privileged: serverContext.is_privileged || false,
       context_required: serverContext.context_required !== false
-    })
+    }
+    
+    console.log('[useOperationalContext] Setting context state:', newContext)
+    setContextState(newContext)
     
     // Cache for faster subsequent renders
     try {

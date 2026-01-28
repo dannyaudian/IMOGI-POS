@@ -243,24 +243,46 @@ function App() {
 
   const setOperationalContext = async (posProfile, branchOverride) => {
     if (!posProfile) {
+      console.warn('[module-select] setOperationalContext called without posProfile')
       return null
     }
 
-    const response = await setContextOnServer({
+    console.log('[module-select] Calling setOperationalContext API:', {
       pos_profile: posProfile,
       branch: branchOverride || null
     })
 
-    if (response?.success) {
-      setContextState((prev) => ({
-        ...prev,
-        pos_profile: response.context?.pos_profile || posProfile,
-        branch: response.context?.branch || null,
-        require_selection: false
-      }))
-    }
+    try {
+      // Ensure we properly await the call
+      const response = await setContextOnServer({
+        pos_profile: posProfile,
+        branch: branchOverride || null
+      })
 
-    return response
+      console.log('[module-select] setOperationalContext raw response:', response)
+      console.log('[module-select] Response type:', typeof response)
+      console.log('[module-select] Response.success:', response?.success)
+
+      // frappe-react-sdk might wrap response in .message
+      const actualResponse = response?.message || response
+
+      if (actualResponse?.success) {
+        console.log('[module-select] Context set successfully:', actualResponse.context)
+        setContextState((prev) => ({
+          ...prev,
+          pos_profile: actualResponse.context?.pos_profile || posProfile,
+          branch: actualResponse.context?.branch || null,
+          require_selection: false
+        }))
+        return actualResponse
+      } else {
+        console.error('[module-select] setOperationalContext failed:', actualResponse)
+        return actualResponse
+      }
+    } catch (error) {
+      console.error('[module-select] setOperationalContext exception:', error)
+      throw error
+    }
   }
 
   const proceedToModule = async (module, refreshedData = null) => {

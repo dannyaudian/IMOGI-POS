@@ -30,6 +30,20 @@ function CounterPOSContent({ initialState }) {
     handleOpeningCancel
   } = usePOSProfileGuard({ requiresOpening: true })
   
+  // Debug logging
+  useEffect(() => {
+    console.log('[cashier-console] Guard state:', {
+      guardLoading,
+      guardPassed,
+      posProfile,
+      branch,
+      hasOpening: !!posOpening,
+      showOpeningModal,
+      authLoading,
+      hasAccess
+    })
+  }, [guardLoading, guardPassed, posProfile, branch, posOpening, showOpeningModal, authLoading, hasAccess])
+  
   // Use centralized POS context as fallback
   const { mode: contextMode } = useImogiPOS()
   

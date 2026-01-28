@@ -49,13 +49,28 @@ export function usePOSProfileGuard(options = {}) {
   
   // Check guard conditions
   useEffect(() => {
+    console.log('[usePOSProfileGuard] Checking guard conditions:', {
+      contextLoading,
+      openingLoading,
+      requiresOpening,
+      pos_profile,
+      hasAccess,
+      available_profiles_count: available_profiles.length,
+      contextRequired,
+      needsSelection,
+      hasOpening: !!posOpening,
+      posOpeningEntry: posOpening?.pos_opening_entry
+    })
+    
     // Still loading
     if (contextLoading || (requiresOpening && openingLoading)) {
+      console.log('[usePOSProfileGuard] Still loading...')
       return
     }
     
     // No POS Profile available
     if (contextRequired && !pos_profile && available_profiles.length === 0 && !hasAccess) {
+      console.log('[usePOSProfileGuard] No POS Profile available, redirecting...')
       if (autoRedirect) {
         console.log('[POSProfileGuard] No POS Profile available, redirecting to module-select')
         window.location.href = MODULE_SELECT_URL
@@ -65,6 +80,7 @@ export function usePOSProfileGuard(options = {}) {
     
     // No current profile selected but profiles are available
     if (contextRequired && !pos_profile && available_profiles.length > 0 && needsSelection) {
+      console.log('[usePOSProfileGuard] No POS Profile selected but profiles available, redirecting...')
       if (autoRedirect) {
         console.log('[POSProfileGuard] No POS Profile selected, redirecting to module-select')
         window.location.href = MODULE_SELECT_URL
@@ -74,14 +90,22 @@ export function usePOSProfileGuard(options = {}) {
     
     // Check opening requirement
     if (requiresOpening && pos_profile) {
+      console.log('[usePOSProfileGuard] Checking opening requirement:', {
+        pos_profile,
+        hasOpening: !!posOpening,
+        posOpeningEntry: posOpening?.pos_opening_entry
+      })
+      
       if (!posOpening || !posOpening.pos_opening_entry) {
         // Show opening modal instead of redirecting
+        console.log('[usePOSProfileGuard] No opening found, showing modal')
         setShowOpeningModal(true)
         return
       }
     }
     
     // All guards passed
+    console.log('[usePOSProfileGuard] All guards passed! ✅')
     setGuardPassed(true)
     
   }, [
