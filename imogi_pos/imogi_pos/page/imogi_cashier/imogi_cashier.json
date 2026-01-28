@@ -22,6 +22,12 @@
   },
   {
    "role": "System Manager"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Sales Manager"
   }
  ],
  "standard": "Yes",
