@@ -324,7 +324,7 @@ def set_active_operational_context(
             frappe.db.set_value('User', user, 'imogi_default_pos_profile', pos_profile)
             frappe.db.commit()
         except Exception as e:
-            logger.warning(f"Could not persist POS Profile preference: {e}")
+            logger.warning(f"[imogi][context] Could not persist POS Profile preference: {e}")
     
     return context_data
 
@@ -495,15 +495,9 @@ def _get_available_branches(
 def _log_context_resolution(user: str, result: Dict[str, Any]):
     """Log context resolution for debugging."""
     if frappe.conf.get('imogi_pos_debug_context'):
-        logger.info({
-            "event": "operational_context_resolution",
-            "user": user,
-            "role_class": result.get("role_class"),
-            "selected_profile": result.get("current_pos_profile"),
-            "selection_method": result.get("selection_method"),
-            "require_selection": result.get("require_selection"),
-            "has_access": result.get("has_access")
-        })
+        logger.info(f"[imogi][context] Resolution: user={user}, role_class={result.get('role_class')}, "
+                   f"profile={result.get('current_pos_profile')}, method={result.get('selection_method')}, "
+                   f"require_selection={result.get('require_selection')}, has_access={result.get('has_access')}")
 
 
 # ============================================================================
