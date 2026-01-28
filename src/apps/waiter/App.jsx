@@ -30,9 +30,19 @@ function WaiterContent({ initialState }) {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   
+  // CRITICAL FIX: Only fetch data after guard passes AND context is ready
+  // This prevents 417 errors from calling API before operational context is set
+  const shouldFetchData = guardPassed && effectivePosProfile && !guardLoading
+  
   // Fetch data - using pos_profile as primary param
-  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(effectivePosProfile, effectiveBranch)
-  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(effectivePosProfile, effectiveBranch)
+  const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(
+    shouldFetchData ? effectivePosProfile : null,
+    shouldFetchData ? effectiveBranch : null
+  )
+  const { data: itemsData, error: itemsError, isLoading: itemsLoading } = useItems(
+    shouldFetchData ? effectivePosProfile : null,
+    shouldFetchData ? effectiveBranch : null
+  )
   
   // Ensure arrays are properly initialized
   const tables = Array.isArray(tablesData) ? tablesData : []
