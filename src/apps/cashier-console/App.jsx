@@ -241,7 +241,8 @@ function CounterPOSContent({ initialState }) {
       const result = await apiCall('imogi_pos.api.orders.create_order', {
         pos_profile: context.pos_profile,
         branch: context.branch,
-        order_type: 'Counter'
+        order_type: 'Counter',
+        items: []  // Empty items array - items will be added later via catalog
       })
       
       if (result?.order_name) {
@@ -296,7 +297,8 @@ function CounterPOSContent({ initialState }) {
         pos_profile: context.pos_profile,
         branch: context.branch,
         order_type: 'Dine In',
-        table: table.name
+        table: table.name,
+        items: []  // Empty items array - items will be added later via catalog
       })
       
       if (result?.order_name) {
