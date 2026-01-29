@@ -6,6 +6,7 @@ import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { POSOpeningModal } from '@/shared/components/POSOpeningModal'
 import { apiCall } from '@/shared/utils/api'
+import { resolveOperationalContext } from '@/shared/utils/operationalContext'
 import { OrderListSidebar } from './components/OrderListSidebar'
 import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { ActionButtons } from './components/ActionButtons'
@@ -207,9 +208,21 @@ function CounterPOSContent({ initialState }) {
     setCreatingOrder(true)
     
     try {
+      // CRITICAL FIX: Resolve operational context sebelum create order
+      // Ini memastikan context valid dan tidak null
+      const context = await resolveOperationalContext()
+      
+      if (!context.pos_profile || !context.branch) {
+        alert('POS Profile & Branch wajib dipilih. Silakan pilih dari module select.')
+        console.error('[Cashier] Context not resolved:', context)
+        return
+      }
+      
+      console.log('[Cashier] Creating counter order with context:', context.pos_profile, context.branch)
+      
       const result = await apiCall('imogi_pos.api.orders.create_order', {
-        pos_profile: effectivePosProfile,
-        branch: effectiveBranch,
+        pos_profile: context.pos_profile,
+        branch: context.branch,
         order_type: 'Counter'
       })
       
@@ -230,7 +243,15 @@ function CounterPOSContent({ initialState }) {
       }
     } catch (err) {
       console.error('[Cashier] Failed to create counter order:', err)
-      alert('Failed to create order: ' + (err.message || 'Unknown error'))
+      
+      // Handle context-specific errors
+      if (err.message?.includes('CONTEXT_')) {
+        alert('Context Error: ' + err.message.split(': ')[1])
+        // Redirect to module select
+        window.location.href = '/app/imogi-module-select'
+      } else {
+        alert('Failed to create order: ' + (err.message || 'Unknown error'))
+      }
     } finally {
       setCreatingOrder(false)
     }
@@ -241,9 +262,21 @@ function CounterPOSContent({ initialState }) {
     setShowTableSelector(false)
     
     try {
+      // CRITICAL FIX: Resolve operational context sebelum create order
+      // Ini memastikan context valid dan tidak null
+      const context = await resolveOperationalContext()
+      
+      if (!context.pos_profile || !context.branch) {
+        alert('POS Profile & Branch wajib dipilih. Silakan pilih dari module select.')
+        console.error('[Cashier] Context not resolved:', context)
+        return
+      }
+      
+      console.log('[Cashier] Creating table order with context:', context.pos_profile, context.branch)
+      
       const result = await apiCall('imogi_pos.api.orders.create_order', {
-        pos_profile: effectivePosProfile,
-        branch: effectiveBranch,
+        pos_profile: context.pos_profile,
+        branch: context.branch,
         order_type: 'Dine In',
         table: table.name
       })
@@ -266,7 +299,15 @@ function CounterPOSContent({ initialState }) {
       }
     } catch (err) {
       console.error('[Cashier] Failed to create table order:', err)
-      alert('Failed to create order: ' + (err.message || 'Unknown error'))
+      
+      // Handle context-specific errors
+      if (err.message?.includes('CONTEXT_')) {
+        alert('Context Error: ' + err.message.split(': ')[1])
+        // Redirect to module select
+        window.location.href = '/app/imogi-module-select'
+      } else {
+        alert('Failed to create order: ' + (err.message || 'Unknown error'))
+      }
     } finally {
       setCreatingOrder(false)
     }

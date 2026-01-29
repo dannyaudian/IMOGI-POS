@@ -441,7 +441,7 @@ def get_next_available_table():
 
 @frappe.whitelist()
 @require_permission("POS Order", "create")
-def create_order(order_type, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
+def create_order(order_type, pos_profile=None, branch=None, table=None, customer=None, items=None, service_type=None, selling_price_list=None, customer_info=None):
     """
     Creates a new POS Order using centralized operational context.
     
@@ -457,6 +457,8 @@ def create_order(order_type, table=None, customer=None, items=None, service_type
     
     Args:
         order_type (str): Order type (Dine-in/Takeaway/Kiosk/POS)
+        pos_profile (str, optional): POS Profile name (will be resolved from context if not provided)
+        branch (str, optional): Branch name (will be resolved from context if not provided)
         table (str, optional): Restaurant Table name.
         customer (str, optional): Customer identifier.
         items (list | dict, optional): Items to be added to the order.
@@ -468,8 +470,43 @@ def create_order(order_type, table=None, customer=None, items=None, service_type
         dict: Created POS Order details
 
     """
-    from imogi_pos.utils.operational_context import require_operational_context
+    from imogi_pos.utils.operational_context import require_operational_context, resolve_operational_context, set_active_operational_context
     
+    # ENHANCEMENT: Accept pos_profile/branch from frontend for explicit context
+    # but ALWAYS validate through backend resolver (server authoritative)
+    if pos_profile or branch:
+        # Frontend passed explicit context - validate and use
+        resolved = resolve_operational_context(
+            user=frappe.session.user,
+            requested_profile=pos_profile,
+            requested_branch=branch
+        )
+        
+        # If resolved successfully, set as active context
+        if resolved.get("current_pos_profile"):
+            set_active_operational_context(
+                user=frappe.session.user,
+                pos_profile=resolved["current_pos_profile"],
+                branch=resolved["current_branch"]
+            )
+        else:
+            # Could not resolve - throw clear error
+            if not resolved.get("has_access"):
+                frappe.throw(
+                    _("No POS Profiles configured for your account. Contact administrator."),
+                    frappe.ValidationError
+                )
+            if resolved.get("require_selection"):
+                frappe.throw(
+                    _("POS Profile selection required. Please select one from module selection page."),
+                    frappe.ValidationError
+                )
+            frappe.throw(
+                _("Could not resolve POS Profile. Please configure operational context."),
+                frappe.ValidationError
+            )
+    
+    # Now get validated context from session
     context = require_operational_context()
     effective_pos_profile = context.get("pos_profile")
     effective_branch = context.get("branch")

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useContext } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
 import { apiCall } from '../../shared/utils/api'
+import storage from '../../shared/utils/storage'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
@@ -305,12 +306,32 @@ function App() {
       })
 
       if (response?.success) {
+        const context = response.context || {}
+        
+        // Update local state
         setContextState((prev) => ({
           ...prev,
-          pos_profile: response.context?.pos_profile || posProfile,
-          branch: response.context?.branch || null,
+          pos_profile: context.pos_profile || posProfile,
+          branch: context.branch || null,
           require_selection: false
         }))
+        
+        // CRITICAL FIX: Simpan ke localStorage dengan schema yang benar
+        // Schema HARUS: { pos_profile: string, branch: string, timestamp: string }
+        const cacheData = {
+          pos_profile: context.pos_profile || posProfile,
+          branch: context.branch || branchOverride || null,
+          timestamp: new Date().toISOString()
+        }
+        
+        // Validasi schema sebelum simpan
+        if (cacheData.pos_profile && cacheData.branch) {
+          storage.setItem('imogi_operational_context_cache', cacheData)
+          console.log('[Module Select] Context saved to cache:', cacheData.pos_profile, cacheData.branch)
+        } else {
+          console.warn('[Module Select] Invalid context, not caching:', cacheData)
+        }
+        
         return response
       } else {
         return response
