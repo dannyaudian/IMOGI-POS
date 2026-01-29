@@ -23,6 +23,11 @@ interface OperationalContextCache {
   timestamp?: string
 }
 
+// CRITICAL: Cache key MUST match useOperationalContext.js hook
+// storage.getItem/setItem auto-adds 'imogi_' prefix
+// So 'operational_context_cache' becomes 'imogi_operational_context_cache' in localStorage
+const CACHE_KEY = 'operational_context_cache'
+
 // Schema untuk server response
 interface OperationalContextResponse {
   current_pos_profile: string | null
@@ -89,14 +94,14 @@ export async function resolveOperationalContext(): Promise<OperationalContext> {
   }
   
   // 2. localStorage cache (dengan validasi)
-  const cachedContext = storage.getItem('imogi_operational_context_cache') as OperationalContextCache | null
+  const cachedContext = storage.getItem(CACHE_KEY) as OperationalContextCache | null
   if (cachedContext && isValidContext(cachedContext)) {
     console.log('[OperationalContext] Using cached context:', cachedContext.pos_profile)
     inMemoryContext = cachedContext
     return cachedContext
   } else if (cachedContext) {
     console.warn('[OperationalContext] Cached context invalid, clearing')
-    storage.removeItem('imogi_operational_context_cache')
+    storage.removeItem(CACHE_KEY)
   }
   
   // 3. Fetch dari server (authoritative)
@@ -230,7 +235,7 @@ function saveToCache(context: OperationalContext): void {
     timestamp: new Date().toISOString()
   }
   
-  storage.setItem('imogi_operational_context_cache', cacheData)
+  storage.setItem(CACHE_KEY, cacheData)
   console.log('[OperationalContext] Saved to cache:', context.pos_profile)
 }
 
@@ -239,7 +244,7 @@ function saveToCache(context: OperationalContext): void {
  */
 export function clearOperationalContext(): void {
   inMemoryContext = null
-  storage.removeItem('imogi_operational_context_cache')
+  storage.removeItem(CACHE_KEY)
   lastFetchTime = 0
   console.log('[OperationalContext] Context cleared')
 }
@@ -250,7 +255,7 @@ export function clearOperationalContext(): void {
 export async function refreshOperationalContext(): Promise<OperationalContext> {
   console.log('[OperationalContext] Force refresh requested')
   inMemoryContext = null
-  storage.removeItem('imogi_operational_context_cache')
+  storage.removeItem(CACHE_KEY)
   lastFetchTime = 0
   return resolveOperationalContext()
 }
@@ -265,7 +270,7 @@ export function getOperationalContextSync(): OperationalContext | null {
     return inMemoryContext
   }
   
-  const cached = storage.getItem('imogi_operational_context_cache') as OperationalContextCache | null
+  const cached = storage.getItem(CACHE_KEY) as OperationalContextCache | null
   if (cached && isValidContext(cached)) {
     return cached
   }
