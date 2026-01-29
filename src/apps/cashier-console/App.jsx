@@ -9,7 +9,8 @@ import { apiCall } from '@/shared/utils/api'
 import { resolveOperationalContext } from '@/shared/utils/operationalContext'
 import { OrderListSidebar } from './components/OrderListSidebar'
 import { OrderDetailPanel } from './components/OrderDetailPanel'
-import { ActionButtons } from './components/ActionButtons'
+import { CashierHeader } from './components/CashierHeader'
+import { CashierActionBar } from './components/CashierActionBar'
 import { PaymentView } from './components/PaymentView'
 import { SplitBillView } from './components/SplitBillView'
 import { VariantPickerModal } from './components/VariantPickerModal'
@@ -17,6 +18,7 @@ import { CatalogView } from './components/CatalogView'
 import { TableSelector } from './components/TableSelector'
 import { useCustomerDisplay } from './components/CustomerDisplay'
 import './App.css'
+import './CashierLayout.css'
 
 function CounterPOSContent({ initialState }) {
   // POS Profile guard - this module requires opening
@@ -104,6 +106,7 @@ function CounterPOSContent({ initialState }) {
   const [selectedTable, setSelectedTable] = useState(null)
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [branding, setBranding] = useState(null)
+  const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
   
   // Customer Display
   const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
@@ -112,6 +115,7 @@ function CounterPOSContent({ initialState }) {
   useEffect(() => {
     if (effectivePosProfile) {
       loadBranding()
+      checkPrinterStatus()
     }
   }, [effectivePosProfile])
 
@@ -125,6 +129,20 @@ function CounterPOSContent({ initialState }) {
       }
     } catch (err) {
       console.warn('[Cashier] Failed to load branding:', err)
+    }
+  }
+
+  const checkPrinterStatus = async () => {
+    try {
+      if (window.escposPrint && typeof window.escposPrint.getStatus === 'function') {
+        const status = await window.escposPrint.getStatus()
+        setPrinterStatus({ connected: status.connected || false, checking: false })
+      } else {
+        setPrinterStatus({ connected: false, checking: false })
+      }
+    } catch (err) {
+      console.warn('[Cashier] Printer status check failed:', err)
+      setPrinterStatus({ connected: false, checking: false })
     }
   }
 
@@ -414,9 +432,48 @@ function CounterPOSContent({ initialState }) {
     setShowSplit(false)
     setViewMode('orders')
   }
+
+  const handleModeChange = (newMode) => {
+    // Mode change handler - would typically update POS Profile or context
+    console.log('[Cashier] Mode change requested:', newMode)
+    alert(`Mode switching to ${newMode} - This would update POS Profile configuration`)
+  }
+
+  const handleSearchScan = (query) => {
+    console.log('[Cashier] Search/Scan:', query)
+    // Implement search/scan functionality
+    alert(`Searching for: ${query}`)
+  }
+
+  const handleHoldOrder = () => {
+    if (!selectedOrder) return
+    console.log('[Cashier] Hold order:', selectedOrder.name)
+    alert(`Order ${selectedOrder.name} put on hold`)
+  }
+
+  const handleClearOrder = () => {
+    if (!selectedOrder) return
+    const confirmed = confirm(`Are you sure you want to clear order ${selectedOrder.name}?`)
+    if (confirmed) {
+      console.log('[Cashier] Clear order:', selectedOrder.name)
+      setSelectedOrder(null)
+    }
+  }
   
   return (
     <div className="cashier-console" data-pos-mode={posMode}>
+      <CashierHeader
+        posMode={mode}
+        onModeChange={handleModeChange}
+        posProfile={effectivePosProfile}
+        branch={effectiveBranch}
+        posOpening={posOpening}
+        branding={branding}
+        profileData={profileData}
+        printerStatus={printerStatus}
+        onSearchScan={handleSearchScan}
+      />
+
       <div className="cashier-console-layout">
         <OrderListSidebar
           orders={orders || []}
@@ -426,27 +483,6 @@ function CounterPOSContent({ initialState }) {
         />
         
         <div className="cashier-console-main">
-          <ActionButtons
-            selectedOrder={selectedOrder}
-            viewMode={viewMode}
-            posMode={mode}
-            selectedTable={selectedTable}
-            creatingOrder={creatingOrder}
-            posProfile={effectivePosProfile}
-            branch={effectiveBranch}
-            posOpening={posOpening}
-            branding={branding}
-            profileData={profileData}
-            isCustomerDisplayOpen={isCustomerDisplayOpen}
-            onOpenCustomerDisplay={openCustomerDisplay}
-            onCloseCustomerDisplay={closeCustomerDisplay}
-            onViewChange={setViewMode}
-            onNewOrder={handleNewOrder}
-            onPrintBill={handlePrintBill}
-            onSplitBill={handleSplitBill}
-            onRequestPayment={handleRequestPayment}
-          />
-          
           <div className="cashier-console-content">
             {viewMode === 'orders' && !showPayment && !showSplit && (
               <OrderDetailPanel order={selectedOrder} posMode={posMode} />
@@ -483,6 +519,24 @@ function CounterPOSContent({ initialState }) {
           </div>
         </div>
       </div>
+
+      <CashierActionBar
+        selectedOrder={selectedOrder}
+        viewMode={viewMode}
+        onViewChange={setViewMode}
+        onNewOrder={handleNewOrder}
+        onPrintBill={handlePrintBill}
+        onSplitBill={handleSplitBill}
+        onRequestPayment={handleRequestPayment}
+        onHoldOrder={handleHoldOrder}
+        onClearOrder={handleClearOrder}
+        posMode={mode}
+        selectedTable={selectedTable}
+        creatingOrder={creatingOrder}
+        isCustomerDisplayOpen={isCustomerDisplayOpen}
+        onOpenCustomerDisplay={openCustomerDisplay}
+        onCloseCustomerDisplay={closeCustomerDisplay}
+      />
       
       {/* Variant Picker Modal */}
       <VariantPickerModal

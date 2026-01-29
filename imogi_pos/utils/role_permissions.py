@@ -258,13 +258,18 @@ MENU_RESTRICTIONS = {
 # HELPER FUNCTIONS
 # ============================================================================
 
-def has_doctype_permission(doctype, perm_type="read", user=None):
+def has_doctype_permission(doc, ptype="read", user=None, debug=False):
     """Check if user has permission for DocType based on role restrictions.
     
+    CRITICAL: This function is called by Frappe's permission controller.
+    Signature MUST match Frappe v15 expectations:
+        has_doctype_permission(doc, ptype, user, debug=False)
+    
     Args:
-        doctype (str): DocType name
-        perm_type (str): Permission type (read, write, create, delete, etc.)
+        doc (Document|str): Document instance or DocType name
+        ptype (str): Permission type (read, write, create, delete, etc.)
         user (str, optional): User email. Defaults to current user.
+        debug (bool, optional): Debug mode. Defaults to False.
         
     Returns:
         bool: True if user has permission
@@ -282,13 +287,16 @@ def has_doctype_permission(doctype, perm_type="read", user=None):
     if "System Manager" in user_roles:
         return True
     
+    # Extract doctype name (could be Document instance or string)
+    doctype = doc.doctype if hasattr(doc, 'doctype') else doc
+    
     # Check if DocType has restrictions
     if doctype not in DOCTYPE_RESTRICTIONS:
         # No restrictions defined, use native ERPNext permissions
-        return frappe.has_permission(doctype, perm_type=perm_type, user=user)
+        return frappe.has_permission(doctype, ptype=ptype, user=user)
     
     # Check role-based restrictions
-    allowed_roles = DOCTYPE_RESTRICTIONS[doctype].get(perm_type, [])
+    allowed_roles = DOCTYPE_RESTRICTIONS[doctype].get(ptype, [])
     return any(role in user_roles for role in allowed_roles)
 
 
