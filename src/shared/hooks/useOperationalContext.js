@@ -27,8 +27,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk'
 import storage from '../utils/storage'
 
-// No localStorage keys - server session is source of truth
-const CACHE_KEY = 'imogi_operational_context_cache'
+// CRITICAL: Use same cache key as operationalContext.ts resolver
+// storage.getItem/setItem auto-adds 'imogi_' prefix, so this becomes 'imogi_operational_context_cache'
+const CACHE_KEY = 'operational_context_cache'
 
 /**
  * Hook to manage Operational Context
@@ -42,7 +43,8 @@ export function useOperationalContext(options = {}) {
   // Local state (mirrors server session)
   const [context, setContextState] = useState(() => {
     // Try to load from cache for faster initial render
-    return storage.getItem('operational_context_cache') || null
+    // storage.getItem auto-adds 'imogi_' prefix
+    return storage.getItem(CACHE_KEY) || null
   })
   
   // Fetch context from server (authoritative source)
@@ -101,7 +103,7 @@ export function useOperationalContext(options = {}) {
     
     // Cache for faster subsequent renders - only cache if we have a profile
     if (activeContext.pos_profile) {
-      storage.setItem('operational_context_cache', activeContext)
+      storage.setItem(CACHE_KEY, activeContext)
     }
     
     // CRITICAL FIX: Auto-set context on server if resolved but not in session
@@ -159,7 +161,7 @@ export function useOperationalContext(options = {}) {
           ...context // Preserve metadata
         })
         
-        // Update cache
+        // Update cacheCACHE_KEY
         storage.setItem('operational_context_cache', updatedContext)
         
         // Dispatch event for other components
