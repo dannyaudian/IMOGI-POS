@@ -20,6 +20,8 @@ import { useCustomerDisplay } from './components/CustomerDisplay'
 import './App.css'
 import './CashierLayout.css'
 
+const asArray = (value) => (Array.isArray(value) ? value : [])
+
 function CounterPOSContent({ initialState }) {
   // POS Profile guard - this module requires opening
   // No need for useAuth - Frappe Desk already handles authentication
@@ -96,9 +98,9 @@ function CounterPOSContent({ initialState }) {
   
   // Combine all orders
   const orders = [
-    ...(modeOrders || []),
-    ...(selfOrders || []),
-    ...(kioskOrders || [])
+    ...asArray(modeOrders),
+    ...asArray(selfOrders),
+    ...asArray(kioskOrders)
   ]
   
   // State management

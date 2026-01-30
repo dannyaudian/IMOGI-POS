@@ -30,6 +30,7 @@ import storage from '../utils/storage'
 // CRITICAL: Use same cache key as operationalContext.ts resolver
 // storage.getItem/setItem auto-adds 'imogi_' prefix, so this becomes 'imogi_operational_context_cache'
 const CACHE_KEY = 'operational_context_cache'
+const asArray = (value) => (Array.isArray(value) ? value : [])
 
 /**
  * Hook to manage Operational Context
@@ -98,8 +99,8 @@ export function useOperationalContext(options = {}) {
       branch: activeContext.branch || null,
       
       // Additional metadata from resolution
-      available_pos_profiles: serverContext.available_pos_profiles || [],
-      branches: serverContext.branches || [],
+      available_pos_profiles: asArray(serverContext.available_pos_profiles),
+      branches: asArray(serverContext.branches),
       require_selection: serverContext.require_selection || false,
       has_access: serverContext.has_access !== false,
       role_class: serverContext.role_class || null,

@@ -49,6 +49,7 @@ export function usePOSProfileGuard(options = {}) {
   const [openingStatus, setOpeningStatus] = useState('loading')
   const [contextRetries, setContextRetries] = useState(0)
   const [openingRetries, setOpeningRetries] = useState(0)
+  const [openingRefreshRequested, setOpeningRefreshRequested] = useState(false)
   const MAX_CONTEXT_RETRIES = 3
   const MAX_OPENING_RETRIES = 2
   const RETRY_DELAY_MS = 300
@@ -66,7 +67,13 @@ export function usePOSProfileGuard(options = {}) {
   } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
     undefined,
-    shouldCheckOpening ? undefined : false
+    shouldCheckOpening ? undefined : false,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+      errorRetryCount: 0
+    }
   )
 
   useEffect(() => {
@@ -76,7 +83,9 @@ export function usePOSProfileGuard(options = {}) {
     }
 
     if (!shouldCheckOpening || openingLoading || serverContextLoading) {
-      setOpeningStatus('loading')
+      if (openingStatus !== 'missing' || openingRefreshRequested) {
+        setOpeningStatus('loading')
+      }
       return
     }
 
@@ -103,8 +112,16 @@ export function usePOSProfileGuard(options = {}) {
     openingError,
     posOpening,
     serverContextLoading,
-    serverContextError
+    serverContextError,
+    openingStatus,
+    openingRefreshRequested
   ])
+
+  useEffect(() => {
+    if (!openingLoading && openingRefreshRequested) {
+      setOpeningRefreshRequested(false)
+    }
+  }, [openingLoading, openingRefreshRequested])
 
   useEffect(() => {
     if (!shouldCheckOpening || openingStatus !== 'error' || !refetchOpening) {
@@ -122,6 +139,7 @@ export function usePOSProfileGuard(options = {}) {
 
     const retryTimer = setTimeout(() => {
       setOpeningRetries((prev) => prev + 1)
+      setOpeningRefreshRequested(true)
       refetchOpening()
     }, OPENING_RETRY_DELAY_MS)
 
@@ -281,6 +299,7 @@ export function usePOSProfileGuard(options = {}) {
     setShowOpeningModal(false)
     setGuardPassed(true)
     if (refetchOpening) {
+      setOpeningRefreshRequested(true)
       refetchOpening()
     }
   }, [refetchOpening])

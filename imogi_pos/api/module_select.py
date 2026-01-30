@@ -3,6 +3,8 @@ IMOGI POS - Module Selection API
 Provides available modules based on user permissions and roles
 """
 
+from typing import Any, Dict, List, Optional
+
 import frappe
 from frappe import _
 from imogi_pos.utils.auth_helpers import get_user_role_context
@@ -352,14 +354,36 @@ def get_user_branch_info():
         frappe.throw(_('Unable to determine branch. Please contact administrator.'))
 
 
-def _empty_active_opening():
+def _as_list(value: Any) -> List[Any]:
+    return value if isinstance(value, list) else []
+
+
+def _normalize_active_opening(payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    payload = payload or {}
     return {
+        'pos_opening_entry': payload.get('pos_opening_entry'),
+        'pos_profile_name': payload.get('pos_profile_name'),
+        'opening_balance': payload.get('opening_balance', 0),
+        'timestamp': payload.get('timestamp'),
+        'company': payload.get('company'),
+        'scope': payload.get('scope'),
+        'error_code': payload.get('error_code'),
+        'error_message': payload.get('error_message'),
+        'messages': _as_list(payload.get('messages')),
+        'warnings': _as_list(payload.get('warnings')),
+    }
+
+
+def _empty_active_opening() -> Dict[str, Any]:
+    return _normalize_active_opening({
         'pos_opening_entry': None,
         'pos_profile_name': None,
         'opening_balance': 0,
         'timestamp': None,
-        'company': None
-    }
+        'company': None,
+        'messages': [],
+        'warnings': [],
+    })
 
 
 def _resolve_pos_opening_date_field():
@@ -370,7 +394,7 @@ def _resolve_pos_opening_date_field():
     return 'creation'
 
 
-def _get_active_pos_opening_for_context(context, user):
+def _get_active_pos_opening_for_context(context: Optional[Dict[str, Any]], user: str) -> Dict[str, Any]:
     from imogi_pos.utils.pos_opening import resolve_active_pos_opening
 
     pos_profile = None
@@ -393,7 +417,7 @@ def _get_active_pos_opening_for_context(context, user):
         device_id=device_id,
     )
 
-    return {
+    return _normalize_active_opening({
         'pos_opening_entry': opening.get('pos_opening_entry'),
         'pos_profile_name': opening.get('pos_profile_name'),
         'opening_balance': opening.get('opening_balance', 0),
@@ -401,8 +425,10 @@ def _get_active_pos_opening_for_context(context, user):
         'company': opening.get('company'),
         'scope': opening.get('scope'),
         'error_code': opening.get('error_code'),
-        'error_message': opening.get('error_message')
-    }
+        'error_message': opening.get('error_message'),
+        'messages': opening.get('messages'),
+        'warnings': opening.get('warnings'),
+    })
 
 
 def _get_pos_sessions_today_for_context(context):
@@ -465,7 +491,7 @@ def _get_pos_sessions_today_for_context(context):
 
 
 @frappe.whitelist()
-def get_active_pos_opening():
+def get_active_pos_opening() -> Dict[str, Any]:
     """Get the active POS opening entry for the current user.
     
     IMPORTANT: Uses centralized operational context.
@@ -480,6 +506,8 @@ def get_active_pos_opening():
             - opening_balance: Opening cash balance
             - timestamp: When session was opened
             - company: Company from POS Profile
+            - messages: list of informational messages (always list)
+            - warnings: list of warning messages (always list)
     """
     user = frappe.session.user
     if not user or user == 'Guest':
