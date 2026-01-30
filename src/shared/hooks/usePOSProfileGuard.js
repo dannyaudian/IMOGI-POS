@@ -37,7 +37,11 @@ export function usePOSProfileGuard(options = {}) {
     hasAccess,
     isLoading: contextLoading,
     error: contextError,
-    refetch
+    refetch,
+    serverContextReady,
+    serverContextLoading,
+    serverContextError,
+    ensureServerContext
   } = useOperationalContext()
   
   const [showOpeningModal, setShowOpeningModal] = useState(false)
@@ -50,7 +54,7 @@ export function usePOSProfileGuard(options = {}) {
   const RETRY_DELAY_MS = 300
   const OPENING_RETRY_DELAY_MS = 500
   
-  const isContextReady = Boolean(pos_profile && branch)
+  const isContextReady = Boolean(pos_profile && branch && serverContextReady)
   const shouldCheckOpening = Boolean(requiresOpening && isContextReady)
 
   // Fetch POS Opening Entry if required
@@ -71,8 +75,13 @@ export function usePOSProfileGuard(options = {}) {
       return
     }
 
-    if (!shouldCheckOpening || openingLoading) {
+    if (!shouldCheckOpening || openingLoading || serverContextLoading) {
       setOpeningStatus('loading')
+      return
+    }
+
+    if (serverContextError) {
+      setOpeningStatus('error')
       return
     }
 
@@ -87,7 +96,15 @@ export function usePOSProfileGuard(options = {}) {
     }
 
     setOpeningStatus('ok')
-  }, [requiresOpening, shouldCheckOpening, openingLoading, openingError, posOpening])
+  }, [
+    requiresOpening,
+    shouldCheckOpening,
+    openingLoading,
+    openingError,
+    posOpening,
+    serverContextLoading,
+    serverContextError
+  ])
 
   useEffect(() => {
     if (!shouldCheckOpening || openingStatus !== 'error' || !refetchOpening) {
@@ -139,7 +156,19 @@ export function usePOSProfileGuard(options = {}) {
   // Check guard conditions
   useEffect(() => {
     // Still loading - don't change guard state
-    if (contextLoading || (requiresOpening && openingLoading)) {
+    if (contextLoading || serverContextLoading || (requiresOpening && openingLoading)) {
+      return
+    }
+
+    if (serverContextError) {
+      setGuardPassed(false)
+      setShowOpeningModal(false)
+      return
+    }
+
+    if (!serverContextReady) {
+      setGuardPassed(false)
+      setShowOpeningModal(false)
       return
     }
     
@@ -216,6 +245,9 @@ export function usePOSProfileGuard(options = {}) {
     branch,
     available_profiles, 
     contextLoading, 
+    serverContextLoading,
+    serverContextError,
+    serverContextReady,
     requiresOpening, 
     posOpening,
     openingError,
@@ -229,6 +261,13 @@ export function usePOSProfileGuard(options = {}) {
     refetch,
     targetModule
   ])
+
+  const retryServerContext = useCallback(() => {
+    if (!ensureServerContext) {
+      return
+    }
+    ensureServerContext({ force: true }).catch(() => {})
+  }, [ensureServerContext])
 
   const profileData = useMemo(() => {
     if (!pos_profile) {
@@ -264,9 +303,12 @@ export function usePOSProfileGuard(options = {}) {
   
   return {
     // Guard state
-    isLoading: contextLoading || (requiresOpening && openingLoading),
+    isLoading: contextLoading || serverContextLoading || (requiresOpening && openingLoading),
     guardPassed,
     error: contextError,
+    serverContextReady,
+    serverContextError,
+    retryServerContext,
     openingStatus,
     openingError,
     retryOpening: refetchOpening,

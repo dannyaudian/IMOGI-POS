@@ -35,7 +35,10 @@ function CounterPOSContent({ initialState }) {
     openingError,
     retryOpening,
     handleOpeningSuccess,
-    handleOpeningCancel
+    handleOpeningCancel,
+    serverContextReady,
+    serverContextError,
+    retryServerContext
   } = usePOSProfileGuard({ 
     requiresOpening: true,
     targetModule: 'imogi-cashier'
@@ -66,7 +69,7 @@ function CounterPOSContent({ initialState }) {
   // 1. guardPassed must be true (hook verified context)
   // 2. effectivePosProfile must exist (not null/undefined)
   // 3. effectiveBranch should exist (though API can handle null)
-  const shouldFetchOrders = guardPassed && effectivePosProfile && !guardLoading
+  const shouldFetchOrders = guardPassed && effectivePosProfile && !guardLoading && serverContextReady
   
   // Fetch orders for current mode (Counter or Dine In)
   const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
@@ -181,6 +184,15 @@ function CounterPOSContent({ initialState }) {
   // No auth loading needed - Frappe Desk handles authentication
   if (guardLoading) {
     return <LoadingSpinner message="Loading Cashier Console..." />
+  }
+
+  if (serverContextError) {
+    return (
+      <ErrorMessage
+        error={serverContextError?.message || 'Failed to sync operational context.'}
+        onRetry={() => retryServerContext && retryServerContext()}
+      />
+    )
   }
 
   if (openingStatus === 'error') {

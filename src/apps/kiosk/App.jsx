@@ -14,7 +14,10 @@ function KioskContent({ initialState }) {
     guardPassed,
     posProfile,
     profileData,
-    branch
+    branch,
+    serverContextReady,
+    serverContextError,
+    retryServerContext
   } = usePOSProfileGuard({ requiresOpening: false, autoRedirect: false })
   
   // Fallback to initialState for backward compatibility
@@ -22,7 +25,11 @@ function KioskContent({ initialState }) {
   const effectivePosProfile = posProfile || initialState.pos_profile || null
   const serviceType = initialState.service_type || 'Dine In'
   
-  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(effectivePosProfile, effectiveBranch)
+  const shouldFetchItems = guardPassed && serverContextReady && effectivePosProfile
+  const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(
+    shouldFetchItems ? effectivePosProfile : null,
+    shouldFetchItems ? effectiveBranch : null
+  )
 
   // Guard check: redirect to module-select if no profile after loading
   useEffect(() => {
@@ -37,6 +44,15 @@ function KioskContent({ initialState }) {
 
   if (authLoading || guardLoading) {
     return <LoadingSpinner message="Loading..." />
+  }
+
+  if (serverContextError) {
+    return (
+      <ErrorMessage
+        error={serverContextError?.message || 'Failed to sync operational context.'}
+        onRetry={() => retryServerContext && retryServerContext()}
+      />
+    )
   }
 
   return (

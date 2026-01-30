@@ -1,4 +1,5 @@
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk'
+import { useEffect, useState } from 'react'
 import { apiCall } from '@/shared/utils/api'
 
 /**
@@ -63,7 +64,7 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
   
   // IMPORTANT: Pass null for BOTH params AND key to disable fetch completely
   // frappe-react-sdk will not fetch if params is null
-  return useFrappeGetCall(
+  const response = useFrappeGetCall(
     'imogi_pos.api.billing.list_orders_for_cashier',
     params,  // null = don't fetch
     cacheKey,  // null = no cache key needed
@@ -72,6 +73,41 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
       refreshInterval: shouldFetch ? 30000 : 0 // Only auto-refresh if actively fetching
     }
   )
+
+  const [retryCount, setRetryCount] = useState(0)
+  const MAX_RETRIES = 3
+  const RETRY_DELAY_MS = 400
+
+  useEffect(() => {
+    if (!shouldFetch || !response?.error || retryCount >= MAX_RETRIES) {
+      return
+    }
+
+    const errorMessage = response.error?.message
+      || response.error?.response?.data?.message
+      || ''
+    const isContextError = errorMessage.includes('Context Required')
+      || errorMessage.includes('Operational context')
+
+    if (!isContextError || !response.mutate) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setRetryCount((prev) => prev + 1)
+      response.mutate()
+    }, RETRY_DELAY_MS * (retryCount + 1))
+
+    return () => clearTimeout(timer)
+  }, [shouldFetch, response, retryCount])
+
+  useEffect(() => {
+    if (response?.data && retryCount > 0) {
+      setRetryCount(0)
+    }
+  }, [response?.data, retryCount])
+
+  return response
 }
 
 export function useCreateOrder() {

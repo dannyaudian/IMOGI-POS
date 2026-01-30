@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useKOTList } from '@/shared/api/imogi-api'
@@ -17,7 +17,10 @@ function KitchenContent({ initialState }) {
     guardPassed,
     posProfile,
     branch,
-    redirectToModuleSelect
+    redirectToModuleSelect,
+    serverContextReady,
+    serverContextError,
+    retryServerContext
   } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-kitchen' })
   
   // Fallback to initialState for backward compatibility
@@ -82,6 +85,15 @@ function KitchenContent({ initialState }) {
   }
   
   // Wait for guard to pass
+  if (serverContextError) {
+    return (
+      <ErrorMessage
+        error={serverContextError?.message || 'Failed to sync operational context.'}
+        onRetry={() => retryServerContext && retryServerContext()}
+      />
+    )
+  }
+
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying access..." />
   }

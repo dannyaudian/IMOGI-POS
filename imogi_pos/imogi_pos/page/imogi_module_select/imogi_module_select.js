@@ -116,7 +116,11 @@ function loadReactWidget(container, page) {
 					let operationalContext = null;
 					if (typeof window.fetchOperationalContext === 'function') {
 						try {
-							operationalContext = await window.fetchOperationalContext();
+							operationalContext = await window.fetchOperationalContext({
+								syncServer: false,
+								route: frappe.get_route_str(),
+								module: 'module-select'
+							});
 						} catch (err) {
 							console.warn('[Module Select] Failed to fetch operational context:', err);
 						}
@@ -125,9 +129,12 @@ function loadReactWidget(container, page) {
 						console.debug('[Module Select] window.fetchOperationalContext not available, React will fetch context');
 					}
 					
+					const serverContextState = window.__IMOGI_SERVER_CONTEXT_STATE__ || {};
 					const initialState = {
 						user: frappe.session.user,
 						csrf_token: frappe.session.csrf_token,
+						serverContextReady: Boolean(serverContextState.ready),
+						serverContextError: serverContextState.error || null,
 						// Spread operational context into initialState
 						...operationalContext
 					};

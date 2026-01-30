@@ -46,7 +46,12 @@
  * @returns {Promise<Object>} Operational context object
  */
 if (!window.fetchOperationalContext) {
-	window.fetchOperationalContext = async function() {
+	window.fetchOperationalContext = async function(options = {}) {
+		const {
+			syncServer = false,
+			route = null,
+			module = null
+		} = options;
 		try {
 			const response = await frappe.call({
 				method: 'imogi_pos.utils.operational_context.get_operational_context',
@@ -65,6 +70,19 @@ if (!window.fetchOperationalContext) {
 				};
 				
 				console.log('[IMOGI Loader] Operational context loaded:', operationalContext);
+				if (syncServer && typeof window.ensureOperationalContext === 'function') {
+					try {
+						await window.ensureOperationalContext({
+							pos_profile: operationalContext.pos_profile,
+							branch: operationalContext.branch,
+							route,
+							module
+						});
+					} catch (err) {
+						console.warn('[IMOGI Loader] Failed to ensure operational context:', err);
+					}
+				}
+				
 				return operationalContext;
 			}
 			
@@ -79,6 +97,74 @@ if (!window.fetchOperationalContext) {
 	console.log('[IMOGI Loader] window.fetchOperationalContext registered');
 } else {
 	console.log('[IMOGI Loader] window.fetchOperationalContext already exists');
+}
+
+function setServerContextState(state) {
+	const payload = {
+		ready: Boolean(state.ready),
+		loading: Boolean(state.loading),
+		error: state.error || null,
+		context: state.context || null
+	};
+	window.__IMOGI_SERVER_CONTEXT_STATE__ = payload;
+	window.dispatchEvent(new CustomEvent('imogiServerContextUpdated', { detail: payload }));
+}
+
+if (!window.ensureOperationalContext) {
+	window.ensureOperationalContext = async function(options = {}) {
+		const {
+			pos_profile = null,
+			branch = null,
+			route = null,
+			module = null,
+			force = false
+		} = options;
+		const routeKey = route || (typeof frappe !== 'undefined' && frappe.get_route_str
+			? frappe.get_route_str()
+			: window.location.pathname);
+		
+		if (!window.__imogiEnsureContextPromises) {
+			window.__imogiEnsureContextPromises = {};
+		}
+		
+		if (!force && window.__imogiEnsureContextPromises[routeKey]) {
+			return window.__imogiEnsureContextPromises[routeKey];
+		}
+		
+		setServerContextState({ ready: false, loading: true, error: null, context: null });
+		
+		const promise = frappe.call({
+			method: 'imogi_pos.api.operational.ensure_context',
+			args: {
+				pos_profile,
+				branch,
+				route: routeKey,
+				module
+			},
+			freeze: false
+		})
+			.then((response) => {
+				const context = response?.message || response;
+				setServerContextState({ ready: true, loading: false, error: null, context });
+				return context;
+			})
+			.catch((error) => {
+				const message = error?.message
+					|| error?.response?.data?.message
+					|| 'Failed to ensure operational context';
+				setServerContextState({
+					ready: false,
+					loading: false,
+					error: { message },
+					context: null
+				});
+				throw error;
+			});
+		
+		window.__imogiEnsureContextPromises[routeKey] = promise;
+		return promise;
+	};
+	console.log('[IMOGI Loader] window.ensureOperationalContext registered');
 }
 
 window.loadImogiReactApp = function(config) {
