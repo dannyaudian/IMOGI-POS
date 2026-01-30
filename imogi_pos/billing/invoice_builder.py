@@ -229,32 +229,18 @@ def get_active_pos_opening(pos_profile: str) -> Optional[str]:
     Returns:
         Name of the active POS Opening Entry or None
     """
-    if hasattr(frappe, "db") and hasattr(frappe.db, "exists"):
-        try:
-            if not frappe.db.exists("DocType", "POS Opening Entry"):
-                return None
-        except Exception:
-            return None
+    from imogi_pos.utils.pos_opening import resolve_active_pos_opening
 
-    scope = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_session_scope") or "User"
-    
-    filters = {
-        "pos_profile": pos_profile,
-        "docstatus": 1,  # Submitted
-        "status": "Open"
-    }
-    
-    # Apply scope-specific filters
-    if scope == "User":
-        filters["user"] = frappe.session.user
-    elif scope == "POS Profile":
-        # Just filter by profile (already included above)
-        pass
-    # Note: Device scope is harder to implement with POS Opening Entry
-    # as it doesn't have device_id field by default
-    
-    active_opening = frappe.db.get_value("POS Opening Entry", filters, "name")
-    return active_opening
+    opening = resolve_active_pos_opening(
+        pos_profile=pos_profile,
+        user=frappe.session.user,
+        raise_on_device_missing=True,
+    )
+
+    if opening.get("error_code") == "device_id_required":
+        return None
+
+    return opening.get("pos_opening_entry")
 
 
 def _should_include_notes_in_description(
