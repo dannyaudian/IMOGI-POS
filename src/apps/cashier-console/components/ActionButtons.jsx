@@ -25,6 +25,8 @@ export function ActionButtons({
   const isTableMode = posMode === 'Table'
   const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
   const [showInfo, setShowInfo] = useState(false)
+  const openingEntryName = posOpening?.pos_opening_entry || posOpening?.name
+  const openingAmount = posOpening?.balance_details?.[0]?.opening_amount ?? posOpening?.opening_balance ?? 0
 
   // Check printer status on mount and periodically
   useEffect(() => {
@@ -122,7 +124,7 @@ export function ActionButtons({
                 <>
                   <div className="info-row">
                     <span className="info-label">Opening Entry:</span>
-                    <span className="info-value">{posOpening.name}</span>
+                    <span className="info-value">{openingEntryName}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-label">Opening Balance:</span>
@@ -131,7 +133,7 @@ export function ActionButtons({
                         style: 'currency',
                         currency: 'IDR',
                         minimumFractionDigits: 0
-                      }).format(posOpening.balance_details?.[0]?.opening_amount || 0)}
+                      }).format(openingAmount)}
                     </span>
                   </div>
                   <div className="info-row">
