@@ -31,6 +31,9 @@ function CounterPOSContent({ initialState }) {
     branch,
     posOpening,
     showOpeningModal,
+    openingStatus,
+    openingError,
+    retryOpening,
     handleOpeningSuccess,
     handleOpeningCancel
   } = usePOSProfileGuard({ 
@@ -178,6 +181,15 @@ function CounterPOSContent({ initialState }) {
   // No auth loading needed - Frappe Desk handles authentication
   if (guardLoading) {
     return <LoadingSpinner message="Loading Cashier Console..." />
+  }
+
+  if (openingStatus === 'error') {
+    return (
+      <ErrorMessage
+        error={openingError?.message || posOpening?.error_message || 'Failed to verify POS opening.'}
+        onRetry={() => retryOpening && retryOpening()}
+      />
+    )
   }
   
   // Show POS Opening Modal if guard requires it

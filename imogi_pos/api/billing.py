@@ -54,9 +54,18 @@ def validate_pos_session(pos_profile, enforce_session=None):
     
     # Get the scope (User/Device/POS Profile)
     scope = profile_doc.get("imogi_pos_session_scope", "User")
+
+    from imogi_pos.utils.pos_opening import resolve_active_pos_opening
+
+    opening = resolve_active_pos_opening(
+        pos_profile=pos_profile,
+        scope=scope,
+        user=frappe.session.user,
+        raise_on_device_missing=True,
+    )
     
     # Get active POS Opening Entry
-    active_session = get_active_pos_session(scope)
+    active_session = opening.get("pos_opening_entry")
     
     if not active_session and require_session:
         frappe.throw(_("No active POS Opening Entry found. Please open a session before proceeding."),
@@ -1129,17 +1138,31 @@ def list_orders_for_cashier(workflow_state=None, floor=None, order_type=None):
         list: POS Orders with summarized details
     """
     from imogi_pos.utils.operational_context import require_operational_context
+    from imogi_pos.utils.pos_profile_resolver import get_pos_profile_branch
     
     # Require operational context (throws if not available)
     context = require_operational_context()
     
     # Get branch from context
     branch = context.get("branch")
+    pos_profile = context.get("pos_profile")
     
     if not branch:
+        if pos_profile:
+            branch = get_pos_profile_branch(pos_profile)
+            frappe.logger("imogi_pos").warning(
+                "[operational_context] branch_missing fallback_used=%s resolved_branch=%s pos_profile=%s user=%s",
+                bool(branch),
+                branch,
+                pos_profile,
+                frappe.session.user,
+            )
+
+    if not branch:
         frappe.throw(
-            _("Branch configuration required."),
-            frappe.ValidationError
+            _("Operational context not ready: branch is required."),
+            frappe.ValidationError,
+            title=_("Context Required")
         )
     
     # Validate branch access
@@ -1330,43 +1353,30 @@ def get_active_pos_session(context_scope=None, device_id=None):
             return None
 
     user = frappe.session.user
+    pos_profile = None
 
-    filters = {
-        "docstatus": 1,  # Submitted
-        "status": "Open"
-    }
-
-    if context_scope == "User":
-        # Session is tied to current user
-        filters["user"] = user
-    elif context_scope == "POS Profile":
-        # Sessions shared per POS Profile
+    if context_scope in ("POS Profile", "User", "Device"):
         from imogi_pos.utils.operational_context import resolve_operational_context
 
         context = resolve_operational_context(user=user)
-        if not context.get("current_pos_profile"):
-            return None
-        filters["pos_profile"] = context["current_pos_profile"]
-    elif context_scope == "Device":
-        # Get device ID from request header or parameter
-        if not device_id:
-            device_id = frappe.local.request.headers.get("X-Device-ID") if hasattr(frappe.local, 'request') else None
-        
-        if device_id:
-            # Filter by device_id if available
-            filters["device_id"] = device_id
-        else:
-            # Fallback to User scope for Device if device_id not provided
-            frappe.log_error(
-                f"No device_id found for device-scope session, falling back to user scope",
-                "Device Session Warning"
-            )
-            filters["user"] = user
-    else:
+        pos_profile = context.get("current_pos_profile")
+
+    if not pos_profile:
         return None
 
-    active_session = frappe.db.get_value("POS Opening Entry", filters, "name")
-    return active_session
+    from imogi_pos.utils.pos_opening import resolve_active_pos_opening
+
+    opening = resolve_active_pos_opening(
+        pos_profile=pos_profile,
+        scope=context_scope,
+        user=user,
+        device_id=device_id,
+    )
+
+    if opening.get("error_code") == "device_id_required":
+        return None
+
+    return opening.get("pos_opening_entry")
 
 @frappe.whitelist()
 def get_session_info(pos_session=None):

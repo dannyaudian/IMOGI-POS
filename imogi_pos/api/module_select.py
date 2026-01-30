@@ -371,6 +371,8 @@ def _resolve_pos_opening_date_field():
 
 
 def _get_active_pos_opening_for_context(context, user):
+    from imogi_pos.utils.pos_opening import resolve_active_pos_opening
+
     pos_profile = None
     if isinstance(context, dict):
         pos_profile = context.get('current_pos_profile') or context.get('pos_profile')
@@ -378,37 +380,20 @@ def _get_active_pos_opening_for_context(context, user):
     if not pos_profile:
         return _empty_active_opening()
 
-    company = frappe.db.get_value('POS Profile', pos_profile, 'company')
-
-    pos_opening = frappe.db.get_list(
-        'POS Opening Entry',
-        filters={
-            'docstatus': 1,  # Submitted
-            'status': 'Open',
-            'user': user,
-            'pos_profile': pos_profile
-        },
-        fields=['name', 'pos_profile', 'user', 'opening_balance', 'creation', 'company'],
-        order_by='creation desc',
-        limit_page_length=1
+    opening = resolve_active_pos_opening(
+        pos_profile=pos_profile,
+        user=user,
     )
 
-    if pos_opening:
-        entry = pos_opening[0]
-        return {
-            'pos_opening_entry': entry.get('name'),
-            'pos_profile_name': entry.get('pos_profile'),
-            'opening_balance': entry.get('opening_balance', 0),
-            'timestamp': entry.get('creation'),
-            'company': entry.get('company')
-        }
-
     return {
-        'pos_opening_entry': None,
-        'pos_profile_name': pos_profile,
-        'opening_balance': 0,
-        'timestamp': None,
-        'company': company
+        'pos_opening_entry': opening.get('pos_opening_entry'),
+        'pos_profile_name': opening.get('pos_profile_name'),
+        'opening_balance': opening.get('opening_balance', 0),
+        'timestamp': opening.get('timestamp'),
+        'company': opening.get('company'),
+        'scope': opening.get('scope'),
+        'error_code': opening.get('error_code'),
+        'error_message': opening.get('error_message')
     }
 
 

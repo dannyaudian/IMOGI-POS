@@ -42,16 +42,99 @@ export function usePOSProfileGuard(options = {}) {
   
   const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [guardPassed, setGuardPassed] = useState(false)
+  const [openingStatus, setOpeningStatus] = useState('loading')
   const [contextRetries, setContextRetries] = useState(0)
+  const [openingRetries, setOpeningRetries] = useState(0)
   const MAX_CONTEXT_RETRIES = 3
+  const MAX_OPENING_RETRIES = 2
   const RETRY_DELAY_MS = 300
+  const OPENING_RETRY_DELAY_MS = 500
   
+  const isContextReady = Boolean(pos_profile && branch)
+  const shouldCheckOpening = Boolean(requiresOpening && isContextReady)
+
   // Fetch POS Opening Entry if required
-  const { data: posOpening, isLoading: openingLoading } = useFrappeGetCall(
+  const {
+    data: posOpening,
+    isLoading: openingLoading,
+    error: openingError,
+    mutate: refetchOpening
+  } = useFrappeGetCall(
     'imogi_pos.api.module_select.get_active_pos_opening',
     undefined,
-    pos_profile && requiresOpening ? undefined : false
+    shouldCheckOpening ? undefined : false
   )
+
+  useEffect(() => {
+    if (!requiresOpening) {
+      setOpeningStatus('ok')
+      return
+    }
+
+    if (!shouldCheckOpening || openingLoading) {
+      setOpeningStatus('loading')
+      return
+    }
+
+    if (openingError || posOpening?.error_code) {
+      setOpeningStatus('error')
+      return
+    }
+
+    if (!posOpening || !posOpening.pos_opening_entry) {
+      setOpeningStatus('missing')
+      return
+    }
+
+    setOpeningStatus('ok')
+  }, [requiresOpening, shouldCheckOpening, openingLoading, openingError, posOpening])
+
+  useEffect(() => {
+    if (!shouldCheckOpening || openingStatus !== 'error' || !refetchOpening) {
+      return
+    }
+
+    const errorMessage = openingError?.message || posOpening?.error_message || ''
+    const isContextError = errorMessage.includes('Context Required')
+      || errorMessage.includes('Operational context')
+      || posOpening?.error_code === 'missing_pos_profile'
+
+    if (!isContextError || openingRetries >= MAX_OPENING_RETRIES) {
+      return
+    }
+
+    const retryTimer = setTimeout(() => {
+      setOpeningRetries((prev) => prev + 1)
+      refetchOpening()
+    }, OPENING_RETRY_DELAY_MS)
+
+    return () => clearTimeout(retryTimer)
+  }, [
+    shouldCheckOpening,
+    openingStatus,
+    openingError,
+    posOpening,
+    openingRetries,
+    refetchOpening
+  ])
+
+  useEffect(() => {
+    const openingName = posOpening?.pos_opening_entry || null
+    if (openingStatus === 'ok' && openingName) {
+      console.info('[POSProfileGuard] openingFound=', openingName)
+    }
+    if (openingStatus !== 'ok') {
+      console.info('[POSProfileGuard] status=', openingStatus, {
+        reason: openingError?.message || posOpening?.error_message || null
+      })
+    }
+  }, [openingStatus, openingError, posOpening])
+
+  useEffect(() => {
+    if (openingStatus === 'ok' && openingRetries > 0) {
+      setOpeningRetries(0)
+    }
+  }, [openingStatus, openingRetries])
   
   // Check guard conditions
   useEffect(() => {
@@ -105,7 +188,19 @@ export function usePOSProfileGuard(options = {}) {
     
     // Check opening requirement
     if (requiresOpening && pos_profile) {
-      if (!posOpening || !posOpening.pos_opening_entry) {
+      if (!isContextReady) {
+        setGuardPassed(false)
+        setShowOpeningModal(false)
+        return
+      }
+
+      if (openingStatus === 'error') {
+        setGuardPassed(false)
+        setShowOpeningModal(false)
+        return
+      }
+
+      if (openingStatus === 'missing') {
         // Show opening modal instead of redirecting
         setGuardPassed(false)
         setShowOpeningModal(true)
@@ -117,12 +212,15 @@ export function usePOSProfileGuard(options = {}) {
     setGuardPassed(true)
     
   }, [
-    pos_profile, 
+    pos_profile,
+    branch,
     available_profiles, 
     contextLoading, 
     requiresOpening, 
-    posOpening, 
-    openingLoading, 
+    posOpening,
+    openingError,
+    openingLoading,
+    openingStatus,
     autoRedirect,
     needsSelection,
     contextRequired,
@@ -143,18 +241,35 @@ export function usePOSProfileGuard(options = {}) {
   const handleOpeningSuccess = useCallback((result) => {
     setShowOpeningModal(false)
     setGuardPassed(true)
-  }, [])
+    if (refetchOpening) {
+      refetchOpening()
+    }
+  }, [refetchOpening])
   
   // Handle opening modal cancel - redirect to module-select
   const handleOpeningCancel = useCallback(() => {
     window.location.href = MODULE_SELECT_URL
   }, [])
+
+  useEffect(() => {
+    const handleSessionOpened = () => {
+      if (refetchOpening) {
+        refetchOpening()
+      }
+    }
+
+    window.addEventListener('posSessionOpened', handleSessionOpened)
+    return () => window.removeEventListener('posSessionOpened', handleSessionOpened)
+  }, [refetchOpening])
   
   return {
     // Guard state
     isLoading: contextLoading || (requiresOpening && openingLoading),
     guardPassed,
     error: contextError,
+    openingStatus,
+    openingError,
+    retryOpening: refetchOpening,
     
     // POS Profile data
     posProfile: pos_profile,
