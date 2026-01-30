@@ -376,13 +376,21 @@ def _get_active_pos_opening_for_context(context, user):
     pos_profile = None
     if isinstance(context, dict):
         pos_profile = context.get('current_pos_profile') or context.get('pos_profile')
+    scope = context.get('scope') if isinstance(context, dict) else None
+    device_id = None
+    if isinstance(context, dict):
+        device_id = context.get('device_id')
+    if not device_id and hasattr(frappe.local, "request") and frappe.local.request:
+        device_id = frappe.local.request.headers.get("X-Device-ID")
 
     if not pos_profile:
         return _empty_active_opening()
 
     opening = resolve_active_pos_opening(
         pos_profile=pos_profile,
+        scope=scope,
         user=user,
+        device_id=device_id,
     )
 
     return {
@@ -473,21 +481,24 @@ def get_active_pos_opening():
             - timestamp: When session was opened
             - company: Company from POS Profile
     """
+    user = frappe.session.user
+    if not user or user == 'Guest':
+        return _empty_active_opening()
+
     try:
-        user = frappe.session.user
-        if not user or user == 'Guest':
-            return _empty_active_opening()
+        from imogi_pos.utils.operational_context import require_operational_context
 
-        context = get_active_operational_context(
-            user=user,
-            auto_resolve=True
-        )
-        pos_profile = context.get("pos_profile")
+        context = require_operational_context(allow_optional=True)
         return _get_active_pos_opening_for_context(
-            {"current_pos_profile": pos_profile},
-            user
+            {
+                "current_pos_profile": context.get("pos_profile"),
+                "scope": context.get("scope"),
+                "device_id": context.get("device_id"),
+            },
+            user,
         )
-
+    except frappe.ValidationError:
+        raise
     except Exception as e:
         frappe.log_error(f'Error in get_active_pos_opening: {str(e)}')
         return _empty_active_opening()

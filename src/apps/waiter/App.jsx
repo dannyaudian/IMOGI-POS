@@ -18,7 +18,10 @@ function WaiterContent({ initialState }) {
     posProfile,
     profileData,
     branch,
-    redirectToModuleSelect
+    redirectToModuleSelect,
+    serverContextReady,
+    serverContextError,
+    retryServerContext
   } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-waiter' })
   
   // Fallback to initialState for backward compatibility
@@ -32,7 +35,7 @@ function WaiterContent({ initialState }) {
   
   // CRITICAL FIX: Only fetch data after guard passes AND context is ready
   // This prevents 417 errors from calling API before operational context is set
-  const shouldFetchData = guardPassed && effectivePosProfile && !guardLoading
+  const shouldFetchData = guardPassed && effectivePosProfile && !guardLoading && serverContextReady
   
   // Fetch data - using pos_profile as primary param
   const { data: tablesData, error: tablesError, isLoading: tablesLoading, mutate: refreshTables } = useTables(
@@ -85,6 +88,15 @@ function WaiterContent({ initialState }) {
     return <LoadingSpinner message="Loading Waiter App..." />
   }
   
+  if (serverContextError) {
+    return (
+      <ErrorMessage
+        error={serverContextError?.message || 'Failed to sync operational context.'}
+        onRetry={() => retryServerContext && retryServerContext()}
+      />
+    )
+  }
+
   // Wait for guard to pass
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying access..." />

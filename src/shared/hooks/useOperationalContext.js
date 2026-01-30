@@ -46,6 +46,14 @@ export function useOperationalContext(options = {}) {
     // storage.getItem auto-adds 'imogi_' prefix
     return storage.getItem(CACHE_KEY) || null
   })
+  const [serverContextState, setServerContextState] = useState(() => {
+    const initial = window.__IMOGI_SERVER_CONTEXT_STATE__ || {}
+    return {
+      ready: Boolean(initial.ready),
+      loading: Boolean(initial.loading),
+      error: initial.error || null
+    }
+  })
   
   // Fetch context from server (authoritative source)
   const { 
@@ -132,6 +140,22 @@ export function useOperationalContext(options = {}) {
       })
     }
   }, [serverContext, autoResolve, setContextOnServer])
+
+  useEffect(() => {
+    const handleServerContextUpdate = (event) => {
+      if (!event?.detail) {
+        return
+      }
+      setServerContextState({
+        ready: Boolean(event.detail.ready),
+        loading: Boolean(event.detail.loading),
+        error: event.detail.error || null
+      })
+    }
+
+    window.addEventListener('imogiServerContextUpdated', handleServerContextUpdate)
+    return () => window.removeEventListener('imogiServerContextUpdated', handleServerContextUpdate)
+  }, [])
   
   /**
    * Set operational context (server-side storage)
@@ -181,6 +205,19 @@ export function useOperationalContext(options = {}) {
       throw error
     }
   }, [setContextOnServer, context, refetch])
+
+  const ensureServerContext = useCallback(async (options = {}) => {
+    if (typeof window.ensureOperationalContext !== 'function') {
+      throw new Error('ensureOperationalContext is not available')
+    }
+    return window.ensureOperationalContext({
+      pos_profile: options.pos_profile || context?.pos_profile || null,
+      branch: options.branch || context?.branch || null,
+      route: options.route,
+      module: options.module,
+      force: options.force === true
+    })
+  }, [context])
   
   /**
    * Require operational context (throws/redirects if missing)
@@ -290,6 +327,9 @@ export function useOperationalContext(options = {}) {
     isPrivileged: isPrivileged(),
     contextRequired: context?.context_required !== false,
     hasAccess: context?.has_access !== false,
+    serverContextReady: serverContextState.ready,
+    serverContextLoading: serverContextState.loading,
+    serverContextError: serverContextState.error,
     
     // Loading state
     isLoading,
@@ -297,6 +337,7 @@ export function useOperationalContext(options = {}) {
     
     // Actions (all server-side)
     setContext,
+    ensureServerContext,
     requireContext,
     refetch,
     

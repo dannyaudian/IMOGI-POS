@@ -12,13 +12,20 @@ function TableDisplayContent({ initialState }) {
     guardPassed,
     posProfile,
     branch,
-    redirectToModuleSelect
+    redirectToModuleSelect,
+    serverContextReady,
+    serverContextError,
+    retryServerContext
   } = usePOSProfileGuard({ requiresOpening: false, targetModule: 'imogi-tables' })
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || 'Default'
   
-  const { data: tables, error, isLoading } = useTables(effectiveBranch)
+  const shouldFetchTables = guardPassed && serverContextReady && posProfile
+  const { data: tables, error, isLoading } = useTables(
+    shouldFetchTables ? posProfile : null,
+    shouldFetchTables ? effectiveBranch : null
+  )
 
   if (guardLoading) {
     return <LoadingSpinner message="Loading..." />
@@ -26,6 +33,15 @@ function TableDisplayContent({ initialState }) {
   
   if (!guardPassed) {
     return <LoadingSpinner message="Checking operational context..." />
+  }
+
+  if (serverContextError) {
+    return (
+      <ErrorMessage
+        error={serverContextError?.message || 'Failed to sync operational context.'}
+        onRetry={() => retryServerContext && retryServerContext()}
+      />
+    )
   }
 
   if (isLoading) {

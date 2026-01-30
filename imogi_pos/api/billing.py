@@ -1121,25 +1121,56 @@ def generate_invoice(
 
 @frappe.whitelist()
 @require_permission("POS Order", "read")
-def list_orders_for_cashier(workflow_state=None, floor=None, order_type=None):
+def list_orders_for_cashier(
+    workflow_state=None,
+    floor=None,
+    order_type=None,
+    pos_profile=None,
+    branch=None,
+):
     """
     Lists POS Orders that are ready for billing in the cashier console.
     
-    IMPORTANT: Now uses centralized operational context.
-    - No longer accepts pos_profile or branch parameters
+    IMPORTANT: Uses centralized operational context.
+    - pos_profile/branch args are fallback-only for backward compatibility
     - Context managed server-side via operational_context module
     
     Args:
         workflow_state (str, optional): Workflow state filter (Ready/Served)
         floor (str, optional): Floor filter
         order_type (str, optional): Order type filter (Counter/Dine In/Take Away)
+        pos_profile (str, optional): Legacy fallback for context resolution
+        branch (str, optional): Legacy fallback for context resolution
     
     Returns:
         list: POS Orders with summarized details
     """
-    from imogi_pos.utils.operational_context import require_operational_context
+    from imogi_pos.utils.operational_context import (
+        get_active_operational_context,
+        require_operational_context,
+        resolve_operational_context,
+        set_active_operational_context,
+    )
     from imogi_pos.utils.pos_profile_resolver import get_pos_profile_branch
     
+    # Backward compatibility: accept args only as fallback if context is missing
+    existing_context = get_active_operational_context(
+        user=frappe.session.user,
+        auto_resolve=False,
+    )
+    if (not existing_context.get("pos_profile") or not existing_context.get("branch")) and (pos_profile or branch):
+        resolved = resolve_operational_context(
+            user=frappe.session.user,
+            requested_profile=pos_profile,
+            requested_branch=branch,
+        )
+        if resolved.get("current_pos_profile"):
+            set_active_operational_context(
+                user=frappe.session.user,
+                pos_profile=resolved.get("current_pos_profile"),
+                branch=resolved.get("current_branch"),
+            )
+
     # Require operational context (throws if not available)
     context = require_operational_context()
     

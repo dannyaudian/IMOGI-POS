@@ -164,11 +164,28 @@ function loadReactWidget(container, page, forceReload = false) {
 		});
 }
 
-function mountWidget(container, page) {
+async function mountWidget(container, page) {
 	try {
+		let operationalContext = null;
+		if (typeof window.fetchOperationalContext === 'function') {
+			try {
+				operationalContext = await window.fetchOperationalContext({
+					syncServer: true,
+					route: frappe.get_route_str(),
+					module: 'table-display'
+				});
+			} catch (err) {
+				console.warn('[Table Display] Failed to fetch operational context:', err);
+			}
+		}
+
+		const serverContextState = window.__IMOGI_SERVER_CONTEXT_STATE__ || {};
 		const initialState = {
 			user: frappe.session.user,
-			csrf_token: frappe.session.csrf_token
+			csrf_token: frappe.session.csrf_token,
+			serverContextReady: Boolean(serverContextState.ready),
+			serverContextError: serverContextState.error || null,
+			...operationalContext
 		};
 
 		safeMount(window.imogiTablesMount, container, { initialState });

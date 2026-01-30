@@ -47,6 +47,9 @@ logger = logging.getLogger(__name__)
 
 # Session key for storing active context
 SESSION_CONTEXT_KEY = "imogi_operational_context"
+# Cache key prefix for operational context (per-user)
+CONTEXT_CACHE_PREFIX = "imogi:ctx"
+CONTEXT_CACHE_TTL = 6 * 60 * 60  # 6 hours
 
 
 # ============================================================================
@@ -274,7 +277,13 @@ def resolve_operational_context(
 def set_active_operational_context(
     user: Optional[str] = None,
     pos_profile: Optional[str] = None,
-    branch: Optional[str] = None
+    branch: Optional[str] = None,
+    company: Optional[str] = None,
+    scope: Optional[str] = None,
+    device_id: Optional[str] = None,
+    resolved_from: Optional[Dict[str, str]] = None,
+    route: Optional[str] = None,
+    module: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Set and persist active operational context for user.
@@ -310,13 +319,20 @@ def set_active_operational_context(
     context_data = {
         "pos_profile": pos_profile,
         "branch": branch or get_pos_profile_branch(pos_profile) if pos_profile else None,
-        "timestamp": frappe.utils.now()
+        "company": company,
+        "scope": scope,
+        "device_id": device_id,
+        "resolved_from": resolved_from or {},
+        "route": route,
+        "module": module,
+        "timestamp": frappe.utils.now(),
     }
     
     if not hasattr(frappe.session, 'data'):
         frappe.session.data = {}
     
     frappe.session.data[SESSION_CONTEXT_KEY] = context_data
+    _set_cached_context(user, context_data)
     
     # Persist to user preference (optional but recommended)
     if pos_profile and frappe.db.has_column('User', 'imogi_default_pos_profile'):
@@ -346,10 +362,14 @@ def get_active_operational_context(
     if not user:
         user = frappe.session.user
     
-    # Try to get from session first
+    # Try cache/session first
+    cached_context = _get_cached_context(user)
+    if cached_context and cached_context.get("pos_profile"):
+        return cached_context
+
     session_context = _get_session_context()
-    
     if session_context and session_context.get("pos_profile"):
+        _set_cached_context(user, session_context)
         return session_context
     
     # Auto-resolve if requested
@@ -401,14 +421,19 @@ def require_operational_context(
     
     # If context not required (System Manager, Finance Controller), allow through
     if not context_required and allow_optional:
-        context = get_active_operational_context(user=user, auto_resolve=True)
+        context = get_active_operational_context(user=user, auto_resolve=False)
         return context
     
     # If context required, ensure it exists
     if context_required:
-        context = get_active_operational_context(user=user, auto_resolve=True)
+        context = get_active_operational_context(user=user, auto_resolve=False)
         
         if not context.get("pos_profile"):
+            logger.warning(
+                "[imogi][context] missing_context user=%s role_class=%s",
+                user,
+                role_class,
+            )
             # Check if user has any available profiles
             resolved = resolve_operational_context(user=user)
             
@@ -424,14 +449,26 @@ def require_operational_context(
                 # Return structured error for client handling (HTTP 400)
                 # Client should redirect to module-select
                 frappe.throw(
-                    msg=_("POS Profile required. Please select one from module selection page."),
+                    msg=_("Context Required: POS Profile selection required."),
                     exc=frappe.ValidationError,
                     title=_("Context Required")
                 )
             
             # Should not reach here - fallback error
             frappe.throw(
-                msg=_("POS Profile required. Please configure operational context."),
+                msg=_("Context Required: POS Profile not set."),
+                exc=frappe.ValidationError,
+                title=_("Context Required")
+            )
+
+        if not context.get("branch"):
+            logger.warning(
+                "[imogi][context] missing_branch user=%s pos_profile=%s",
+                user,
+                context.get("pos_profile"),
+            )
+            frappe.throw(
+                msg=_("Context Required: Branch is required."),
                 exc=frappe.ValidationError,
                 title=_("Context Required")
             )
@@ -450,8 +487,38 @@ def _get_session_context() -> Dict[str, Any]:
     """Get context from session storage."""
     if not hasattr(frappe.session, 'data'):
         return {}
-    
+
     return frappe.session.data.get(SESSION_CONTEXT_KEY, {})
+
+
+def _context_cache_key(user: str) -> str:
+    return f"{CONTEXT_CACHE_PREFIX}:{user}"
+
+
+def _get_cached_context(user: str) -> Dict[str, Any]:
+    """Get context from cache storage."""
+    if not user:
+        return {}
+    try:
+        cached = frappe.cache().get_value(_context_cache_key(user))
+        return cached or {}
+    except Exception as exc:
+        logger.warning(f"[imogi][context] cache_read_failed user={user} error={exc}")
+        return {}
+
+
+def _set_cached_context(user: str, context: Dict[str, Any]) -> None:
+    """Set context into cache storage."""
+    if not user:
+        return
+    try:
+        frappe.cache().set_value(
+            _context_cache_key(user),
+            context,
+            expires_in_sec=CONTEXT_CACHE_TTL,
+        )
+    except Exception as exc:
+        logger.warning(f"[imogi][context] cache_write_failed user={user} error={exc}")
 
 
 def _get_available_branches(
@@ -548,11 +615,36 @@ def set_operational_context(pos_profile=None, branch=None):
     """
     user = frappe.session.user
     
+    profile = frappe.db.get_value(
+        "POS Profile",
+        pos_profile,
+        ["imogi_branch", "company", "imogi_pos_session_scope"],
+        as_dict=True,
+    ) if pos_profile else {}
+
+    resolved_branch = branch or (profile.get("imogi_branch") if profile else None)
+    scope = profile.get("imogi_pos_session_scope") or "User" if profile else None
+    company = profile.get("company") if profile else None
+
+    device_id = None
+    if scope == "Device":
+        device_id = frappe.get_request_header("X-Device-ID")
+        if not device_id:
+            frappe.throw(
+                _("Context Required: Device ID is required for device scope."),
+                frappe.ValidationError,
+                title=_("Context Required"),
+            )
+
     # Validate and set context
     context = set_active_operational_context(
         user=user,
         pos_profile=pos_profile,
-        branch=branch
+        branch=resolved_branch,
+        company=company,
+        scope=scope,
+        device_id=device_id,
+        resolved_from={"pos_profile": "arg", "branch": "arg" if branch else "profile"},
     )
     
     return {
