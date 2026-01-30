@@ -10,6 +10,7 @@ import frappe
 
 
 def _resolve_pos_opening_date_field() -> str:
+    """Resolve date field name for POS Opening Entry (dynamic compatibility)."""
     if frappe.db.has_column("POS Opening Entry", "posting_date"):
         return "posting_date"
     if frappe.db.has_column("POS Opening Entry", "period_start_date"):
@@ -17,18 +18,299 @@ def _resolve_pos_opening_date_field() -> str:
     return "creation"
 
 
+def _resolve_currency_for_opening(opening_name: str) -> str:
+    """
+    Resolve currency for POS Opening Entry (ERPNext v15+ compatibility).
+    
+    Fallback hierarchy:
+    1. Company.default_currency (via POS Opening Entry.company field)
+    2. Company.default_currency (via POS Opening Entry.pos_profile → POS Profile.company)
+    3. Global default currency (frappe.defaults.get_global_default("currency"))
+    4. USD (international standard fallback with warning)
+    
+    Note: We use USD as final fallback (not regional currency like IDR) because
+    ERPNext is an international framework. USD is the most common default in
+    multi-currency scenarios. Proper configuration should set Company.default_currency.
+    
+    Args:
+        opening_name: Name of POS Opening Entry
+    
+    Returns:
+        Currency code (e.g., 'IDR', 'USD', 'EUR')
+    
+    Raises:
+        No exception raised - always returns valid currency code
+    """
+    try:
+        # Priority 1: Get company directly from POS Opening Entry
+        # This is the most direct and accurate source
+        company_name = frappe.db.get_value(
+            "POS Opening Entry",
+            opening_name,
+            "company"
+        )
+        
+        # Priority 2: If company not in opening, get from POS Profile
+        if not company_name:
+            pos_profile_name = frappe.db.get_value(
+                "POS Opening Entry",
+                opening_name,
+                "pos_profile"
+            )
+            
+            if pos_profile_name:
+                company_name = frappe.db.get_value(
+                    "POS Profile",
+                    pos_profile_name,
+                    "company"
+                )
+        
+        # Get currency from Company
+        if company_name:
+            currency = frappe.db.get_value(
+                "Company",
+                company_name,
+                "default_currency"
+            )
+            
+            if currency:
+                frappe.logger("imogi_pos").debug(
+                    f"[pos_opening] Resolved currency from Company '{company_name}': {currency} "
+                    f"(opening: {opening_name})"
+                )
+                return currency
+            else:
+                # Company exists but no default_currency configured
+                frappe.logger("imogi_pos").warning(
+                    f"[pos_opening] Company '{company_name}' has no default_currency set. "
+                    f"Opening: {opening_name}. "
+                    f"Action: Set default currency in Company '{company_name}' master."
+                )
+        else:
+            # No company found at all
+            frappe.logger("imogi_pos").warning(
+                f"[pos_opening] No company found for opening {opening_name}. "
+                f"Action: Ensure POS Opening Entry has company field or POS Profile has company."
+            )
+        
+        # Priority 3: Global default currency
+        global_currency = frappe.defaults.get_global_default("currency")
+        if global_currency:
+            frappe.logger("imogi_pos").info(
+                f"[pos_opening] Using global default currency: {global_currency} "
+                f"(opening: {opening_name}). "
+                f"Hint: Configure Company.default_currency for proper accounting."
+            )
+            return global_currency
+        
+        # Priority 4: International standard fallback (USD)
+        # Rationale: ERPNext is international framework, USD most common in multi-currency
+        frappe.logger("imogi_pos").warning(
+            f"[pos_opening] No currency configured anywhere for opening {opening_name}. "
+            f"Using USD fallback. "
+            f"Action: Configure Company.default_currency in Company master OR "
+            f"set global default via 'System Settings → Currency'."
+        )
+        return "USD"
+        
+    except Exception as e:
+        # Log error but don't crash - return safe fallback
+        frappe.log_error(
+            title="IMOGI POS: Currency Resolution Error",
+            message=(
+                f"Error resolving currency for opening: {opening_name}\n"
+                f"Error Type: {type(e).__name__}\n"
+                f"Error: {str(e)}\n\n"
+                f"Fallback: Using USD\n\n"
+                f"Action Required:\n"
+                f"1. Check Company master has default_currency set\n"
+                f"2. Verify POS Opening Entry '{opening_name}' has valid company/pos_profile\n"
+                f"3. Set global default currency if needed"
+            )
+        )
+        return "USD"
+
+
+def _check_currency_field_exists() -> bool:
+    """
+    Check if 'currency' field exists in POS Opening Entry Detail.
+    
+    Uses frappe.get_meta() first (preferred, more accurate for custom fields),
+    falls back to frappe.db.has_column() if meta is unavailable.
+    
+    Failure mode: If both methods fail, returns False (assume ERPNext v15+ behavior)
+    to allow graceful degradation with currency fallback.
+    
+    Returns:
+        bool: True if currency field exists, False otherwise
+    """
+    doctype = "POS Opening Entry Detail"
+    field_name = "currency"
+    
+    # Priority 1: Use get_meta (more accurate, includes custom fields)
+    try:
+        meta = frappe.get_meta(doctype)
+        if meta:
+            has_field = meta.has_field(field_name)
+            frappe.logger("imogi_pos").debug(
+                f"[pos_opening] Field check via get_meta: {doctype}.{field_name} = {has_field}"
+            )
+            return has_field
+    except frappe.DoesNotExistError:
+        # DocType tidak ada - lanjut ke fallback
+        frappe.logger("imogi_pos").debug(
+            f"[pos_opening] DocType {doctype} not found in get_meta, trying has_column"
+        )
+    except frappe.PermissionError:
+        # Permission issue - lanjut ke fallback
+        frappe.logger("imogi_pos").debug(
+            f"[pos_opening] Permission error on get_meta for {doctype}, trying has_column"
+        )
+    except Exception as e:
+        # Unexpected error (e.g., during install, cache issue) - lanjut ke fallback
+        frappe.logger("imogi_pos").debug(
+            f"[pos_opening] get_meta failed for {doctype}: {str(e)}, trying has_column"
+        )
+    
+    # Priority 2: Fallback to DB column check
+    try:
+        has_column = frappe.db.has_column(doctype, field_name)
+        frappe.logger("imogi_pos").debug(
+            f"[pos_opening] Field check via has_column: {doctype}.{field_name} = {has_column}"
+        )
+        return has_column
+    except Exception as e:
+        # If both methods fail, assume field doesn't exist (ERPNext v15+ default)
+        # This allows graceful degradation with currency fallback
+        frappe.logger("imogi_pos").info(
+            f"[pos_opening] Could not check field existence for {doctype}.{field_name} "
+            f"(both get_meta and has_column failed). Assuming False (ERPNext v15+ default). "
+            f"Error: {str(e)}"
+        )
+        return False
+
+
 def _fetch_balance_details(opening_name: str) -> List[Dict[str, Any]]:
+    """
+    Fetch balance details dari POS Opening Entry Detail.
+    
+    ERPNext v15+ Compatibility:
+    - Field 'currency' removed from child table in v15+
+    - Currency resolved dari parent: POS Opening Entry → Company
+    - Dynamic field detection for backward compatibility
+    
+    Output Contract:
+    - Always returns list of dict with keys: mode_of_payment, opening_amount, currency
+    - 'currency' key is guaranteed (either from field or fallback)
+    
+    Returns:
+        List[Dict[str, Any]]: Balance details with currency
+    
+    Raises:
+        frappe.ValidationError: If query fails (logged with context)
+    """
     if not opening_name:
         return []
+    
+    # Early exit if DocType doesn't exist
     if not frappe.db.exists("DocType", "POS Opening Entry Detail"):
+        frappe.logger("imogi_pos").debug(
+            "[pos_opening] POS Opening Entry Detail DocType not found, returning empty list"
+        )
         return []
-    details = frappe.get_all(
-        "POS Opening Entry Detail",
-        filters={"parent": opening_name},
-        fields=["mode_of_payment", "opening_amount", "currency"],
-        order_by="idx asc",
-    )
-    return details or []
+    
+    # Build dynamic fields list (ERPNext v15+ best practice)
+    base_fields = ["mode_of_payment", "opening_amount"]
+    
+    # Check if currency field exists (backward compatibility)
+    has_currency_field = _check_currency_field_exists()
+    
+    if has_currency_field:
+        base_fields.append("currency")
+    
+    # Query balance details
+    try:
+        details = frappe.get_all(
+            "POS Opening Entry Detail",
+            filters={"parent": opening_name},
+            fields=base_fields,
+            order_by="idx asc",
+        )
+    except Exception as e:
+        # Check if error is schema-related (column not found)
+        error_msg = str(e).lower()
+        is_schema_error = (
+            "unknown column" in error_msg or
+            "1054" in error_msg or  # MySQL error code for unknown column
+            "no such column" in error_msg  # SQLite error
+        )
+        
+        # Determine if this is expected (v15+ behavior) or actual schema issue
+        if is_schema_error and "currency" in error_msg:
+            # This is likely ERPNext v15+ where currency field was removed
+            schema_explanation = (
+                "ERPNext v15+ removed 'currency' field from POS Opening Entry Detail child table. "
+                "This is expected behavior. Currency should be resolved from parent/company instead."
+            )
+        else:
+            # Unexpected schema error - might need migration
+            schema_explanation = (
+                "Unexpected database schema issue. "
+                "If custom fields exist but not in DB, run 'bench migrate' to sync schema."
+            )
+        
+        # Log detailed error for debugging
+        frappe.log_error(
+            title="IMOGI POS: POS Opening Detail Query Error",
+            message=(
+                f"Error fetching balance details\n"
+                f"Opening: {opening_name}\n"
+                f"DocType: POS Opening Entry Detail\n"
+                f"Requested Fields: {base_fields}\n"
+                f"Schema Error Detected: {is_schema_error}\n"
+                f"Error Type: {type(e).__name__}\n"
+                f"Error: {str(e)}\n\n"
+                f"Analysis: {schema_explanation}\n\n"
+                f"Recommendation:\n"
+                f"- If ERPNext v15+: This error should not occur (code should not request 'currency')\n"
+                f"- If custom fields: Run 'bench migrate' to sync schema\n"
+                f"- Check has_currency_field detection logic"
+            )
+        )
+        
+        # Provide user-friendly error message
+        if is_schema_error:
+            frappe.throw(
+                (
+                    f"Database schema mismatch for POS Opening Entry Detail. "
+                    f"{schema_explanation} "
+                    f"Check Error Log for details."
+                ),
+                exc=frappe.ValidationError
+            )
+        else:
+            frappe.throw(
+                f"Failed to fetch POS Opening balance details: {str(e)}",
+                exc=frappe.ValidationError
+            )
+    
+    if not details:
+        return []
+    
+    # Preserve output contract: inject currency if not in schema
+    if not has_currency_field:
+        fallback_currency = _resolve_currency_for_opening(opening_name)
+        
+        frappe.logger("imogi_pos").debug(
+            f"[pos_opening] Injecting fallback currency '{fallback_currency}' "
+            f"to {len(details)} balance detail rows (opening: {opening_name})"
+        )
+        
+        # Inject currency to all detail entries
+        for detail in details:
+            detail["currency"] = fallback_currency
+    
+    return details
 
 
 def resolve_active_pos_opening(

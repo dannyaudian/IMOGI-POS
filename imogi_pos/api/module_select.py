@@ -215,9 +215,58 @@ def get_available_modules():
             }
         }
 
+    except frappe.DoesNotExistError as e:
+        # Specific error for missing DocType/Record
+        frappe.log_error(
+            title='IMOGI POS: Module Select - DocType Missing',
+            message=f'DocType error in get_available_modules: {str(e)}\nUser: {frappe.session.user}'
+        )
+        frappe.throw(
+            _('System configuration incomplete. Contact administrator.'),
+            exc=frappe.ValidationError
+        )
+    
+    except frappe.PermissionError:
+        # Let permission errors bubble up (don't catch)
+        raise
+    
+    except frappe.ValidationError:
+        # Let validation errors bubble up (don't re-throw)
+        # These might be legitimate errors from operational_context checks
+        raise
+    
     except Exception as e:
-        frappe.log_error(f'Error in get_available_modules: {str(e)}')
-        frappe.throw(_('Error loading modules. Please refresh and try again.'))
+        # Catch unexpected errors only
+        import traceback
+        
+        # Safe variable access (avoid NameError if error happened early)
+        pos_profile_debug = pos_profile if 'pos_profile' in locals() else 'N/A'
+        branch_debug = branch if 'branch' in locals() else 'N/A'
+        
+        error_log = f"""Unexpected error in get_available_modules
+==========================================
+User: {frappe.session.user}
+Error: {str(e)}
+Type: {type(e).__name__}
+
+Context State:
+- pos_profile: {pos_profile_debug}
+- branch: {branch_debug}
+
+Traceback:
+{traceback.format_exc()}
+"""
+        
+        frappe.log_error(
+            title='IMOGI POS: Module Select - Critical Error',
+            message=error_log
+        )
+        
+        # User-friendly error (don't expose internals)
+        frappe.throw(
+            _('Unable to load modules. Error code: MODULE_SELECT_FAIL. Contact support.'),
+            exc=frappe.ValidationError
+        )
 
 
 @frappe.whitelist()

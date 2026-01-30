@@ -169,11 +169,120 @@ def resolve_operational_context(
         - URL params directly (caller extracts and passes)
         - frappe.form_dict
     """
-    if not user:
-        user = frappe.session.user
+    try:
+        if not user:
+            user = frappe.session.user
+        
+        # Handle guest users
+        if not user or user == "Guest":
+            return {
+                "current_pos_profile": None,
+                "current_branch": None,
+                "available_pos_profiles": [],
+                "branches": [],
+                "require_selection": False,
+                "has_access": False,
+                "role_class": "GUEST",
+                "selection_method": "none",
+                "is_privileged": False,
+                "context_required": False
+            }
+        
+        # Classify user role
+        role_class = get_user_role_class(user)
+        is_privileged = role_class in ["SYSTEM_LEVEL", "FINANCE_CONTROLLER"]
+        context_required = is_context_required_for_role_class(role_class)
+        
+        # Get available POS Profiles (uses existing resolver)
+        # Pass explicit boolean to ensure privileged users bypass "Applicable for Users" restriction
+        available_profiles = get_available_pos_profiles(user=user, is_privileged=bool(is_privileged))
+        profile_names = [p['name'] for p in available_profiles]
+        
+        # Get available branches
+        branches = _get_available_branches(user, role_class, available_profiles)
+        
+        # Resolve POS Profile selection
+        selected_profile = None
+        selection_method = "none"
+        
+        # Priority 1: Requested profile (if valid)
+        if requested_profile and requested_profile in profile_names:
+            if validate_pos_profile_access(requested_profile, user):
+                selected_profile = requested_profile
+                selection_method = "requested"
+        
+        # Priority 2: Last used from session
+        if not selected_profile:
+            session_context = _get_session_context()
+            last_used = session_context.get("pos_profile")
+            if last_used and last_used in profile_names:
+                if validate_pos_profile_access(last_used, user):
+                    selected_profile = last_used
+                    selection_method = "last_used"
+        
+        # Priority 3: Stored preference
+        if not selected_profile:
+            if frappe.db.has_column('User', 'imogi_default_pos_profile'):
+                stored = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
+                if stored and stored in profile_names:
+                    if validate_pos_profile_access(stored, user):
+                        selected_profile = stored
+                        selection_method = "stored_preference"
+        
+        # Priority 4: Auto-select single candidate
+        if not selected_profile and len(profile_names) == 1:
+            selected_profile = profile_names[0]
+            selection_method = "auto_single"
+        
+        # Derive current branch
+        current_branch = None
+        if selected_profile:
+            current_branch = get_pos_profile_branch(selected_profile)
+        elif requested_branch and requested_branch in branches:
+            current_branch = requested_branch
+        
+        # Determine if selection is required
+        require_selection = False
+        if context_required and not selected_profile and len(profile_names) > 1:
+            require_selection = True
     
-    # Handle guest users
-    if not user or user == "Guest":
+        # Build result
+        result = {
+            "current_pos_profile": selected_profile,
+            "current_branch": current_branch,
+            "available_pos_profiles": [
+                {
+                    "name": p.get("name"),
+                    "branch": p.get("imogi_branch"),
+                    "company": p.get("company"),
+                    "mode": p.get("imogi_mode"),
+                    "pos_domain": p.get("imogi_pos_domain")
+                }
+                for p in available_profiles
+            ],
+            "branches": branches,
+            "require_selection": require_selection,
+            "has_access": bool(profile_names),
+            "role_class": role_class,
+            "selection_method": selection_method,
+            "is_privileged": is_privileged,
+            "context_required": context_required
+        }
+        
+        # Log resolution for debugging
+        _log_context_resolution(user, result)
+        
+        return result
+    
+    except Exception as e:
+        # Log error but return safe fallback (don't throw)
+        logger.error(f"[operational_context] Error in resolve: {str(e)}")
+        frappe.log_error(
+            title='IMOGI POS: Context Resolution Error',
+            message=f'Error in resolve_operational_context:\nUser: {user}\nError: {str(e)}'
+        )
+        
+        # Return safe fallback
         return {
             "current_pos_profile": None,
             "current_branch": None,
@@ -181,97 +290,12 @@ def resolve_operational_context(
             "branches": [],
             "require_selection": False,
             "has_access": False,
-            "role_class": "GUEST",
-            "selection_method": "none",
+            "role_class": "UNKNOWN",
+            "selection_method": "error",
             "is_privileged": False,
-            "context_required": False
+            "context_required": False,
+            "_error": str(e)  # Debug info
         }
-    
-    # Classify user role
-    role_class = get_user_role_class(user)
-    is_privileged = role_class in ["SYSTEM_LEVEL", "FINANCE_CONTROLLER"]
-    context_required = is_context_required_for_role_class(role_class)
-    
-    # Get available POS Profiles (uses existing resolver)
-    # Pass explicit boolean to ensure privileged users bypass "Applicable for Users" restriction
-    available_profiles = get_available_pos_profiles(user=user, is_privileged=bool(is_privileged))
-    profile_names = [p['name'] for p in available_profiles]
-    
-    # Get available branches
-    branches = _get_available_branches(user, role_class, available_profiles)
-    
-    # Resolve POS Profile selection
-    selected_profile = None
-    selection_method = "none"
-    
-    # Priority 1: Requested profile (if valid)
-    if requested_profile and requested_profile in profile_names:
-        if validate_pos_profile_access(requested_profile, user):
-            selected_profile = requested_profile
-            selection_method = "requested"
-    
-    # Priority 2: Last used from session
-    if not selected_profile:
-        session_context = _get_session_context()
-        last_used = session_context.get("pos_profile")
-        if last_used and last_used in profile_names:
-            if validate_pos_profile_access(last_used, user):
-                selected_profile = last_used
-                selection_method = "last_used"
-    
-    # Priority 3: Stored preference
-    if not selected_profile:
-        if frappe.db.has_column('User', 'imogi_default_pos_profile'):
-            stored = frappe.db.get_value('User', user, 'imogi_default_pos_profile')
-            if stored and stored in profile_names:
-                if validate_pos_profile_access(stored, user):
-                    selected_profile = stored
-                    selection_method = "stored_preference"
-    
-    # Priority 4: Auto-select single candidate
-    if not selected_profile and len(profile_names) == 1:
-        selected_profile = profile_names[0]
-        selection_method = "auto_single"
-    
-    # Derive current branch
-    current_branch = None
-    if selected_profile:
-        current_branch = get_pos_profile_branch(selected_profile)
-    elif requested_branch and requested_branch in branches:
-        current_branch = requested_branch
-    
-    # Determine if selection is required
-    require_selection = False
-    if context_required and not selected_profile and len(profile_names) > 1:
-        require_selection = True
-    
-    # Build result
-    result = {
-        "current_pos_profile": selected_profile,
-        "current_branch": current_branch,
-        "available_pos_profiles": [
-            {
-                "name": p.get("name"),
-                "branch": p.get("imogi_branch"),
-                "company": p.get("company"),
-                "mode": p.get("imogi_mode"),
-                "pos_domain": p.get("imogi_pos_domain")
-            }
-            for p in available_profiles
-        ],
-        "branches": branches,
-        "require_selection": require_selection,
-        "has_access": bool(profile_names),
-        "role_class": role_class,
-        "selection_method": selection_method,
-        "is_privileged": is_privileged,
-        "context_required": context_required
-    }
-    
-    # Log resolution for debugging
-    _log_context_resolution(user, result)
-    
-    return result
 
 
 def set_active_operational_context(
@@ -359,38 +383,54 @@ def get_active_operational_context(
     Returns:
         dict: Current context or resolved context
     """
-    if not user:
-        user = frappe.session.user
-    
-    # Try cache/session first
-    cached_context = _get_cached_context(user)
-    if cached_context and cached_context.get("pos_profile"):
-        return cached_context
+    try:
+        if not user:
+            user = frappe.session.user
+        
+        # Try cache/session first
+        cached_context = _get_cached_context(user)
+        if cached_context and cached_context.get("pos_profile"):
+            return cached_context
 
-    session_context = _get_session_context()
-    if session_context and session_context.get("pos_profile"):
-        _set_cached_context(user, session_context)
-        return session_context
+        session_context = _get_session_context()
+        if session_context and session_context.get("pos_profile"):
+            _set_cached_context(user, session_context)
+            return session_context
+        
+        # Auto-resolve if requested
+        if auto_resolve:
+            resolved = resolve_operational_context(user=user)
+            
+            # If a profile was selected, store it
+            if resolved.get("current_pos_profile"):
+                return set_active_operational_context(
+                    user=user,
+                    pos_profile=resolved["current_pos_profile"],
+                    branch=resolved["current_branch"]
+                )
+            
+            return {
+                "pos_profile": None,
+                "branch": None,
+                "resolved": resolved
+            }
+        
+        return session_context or {"pos_profile": None, "branch": None}
     
-    # Auto-resolve if requested
-    if auto_resolve:
-        resolved = resolve_operational_context(user=user)
+    except Exception as e:
+        # Log error but return safe empty context (don't throw)
+        logger.error(f"[operational_context] Error in get_active: {str(e)}")
+        frappe.log_error(
+            title='IMOGI POS: Get Active Context Error',
+            message=f'Error in get_active_operational_context:\nUser: {user}\nError: {str(e)}'
+        )
         
-        # If a profile was selected, store it
-        if resolved.get("current_pos_profile"):
-            return set_active_operational_context(
-                user=user,
-                pos_profile=resolved["current_pos_profile"],
-                branch=resolved["current_branch"]
-            )
-        
+        # Return safe empty context
         return {
             "pos_profile": None,
             "branch": None,
-            "resolved": resolved
+            "_error": str(e)
         }
-    
-    return session_context or {"pos_profile": None, "branch": None}
 
 
 def require_operational_context(
