@@ -13,6 +13,8 @@ export function CashierHeader({
 }) {
   const [showInfo, setShowInfo] = useState(false)
   const [scanInput, setScanInput] = useState('')
+  const openingEntryName = posOpening?.pos_opening_entry || posOpening?.name
+  const openingAmount = posOpening?.balance_details?.[0]?.opening_amount ?? posOpening?.opening_balance ?? 0
 
   const handleScanSubmit = (e) => {
     e.preventDefault()
@@ -92,7 +94,7 @@ export function CashierHeader({
                   <>
                     <div className="info-row">
                       <span className="info-label">Opening Entry:</span>
-                      <span className="info-value">{posOpening.name}</span>
+                      <span className="info-value">{openingEntryName}</span>
                     </div>
                     <div className="info-row">
                       <span className="info-label">Opening Balance:</span>
@@ -101,7 +103,7 @@ export function CashierHeader({
                           style: 'currency',
                           currency: 'IDR',
                           minimumFractionDigits: 0
-                        }).format(posOpening.balance_details?.[0]?.opening_amount || 0)}
+                        }).format(openingAmount)}
                       </span>
                     </div>
                   </>

@@ -111,15 +111,28 @@ def create_pos_opening(pos_profile, opening_amount=0, mode_of_payment=None, note
         
         frappe.db.commit()
         
+        balance_details = []
+        if opening_entry.get("balance_details"):
+            balance_details = [
+                {
+                    "mode_of_payment": row.mode_of_payment,
+                    "opening_amount": row.opening_amount,
+                    "currency": row.currency,
+                }
+                for row in opening_entry.balance_details
+            ]
+
         return {
             'success': True,
             'pos_opening_entry': opening_entry.name,
             'pos_profile': pos_profile,
             'user': user,
             'opening_balance': float(opening_amount or 0),
+            'balance_details': balance_details,
             'company': profile_data.get('company'),
             'branch': profile_data.get('imogi_branch'),
             'timestamp': str(opening_entry.period_start_date),
+            'status': opening_entry.status,
             'message': _('POS opening entry created successfully')
         }
     

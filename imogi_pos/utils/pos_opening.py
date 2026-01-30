@@ -4,9 +4,31 @@ IMOGI POS - POS Opening resolver
 Single source of truth for active POS Opening Entry resolution.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import frappe
+
+
+def _resolve_pos_opening_date_field() -> str:
+    if frappe.db.has_column("POS Opening Entry", "posting_date"):
+        return "posting_date"
+    if frappe.db.has_column("POS Opening Entry", "period_start_date"):
+        return "period_start_date"
+    return "creation"
+
+
+def _fetch_balance_details(opening_name: str) -> List[Dict[str, Any]]:
+    if not opening_name:
+        return []
+    if not frappe.db.exists("DocType", "POS Opening Entry Detail"):
+        return []
+    details = frappe.get_all(
+        "POS Opening Entry Detail",
+        filters={"parent": opening_name},
+        fields=["mode_of_payment", "opening_amount", "currency"],
+        order_by="idx asc",
+    )
+    return details or []
 
 
 def resolve_active_pos_opening(
@@ -33,8 +55,10 @@ def resolve_active_pos_opening(
             "pos_opening_entry": None,
             "pos_profile_name": None,
             "opening_balance": 0,
+            "balance_details": [],
             "timestamp": None,
             "company": None,
+            "status": None,
             "scope": scope,
             "user": user,
             "device_id": device_id,
@@ -49,8 +73,10 @@ def resolve_active_pos_opening(
                     "pos_opening_entry": None,
                     "pos_profile_name": pos_profile,
                     "opening_balance": 0,
+                    "balance_details": [],
                     "timestamp": None,
                     "company": frappe.db.get_value("POS Profile", pos_profile, "company"),
+                    "status": None,
                     "scope": scope,
                     "user": user,
                     "device_id": device_id,
@@ -62,8 +88,10 @@ def resolve_active_pos_opening(
                 "pos_opening_entry": None,
                 "pos_profile_name": pos_profile,
                 "opening_balance": 0,
+                "balance_details": [],
                 "timestamp": None,
                 "company": frappe.db.get_value("POS Profile", pos_profile, "company"),
+                "status": None,
                 "scope": scope,
                 "user": user,
                 "device_id": device_id,
@@ -89,26 +117,31 @@ def resolve_active_pos_opening(
 
     error_code = None
     error_message = None
+    warnings = []
 
     if scope == "User":
         filters["user"] = user
     elif scope == "Device":
-        if device_id:
-            filters["device_id"] = device_id
-        else:
-            error_code = "device_id_required"
-            error_message = "Device ID required for device-scoped POS Opening Entry."
-            frappe.logger("imogi_pos").warning(
-                "[pos_opening] device_id_missing scope=%s pos_profile=%s user=%s",
-                scope,
-                pos_profile,
-                user,
-            )
-            if raise_on_device_missing:
-                frappe.throw(
-                    error_message,
-                    frappe.ValidationError,
+        if frappe.db.has_column("POS Opening Entry", "device_id"):
+            if device_id:
+                filters["device_id"] = device_id
+            else:
+                warnings.append("Device ID required for device-scoped POS Opening Entry.")
+                error_code = "device_id_required"
+                error_message = "Device ID required for device-scoped POS Opening Entry."
+                frappe.logger("imogi_pos").warning(
+                    "[pos_opening] device_id_missing scope=%s pos_profile=%s user=%s",
+                    scope,
+                    pos_profile,
+                    user,
                 )
+                if raise_on_device_missing:
+                    frappe.throw(
+                        error_message,
+                        frappe.ValidationError,
+                    )
+        else:
+            warnings.append("POS Opening Entry missing device_id field; device scope ignored.")
     elif scope == "POS Profile":
         pass
     else:
@@ -120,19 +153,31 @@ def resolve_active_pos_opening(
             "pos_opening_entry": None,
             "pos_profile_name": pos_profile,
             "opening_balance": 0,
+            "balance_details": [],
             "timestamp": None,
             "company": frappe.db.get_value("POS Profile", pos_profile, "company"),
+            "status": None,
             "scope": scope,
             "user": user,
             "device_id": device_id,
             "error_code": error_code,
             "error_message": error_message,
+            "warnings": warnings,
         }
 
+    date_field = _resolve_pos_opening_date_field()
     entry = frappe.db.get_list(
         "POS Opening Entry",
         filters=filters,
-        fields=["name", "pos_profile", "user", "opening_balance", "creation", "company"],
+        fields=[
+            "name",
+            "pos_profile",
+            "user",
+            "creation",
+            "company",
+            "status",
+            date_field,
+        ],
         order_by="creation desc",
         limit_page_length=1,
     )
@@ -151,28 +196,38 @@ def resolve_active_pos_opening(
     )
 
     if entry:
+        balance_details = _fetch_balance_details(entry[0].get("name"))
+        opening_balance = sum(
+            detail.get("opening_amount", 0) or 0 for detail in balance_details
+        )
         return {
             "pos_opening_entry": entry[0].get("name"),
             "pos_profile_name": entry[0].get("pos_profile"),
-            "opening_balance": entry[0].get("opening_balance", 0),
-            "timestamp": entry[0].get("creation"),
+            "opening_balance": opening_balance,
+            "balance_details": balance_details,
+            "timestamp": entry[0].get(date_field) or entry[0].get("creation"),
             "company": entry[0].get("company"),
+            "status": entry[0].get("status"),
             "scope": scope,
             "user": user,
             "device_id": device_id,
             "error_code": error_code,
             "error_message": error_message,
+            "warnings": warnings,
         }
 
     return {
         "pos_opening_entry": None,
         "pos_profile_name": pos_profile,
         "opening_balance": 0,
+        "balance_details": [],
         "timestamp": None,
         "company": frappe.db.get_value("POS Profile", pos_profile, "company"),
+        "status": None,
         "scope": scope,
         "user": user,
         "device_id": device_id,
         "error_code": error_code,
         "error_message": error_message,
+        "warnings": warnings,
     }
