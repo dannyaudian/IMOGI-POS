@@ -45,6 +45,31 @@
  * 
  * @returns {Promise<Object>} Operational context object
  */
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const parseServerMessages = (value) => {
+	if (!value) {
+		return [];
+	}
+	if (Array.isArray(value)) {
+		return value;
+	}
+	if (typeof value === 'string') {
+		try {
+			const parsed = JSON.parse(value);
+			if (Array.isArray(parsed)) {
+				return parsed;
+			}
+			if (parsed) {
+				return [parsed];
+			}
+		} catch (err) {
+			return [value];
+		}
+	}
+	return [String(value)];
+};
+
 if (!window.fetchOperationalContext) {
 	window.fetchOperationalContext = async function(options = {}) {
 		const {
@@ -63,7 +88,7 @@ if (!window.fetchOperationalContext) {
 				const operationalContext = {
 					pos_profile: ctx.current_pos_profile || ctx.active_context?.pos_profile || null,
 					branch: ctx.current_branch || ctx.active_context?.branch || null,
-					available_pos_profiles: ctx.available_pos_profiles || [],
+					available_pos_profiles: asArray(ctx.available_pos_profiles),
 					require_selection: ctx.require_selection || false,
 					has_access: ctx.has_access !== false,
 					is_privileged: ctx.is_privileged || false
@@ -100,11 +125,34 @@ if (!window.fetchOperationalContext) {
 }
 
 function setServerContextState(state) {
+	const rawContext = state.context || null;
+	const normalizedContext = rawContext
+		? {
+			...rawContext,
+			available_pos_profiles: asArray(rawContext.available_pos_profiles),
+			branches: asArray(rawContext.branches)
+		}
+		: null;
+	let errorPayload = null;
+	if (state.error) {
+		if (typeof state.error === 'string') {
+			errorPayload = {
+				message: state.error,
+				server_messages: parseServerMessages(state.error)
+			};
+		} else {
+			errorPayload = {
+				...state.error,
+				message: state.error.message || null,
+				server_messages: asArray(state.error.server_messages)
+			};
+		}
+	}
 	const payload = {
 		ready: Boolean(state.ready),
 		loading: Boolean(state.loading),
-		error: state.error || null,
-		context: state.context || null
+		error: errorPayload,
+		context: normalizedContext
 	};
 	window.__IMOGI_SERVER_CONTEXT_STATE__ = payload;
 	window.dispatchEvent(new CustomEvent('imogiServerContextUpdated', { detail: payload }));
@@ -149,13 +197,19 @@ if (!window.ensureOperationalContext) {
 				return context;
 			})
 			.catch((error) => {
+				const serverMessages = parseServerMessages(
+					error?._server_messages
+					|| error?.response?.data?._server_messages
+					|| error?.response?.data?.exception
+				);
 				const message = error?.message
 					|| error?.response?.data?.message
+					|| serverMessages[0]
 					|| 'Failed to ensure operational context';
 				setServerContextState({
 					ready: false,
 					loading: false,
-					error: { message },
+					error: { message, server_messages: serverMessages },
 					context: null
 				});
 				throw error;

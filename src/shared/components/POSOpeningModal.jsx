@@ -11,6 +11,8 @@ import { isSessionExpiredFromError } from '../utils/api'
 import storage from '../utils/storage'
 import './POSOpeningModal.css'
 
+const asArray = (value) => (Array.isArray(value) ? value : [])
+
 /**
  * Modal for creating a new POS Opening Entry
  * 
@@ -64,9 +66,10 @@ export function POSOpeningModal({
 
   // Set default mode of payment when methods load
   useEffect(() => {
-    if (paymentMethods && paymentMethods.length > 0) {
-      const defaultMethod = paymentMethods.find(m => m.default)
-      setModeOfPayment(defaultMethod?.mode_of_payment || paymentMethods[0]?.mode_of_payment || 'Cash')
+    const methodsList = asArray(paymentMethods)
+    if (methodsList.length > 0) {
+      const defaultMethod = methodsList.find(m => m.default)
+      setModeOfPayment(defaultMethod?.mode_of_payment || methodsList[0]?.mode_of_payment || 'Cash')
     }
   }, [paymentMethods])
 
@@ -209,8 +212,8 @@ export function POSOpeningModal({
             >
               {methodsLoading ? (
                 <option>Loading...</option>
-              ) : paymentMethods && paymentMethods.length > 0 ? (
-                paymentMethods.map((method) => (
+              ) : asArray(paymentMethods).length > 0 ? (
+                asArray(paymentMethods).map((method) => (
                   <option key={method.mode_of_payment} value={method.mode_of_payment}>
                     {method.mode_of_payment}
                     {method.default ? ' (Default)' : ''}
