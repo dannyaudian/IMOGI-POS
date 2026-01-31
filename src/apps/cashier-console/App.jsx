@@ -34,8 +34,6 @@ function CounterPOSContent({ initialState }) {
     openingStatus,
     openingError,
     retryOpening,
-    handleOpeningSuccess,
-    handleOpeningCancel,
     serverContextReady,
     serverContextError,
     retryServerContext

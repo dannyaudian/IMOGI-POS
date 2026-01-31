@@ -289,21 +289,6 @@ export function usePOSProfileGuard(options = {}) {
     }
     return available_profiles.find((profile) => profile.name === pos_profile) || null
   }, [available_profiles, pos_profile])
-  
-  // Handle opening modal success
-  const handleOpeningSuccess = useCallback((result) => {
-    setShowOpeningModal(false)
-    setGuardPassed(true)
-    if (refetchOpening) {
-      setOpeningRefreshRequested(true)
-      refetchOpening()
-    }
-  }, [refetchOpening])
-  
-  // Handle opening modal cancel - redirect to module-select
-  const handleOpeningCancel = useCallback(() => {
-    window.location.href = MODULE_SELECT_URL
-  }, [])
 
   useEffect(() => {
     const handleSessionOpened = () => {
@@ -336,12 +321,6 @@ export function usePOSProfileGuard(options = {}) {
     // POS Opening data (if required)
     posOpening: posOpening || null,
     hasOpening: !!(posOpening && posOpening.pos_opening_entry),
-    
-    // Opening modal controls
-    showOpeningModal,
-    setShowOpeningModal,
-    handleOpeningSuccess,
-    handleOpeningCancel,
     
     // Redirect helper
     redirectToModuleSelect: () => {
