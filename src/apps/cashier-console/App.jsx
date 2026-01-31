@@ -70,8 +70,46 @@ function CounterPOSContent({ initialState }) {
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || null
+  const effectivePosProfile = posProfile || initialState.pos_profile || null
+  
+  // Explicitly validate and set POS mode (Counter or Table)
+  const validModes = ['Counter', 'Table']
+  const posMode = profileData?.mode || contextMode
+  const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
+  
+  // Determine if we should fetch orders (only after guard passes)
+  // CRITICAL: Define this BEFORE any conditional returns to avoid ReferenceError
+  const shouldFetchOrders = guardPassed && hasValidOpening && !guardLoading
+  
+  // Map POS mode to order type for API
+  const orderType = mode === 'Table' ? 'Dine In' : 'Counter'
+  
+  // Fetch orders for current mode (Counter or Dine In)
+  // CRITICAL: Call hooks BEFORE any conditional returns (React rules of hooks)
+  const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
+    shouldFetchOrders ? effectivePosProfile : null,
+    shouldFetchOrders ? effectiveBranch : null,
+    shouldFetchOrders ? orderType : null
+  )
+  
+  // Fetch Self Order orders - only if enabled in POS Profile
+  const shouldFetchSelfOrder = shouldFetchOrders && profileData?.imogi_enable_self_order === 1
+  const { data: selfOrders } = useOrderHistory(
+    shouldFetchSelfOrder ? effectivePosProfile : null,
+    shouldFetchSelfOrder ? effectiveBranch : null,
+    shouldFetchSelfOrder ? 'Self Order' : null
+  )
+  
+  // Fetch Kiosk orders - only if enabled in POS Profile
+  const shouldFetchKiosk = shouldFetchOrders && profileData?.imogi_enable_kiosk === 1
+  const { data: kioskOrders } = useOrderHistory(
+    shouldFetchKiosk ? effectivePosProfile : null,
+    shouldFetchKiosk ? effectiveBranch : null,
+    shouldFetchKiosk ? 'Kiosk' : null
+  )
 
   // Block screen if no opening (show error without redirect)
+  // CRITICAL: This return must come AFTER all hook calls
   if (!guardLoading && !guardPassed && openingStatus === 'missing') {
     console.error('[CashierConsole] Blocked: No active POS Opening Entry', {
       posProfile,
@@ -98,41 +136,6 @@ function CounterPOSContent({ initialState }) {
       />
     )
   }
-  const effectivePosProfile = posProfile || initialState.pos_profile || null
-  
-  // Explicitly validate and set POS mode (Counter or Table)
-  const validModes = ['Counter', 'Table']
-  const posMode = profileData?.mode || contextMode
-  const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
-  
-  // Determine if we should fetch orders (only after guard passes)
-  const shouldFetchOrders = guardPassed && hasValidOpening && !guardLoading
-  
-  // Map POS mode to order type for API
-  const orderType = mode === 'Table' ? 'Dine In' : 'Counter'
-  
-  // Fetch orders for current mode (Counter or Dine In)
-  const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
-    shouldFetchOrders ? effectivePosProfile : null,
-    shouldFetchOrders ? effectiveBranch : null,
-    shouldFetchOrders ? orderType : null
-  )
-  
-  // Fetch Self Order orders - only if enabled in POS Profile
-  const shouldFetchSelfOrder = shouldFetchOrders && profileData?.imogi_enable_self_order === 1
-  const { data: selfOrders } = useOrderHistory(
-    shouldFetchSelfOrder ? effectivePosProfile : null,
-    shouldFetchSelfOrder ? effectiveBranch : null,
-    shouldFetchSelfOrder ? 'Self Order' : null
-  )
-  
-  // Fetch Kiosk orders - only if enabled in POS Profile
-  const shouldFetchKiosk = shouldFetchOrders && profileData?.imogi_enable_kiosk === 1
-  const { data: kioskOrders } = useOrderHistory(
-    shouldFetchKiosk ? effectivePosProfile : null,
-    shouldFetchKiosk ? effectiveBranch : null,
-    shouldFetchKiosk ? 'Kiosk' : null
-  )
   
   // Combine all orders
   const orders = [
