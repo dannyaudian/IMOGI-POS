@@ -105,6 +105,12 @@ function CounterPOSContent({ initialState }) {
   const posMode = profileData?.mode || contextMode
   const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
   
+  // Determine if we should fetch orders (only after guard passes)
+  const shouldFetchOrders = guardPassed && hasValidOpening && !guardLoading
+  
+  // Map POS mode to order type for API
+  const orderType = mode === 'Table' ? 'Dine In' : 'Counter'
+  
   // Fetch orders for current mode (Counter or Dine In)
   const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
     shouldFetchOrders ? effectivePosProfile : null,
