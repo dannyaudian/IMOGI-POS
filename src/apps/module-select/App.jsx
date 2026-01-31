@@ -42,42 +42,6 @@ function App() {
   const [navigationLock, setNavigationLock] = useState(false)
   const [navigatingToModule, setNavigatingToModule] = useState(null)
 
-  // Check for reason and target parameters from URL (redirected from gated modules)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const reason = urlParams.get('reason')
-    const target = urlParams.get('target')
-    
-    if (reason === 'missing_pos_profile' && target && modules.length > 0) {
-      // Find the target module
-      const targetModule = modules.find(m => m.type === target.replace('imogi-', ''))
-      if (targetModule && targetModule.requires_pos_profile && contextState.available_pos_profiles.length > 0) {
-        // Auto-open profile selection modal
-        console.log('[Module Select] Auto-opening profile modal for:', target)
-        setPendingProfileModule(targetModule)
-        setShowProfileModal(true)
-        
-        // Clear URL parameters
-        window.history.replaceState({}, '', window.location.pathname)
-      }
-    }
-  }, [modules, contextState.available_pos_profiles])
-
-  // Auto-refresh when returning from native POS Opening Entry form
-  // Detects when user comes back after creating opening
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && refetchModuleData) {
-        // Page became visible again - refresh data to get new opening
-        console.log('[Module Select] Page visible - refreshing data for new POS opening')
-        refetchModuleData()
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [refetchModuleData])
-
   // Fetch available modules - no parameters needed
   const frappeContext = useContext(FrappeContext)
   const realtimeSocket = frappeContext?.socket
@@ -119,6 +83,42 @@ function App() {
       }
     }
   )
+
+  // Check for reason and target parameters from URL (redirected from gated modules)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const reason = urlParams.get('reason')
+    const target = urlParams.get('target')
+    
+    if (reason === 'missing_pos_profile' && target && modules.length > 0) {
+      // Find the target module
+      const targetModule = modules.find(m => m.type === target.replace('imogi-', ''))
+      if (targetModule && targetModule.requires_pos_profile && contextState.available_pos_profiles.length > 0) {
+        // Auto-open profile selection modal
+        console.log('[Module Select] Auto-opening profile modal for:', target)
+        setPendingProfileModule(targetModule)
+        setShowProfileModal(true)
+        
+        // Clear URL parameters
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [modules, contextState.available_pos_profiles])
+
+  // Auto-refresh when returning from native POS Opening Entry form
+  // Detects when user comes back after creating opening
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && refetchModuleData) {
+        // Page became visible again - refresh data to get new opening
+        console.log('[Module Select] Page visible - refreshing data for new POS opening')
+        refetchModuleData()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [refetchModuleData])
 
   useEffect(() => {
     if (!modulesLoading && moduleData) {
