@@ -566,13 +566,12 @@ function CounterPOSContent({ initialState }) {
 
   const handleSplitConfirm = (splits, method) => {
     console.log('Split confirmed:', { splits, method })
-    aleShowSummary(false)
+    setShowSummary(false)
     setViewMode('orders')
   }
 
   const handleCloseSummary = () => {
     setShowSummary(false)
-    setrt(`Split bill confirmed: ${splits.length} bills using ${method} method`)
     setShowSplit(false)
     setViewMode('orders')
   }
