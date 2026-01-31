@@ -1,5 +1,4 @@
 import React from 'react'
-import { formatDate } from 'frappe'
 
 /**
  * CashierSessionCard - Displays a single POS cashier session
