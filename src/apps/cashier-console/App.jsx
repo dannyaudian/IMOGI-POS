@@ -11,19 +11,39 @@ import { OrderDetailPanel } from './components/OrderDetailPanel'
 import { CashierHeader } from './components/CashierHeader'
 import { CashierActionBar } from './components/CashierActionBar'
 import { PaymentView } from './components/PaymentView'
+import { ShiftSummaryView } from './components/ShiftSummaryView'
+import { CloseShiftView } from './components/CloseShiftView'
 import { SplitBillView } from './components/SplitBillView'
 import { VariantPickerModal } from './components/VariantPickerModal'
 import { CatalogView } from './components/CatalogView'
 import { TableSelector } from './components/TableSelector'
 import { useCustomerDisplay } from './components/CustomerDisplay'
+import { BlockedScreen } from './components/BlockedScreen'
 import './App.css'
 import './CashierLayout.css'
 
 const asArray = (value) => (Array.isArray(value) ? value : [])
 
 function CounterPOSContent({ initialState }) {
-  // POS Profile guard - this module requires opening
+  // POS Profile guard - Native ERPNext v15: ALWAYS requires opening (shift-based)
   // No need for useAuth - Frappe Desk already handles authentication
+  
+  // Extract opening_entry from URL parameter (for multi-session support)
+  const [urlOpeningEntry, setUrlOpeningEntry] = useState(null)
+  const [validatedOpening, setValidatedOpening] = useState(null)
+  const [openingValidationError, setOpeningValidationError] = useState(null)
+  const [openingValidationLoading, setOpeningValidationLoading] = useState(false)
+  
+  // Extract opening_entry from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const openingParam = params.get('opening_entry')
+    if (openingParam) {
+      setUrlOpeningEntry(openingParam)
+      console.log('[cashier-console] Multi-session mode: opening_entry from URL:', openingParam)
+    }
+  }, [])
+  
   const {
     isLoading: guardLoading,
     guardPassed,
@@ -38,8 +58,9 @@ function CounterPOSContent({ initialState }) {
     serverContextError,
     retryServerContext
   } = usePOSProfileGuard({ 
-    requiresOpening: true,
-    targetModule: 'imogi-cashier'
+    requiresOpening: true,  // Native v15: always require opening
+    targetModule: 'imogi-cashier',
+    overrideOpeningEntry: validatedOpening?.name || null  // Use validated opening if available
   })
   
   // Use centralized POS context as fallback
@@ -47,6 +68,57 @@ function CounterPOSContent({ initialState }) {
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || null
+
+  // Block screen if opening_entry validation failed (multi-session)
+  if (urlOpeningEntry && openingValidationError && !openingValidationLoading) {
+    console.error('[CashierConsole] Blocked: Invalid opening_entry', {
+      urlOpeningEntry,
+      openingValidationError,
+      posProfile
+    })
+    
+    return (
+      <BlockedScreen
+        title="Invalid Cashier Session"
+        message={`Failed to validate cashier session: ${openingValidationError}. Please select a valid session from Module Select.`}
+        error={openingValidationError}
+        actions={[
+          { 
+            label: "Kembali ke Module Select", 
+            href: "/app/imogi-module-select" 
+          }
+        ]}
+      />
+    )
+  }
+
+  // Block screen if no opening (show error without redirect)
+  if (!guardLoading && !guardPassed && openingStatus === 'missing') {
+    console.error('[CashierConsole] Blocked: No active POS Opening Entry', {
+      posProfile,
+      openingStatus,
+      openingError,
+      posOpening
+    })
+    
+    return (
+      <BlockedScreen
+        title="POS Opening belum ada"
+        message="Silakan buat POS Opening Entry via ERPNext. Setelah itu refresh halaman ini."
+        error={openingError?.message || openingError}
+        actions={[
+          { 
+            label: "Buat POS Opening Entry", 
+            href: `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(posProfile || '')}` 
+          },
+          { 
+            label: "Kembali ke Module Select", 
+            href: "/app/imogi-module-select" 
+          }
+        ]}
+      />
+    )
+  }
   const effectivePosProfile = posProfile || initialState.pos_profile || null
   
   // Explicitly validate and set POS mode (Counter or Table)
@@ -101,9 +173,11 @@ function CounterPOSContent({ initialState }) {
   
   // State management
   const [selectedOrder, setSelectedOrder] = useState(null)
-  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split
+  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split, summary, close
   const [showPayment, setShowPayment] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
+  const [showSummary, setShowSummary] = useState(false)
+  const [showCloseShift, setShowCloseShift] = useState(false)
   const [showVariantPicker, setShowVariantPicker] = useState(false)
   const [variantPickerContext, setVariantPickerContext] = useState(null)
   const [showTableSelector, setShowTableSelector] = useState(false)
@@ -114,6 +188,48 @@ function CounterPOSContent({ initialState }) {
   
   // Customer Display
   const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
+
+  // Validate opening_entry from URL if provided (multi-session support)
+  useEffect(() => {
+    if (urlOpeningEntry && posProfile && !validatedOpening && !openingValidationError) {
+      validateOpeningEntry()
+    }
+  }, [urlOpeningEntry, posProfile])
+
+  const validateOpeningEntry = async () => {
+    if (!urlOpeningEntry || !posProfile) {
+      return
+    }
+
+    try {
+      setOpeningValidationLoading(true)
+      console.log('[cashier-console] Validating opening_entry:', urlOpeningEntry, 'for pos_profile:', posProfile)
+      
+      const response = await apiCall(
+        'imogi_pos.api.module_select.validate_opening_session',
+        {
+          opening_entry: urlOpeningEntry,
+          pos_profile: posProfile
+        }
+      )
+
+      if (!response || !response.success) {
+        const errorMsg = response?.error || 'Invalid opening entry'
+        console.error('[cashier-console] Opening validation failed:', errorMsg)
+        setOpeningValidationError(errorMsg)
+        setOpeningValidationLoading(false)
+        return
+      }
+
+      console.log('[cashier-console] Opening validated successfully:', response.opening)
+      setValidatedOpening(response.opening)
+      setOpeningValidationLoading(false)
+    } catch (error) {
+      console.error('[cashier-console] Error validating opening_entry:', error)
+      setOpeningValidationError(error.message || 'Failed to validate opening entry')
+      setOpeningValidationLoading(false)
+    }
+  }
 
   // Load branding on mount
   useEffect(() => {
@@ -166,6 +282,33 @@ function CounterPOSContent({ initialState }) {
     return () => window.removeEventListener('selectVariant', handleSelectVariant)
   }, [selectedOrder])
 
+  // Listen for shift summary trigger from header
+  useEffect(() => {
+    const handleShowSummary = () => {
+      setShowSummary(true)
+      setShowPayment(false)
+      setShowCloseShift(false)
+      setViewMode('summary')
+    }
+
+    window.addEventListener('showShiftSummary', handleShowSummary)
+    return () => window.removeEventListener('showShiftSummary', handleShowSummary)
+  }, [])
+
+  // Listen for close shift trigger from header
+  useEffect(() => {
+    const handleCloseShift = () => {
+      setShowCloseShift(true)
+      setShowPayment(false)
+      setShowSplit(false)
+      setShowSummary(false)
+      setViewMode('close')
+    }
+
+    window.addEventListener('closeShift', handleCloseShift)
+    return () => window.removeEventListener('closeShift', handleCloseShift)
+  }, [])
+
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
   // This prevents infinite loading state when context selection is required
   useEffect(() => {
@@ -202,7 +345,7 @@ function CounterPOSContent({ initialState }) {
     )
   }
   
-  // Wait for guard to pass
+  // Wait for guard to pass (native v15: always requires POS opening)
   if (!guardPassed) {
     return <LoadingSpinner message="Verifying POS opening..." />
   }
@@ -213,6 +356,60 @@ function CounterPOSContent({ initialState }) {
     setViewMode('orders')
     setShowPayment(false)
     setShowSplit(false)
+  }
+
+  const handleClaimOrder = async (order) => {
+    /**
+     * Claim order for processing in multi-session mode.
+     * This prevents multiple cashiers from processing the same order.
+     */
+    if (!order || !order.name) {
+      console.error('[Cashier] Invalid order for claim', order)
+      throw new Error('Invalid order')
+    }
+
+    try {
+      console.log('[Cashier] Claiming order:', order.name)
+      
+      const openingEntry = validatedOpening?.name || urlOpeningEntry || (posOpening?.pos_opening_entry)
+      if (!openingEntry) {
+        console.warn('[Cashier] No opening_entry available for claim')
+        // In single-session mode, just select the order
+        handleSelectOrder(order)
+        return
+      }
+
+      // Call claim_order API
+      const response = await apiCall(
+        'imogi_pos.api.order_concurrency.claim_order',
+        {
+          order_name: order.name,
+          opening_entry: openingEntry
+        }
+      )
+
+      if (!response || !response.success) {
+        throw new Error(response?.message || response?.error || 'Failed to claim order')
+      }
+
+      console.log('[Cashier] Order claimed successfully:', response)
+      
+      // Refresh orders to get updated claim status
+      // Note: This would trigger a refetch in the actual implementation
+      
+      // Select the claimed order
+      handleSelectOrder({...order, claimed_by: frappe.session.user})
+    } catch (error) {
+      console.error('[Cashier] Error claiming order:', error)
+      // Show error message but allow fallback
+      frappe.msgprint({
+        title: 'Claim Error',
+        message: error.message || 'Failed to claim order. You may still process it.',
+        indicator: 'orange'
+      })
+      // Still allow selecting the order
+      handleSelectOrder(order)
+    }
   }
 
   const handleNewOrder = () => {
@@ -419,6 +616,7 @@ function CounterPOSContent({ initialState }) {
     if (!selectedOrder) return
     setShowSplit(true)
     setShowPayment(false)
+    setShowSummary(false)
     setViewMode('split')
   }
 
@@ -438,7 +636,13 @@ function CounterPOSContent({ initialState }) {
 
   const handleSplitConfirm = (splits, method) => {
     console.log('Split confirmed:', { splits, method })
-    alert(`Split bill confirmed: ${splits.length} bills using ${method} method`)
+    aleShowSummary(false)
+    setViewMode('orders')
+  }
+
+  const handleCloseSummary = () => {
+    setShowSummary(false)
+    setrt(`Split bill confirmed: ${splits.length} bills using ${method} method`)
     setShowSplit(false)
     setViewMode('orders')
   }
@@ -489,12 +693,14 @@ function CounterPOSContent({ initialState }) {
           orders={orders || []}
           selectedOrder={selectedOrder}
           onSelectOrder={handleSelectOrder}
+          onClaimOrder={handleClaimOrder}
           posMode={posMode}
+          isMultiSession={!!validatedOpening || !!urlOpeningEntry}
         />
         
         <div className="cashier-console-main">
           <div className="cashier-console-content">
-            {viewMode === 'orders' && !showPayment && !showSplit && (
+            {viewMode === 'orders' && !showPayment && !showSplit && !showSummary && !showCloseShift && (
               <OrderDetailPanel order={selectedOrder} posMode={posMode} />
             )}
             
@@ -508,11 +714,29 @@ function CounterPOSContent({ initialState }) {
             {showPayment && (
               <PaymentView
                 order={selectedOrder}
+                posProfile={effectivePosProfile}
                 onClose={() => {
                   setShowPayment(false)
                   setViewMode('orders')
                 }}
                 onPaymentComplete={handlePaymentComplete}
+              />
+            )}
+
+            {showSummary && (
+              <ShiftSummaryView
+                posProfile={effectivePosProfile}
+                posOpening={posOpening}
+                onClose={handleCloseSummary}
+              />
+            )}
+
+            {showCloseShift && (
+              <CloseShiftView
+                posProfile={effectivePosProfile}
+                posOpening={posOpening}
+                onClose={handleCloseShiftView}
+                onShiftClosed={handleShiftClosed}
               />
             )}
             

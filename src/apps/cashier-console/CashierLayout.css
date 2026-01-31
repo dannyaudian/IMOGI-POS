@@ -295,6 +295,46 @@
   gap: var(--spacing-md) !important;
 }
 
+.cashier-console .cashier-header .header-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  color: var(--gray-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--touch-min);
+}
+
+.cashier-console .cashier-header .header-action-btn:hover {
+  background: var(--gray-50);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.cashier-console .cashier-header .header-action-btn.close-shift-btn {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.cashier-console .cashier-header .header-action-btn.close-shift-btn:hover {
+  background: #fee2e2;
+  border-color: var(--danger-color);
+}
+
+.cashier-console .cashier-header .header-action-btn i {
+  font-size: 1rem;
+}
+
+.cashier-console .cashier-header .action-label {
+  font-weight: 500;
+}
+
 .cashier-console .cashier-header .search-scan-form {
   display: flex;
   gap: 0.25rem;
@@ -529,6 +569,60 @@
 .badge-kiosk {
   background-color: #e8f5e9;
   color: #388e3c;
+}
+
+/* ===== ORDER CLAIM STATUS (Multi-Session) ===== */
+.badge-claimed-by-me {
+  background-color: #d5f4e6;
+  color: #27ae60;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.badge-claimed-by-other {
+  background-color: #fadbd8;
+  color: #c0392b;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.order-card-claim-btn {
+  padding: 0.25rem var(--spacing-sm);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: #d6eaf8;
+  color: #2980b9;
+  border: 1px solid #a9cce3;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.order-card-claim-btn:hover:not(:disabled) {
+  background-color: #aed6f1;
+  color: #1e5fa6;
+  border-color: #85c1e2;
+}
+
+.order-card-claim-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.order-claimed-other {
+  opacity: 0.7;
+  background-color: #faf9f7 !important;
+  cursor: not-allowed !important;
+}
+
+.order-claimed-other:hover {
+  border-color: var(--gray-200) !important;
+  box-shadow: none !important;
 }
 
 .order-card-info {

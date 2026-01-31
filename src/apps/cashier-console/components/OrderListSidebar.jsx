@@ -4,10 +4,15 @@ export function OrderListSidebar({
   orders = [], 
   selectedOrder, 
   onSelectOrder,
-  posMode 
+  onClaimOrder,
+  claimedOrders = {},
+  posMode,
+  isMultiSession = false
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
+  const [claimingOrderId, setClaimingOrderId] = useState(null)
+  const [claimError, setClaimError] = useState(null)
 
   // Explicitly define mode-specific labels and icons
   const MODE_CONFIG = {
@@ -67,6 +72,43 @@ export function OrderListSidebar({
     })
   }
 
+  const handleClaimOrder = async (e, order) => {
+    e.stopPropagation()
+    
+    if (!onClaimOrder) {
+      console.warn('[OrderListSidebar] onClaimOrder handler not provided')
+      return
+    }
+
+    setClaimingOrderId(order.name)
+    setClaimError(null)
+
+    try {
+      await onClaimOrder(order)
+      setClaimingOrderId(null)
+    } catch (error) {
+      console.error('[OrderListSidebar] Error claiming order:', error)
+      setClaimError(error.message || 'Failed to claim order')
+      setClaimingOrderId(null)
+    }
+  }
+
+  const getCurrentUser = () => {
+    return frappe?.session?.user || 'unknown'
+  }
+
+  const isOrderClaimed = (order) => {
+    return order.claimed_by && order.claimed_by !== ''
+  }
+
+  const isOrderClaimedByMe = (order) => {
+    return order.claimed_by === getCurrentUser()
+  }
+
+  const isOrderClaimedByOther = (order) => {
+    return isOrderClaimed(order) && !isOrderClaimedByMe(order)
+  }
+
   return (
     <div className="cashier-sidebar">
       <div className="filter-bar">
@@ -111,15 +153,43 @@ export function OrderListSidebar({
             <p>No orders found</p>
           </div>
         ) : (
-          filteredOrders.map(order => (
+          filteredOrders.map(order => {
+            const isClaimed = isOrderClaimed(order)
+            const isClaimedByMe = isOrderClaimedByMe(order)
+            const isClaimedByOther = isOrderClaimedByOther(order)
+            const canClaim = !isClaimed || isClaimedByMe
+            
+            return (
             <div
               key={order.name}
-              className={`order-card ${selectedOrder?.name === order.name ? 'active' : ''}`}
-              onClick={() => onSelectOrder(order)}
+              className={`order-card ${selectedOrder?.name === order.name ? 'active' : ''} ${isClaimedByOther ? 'order-claimed-other' : ''}`}
+              onClick={() => !isClaimedByOther && onSelectOrder(order)}
+              title={isClaimedByOther ? `Claimed by ${order.claimed_by}` : ''}
             >
               <div className="order-card-header">
                 <span className="order-card-number">{order.name}</span>
                 <div className="order-card-badges">
+                  {/* Claim Status Badge (Multi-Session) */}
+                  {isMultiSession && isClaimed && (
+                    <span className={`order-card-badge ${isClaimedByMe ? 'badge-claimed-by-me' : 'badge-claimed-by-other'}`}>
+                      <i className={`fa ${isClaimedByMe ? 'fa-check-circle' : 'fa-lock'}`}></i>
+                      {isClaimedByMe ? 'Claimed' : 'Locked'}
+                    </span>
+                  )}
+                  
+                  {/* Claim Button (Multi-Session) */}
+                  {isMultiSession && !isClaimed && (
+                    <button
+                      className="order-card-claim-btn"
+                      onClick={(e) => handleClaimOrder(e, order)}
+                      disabled={claimingOrderId === order.name}
+                      title="Claim this order for processing"
+                    >
+                      <i className={`fa ${claimingOrderId === order.name ? 'fa-spinner fa-spin' : 'fa-lock-open'}`}></i>
+                      Claim
+                    </button>
+                  )}
+                  
                   {/* Order Type Badge */}
                   {order.order_type === 'Self Order' && (
                     <span className="order-card-badge badge-self-order">
@@ -173,7 +243,8 @@ export function OrderListSidebar({
                 <span>{formatCurrency(order.grand_total)}</span>
               </div>
             </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

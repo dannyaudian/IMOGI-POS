@@ -858,3 +858,187 @@ def get_module_access_info(module_type, user=None):
         'required_roles': config.get('requires_roles', []) if config else [],
         'module_config': config
     }
+
+# ============================================================================
+# MULTI-SESSION SUPPORT (Jan 2026 - Multiple Concurrent Cashier Sessions)
+# ============================================================================
+
+@frappe.whitelist()
+def list_open_cashier_sessions(pos_profile=None, company=None):
+    """
+    List all open (active) POS Opening Entries for cashier console.
+    
+    Supports multiple concurrent cashier sessions on same POS Profile.
+    Each session card in Module Select represents one opening.
+    
+    Args:
+        pos_profile (str, optional): POS Profile name. If not provided, uses operational context.
+        company (str, optional): Filter by company.
+        
+    Returns:
+        dict with:
+            - sessions: List of open POS Opening Entries
+            - total: Count of open sessions
+            - pos_profile: POS Profile used
+            - has_sessions: Boolean indicating if any sessions exist
+    """
+    try:
+        from imogi_pos.utils.operational_context import get_active_operational_context
+        
+        # Get context if pos_profile not provided
+        if not pos_profile:
+            context = get_active_operational_context(
+                user=frappe.session.user,
+                auto_resolve=True
+            )
+            pos_profile = context.get("pos_profile")
+        
+        if not pos_profile:
+            return {
+                'success': False,
+                'sessions': [],
+                'total': 0,
+                'pos_profile': None,
+                'has_sessions': False,
+                'error': 'No POS Profile configured'
+            }
+        
+        # Build query filters
+        filters = {
+            'pos_profile': pos_profile,
+            'docstatus': 1,  # Submitted only
+            'status': 'Open'  # Not closed
+        }
+        
+        # Add company filter if provided
+        if company:
+            filters['company'] = company
+        
+        # Query open POS Opening Entries
+        date_field = _resolve_pos_opening_date_field()
+        sessions = frappe.get_list(
+            'POS Opening Entry',
+            filters=filters,
+            fields=['name', 'user', 'company', date_field, 'status', 'opening_balance'],
+            order_by=f'{date_field} desc'
+        )
+        
+        # Format response
+        session_list = []
+        for session in sessions:
+            session_list.append({
+                'name': session.get('name'),
+                'opening_entry': session.get('name'),  # Alias for consistency
+                'user': session.get('user'),
+                'cashier': session.get('user'),  # Alias for UI consistency
+                'period_start_date': session.get(date_field),
+                'company': session.get('company'),
+                'status': session.get('status'),
+                'opening_balance': session.get('opening_balance', 0)
+            })
+        
+        return {
+            'success': True,
+            'sessions': session_list,
+            'total': len(session_list),
+            'pos_profile': pos_profile,
+            'has_sessions': len(session_list) > 0
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in list_open_cashier_sessions: {str(e)}')
+        return {
+            'success': False,
+            'sessions': [],
+            'total': 0,
+            'pos_profile': pos_profile,
+            'has_sessions': False,
+            'error': str(e)
+        }
+
+
+@frappe.whitelist()
+def validate_opening_session(opening_entry, pos_profile):
+    """
+    Validate that an opening_entry is valid and matches the pos_profile.
+    Used by Cashier Console to verify opening_entry from URL/route.
+    
+    Args:
+        opening_entry (str): POS Opening Entry name to validate
+        pos_profile (str): Expected POS Profile
+        
+    Returns:
+        dict with:
+            - valid: Boolean
+            - opening: Opening entry details if valid
+            - error: Error message if invalid
+    """
+    try:
+        if not opening_entry or not pos_profile:
+            return {
+                'valid': False,
+                'opening': None,
+                'error': 'opening_entry and pos_profile are required'
+            }
+        
+        # Check if opening entry exists
+        if not frappe.db.exists('POS Opening Entry', opening_entry):
+            return {
+                'valid': False,
+                'opening': None,
+                'error': f'POS Opening Entry "{opening_entry}" not found'
+            }
+        
+        # Fetch opening entry
+        opening = frappe.get_doc('POS Opening Entry', opening_entry)
+        
+        # Validate pos_profile matches
+        if opening.pos_profile != pos_profile:
+            return {
+                'valid': False,
+                'opening': None,
+                'error': f'Opening belongs to {opening.pos_profile}, but expected {pos_profile}'
+            }
+        
+        # Validate status is Open
+        if opening.status != 'Open':
+            return {
+                'valid': False,
+                'opening': None,
+                'error': f'Opening status is {opening.status}, must be Open'
+            }
+        
+        # Validate docstatus is submitted
+        if opening.docstatus != 1:
+            return {
+                'valid': False,
+                'opening': None,
+                'error': 'Opening is not submitted'
+            }
+        
+        # Return opening details
+        date_field = _resolve_pos_opening_date_field()
+        return {
+            'valid': True,
+            'opening': {
+                'name': opening.name,
+                'opening_entry': opening.name,
+                'pos_profile': opening.pos_profile,
+                'company': opening.company,
+                'user': opening.user,
+                'cashier': opening.user,
+                'status': opening.status,
+                'opening_balance': opening.opening_balance or 0,
+                'period_start_date': getattr(opening, date_field),
+                'creation': opening.creation
+            },
+            'error': None
+        }
+    
+    except Exception as e:
+        frappe.log_error(f'Error in validate_opening_session: {str(e)}')
+        return {
+            'valid': False,
+            'opening': None,
+            'error': f'Validation error: {str(e)}'
+        }

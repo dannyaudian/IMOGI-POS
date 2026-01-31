@@ -7,6 +7,7 @@ import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
+import CashierSessionCard from './components/CashierSessionCard'
 import POSProfileSelectModal from './components/POSProfileSelectModal'
 import { deskNavigate } from '../../shared/utils/deskNavigate'
 
@@ -37,6 +38,11 @@ function App() {
   // POS Profile modal state  
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [pendingProfileModule, setPendingProfileModule] = useState(null)
+  
+  // Multi-session support for Cashier module
+  const [showCashierSessions, setShowCashierSessions] = useState(false)
+  const [cashierSessions, setCashierSessions] = useState([])
+  const [cashierSessionsLoading, setCashierSessionsLoading] = useState(false)
   
   // Navigation lock to prevent duplicate clicks and route bounces
   const [navigationLock, setNavigationLock] = useState(false)
@@ -508,6 +514,146 @@ function App() {
     navigateToModule(module)
   }
 
+  const handleCashierSessionSelection = async (session) => {
+    /**
+     * When a cashier session is selected from the multi-session view,
+     * navigate to cashier console with opening_entry parameter.
+     */
+    try {
+      if (!session || !session.name) {
+        console.error('[module-select] Invalid session selected', session)
+        return
+      }
+
+      console.log('[module-select] Navigating to cashier with session:', session.name)
+      
+      // Find the cashier module
+      const cashierModule = modules.find(m => m.type === 'cashier')
+      if (!cashierModule) {
+        frappe.msgprint({
+          title: 'Error',
+          message: 'Cashier module not found',
+          indicator: 'red'
+        })
+        return
+      }
+
+      // Navigate to cashier console with opening_entry parameter
+      const base = cashierModule?.base_url || cashierModule?.url || ''
+      if (!base) {
+        console.error('[module-select] Cannot navigate: no URL provided for cashier', cashierModule)
+        return
+      }
+
+      const url = new URL(base, window.location.origin)
+      
+      // Add opening_entry parameter
+      url.searchParams.set('opening_entry', session.name)
+      url.searchParams.set('_reload', Date.now())
+      
+      setNavigationLock(true)
+      setNavigatingToModule('cashier')
+      
+      console.log('🚀 [MULTI-SESSION NAVIGATION] Module-select → cashier', {
+        opening_entry: session.name,
+        to_route: url.pathname + url.search,
+        timestamp: new Date().toISOString()
+      })
+      
+      deskNavigate(url.pathname + url.search, {
+        logPrefix: '[module-select → cashier (multi-session)]'
+      })
+      
+      setTimeout(() => {
+        setNavigationLock(false)
+        setNavigatingToModule(null)
+      }, 3000)
+    } catch (error) {
+      console.error('[module-select] Error navigating to cashier session:', error)
+      frappe.msgprint({
+        title: 'Navigation Error',
+        message: error.message || 'Failed to open cashier session',
+        indicator: 'red'
+      })
+    }
+  }
+
+  const handleCashierModuleClick = async () => {
+    /**
+     * When cashier module is clicked:
+     * 1. Fetch list of open cashier sessions for current pos_profile
+     * 2. If only 1 session: navigate directly
+     * 3. If multiple sessions: show session picker
+     * 4. If no sessions: show message about creating opening
+     */
+    if (!contextData.pos_profile) {
+      frappe.msgprint({
+        title: 'POS Profile Required',
+        message: 'Please select a POS Profile first.',
+        indicator: 'orange'
+      })
+      return
+    }
+
+    try {
+      setCashierSessionsLoading(true)
+      console.log('[module-select] Fetching open cashier sessions for pos_profile:', contextData.pos_profile)
+      
+      const response = await apiCall(
+        'imogi_pos.api.module_select.list_open_cashier_sessions',
+        {
+          pos_profile: contextData.pos_profile,
+          company: null
+        }
+      )
+
+      if (!response || !response.success) {
+        throw new Error(response?.message || 'Failed to fetch cashier sessions')
+      }
+
+      const sessions = response.sessions || []
+      console.log(`[module-select] Found ${sessions.length} open cashier sessions`)
+
+      if (sessions.length === 0) {
+        // No open sessions - show message about creating new opening
+        frappe.msgprint({
+          title: 'No Active Sessions',
+          message: 'No open POS Opening Entry found. Please create a new opening to access Cashier Console.',
+          indicator: 'orange',
+          primary_action: {
+            label: 'Create Opening',
+            action: () => {
+              window.location.href = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(contextData.pos_profile)}`
+            }
+          }
+        })
+        setCashierSessionsLoading(false)
+        return
+      }
+
+      if (sessions.length === 1) {
+        // Single session - navigate directly
+        console.log('[module-select] Single session found, navigating directly to:', sessions[0].name)
+        setCashierSessionsLoading(false)
+        await handleCashierSessionSelection(sessions[0])
+      } else {
+        // Multiple sessions - show picker
+        console.log('[module-select] Multiple sessions found, showing session picker')
+        setCashierSessions(sessions)
+        setShowCashierSessions(true)
+        setCashierSessionsLoading(false)
+      }
+    } catch (error) {
+      console.error('[module-select] Error handling cashier module click:', error)
+      setCashierSessionsLoading(false)
+      frappe.msgprint({
+        title: 'Error',
+        message: error.message || 'Failed to fetch cashier sessions',
+        indicator: 'red'
+      })
+    }
+  }
+
   const handleModuleClick = async (module) => {
     // Prevent duplicate clicks during navigation
     if (navigationLock) {
@@ -518,8 +664,15 @@ function App() {
     console.log('🖱️  [MODULE CLICK]', module.name, {
       requires_pos_profile: module.requires_pos_profile,
       current_pos_profile: contextData.pos_profile,
-      navigation_lock: navigationLock
+      navigation_lock: navigationLock,
+      module_type: module.type
     })
+    
+    // Special handling for Cashier module - support multi-session
+    if (module.type === 'cashier') {
+      await handleCashierModuleClick()
+      return
+    }
     
     if (module.requires_pos_profile && !contextData.pos_profile) {
       if (contextData.available_pos_profiles.length === 0) {
@@ -832,6 +985,67 @@ function App() {
         onClose={handleProfileModalClose}
         onConfirm={handleProfileSelection}
       />
+      
+      {/* Cashier Multi-Session Picker */}
+      {showCashierSessions && (
+        <div className="cashier-sessions-modal">
+          <div className="cashier-sessions-overlay" onClick={() => setShowCashierSessions(false)}></div>
+          <div className="cashier-sessions-dialog">
+            <div className="cashier-sessions-header">
+              <h2>Select Cashier Session</h2>
+              <button 
+                className="cashier-sessions-close"
+                onClick={() => setShowCashierSessions(false)}
+                aria-label="Close"
+              >
+                <i className="fa-solid fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="cashier-sessions-body">
+              {cashierSessions && cashierSessions.length > 0 ? (
+                <div className="cashier-sessions-grid">
+                  {cashierSessions.map((session) => (
+                    <div key={session.name} className="cashier-session-item">
+                      <CashierSessionCard
+                        session={session}
+                        onClick={() => {
+                          setShowCashierSessions(false)
+                          handleCashierSessionSelection(session)
+                        }}
+                        isNavigating={navigationLock && navigatingToModule === 'cashier'}
+                        isLoading={navigationLock && navigatingToModule === 'cashier'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="cashier-no-sessions">
+                  <p>No open cashier sessions found</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="cashier-sessions-footer">
+              <button 
+                className="cashier-sessions-btn-cancel"
+                onClick={() => setShowCashierSessions(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="cashier-sessions-btn-new"
+                onClick={() => {
+                  setShowCashierSessions(false)
+                  window.location.href = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(contextData.pos_profile)}`
+                }}
+              >
+                <i className="fa-solid fa-plus"></i> New Opening
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

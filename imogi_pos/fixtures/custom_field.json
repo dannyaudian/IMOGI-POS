@@ -1339,5 +1339,33 @@
     "description": "Default POS Profile for IMOGI POS module selection. Takes priority over branch.",
     "in_list_view": 1,
     "in_standard_filter": 1
+  },
+  {
+    "fieldname": "claimed_by",
+    "fieldtype": "Link",
+    "label": "Claimed By",
+    "options": "User",
+    "read_only": 0,
+    "insert_after": "pos_profile",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "POS Order",
+    "doctype": "Custom Field",
+    "name": "POS Order-claimed_by",
+    "description": "Cashier who has claimed this order for processing. Prevents concurrent cashier conflicts in multi-session mode."
+  },
+  {
+    "fieldname": "claimed_at",
+    "fieldtype": "Datetime",
+    "label": "Claimed At",
+    "options": "",
+    "read_only": 0,
+    "insert_after": "claimed_by",
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "POS Order",
+    "doctype": "Custom Field",
+    "name": "POS Order-claimed_at",
+    "description": "Timestamp when the order was claimed by the cashier. Used to track claim timing."
   }
 ]

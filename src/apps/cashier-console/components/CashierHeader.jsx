@@ -167,8 +167,28 @@ export function CashierHeader({
           </div>
         </div>
 
-        {/* Right: Search/Scan + Printer Status */}
+        {/* Right: Actions + Search/Scan + Printer Status */}
         <div className="header-right">
+          <button
+            className="header-action-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('showShiftSummary'))}
+            title="Ringkasan Shift"
+            aria-label="Show Shift Summary"
+          >
+            <i className="fa fa-chart-bar"></i>
+            <span className="action-label">Ringkasan</span>
+          </button>
+
+          <button
+            className="header-action-btn close-shift-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('closeShift'))}
+            title="Tutup Shift"
+            aria-label="Close Shift"
+          >
+            <i className="fa fa-door-closed"></i>
+            <span className="action-label">Tutup Shift</span>
+          </button>
+
           <form className="search-scan-form" onSubmit={handleScanSubmit}>
             <input
               type="text"

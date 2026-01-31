@@ -243,10 +243,9 @@ export function usePOSProfileGuard(options = {}) {
       }
 
       if (openingStatus === 'missing') {
-        // Redirect to native ERPNext POS Opening Entry form
+        // Block access - let consuming component show error screen
+        // (no auto-redirect, so console errors are visible)
         setGuardPassed(false)
-        const createUrl = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(pos_profile)}`
-        window.location.href = createUrl
         return
       }
     }

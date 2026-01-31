@@ -317,6 +317,15 @@
         "doctype": "Workflow Transition"
       },
       {
+        "state": "Served",
+        "action": "Close Order",
+        "next_state": "Closed",
+        "allowed": "Cashier",
+        "allow_self_approval": 1,
+        "condition": "",
+        "doctype": "Workflow Transition"
+      },
+      {
         "state": "Draft",
         "action": "Cancel",
         "next_state": "Cancelled",
