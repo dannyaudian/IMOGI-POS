@@ -210,7 +210,7 @@ bench restart
 
 - [REACT_MIGRATION_COMPLETE.md](REACT_MIGRATION_COMPLETE.md) - Detailed migration guide
 - [REACT_COMPLETE.md](REACT_COMPLETE.md) - Complete architecture
-- [REACT_ARCHITECTURE.md](REACT_ARCHITECTURE.md) - Architecture overview
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Architecture overview
 - [REACT_SETUP.md](REACT_SETUP.md) - Initial setup guide
 
 ## 🎉 Status

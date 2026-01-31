@@ -138,12 +138,9 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 ## Documentation
 
 ### For Developers
-- **[Architecture Overview](IMOGI_POS_ARCHITECTURE.md)** - System architecture and design patterns
-- **[React Architecture](REACT_ARCHITECTURE.md)** - React app structure and patterns
+- **[Architecture Overview](ARCHITECTURE.md)** - System architecture, module structure, and POS profile resolver
 - **[React Quickstart](REACT_QUICKSTART.md)** - Quick development guide
-- **[API & Session Handling](API_SESSION_HANDLING_FIX.md)** - API call patterns and session management
-- **[Navigation Patterns](ROUTE_TRANSITION_FIX.md)** - SPA navigation and route handling
-- **[Loader Implementation](REACT_LOADER_REFACTOR.md)** - React bundle loading system
+- **[Finalization Archive](FINALIZATION_ARCHIVE.md)** - Historical fixes, audits, and refactor notes
 
 ### For Operations
 - **[Production Deploy Guide](PRODUCTION_DEPLOY_GUIDE.md)** - Complete deployment procedures
@@ -151,10 +148,7 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 - **[Security Summary](SECURITY_SUMMARY.md)** - Security measures and best practices
 
 ### For Maintenance
-- **[Cleanup Audit](CLEANUP_AUDIT.md)** - Code audit and cleanup findings
-- **[Permanent Cleanup Implementation](PERMANENT_CLEANUP_IMPLEMENTATION.md)** - Cleanup execution guide
-- **[Centralized Modules Architecture](CENTRALIZED_MODULES_ARCHITECTURE.md)** - Module system architecture
-- **[POS Profile Centralization](POS_PROFILE_CENTRALIZATION.md)** - Operational context patterns
+- **[Finalization Archive](FINALIZATION_ARCHIVE.md)** - Cleanup audits, implementation status, and verification notes
 
 ### Legacy Documentation (Archived)
 The following phase-specific docs have been consolidated into the guides above:
