@@ -19,6 +19,9 @@ def claim_order(order_name, opening_entry):
     Prevents multiple cashiers from claiming same order simultaneously.
     Uses database-level locking to ensure atomicity.
     
+    HARDENED: Validates opening_entry matches user's active opening.
+    This prevents cashiers from claiming orders in opening they don't have access to.
+    
     Args:
         order_name (str): POS Order name
         opening_entry (str): POS Opening Entry name (session identifier)
@@ -37,6 +40,32 @@ def claim_order(order_name, opening_entry):
                 'success': False,
                 'message': 'order_name and opening_entry are required',
                 'error': 'Missing parameters'
+            }
+        
+        # HARDENED: Validate opening_entry matches user's active opening
+        # This ensures user cannot claim orders in opening they don't have access to
+        from imogi_pos.api.cashier import ensure_active_opening
+        
+        try:
+            active_opening_dict = ensure_active_opening()
+            active_opening_name = active_opening_dict.get('name')
+            
+            if active_opening_name != opening_entry:
+                logger.error(
+                    f'claim_order: User {frappe.session.user} tried to claim order {order_name} '
+                    f'with opening {opening_entry}, but active opening is {active_opening_name}'
+                )
+                return {
+                    'success': False,
+                    'message': f'Opening mismatch. Your active opening is {active_opening_name}',
+                    'error': f'Opening {opening_entry} does not match your active opening {active_opening_name}'
+                }
+        except frappe.ValidationError as e:
+            logger.error(f'claim_order: Opening validation failed for user {frappe.session.user}: {str(e)}')
+            return {
+                'success': False,
+                'message': 'No active POS Opening',
+                'error': str(e)
             }
         
         # Check order exists

@@ -3,7 +3,7 @@ import { apiCall } from '@/shared/utils/api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { BlockedScreen } from './BlockedScreen'
 
-export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed }) {
+export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed, effectiveOpeningName, revalidateOpening }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [checkingOpening, setCheckingOpening] = useState(true)
@@ -20,6 +20,25 @@ export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed 
   const checkOpeningAndLoadSummary = async () => {
     try {
       setCheckingOpening(true)
+      
+      // Step 0: Re-validate opening (multi-session consistency)
+      if (revalidateOpening) {
+        console.log('[CloseShift] Re-validating opening...')
+        try {
+          await revalidateOpening()
+          if (!effectiveOpeningName) {
+            console.error('[CloseShift] Opening validation failed')
+            setHasOpening(false)
+            setCheckingOpening(false)
+            return
+          }
+        } catch (err) {
+          console.error('[CloseShift] Opening revalidation error:', err)
+          setHasOpening(false)
+          setCheckingOpening(false)
+          return
+        }
+      }
       
       // Step 1: Verify active opening exists (page-level guard)
       const openingRes = await apiCall('imogi_pos.api.cashier.get_active_opening')

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
 import { usePaymentMethods } from '@/shared/api/imogi-api'
 
-export function PaymentView({ order, onClose, onPaymentComplete, posProfile }) {
+export function PaymentView({ order, onClose, onPaymentComplete, posProfile, effectiveOpeningName, revalidateOpening }) {
   const [selectedMethod, setSelectedMethod] = useState(null)
   const [cashAmount, setCashAmount] = useState('')
   const [showCashModal, setShowCashModal] = useState(false)
@@ -72,6 +72,22 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile }) {
   }
 
   const processPayment = async (modeOfPayment, amount, total) => {
+    // Step 0: Re-validate opening before payment (multi-session consistency)
+    if (revalidateOpening) {
+      console.log('[Payment] Re-validating opening before payment...')
+      try {
+        await revalidateOpening()
+        // Check revalidation status
+        if (!effectiveOpeningName) {
+          console.error('[Payment] Opening validation failed')
+          throw new Error('Opening validation failed. Please reload.')
+        }
+      } catch (err) {
+        console.error('[Payment] Opening revalidation error:', err)
+        throw new Error('Opening validation failed. Please reload.')
+      }
+    }
+    
     // Step 1: Check if opening exists (native v15 requirement)
     console.log('[Payment] Checking POS opening...')
     const openingRes = await apiCall('imogi_pos.api.cashier.get_active_opening')

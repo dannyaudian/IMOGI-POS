@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
+import { useEffectiveOpening } from '@/shared/hooks/useEffectiveOpening'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { apiCall } from '@/shared/utils/api'
@@ -46,6 +47,22 @@ function CounterPOSContent({ initialState }) {
     requiresOpening: true,  // Native v15: always require opening
     targetModule: 'imogi-cashier'
     // HARDENED: No overrideOpeningEntry - always use server-resolved active opening
+  })
+  
+  // Multi-session opening validation and consistency hook
+  // Validates opening_entry from URL (if present) and ensures consistency throughout session
+  const {
+    opening: effectiveOpening,
+    effectiveOpeningName,
+    status: openingValidationStatus,
+    error: openingValidationError,
+    isValid: hasValidOpening,
+    isMismatch: openingMismatch,
+    revalidate: revalidateOpening
+  } = useEffectiveOpening({
+    requiresOpening: true,
+    allowUrlParam: true,
+    autoRefreshMs: 30000
   })
   
   // Use centralized POS context as fallback
@@ -268,6 +285,9 @@ function CounterPOSContent({ initialState }) {
      * Claim order for processing.
      * In shift-based single-session mode, all orders belong to the active opening.
      * Opening is always server-resolved, not client-selectable.
+     * 
+     * HARDENED: Uses effectiveOpeningName from useEffectiveOpening hook
+     * which validates and locks opening for entire session.
      */
     if (!order || !order.name) {
       console.error('[Cashier] Invalid order for claim', order)
@@ -277,21 +297,18 @@ function CounterPOSContent({ initialState }) {
     try {
       console.log('[Cashier] Claiming order:', order.name)
       
-      // HARDENED: Use server-resolved opening from guard hook
-      const openingEntry = posOpening?.pos_opening_entry
-      if (!openingEntry) {
-        console.warn('[Cashier] No active opening available (should not happen after guard passed)')
-        // Fallback: just select the order without claiming
-        handleSelectOrder(order)
-        return
+      // HARDENED: Use validated effective opening from hook (server-resolved)
+      if (!effectiveOpeningName) {
+        console.error('[Cashier] No effective opening available (validation failed)')
+        throw new Error('Opening validation failed. Please reload.')
       }
 
-      // Call claim_order API with active opening
+      // Call claim_order API with validated effective opening
       const response = await apiCall(
         'imogi_pos.api.order_concurrency.claim_order',
         {
           order_name: order.name,
-          opening_entry: openingEntry
+          opening_entry: effectiveOpeningName
         }
       )
 
@@ -622,6 +639,8 @@ function CounterPOSContent({ initialState }) {
               <PaymentView
                 order={selectedOrder}
                 posProfile={effectivePosProfile}
+                effectiveOpeningName={effectiveOpeningName}
+                revalidateOpening={revalidateOpening}
                 onClose={() => {
                   setShowPayment(false)
                   setViewMode('orders')
@@ -642,6 +661,8 @@ function CounterPOSContent({ initialState }) {
               <CloseShiftView
                 posProfile={effectivePosProfile}
                 posOpening={posOpening}
+                effectiveOpeningName={effectiveOpeningName}
+                revalidateOpening={revalidateOpening}
                 onClose={handleCloseShiftView}
                 onShiftClosed={handleShiftClosed}
               />
