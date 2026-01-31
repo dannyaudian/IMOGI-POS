@@ -27,22 +27,7 @@ const asArray = (value) => (Array.isArray(value) ? value : [])
 function CounterPOSContent({ initialState }) {
   // POS Profile guard - Native ERPNext v15: ALWAYS requires opening (shift-based)
   // No need for useAuth - Frappe Desk already handles authentication
-  
-  // Extract opening_entry from URL parameter (for multi-session support)
-  const [urlOpeningEntry, setUrlOpeningEntry] = useState(null)
-  const [validatedOpening, setValidatedOpening] = useState(null)
-  const [openingValidationError, setOpeningValidationError] = useState(null)
-  const [openingValidationLoading, setOpeningValidationLoading] = useState(false)
-  
-  // Extract opening_entry from URL on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const openingParam = params.get('opening_entry')
-    if (openingParam) {
-      setUrlOpeningEntry(openingParam)
-      console.log('[cashier-console] Multi-session mode: opening_entry from URL:', openingParam)
-    }
-  }, [])
+  // HARDENED: Single-session per user - opening is server-resolved, NOT client-selectable
   
   const {
     isLoading: guardLoading,
@@ -59,8 +44,8 @@ function CounterPOSContent({ initialState }) {
     retryServerContext
   } = usePOSProfileGuard({ 
     requiresOpening: true,  // Native v15: always require opening
-    targetModule: 'imogi-cashier',
-    overrideOpeningEntry: validatedOpening?.name || null  // Use validated opening if available
+    targetModule: 'imogi-cashier'
+    // HARDENED: No overrideOpeningEntry - always use server-resolved active opening
   })
   
   // Use centralized POS context as fallback
@@ -68,29 +53,6 @@ function CounterPOSContent({ initialState }) {
   
   // Fallback to initialState for backward compatibility
   const effectiveBranch = branch || initialState.branch || null
-
-  // Block screen if opening_entry validation failed (multi-session)
-  if (urlOpeningEntry && openingValidationError && !openingValidationLoading) {
-    console.error('[CashierConsole] Blocked: Invalid opening_entry', {
-      urlOpeningEntry,
-      openingValidationError,
-      posProfile
-    })
-    
-    return (
-      <BlockedScreen
-        title="Invalid Cashier Session"
-        message={`Failed to validate cashier session: ${openingValidationError}. Please select a valid session from Module Select.`}
-        error={openingValidationError}
-        actions={[
-          { 
-            label: "Kembali ke Module Select", 
-            href: "/app/imogi-module-select" 
-          }
-        ]}
-      />
-    )
-  }
 
   // Block screen if no opening (show error without redirect)
   if (!guardLoading && !guardPassed && openingStatus === 'missing') {
@@ -125,21 +87,6 @@ function CounterPOSContent({ initialState }) {
   const validModes = ['Counter', 'Table']
   const posMode = profileData?.mode || contextMode
   const mode = validModes.includes(posMode) ? posMode : (validModes.includes(initialState.pos_mode) ? initialState.pos_mode : 'Counter')
-  
-  // Map mode to order type
-  const MODE_TO_ORDER_TYPE = {
-    'Counter': 'Counter',
-    'Table': 'Dine In'
-  }
-  const orderType = MODE_TO_ORDER_TYPE[mode]
-  
-  // CRITICAL FIX: Only fetch orders after guard passes AND context is ready
-  // This prevents 417 errors from calling API before operational context is set
-  // Additional defensive checks:
-  // 1. guardPassed must be true (hook verified context)
-  // 2. effectivePosProfile must exist (not null/undefined)
-  // 3. effectiveBranch should exist (though API can handle null)
-  const shouldFetchOrders = guardPassed && effectivePosProfile && !guardLoading && serverContextReady
   
   // Fetch orders for current mode (Counter or Dine In)
   const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
@@ -188,48 +135,6 @@ function CounterPOSContent({ initialState }) {
   
   // Customer Display
   const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
-
-  // Validate opening_entry from URL if provided (multi-session support)
-  useEffect(() => {
-    if (urlOpeningEntry && posProfile && !validatedOpening && !openingValidationError) {
-      validateOpeningEntry()
-    }
-  }, [urlOpeningEntry, posProfile])
-
-  const validateOpeningEntry = async () => {
-    if (!urlOpeningEntry || !posProfile) {
-      return
-    }
-
-    try {
-      setOpeningValidationLoading(true)
-      console.log('[cashier-console] Validating opening_entry:', urlOpeningEntry, 'for pos_profile:', posProfile)
-      
-      const response = await apiCall(
-        'imogi_pos.api.module_select.validate_opening_session',
-        {
-          opening_entry: urlOpeningEntry,
-          pos_profile: posProfile
-        }
-      )
-
-      if (!response || !response.success) {
-        const errorMsg = response?.error || 'Invalid opening entry'
-        console.error('[cashier-console] Opening validation failed:', errorMsg)
-        setOpeningValidationError(errorMsg)
-        setOpeningValidationLoading(false)
-        return
-      }
-
-      console.log('[cashier-console] Opening validated successfully:', response.opening)
-      setValidatedOpening(response.opening)
-      setOpeningValidationLoading(false)
-    } catch (error) {
-      console.error('[cashier-console] Error validating opening_entry:', error)
-      setOpeningValidationError(error.message || 'Failed to validate opening entry')
-      setOpeningValidationLoading(false)
-    }
-  }
 
   // Load branding on mount
   useEffect(() => {
@@ -360,8 +265,9 @@ function CounterPOSContent({ initialState }) {
 
   const handleClaimOrder = async (order) => {
     /**
-     * Claim order for processing in multi-session mode.
-     * This prevents multiple cashiers from processing the same order.
+     * Claim order for processing.
+     * In shift-based single-session mode, all orders belong to the active opening.
+     * Opening is always server-resolved, not client-selectable.
      */
     if (!order || !order.name) {
       console.error('[Cashier] Invalid order for claim', order)
@@ -371,15 +277,16 @@ function CounterPOSContent({ initialState }) {
     try {
       console.log('[Cashier] Claiming order:', order.name)
       
-      const openingEntry = validatedOpening?.name || urlOpeningEntry || (posOpening?.pos_opening_entry)
+      // HARDENED: Use server-resolved opening from guard hook
+      const openingEntry = posOpening?.pos_opening_entry
       if (!openingEntry) {
-        console.warn('[Cashier] No opening_entry available for claim')
-        // In single-session mode, just select the order
+        console.warn('[Cashier] No active opening available (should not happen after guard passed)')
+        // Fallback: just select the order without claiming
         handleSelectOrder(order)
         return
       }
 
-      // Call claim_order API
+      // Call claim_order API with active opening
       const response = await apiCall(
         'imogi_pos.api.order_concurrency.claim_order',
         {

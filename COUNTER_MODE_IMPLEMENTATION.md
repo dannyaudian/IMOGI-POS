@@ -38,6 +38,12 @@ Implemented **native ERPNext v15 POS flow** with mandatory POS Opening Entry (sh
 - [App.jsx](src/apps/cashier-console/App.jsx#L50-L72) - Checks `openingStatus === 'missing'` and blocks
 - Console logs error details for debugging: `console.error('[CashierConsole] Blocked: No active POS Opening Entry', {...})`
 
+**HARDENED - January 2026**:
+- ❌ **REMOVED** URL parameter support (`opening_entry` param)
+- ✅ Single session per user - opening is server-resolved only
+- ✅ `usePOSProfileGuard({ requiresOpening: true })` enforces guard check
+- ✅ All transactions use same opening (guard prevents session switching)
+
 ### Step 2: Start Shift (Native POS Opening Entry)
 
 **Rules**:
