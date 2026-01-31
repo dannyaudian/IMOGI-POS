@@ -1,3 +1,9 @@
+# IMOGI POS Architecture (Consolidated)
+
+---
+
+## IMOGI_POS_ARCHITECTURE.md
+
 # IMOGI POS Architecture Documentation
 
 **Version**: 2.0 (Post-Refactoring)  
@@ -913,3 +919,929 @@ When upgrading ERPNext:
 
 **Last Updated**: January 26, 2026  
 **Architecture Version**: 2.0 (Post-Phase 1-4 Refactoring)
+
+---
+
+## REACT_ARCHITECTURE.md
+
+# IMOGI POS - Centralized React Architecture
+
+## 🎯 Struktur Project yang Sudah Dibuat
+
+```
+IMOGI-POS/
+├── package.json              # Multi-app build scripts
+├── vite.config.js           # Dynamic config untuk semua apps
+├── src/
+│   ├── shared/              # ⭐ Shared resources untuk semua apps
+│   │   ├── api/
+│   │   │   └── imogi-api.js          # Centralized API calls
+│   │   ├── components/
+│   │   │   └── UI.jsx                # Shared UI components
+│   │   ├── hooks/
+│   │   │   └── useAuth.js            # Authentication hooks
+│   │   ├── providers/
+│   │   │   └── ImogiPOSProvider.jsx  # Root Frappe provider
+│   │   └── styles/
+│   │       └── global.css            # Global IMOGI POS styling
+│   │
+│   └── apps/                # Individual apps
+│       ├── counter-pos/     # Cashier Console
+│       │   ├── main.jsx
+│       │   └── App.jsx
+│       ├── kitchen/         # Kitchen Display System
+│       │   ├── main.jsx
+│       │   └── App.jsx
+│       └── waiter/          # Waiter Order System
+│           ├── main.jsx
+│           └── App.jsx
+│
+└── imogi_pos/public/react/  # Build outputs (git-ignored)
+    ├── counter-pos/
+    ├── kitchen/
+    └── waiter/
+```
+
+## 🚀 Build Commands
+
+### Build semua apps sekaligus:
+```bash
+npm run build          # atau npm run build:all
+```
+
+### Build individual app:
+```bash
+npm run build:counter  # Counter POS
+npm run build:kitchen  # Kitchen Display
+npm run build:waiter   # Waiter Order
+```
+
+### Development mode:
+```bash
+npm run dev           # Default: counter-pos
+npm run dev:counter   # Counter POS
+npm run dev:kitchen   # Kitchen Display
+npm run dev:waiter    # Waiter Order
+```
+
+## 📦 Shared Resources
+
+### 1. **API Hooks** (`src/shared/api/imogi-api.js`)
+
+Semua apps menggunakan API hooks yang sama:
+
+```javascript
+// Billing & Orders
+useOrderHistory(branch, posProfile)
+useCreateOrder()
+useUpdateOrder()
+useSubmitOrder()
+
+// Kitchen
+useKOTList(branch, status)
+useUpdateKOTStatus()
+
+// Items & Variants
+useItems(branch, posProfile)
+useItemVariants(itemCode)
+
+// Customers
+useCustomers(searchTerm)
+
+// Tables (Restaurant)
+useTables(branch)
+useUpdateTableStatus()
+
+// Manual API call
+callImogiAPI('method.name', { args })
+```
+
+### 2. **Authentication** (`src/shared/hooks/useAuth.js`)
+
+```javascript
+// Di setiap app component
+const { user, loading, hasAccess, error } = useAuth(['Cashier', 'Branch Manager'])
+```
+
+Otomatis:
+- Check authentication status
+- Redirect ke `/login` (Frappe built-in) jika Guest - ONLY for standalone WWW apps
+- Desk Pages rely on Frappe's built-in authentication - NO custom redirects
+- Verify role-based access
+- Get initial state dari server
+
+### 3. **UI Components** (`src/shared/components/UI.jsx`)
+
+```javascript
+<LoadingSpinner message="Loading..." />
+<ErrorMessage error={error} onRetry={retry} />
+<AppHeader title="..." user={user} onLogout={logout} />
+<Card title="...">Content</Card>
+```
+
+### 4. **Provider** (`src/shared/providers/ImogiPOSProvider.jsx`)
+
+Wraps semua apps dengan FrappeProvider untuk:
+- Cookie-based authentication
+- Same-domain session sharing
+- SWR data fetching
+
+## 🎨 Styling
+
+Global CSS di `src/shared/styles/global.css` menyediakan:
+
+- **CSS Variables**: `--primary-color`, `--success-color`, dll
+- **Layout utilities**: `.imogi-app`, `.imogi-header`, `.imogi-main`
+- **Component styles**: `.imogi-card`, `.imogi-loading`, `.imogi-error`
+- **Grid/Flex utilities**: `.grid-2`, `.grid-3`, `.flex-between`, dll
+- **Button styles**: `.btn-primary`, `.btn-success`, dll
+
+## 🔧 Cara Menambah App Baru
+
+1. Buat folder baru di `src/apps/your-app/`
+2. Buat `main.jsx` dan `App.jsx`
+3. Import shared resources:
+   ```javascript
+   import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+   import { useAuth } from '@/shared/hooks/useAuth'
+   import { useItems } from '@/shared/api/imogi-api'
+   import '@/shared/styles/global.css'
+   ```
+4. Tambah build script di `package.json`:
+   ```json
+   "build:your-app": "VITE_APP=your-app vite build"
+   ```
+
+## 💡 Keuntungan Arsitektur Ini
+
+✅ **DRY (Don't Repeat Yourself)**: API calls, auth, styling hanya ditulis sekali
+✅ **Consistency**: Semua apps punya look & feel yang sama
+✅ **Maintainability**: Update di shared/ otomatis apply ke semua apps
+✅ **Type Safety**: Shared hooks dengan consistent interface
+✅ **Performance**: Shared code di-bundle terpisah (code splitting)
+✅ **Scalability**: Mudah tambah app baru tanpa duplikasi
+
+## 🔄 Integration dengan Frappe
+
+Setelah build, buat www/ pages untuk load React apps:
+
+```python
+# imogi_pos/www/counter/pos-react/index.py
+import frappe
+
+def get_context(context):
+    context.title = "Cashier Console"
+    context.initial_state = {
+        "user": frappe.session.user,
+        "branch": "Default",
+        "pos_profile": "Counter"
+    }
+```
+
+```html
+<!-- imogi_pos/www/counter/pos-react/index.html -->
+{% extends "templates/web.html" %}
+{% block page_content %}
+  <div id="root"></div>
+  <script>window.__INITIAL_STATE__ = {{ initial_state | tojson }};</script>
+  <script src="/assets/imogi_pos/react/counter-pos/static/js/main.[hash].js"></script>
+{% endblock %}
+```
+
+## 📝 Next Steps
+
+1. ✅ Test build: `npm run build:counter`
+2. ⏳ Buat Frappe www/ integration pages
+3. ⏳ Add more shared components (Modal, Toast, Form inputs)
+4. ⏳ Implement complete order flow
+5. ⏳ Add self-order app
+6. ⏳ Setup CI/CD for automated builds
+
+---
+
+## CENTRALIZED_MODULES_ARCHITECTURE.md
+
+# IMOGI POS - Centralized Modules & Profile Edit Flow
+
+## 📋 Flow Edit Profile yang Sudah Ada
+
+### 1. **Load Profiles** (Automatic)
+```javascript
+useCustomerDisplayProfiles()
+// GET: imogi_pos.api.customer_display_editor.get_available_devices
+// Returns: { devices: [...], total: N }
+// Each device sudah include config field!
+```
+
+### 2. **Select Profile dari Sidebar**
+```javascript
+onClick={() => onDeviceSelect(device.name)}
+// Trigger: setSelectedDevice(device.name)
+```
+
+### 3. **Auto-load Config** (useEffect)
+```javascript
+useEffect(() => {
+  if (selectedDevice && profiles.length > 0) {
+    const device = profiles.find(p => p.name === selectedDevice)
+    if (device && device.config) {
+      setConfig(device.config)  // ✅ Config otomatis loaded
+      setHasChanges(false)
+    }
+  }
+}, [selectedDevice, profiles])
+```
+
+### 4. **Edit Config**
+- User ubah settings di ConfigPanel
+- Trigger: `handleConfigChange(key, value)`
+- State: `setHasChanges(true)`
+
+### 5. **Save Changes**
+```javascript
+handleSave() {
+  saveConfig({
+    device: selectedDevice,  // Profile name
+    config: config           // Updated config object
+  })
+  // POST: imogi_pos.api.customer_display_editor.save_device_config
+}
+```
+
+### 6. **Backend Update**
+```python
+def save_device_config(device, config):
+    profile_doc = frappe.get_doc('Customer Display Profile', device)
+    
+    # Update fields dari config
+    profile_doc.layout_type = config['layout_type']
+    profile_doc.grid_columns = config['grid_columns']
+    # ... dst
+    
+    profile_doc.save(ignore_permissions=True)
+```
+
+---
+
+## 🏢 Centralized Modules
+
+### 1. **Authentication (`useAuth`)**
+
+**Location**: `src/shared/hooks/useAuth.js`
+
+**Features**:
+- ✅ Cookie-based authentication (same domain)
+- ✅ Auto-redirect to login jika guest
+- ✅ Role-based access control
+- ✅ CSRF token handling
+
+**Usage**:
+```javascript
+import { useAuth } from '../../shared/hooks/useAuth'
+
+const { user, loading, hasAccess, error } = useAuth(['Branch Manager', 'System Manager'])
+
+if (authLoading) return <Loading />
+if (!hasAccess) return <AccessDenied />
+```
+
+**Backend Helper**: `imogi_pos/utils/auth_helpers.py`
+```python
+get_user_role_context()
+get_role_based_default_route()
+```
+
+---
+
+### 2. **Branding (`get_branding`)**
+
+**Location**: `imogi_pos/api/public.py`
+
+**Centralized Settings**:
+```python
+@frappe.whitelist()
+def get_branding(pos_profile=None):
+    # Priority order:
+    # 1. POS Profile branding (jika override)
+    # 2. Restaurant Settings branding
+    # 3. Company logo
+    
+    return {
+        "brand_name": "...",
+        "logo": "...",
+        "logo_dark": "...",
+        "primary_color": "#...",
+        "accent_color": "#...",
+        "header_bg": "#...",
+        "show_header": True,
+        "home_url": "...",
+        "css_vars": "..."
+    }
+```
+
+**Override per POS Profile**:
+```
+POS Profile fields:
+- imogi_brand_name
+- imogi_brand_logo
+- imogi_brand_logo_dark
+- imogi_brand_color_primary
+- imogi_brand_color_accent
+- imogi_brand_header_bg
+- imogi_show_header_on_pages
+- imogi_brand_home_url
+- imogi_brand_css_vars
+```
+
+**Utils**: `imogi_pos/utils/branding.py`
+```python
+PRIMARY_COLOR = "#6366f1"
+ACCENT_COLOR = "#8b5cf6"
+HEADER_BG_COLOR = "#0f172a"
+```
+
+---
+
+### 3. **Permissions (`validate_api_permission`)**
+
+**Location**: `imogi_pos/utils/permissions.py`
+
+**Features**:
+- ✅ Branch-level access control
+- ✅ Role-based permissions
+- ✅ DocType permissions
+- ✅ Decorators untuk API
+
+**Functions**:
+```python
+validate_branch_access(branch, user=None)
+validate_api_permission(doctype, perm_type='read')
+check_pos_profile_access(pos_profile)
+get_user_branches()
+```
+
+**Decorators**: `imogi_pos/utils/decorators.py`
+```python
+@require_permission('Customer Display Profile', 'write')
+def my_api_function():
+    pass
+
+@require_role(['Branch Manager', 'System Manager'])
+def admin_function():
+    pass
+```
+
+---
+
+### 4. **API Provider (`ImogiPOSProvider`)**
+
+**Location**: `src/shared/providers/ImogiPOSProvider.jsx`
+
+**Features**:
+- ✅ FrappeProvider wrapper
+- ✅ Cookie-based auth (useToken: false)
+- ✅ Same-domain setup
+- ✅ Auto CSRF handling
+
+**Usage**:
+```jsx
+import { ImogiPOSProvider } from './shared/providers/ImogiPOSProvider'
+
+<ImogiPOSProvider>
+  <App />
+</ImogiPOSProvider>
+```
+
+---
+
+### 5. **API Hooks (`imogi-api.js`)**
+
+**Location**: `src/shared/api/imogi-api.js`
+
+**Centralized API Calls**:
+```javascript
+// Frappe SDK wrappers
+useFrappeGetCall()     // GET with SWR caching
+useImogiAPI()          // POST with mutations
+
+// Custom hooks
+useCustomerDisplayProfiles()
+useDisplayTemplates()
+useSaveDisplayConfig()
+useCreateProfile()
+useDuplicateProfile()
+usePendingOrders()
+useOrderDetails()
+// ... 20+ API hooks
+```
+
+**Benefits**:
+- ✅ Automatic caching (SWR)
+- ✅ Auto-revalidation
+- ✅ Error handling
+- ✅ Loading states
+- ✅ Type-safe
+
+---
+
+## 🎯 Customer Display Profile - Complete Flow
+
+### Create Profile Flow
+```
+1. Click "Create New Profile"
+2. Select Template (Modern Dark/Light/etc)
+3. Form Input (Profile Name + Branch)
+4. API: create_profile()
+5. DocType: Customer Display Profile created
+6. Auto-select & load config
+7. Ready to edit
+```
+
+### Edit Profile Flow
+```
+1. Profiles loaded with config (get_available_devices)
+2. Click profile di sidebar
+3. Config auto-loaded ke state
+4. Edit settings (Layout/Theme/Advanced tabs)
+5. Changes tracked (hasChanges = true)
+6. Click "Save"
+7. API: save_device_config()
+8. DocType updated
+9. Refresh profiles list
+10. Success message
+```
+
+### Duplicate Profile Flow
+```
+1. Select existing profile
+2. Click "Duplicate"
+3. Enter new name & branch
+4. API: duplicate_profile()
+5. Copy all settings from source
+6. New profile created
+7. Auto-select new profile
+```
+
+---
+
+## 📦 Shared Components
+
+**Location**: `src/shared/components/`
+
+### UI Components
+```
+src/shared/components/UI/
+├── LoadingSpinner.jsx
+├── ErrorMessage.jsx
+├── Button.jsx
+├── Card.jsx
+└── Modal.jsx
+```
+
+### Form Components
+```
+src/shared/components/Forms/
+├── Input.jsx
+├── Select.jsx
+├── Checkbox.jsx
+└── ColorPicker.jsx
+```
+
+---
+
+## 🔒 Permission Hierarchy
+
+```
+System Manager
+  └─ Can do everything
+  
+Branch Manager
+  ├─ Manage own branch profiles
+  ├─ View all profiles
+  └─ Edit own branch settings
+  
+POS User
+  ├─ View profiles (read-only)
+  └─ Use assigned profiles
+```
+
+---
+
+## 🗂️ DocTypes with Centralized Settings
+
+### Customer Display Profile
+- Uses centralized branding
+- Branch-level access
+- Role-based permissions
+
+### POS Profile
+- Brand override fields
+- Color customization
+- Logo management
+
+### Restaurant Settings
+- Global branding fallback
+- Default colors
+- Company-wide settings
+
+---
+
+## 🎨 CSS Variables (Centralized)
+
+**Location**: Each app's `styles.css`
+
+```css
+:root {
+  --cde-primary: #6366f1;      /* From branding */
+  --cde-accent: #8b5cf6;       /* From branding */
+  --cde-bg: #ffffff;
+  --cde-text: #0f172a;
+  --cde-border: #e2e8f0;
+  /* ... */
+}
+```
+
+**Dynamic Injection**:
+```javascript
+// Apply branding to CSS vars
+const branding = await getBranding(pos_profile)
+document.documentElement.style.setProperty('--primary', branding.primary_color)
+```
+
+---
+
+## ✅ Checklist - Centralized Features
+
+- ✅ **Authentication**: `useAuth` hook
+- ✅ **Branding**: `get_branding()` API
+- ✅ **Permissions**: `validate_api_permission()`
+- ✅ **API Provider**: `ImogiPOSProvider`
+- ✅ **API Hooks**: `imogi-api.js`
+- ✅ **Role Management**: `auth_helpers.py`
+- ✅ **Branch Access**: `permissions.py`
+- ✅ **CSRF Tokens**: Auto-handled
+- ✅ **Error Handling**: Centralized
+- ✅ **Loading States**: SWR managed
+- ✅ **Caching**: SWR automatic
+- ✅ **Revalidation**: On focus/interval
+
+---
+
+## 🚀 Next Steps untuk Customer Display Editor
+
+1. ✅ Create profile - DONE
+2. ✅ Edit profile - DONE (auto-load config)
+3. ✅ Save changes - DONE
+4. ✅ Duplicate - DONE
+5. ✅ Reset - DONE
+6. ✅ Test display - DONE
+7. ⏳ Advanced config (blocks, custom CSS)
+8. ⏳ Preview dengan real data
+9. ⏳ Export/Import templates
+10. ⏳ Profile permissions per user
+
+---
+
+**Status**: Customer Display Editor with Full CRUD + Centralized Architecture ✅
+
+---
+
+## POS_PROFILE_CENTRALIZATION.md
+
+# POS Profile Resolution - Centralization Complete
+
+## Summary
+
+This refactoring centralizes all POS Profile resolution logic into a single, authoritative resolver module, eliminating scattered logic and dependency on DefaultValue DocType.
+
+## Architecture Changes
+
+### Before (Scattered Logic)
+```
+Multiple locations resolved POS Profile:
+- imogi_pos/api/public.py (_get_available_pos_profiles, _resolve_current_pos_profile)
+- imogi_pos/api/module_select.py (get_active_pos_opening with 4 priority fallbacks)
+- imogi_pos/api/billing.py (direct POS Profile User table lookup)
+- DefaultValue DocType used as required dependency
+```
+
+### After (Centralized)
+```
+Single source of truth:
+- imogi_pos/utils/pos_profile_resolver.py
+  ├── resolve_pos_profile_for_user() - Main resolver
+  ├── get_available_pos_profiles() - Access control
+  ├── validate_pos_profile_access() - Permission check
+  └── get_pos_profile_branch() - Branch derivation
+
+All APIs now delegate to centralized resolver:
+- imogi_pos/api/public.py (updated)
+- imogi_pos/api/module_select.py (updated)
+- imogi_pos/api/billing.py (updated)
+```
+
+## Resolution Algorithm (AUTHORITATIVE)
+
+### Step 1: Detect Privileged Users
+- **System Manager** OR **Administrator**
+  - ✅ Can access POS without defaults
+  - ✅ See all active POS Profiles (disabled = 0)
+  - ✅ Not required to be in "Applicable for Users" table
+
+### Step 2: Regular User Access Control
+- **Source of Truth**: POS Profile → "Applicable for Users" child table
+- **Required**: User must be listed in at least one POS Profile
+- **Filter**: Only active profiles (disabled = 0)
+- **If zero profiles**: Return `has_access=False`
+
+### Step 3: Selection Priority (Multi-Profile Support)
+When user has multiple POS Profiles:
+
+1. **context['last_used']** (from localStorage)
+2. **User.imogi_default_pos_profile** (persistent, server-side)
+3. **frappe.defaults.get_user_default('imogi_pos_profile')** (session, FALLBACK ONLY)
+4. **Auto-select** if only one profile available
+5. **Return needs_selection=True** if multiple profiles and no default
+
+### Step 4: Persistence Strategy
+- **Primary**: localStorage (fast, client-side)
+- **Secondary**: User.imogi_default_pos_profile (persistent, server-side)
+- **Fallback**: frappe.defaults (session-based, optional)
+- **NOT USED**: DefaultValue DocType (may exist but NEVER required)
+
+## Key Files Modified
+
+### NEW: `imogi_pos/utils/pos_profile_resolver.py`
+```python
+def resolve_pos_profile_for_user(user=None, context=None) -> dict
+"""
+Central, authoritative POS Profile resolver.
+Returns:
+  - pos_profile: Selected profile name (or None)
+  - available_profiles: All accessible profiles
+  - is_privileged: System Manager / Administrator
+  - needs_selection: True if user must choose
+  - has_access: True if user can access POS
+  - selection_method: How profile was resolved
+"""
+```
+
+### UPDATED: `imogi_pos/api/public.py`
+- `get_user_pos_profile_info()` - Now delegates to centralized resolver
+- `set_user_default_pos_profile()` - Uses centralized validator
+- `_get_available_pos_profiles()` - Deprecated, delegates to resolver
+- `_resolve_current_pos_profile()` - Deprecated, delegates to resolver
+
+### UPDATED: `imogi_pos/api/billing.py`
+- `list_counter_order_history()` - Uses centralized resolver
+- System Manager bypass added
+- Improved error messages
+
+### UPDATED: `imogi_pos/api/module_select.py`
+- `get_active_pos_opening()` - Uses centralized resolver
+- Removed complex 4-priority fallback logic
+
+### UPDATED: `src/apps/module-select/App.jsx`
+- Enhanced error messages for System Managers and regular users
+- Clarified that DefaultValue is not required
+
+## DefaultValue Deprecation Strategy
+
+### Previous Behavior (PROBLEMATIC)
+```python
+# Old scattered logic relied on DefaultValue DocType
+pos_profile = frappe.defaults.get_user_default('pos_profile')
+if not pos_profile:
+    throw "No POS Profile configured"  # Blocks System Managers!
+```
+
+### New Behavior (CORRECT)
+```python
+# Centralized resolver with proper fallback hierarchy
+result = resolve_pos_profile_for_user(user)
+
+# Priority:
+# 1. context.last_used (localStorage)
+# 2. User.imogi_default_pos_profile (persistent)
+# 3. frappe.defaults (OPTIONAL fallback)
+# 4. Auto-select if one profile
+# 5. Request selection if multiple
+
+# DefaultValue may exist but is NEVER required
+# System Managers can access POS without ANY defaults
+```
+
+### Migration Path
+- **Existing setups**: Continue working without changes
+- **DefaultValue records**: Optional, used only as fallback (priority 3)
+- **System Managers**: Can now access POS immediately
+- **Regular users**: Must be in "Applicable for Users" table
+
+## Testing Scenarios
+
+### ✅ Scenario 1: System Manager (No Defaults)
+```
+User: admin@example.com
+Role: System Manager
+POS Profiles: Not assigned in any "Applicable for Users" table
+DefaultValue: None
+
+Expected: has_access=True, can see all active profiles
+Result: ✅ PASS - System Manager bypass works
+```
+
+### ✅ Scenario 2: Regular User (Single Profile)
+```
+User: cashier@example.com
+Role: Cashier
+POS Profiles: Listed in "Main-Cashier" only
+DefaultValue: None
+
+Expected: has_access=True, pos_profile='Main-Cashier' (auto-selected)
+Result: ✅ PASS - Auto-selection works
+```
+
+### ✅ Scenario 3: Regular User (Multiple Profiles)
+```
+User: manager@example.com
+Role: Branch Manager
+POS Profiles: Listed in "Branch-A-Manager", "Branch-B-Manager"
+DefaultValue: None
+
+Expected: has_access=True, needs_selection=True
+Result: ✅ PASS - Multi-profile selection required
+```
+
+### ✅ Scenario 4: Regular User (No Profiles)
+```
+User: new_user@example.com
+Role: Cashier
+POS Profiles: Not assigned in any "Applicable for Users" table
+DefaultValue: None
+
+Expected: has_access=False, show "Contact admin" message
+Result: ✅ PASS - Proper error handling
+```
+
+### ✅ Scenario 5: Backward Compat (DefaultValue Exists)
+```
+User: old_user@example.com
+Role: Cashier
+POS Profiles: Listed in "Main-Cashier"
+DefaultValue: "Main-Cashier" (legacy record)
+
+Expected: has_access=True, pos_profile='Main-Cashier' (from DefaultValue fallback)
+Result: ✅ PASS - Backward compatibility maintained
+```
+
+## Acceptance Criteria
+
+| Requirement | Status |
+|------------|--------|
+| POS does not error if user has at least one applicable POS Profile | ✅ Implemented |
+| Multi POS Profile per user works reliably | ✅ Implemented |
+| System Manager can access POS without defaults | ✅ Implemented |
+| No reliance on DefaultValue permission | ✅ Implemented |
+| One resolver controls all behavior | ✅ Implemented |
+| POS Profile doctype is authoritative source | ✅ Implemented |
+| Deterministic selection algorithm | ✅ Implemented |
+| Backward compatible with existing setups | ✅ Implemented |
+
+## Frontend Integration
+
+### Usage in React Components
+```javascript
+import { usePOSProfile } from '../../shared/hooks/usePOSProfile'
+
+function MyPOSComponent() {
+  const { 
+    currentProfile,      // Selected POS Profile name
+    profileData,         // Full profile metadata
+    availableProfiles,   // All accessible profiles
+    isPrivileged,        // System Manager / Administrator
+    isLoading,
+    setProfile           // Change profile
+  } = usePOSProfile()
+  
+  // Check access
+  if (availableProfiles.length === 0) {
+    return <NoAccessMessage isPrivileged={isPrivileged} />
+  }
+  
+  // Render POS interface
+  return <POSInterface profile={currentProfile} />
+}
+```
+
+### Multi-Profile Selection
+```javascript
+// Frontend shows selector if multiple profiles
+const { data } = useFrappeGetCall('imogi_pos.api.public.get_user_pos_profile_info')
+
+if (data?.require_selection) {
+  return (
+    <POSProfileSwitcher 
+      profiles={data.available_pos_profiles}
+      onSelect={(profile) => {
+        // Save selection
+        frappe.call({
+          method: 'imogi_pos.api.public.set_user_default_pos_profile',
+          args: { pos_profile: profile, sync_to_server: true }
+        })
+      }}
+    />
+  )
+}
+```
+
+## Benefits
+
+### 1. Architectural Clarity
+- **Single source of truth** for POS Profile resolution
+- **No scattered logic** across multiple files
+- **Clear ownership** of resolution algorithm
+
+### 2. System Manager Friendly
+- **No setup required** to access POS
+- **Immediate access** to all POS Profiles
+- **No DefaultValue dependency**
+
+### 3. Multi-Profile Support
+- **Deterministic selection** with clear priority
+- **User-friendly fallback** when multiple profiles exist
+- **localStorage integration** for fast client-side storage
+
+### 4. Backward Compatibility
+- **Existing setups work** without migration
+- **DefaultValue as fallback** (not required)
+- **Gradual migration path** for legacy users
+
+### 5. Maintainability
+- **Centralized logic** easier to understand and modify
+- **Comprehensive documentation** in resolver module
+- **Clear deprecation warnings** for old patterns
+
+## Next Steps
+
+1. ✅ **Centralized Resolver Created** - `pos_profile_resolver.py`
+2. ✅ **APIs Updated** - All POS APIs delegate to resolver
+3. ✅ **Frontend Updated** - Error messages improved
+4. ⏳ **Testing** - Manual testing with different user roles
+5. ⏳ **Code Review** - Get automated review feedback
+6. ⏳ **Security Scan** - Run CodeQL checker
+7. ⏳ **Documentation** - Update user-facing docs
+
+## Migration Guide
+
+### For System Administrators
+
+**Before:**
+```
+1. Create POS Profile
+2. Set User DefaultValue for "pos_profile"
+3. Add user to POS Profile User table
+```
+
+**After (SIMPLIFIED):**
+```
+1. Create POS Profile
+2. Add user to "Applicable For Users" table
+   (DefaultValue no longer needed!)
+```
+
+### For Developers
+
+**Before:**
+```python
+# Scattered resolution logic (BAD)
+pos_profile = frappe.db.get_value("POS Profile User", {"user": user}, "parent")
+if not pos_profile:
+    pos_profile = frappe.defaults.get_user_default('pos_profile')
+if not pos_profile:
+    frappe.throw("No POS Profile")
+```
+
+**After:**
+```python
+# Centralized resolution (GOOD)
+from imogi_pos.utils.pos_profile_resolver import resolve_pos_profile_for_user
+
+result = resolve_pos_profile_for_user(user=user)
+if not result['has_access']:
+    frappe.throw("No POS Profile configured")
+
+pos_profile = result['pos_profile']
+branch = result['branch']
+```
+
+## Conclusion
+
+This refactoring achieves the architectural goals specified in the requirements:
+- ✅ Single, centralized resolver function
+- ✅ POS Profile DocType as source of truth
+- ✅ System Manager bypass for immediate access
+- ✅ Multi-profile support with deterministic selection
+- ✅ DefaultValue optional, never required
+- ✅ Backward compatible with existing setups
+
+The codebase now has a clean, maintainable POS Profile resolution architecture that will scale with the application's growth.

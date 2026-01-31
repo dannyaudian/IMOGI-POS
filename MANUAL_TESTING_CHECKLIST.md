@@ -395,4 +395,4 @@ If tests failed:
 
 ---
 
-**Reference**: See [PERMANENT_CLEANUP_IMPLEMENTATION.md](PERMANENT_CLEANUP_IMPLEMENTATION.md) for detailed implementation guide.
+**Reference**: See [FINALIZATION_ARCHIVE.md](FINALIZATION_ARCHIVE.md) for the consolidated implementation guide.
