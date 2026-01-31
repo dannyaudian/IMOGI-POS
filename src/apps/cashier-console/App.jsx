@@ -4,7 +4,6 @@ import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
-import { POSOpeningModal } from '@/shared/components/POSOpeningModal'
 import { apiCall } from '@/shared/utils/api'
 import { resolveOperationalContext } from '@/shared/utils/operationalContext'
 import { OrderListSidebar } from './components/OrderListSidebar'
@@ -32,7 +31,6 @@ function CounterPOSContent({ initialState }) {
     profileData,
     branch,
     posOpening,
-    showOpeningModal,
     openingStatus,
     openingError,
     retryOpening,
@@ -173,14 +171,14 @@ function CounterPOSContent({ initialState }) {
   // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
   // This prevents infinite loading state when context selection is required
   useEffect(() => {
-    if (!guardLoading && !guardPassed && !showOpeningModal) {
+    if (!guardLoading && !guardPassed) {
       const timeout = setTimeout(() => {
         console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
         window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
       }, 10000)
       return () => clearTimeout(timeout)
     }
-  }, [guardLoading, guardPassed, showOpeningModal])
+  }, [guardLoading, guardPassed])
 
   // Show loading while checking guard
   // No auth loading needed - Frappe Desk handles authentication
@@ -202,20 +200,6 @@ function CounterPOSContent({ initialState }) {
       <ErrorMessage
         error={openingError?.message || posOpening?.error_message || 'Failed to verify POS opening.'}
         onRetry={() => retryOpening && retryOpening()}
-      />
-    )
-  }
-  
-  // Show POS Opening Modal if guard requires it
-  if (showOpeningModal) {
-    return (
-      <POSOpeningModal
-        isOpen={true}
-        onClose={handleOpeningCancel}
-        onSuccess={handleOpeningSuccess}
-        posProfile={effectivePosProfile}
-        required={true}
-        redirectOnCancel="/app/imogi-module-select"
       />
     )
   }

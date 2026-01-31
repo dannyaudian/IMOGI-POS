@@ -5,7 +5,6 @@ import { apiCall } from '../../shared/utils/api'
 import storage from '../../shared/utils/storage'
 import './styles.css'
 import { POSProfileSwitcher } from '../../shared/components/POSProfileSwitcher'
-import { POSOpeningModal } from '../../shared/components/POSOpeningModal'
 import POSInfoCard from './components/POSInfoCard'
 import ModuleCard from './components/ModuleCard'
 import POSProfileSelectModal from './components/POSProfileSelectModal'
@@ -35,9 +34,7 @@ function App() {
     is_privileged: false
   })
   
-  // POS Opening Modal state
-  const [showOpeningModal, setShowOpeningModal] = useState(false)
-  const [pendingModule, setPendingModule] = useState(null)
+  // POS Profile modal state  
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [pendingProfileModule, setPendingProfileModule] = useState(null)
   
@@ -65,6 +62,21 @@ function App() {
       }
     }
   }, [modules, contextState.available_pos_profiles])
+
+  // Auto-refresh when returning from native POS Opening Entry form
+  // Detects when user comes back after creating opening
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && refetchModuleData) {
+        // Page became visible again - refresh data to get new opening
+        console.log('[Module Select] Page visible - refreshing data for new POS opening')
+        refetchModuleData()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [refetchModuleData])
 
   // Fetch available modules - no parameters needed
   const frappeContext = useContext(FrappeContext)
@@ -203,23 +215,20 @@ function App() {
     is_privileged: contextState.is_privileged
   }), [contextState])
   
-  // Listen for POS opening events (from POSOpeningModal)
+  // Listen for POS opening events from native form
   useEffect(() => {
     const handleSessionOpened = (event) => {
-      // Refresh module data (includes active opening + sessions today)
-      refetchModuleData()
-      
-      // If there was a pending module, navigate to it
-      if (pendingModule) {
-        void navigateToModule(pendingModule)
-        setPendingModule(null)
+      console.log('[Module Select] POS session opened:', event.detail)
+      // Refresh module data to get new opening
+      if (refetchModuleData) {
+        refetchModuleData()
       }
     }
     
     window.addEventListener('posSessionOpened', handleSessionOpened)
     return () => window.removeEventListener('posSessionOpened', handleSessionOpened)
-  }, [pendingModule, refetchModuleData])
-
+  }, [refetchModuleData])
+  
   // Calculate POS opening status
   const posOpeningStatus = {
     hasOpening: !!(activeOpening && activeOpening.pos_opening_entry),
@@ -478,9 +487,19 @@ function App() {
 
       // Check if POS opening exists
       if (!openingData || !openingData.pos_opening_entry) {
-        // No POS opening entry - show modal to create one
-        setPendingModule(module)
-        setShowOpeningModal(true)
+        // No POS opening entry - redirect to native ERPNext form
+        frappe.msgprint({
+          title: 'POS Opening Required',
+          message: `Please create a POS Opening Entry first to access ${module.label}.`,
+          indicator: 'orange',
+          primary_action: {
+            label: 'Create Opening Entry',
+            action: () => {
+              // Redirect to native ERPNext POS Opening Entry form
+              window.location.href = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(contextData.pos_profile)}`
+            }
+          }
+        })
         return
       }
     }
@@ -519,23 +538,6 @@ function App() {
     await proceedToModule(module)
   }
   
-  // Handle POS Opening Modal success
-  const handleOpeningSuccess = (result) => {
-    setShowOpeningModal(false)
-    
-    // Navigate to pending module if any
-    if (pendingModule) {
-      void navigateToModule(pendingModule)
-      setPendingModule(null)
-    }
-  }
-  
-  // Handle POS Opening Modal close
-  const handleOpeningClose = () => {
-    setShowOpeningModal(false)
-    setPendingModule(null)
-  }
-
   const handleProfileModalClose = () => {
     setShowProfileModal(false)
     setPendingProfileModule(null)
@@ -823,15 +825,6 @@ function App() {
         <p>&copy; 2025 IMOGI Restaurant POS. All rights reserved.</p>
       </footer>
       
-      {/* POS Opening Modal */}
-      <POSOpeningModal
-        isOpen={showOpeningModal}
-        onClose={handleOpeningClose}
-        onSuccess={handleOpeningSuccess}
-        posProfile={contextData.pos_profile}
-        required={false}
-      />
-
       <POSProfileSelectModal
         isOpen={showProfileModal}
         moduleName={pendingProfileModule?.name}

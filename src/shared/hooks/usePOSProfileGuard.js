@@ -3,7 +3,7 @@
  * 
  * Guard hook that ensures POS Profile is set before allowing access.
  * Redirects to module-select if no POS Profile is available.
- * Shows POSOpeningModal if module requires opening but none exists.
+ * Redirects to native POS Opening Entry form if module requires opening but none exists.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -44,7 +44,6 @@ export function usePOSProfileGuard(options = {}) {
     ensureServerContext
   } = useOperationalContext()
   
-  const [showOpeningModal, setShowOpeningModal] = useState(false)
   const [guardPassed, setGuardPassed] = useState(false)
   const [openingStatus, setOpeningStatus] = useState('loading')
   const [contextRetries, setContextRetries] = useState(0)
@@ -180,13 +179,11 @@ export function usePOSProfileGuard(options = {}) {
 
     if (serverContextError) {
       setGuardPassed(false)
-      setShowOpeningModal(false)
       return
     }
 
     if (!serverContextReady) {
       setGuardPassed(false)
-      setShowOpeningModal(false)
       return
     }
     
@@ -237,20 +234,19 @@ export function usePOSProfileGuard(options = {}) {
     if (requiresOpening && pos_profile) {
       if (!isContextReady) {
         setGuardPassed(false)
-        setShowOpeningModal(false)
         return
       }
 
       if (openingStatus === 'error') {
         setGuardPassed(false)
-        setShowOpeningModal(false)
         return
       }
 
       if (openingStatus === 'missing') {
-        // Show opening modal instead of redirecting
+        // Redirect to native ERPNext POS Opening Entry form
         setGuardPassed(false)
-        setShowOpeningModal(true)
+        const createUrl = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(pos_profile)}`
+        window.location.href = createUrl
         return
       }
     }

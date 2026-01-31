@@ -26,6 +26,15 @@ frappe.ui.form.on('POS Opening Entry', {
     
     after_save: function(frm) {
         if (frm.doc.docstatus === 1) {
+            // Dispatch event for React apps to refresh opening data
+            window.dispatchEvent(new CustomEvent('posSessionOpened', {
+                detail: {
+                    pos_opening_entry: frm.doc.name,
+                    pos_profile: frm.doc.pos_profile,
+                    user: frm.doc.user
+                }
+            }))
+            
             // After submit, redirect to IMOGI POS
             setTimeout(function() {
                 open_imogi_pos(frm);
