@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
 
-export function CatalogView({ posProfile, onSelectItem }) {
+export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
   const [items, setItems] = useState([])
   const [selectedGroup, setSelectedGroup] = useState('all')
@@ -9,16 +9,29 @@ export function CatalogView({ posProfile, onSelectItem }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    loadItemGroups()
+    // Don't fetch if posProfile is null (guard not passed yet)
+    if (posProfile) {
+      loadItemGroups()
+    } else {
+      setLoading(false)
+    }
   }, [posProfile])
 
   useEffect(() => {
-    if (selectedGroup) {
+    // Don't fetch if posProfile is null or no group selected
+    if (selectedGroup && posProfile) {
       loadItems()
+    } else if (!posProfile) {
+      setLoading(false)
     }
-  }, [selectedGroup, posProfile])
+  }, [selectedGroup, posProfile, menuChannel])
 
   const loadItemGroups = async () => {
+    if (!posProfile) {
+      console.warn('[imogi][catalog] Cannot load item groups: posProfile is null')
+      return
+    }
+
     try {
       const groups = await apiCall('imogi_pos.api.variants.get_item_groups', {
         pos_profile: posProfile
@@ -30,18 +43,61 @@ export function CatalogView({ posProfile, onSelectItem }) {
   }
 
   const loadItems = async () => {
+    if (!posProfile) {
+      console.warn('[imogi][catalog] Cannot load items: posProfile is null')
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
-      const items = await apiCall('imogi_pos.api.variants.get_template_items', {
+      const params = {
         pos_profile: posProfile,
-        item_group: selectedGroup === 'all' ? null : selectedGroup
-      })
-      setItems(items || [])
+        item_group: selectedGroup === 'all' ? null : selectedGroup,
+        menu_channel: menuChannel
+      }
+
+      if (import.meta.env.DEV) {
+        console.log('[imogi][catalog] Fetching items:', params)
+      }
+
+      const response = await apiCall('imogi_pos.api.variants.get_template_items', params)
+      
+      // Normalize response - handle both direct array and {message: [...]} wrapper
+      let itemsData = []
+      if (Array.isArray(response)) {
+        itemsData = response
+      } else if (response && Array.isArray(response.message)) {
+        itemsData = response.message
+      } else if (response && response.message) {
+        console.warn('[imogi][catalog] Unexpected response format:', response)
+        itemsData = []
+      }
+      
+      setItems(itemsData)
+
+      if (import.meta.env.DEV) {
+        console.log(`[imogi][catalog] Loaded ${itemsData.length} items for group "${selectedGroup}"`)
+        if (itemsData.length === 0) {
+          console.warn('[imogi][catalog] ZERO items returned! Check:')
+          console.warn('  1. Are there items in database with disabled=0, is_sales_item=1, variant_of=null?')
+          console.warn('  2. Does imogi_menu_channel match?', menuChannel)
+          console.warn('  3. Check backend logs in developer mode')
+        }
+      }
     } catch (err) {
+      const errorMsg = err?.message || err?.toString() || 'Unknown error'
+      const statusCode = err?.httpStatus || err?.status || 'N/A'
+      
       setError('Failed to load items')
-      console.error('[imogi][catalog] Error loading items:', err)
+      console.error('[imogi][catalog] Error loading items:', {
+        error: errorMsg,
+        status: statusCode,
+        params: { posProfile, selectedGroup, menuChannel },
+        fullError: err
+      })
     } finally {
       setLoading(false)
     }

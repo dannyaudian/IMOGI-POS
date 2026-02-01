@@ -709,10 +709,13 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
             "item_group",
             "menu_category",
             "stock_uom",
+            "imogi_menu_channel",  # CRITICAL: Must be fetched for channel filtering to work!
         ],
         order_by="item_name asc",
         limit_page_length=cint(limit) or 500,
     )
+    
+    initial_count = len(items)
     
     # Filter by channel if provided
     if menu_channel:
@@ -720,6 +723,31 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
             item for item in items
             if _channel_matches(item.get("imogi_menu_channel"), menu_channel)
         ]
+        
+        # DEBUG: Only log when filtering results in zero items (avoid spam)
+        if frappe.conf.get("developer_mode") and len(items) == 0 and initial_count > 0:
+            # Collect sample channels from initial results to help diagnose
+            sample_channels = list(set([item.get("imogi_menu_channel") or "[NULL]" for item in frappe.get_all(
+                "Item",
+                filters=filters,
+                fields=["imogi_menu_channel"],
+                limit_page_length=20
+            )]))[:10]
+            
+            frappe.log_error(
+                title=f"get_template_items: Zero Results After Channel Filter",
+                message=f"""Requested channel: {menu_channel}
+Initial items: {initial_count}
+Filtered items: 0
+Sample channels in database: {sample_channels}
+
+Possible causes:
+1. No items have imogi_menu_channel = '{menu_channel}'
+2. All items have different channel values
+3. Restaurant Settings enable_menu_channels might be affecting filter
+
+Suggested fix: Check Item DocType and set imogi_menu_channel to '{menu_channel}' or 'All'"""
+            )
     
     # Get price list rates if POS profile provided
     price_list = None

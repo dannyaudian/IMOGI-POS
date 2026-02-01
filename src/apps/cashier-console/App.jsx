@@ -110,8 +110,118 @@ function CounterPOSContent({ initialState }) {
     shouldFetchKiosk ? 'Kiosk' : null
   )
 
+  // CRITICAL: ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // State management - moved here to comply with React Rules of Hooks
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split, summary, close
+  const [showPayment, setShowPayment] = useState(false)
+  const [showSplit, setShowSplit] = useState(false)
+  const [showSummary, setShowSummary] = useState(false)
+  const [showCloseShift, setShowCloseShift] = useState(false)
+  const [showVariantPicker, setShowVariantPicker] = useState(false)
+  const [variantPickerContext, setVariantPickerContext] = useState(null)
+  const [showTableSelector, setShowTableSelector] = useState(false)
+  const [selectedTable, setSelectedTable] = useState(null)
+  const [creatingOrder, setCreatingOrder] = useState(false)
+  const [branding, setBranding] = useState(null)
+  const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
+  
+  // Customer Display hook - must be called unconditionally
+  const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
+
+  // Load branding on mount
+  useEffect(() => {
+    if (effectivePosProfile) {
+      loadBranding()
+      checkPrinterStatus()
+    }
+  }, [effectivePosProfile])
+
+  // Listen for variant selection events from OrderDetailPanel
+  useEffect(() => {
+    const handleSelectVariant = (event) => {
+      const { itemRow, itemCode } = event.detail
+      setVariantPickerContext({
+        mode: 'convert',
+        templateName: itemCode,
+        orderItemRow: itemRow
+      })
+      setShowVariantPicker(true)
+    }
+
+    window.addEventListener('selectVariant', handleSelectVariant)
+    return () => window.removeEventListener('selectVariant', handleSelectVariant)
+  }, [selectedOrder])
+
+  // Listen for shift summary trigger from header
+  useEffect(() => {
+    const handleShowSummary = () => {
+      setShowSummary(true)
+      setShowPayment(false)
+      setShowCloseShift(false)
+      setViewMode('summary')
+    }
+
+    window.addEventListener('showShiftSummary', handleShowSummary)
+    return () => window.removeEventListener('showShiftSummary', handleShowSummary)
+  }, [])
+
+  // Listen for close shift trigger from header
+  useEffect(() => {
+    const handleCloseShift = () => {
+      setShowCloseShift(true)
+      setShowPayment(false)
+      setShowSplit(false)
+      setShowSummary(false)
+      setViewMode('close')
+    }
+
+    window.addEventListener('closeShift', handleCloseShift)
+    return () => window.removeEventListener('closeShift', handleCloseShift)
+  }, [])
+
+  // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
+  // This prevents infinite loading state when context selection is required
+  useEffect(() => {
+    if (!guardLoading && !guardPassed) {
+      const timeout = setTimeout(() => {
+        console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
+        window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [guardLoading, guardPassed])
+
+  // Helper functions for branding and printer
+  const loadBranding = async () => {
+    try {
+      // API get_branding is in public.py and uses operational context
+      const result = await apiCall('imogi_pos.api.public.get_branding')
+      if (result) {
+        setBranding(result)
+        console.log('[Cashier] Branding loaded:', result)
+      }
+    } catch (err) {
+      console.warn('[Cashier] Failed to load branding:', err)
+    }
+  }
+
+  const checkPrinterStatus = async () => {
+    try {
+      if (window.escposPrint && typeof window.escposPrint.getStatus === 'function') {
+        const status = await window.escposPrint.getStatus()
+        setPrinterStatus({ connected: status.connected || false, checking: false })
+      } else {
+        setPrinterStatus({ connected: false, checking: false })
+      }
+    } catch (err) {
+      console.warn('[Cashier] Printer status check failed:', err)
+      setPrinterStatus({ connected: false, checking: false })
+    }
+  }
+
   // Block screen if no opening (show error without redirect)
-  // CRITICAL: This return must come AFTER all hook calls
+  // CRITICAL: This return comes AFTER all hook calls (React Rules of Hooks)
   // HARDENED: All variables have safe defaults to prevent ReferenceError
   if (!guardLoading && (!guardPassed || !hasValidOpening)) {
     const reason = !guardPassed ? 'guard_failed' : 'no_opening'
@@ -172,114 +282,6 @@ function CounterPOSContent({ initialState }) {
     ...asArray(selfOrders),
     ...asArray(kioskOrders)
   ]
-  
-  // State management
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split, summary, close
-  const [showPayment, setShowPayment] = useState(false)
-  const [showSplit, setShowSplit] = useState(false)
-  const [showSummary, setShowSummary] = useState(false)
-  const [showCloseShift, setShowCloseShift] = useState(false)
-  const [showVariantPicker, setShowVariantPicker] = useState(false)
-  const [variantPickerContext, setVariantPickerContext] = useState(null)
-  const [showTableSelector, setShowTableSelector] = useState(false)
-  const [selectedTable, setSelectedTable] = useState(null)
-  const [creatingOrder, setCreatingOrder] = useState(false)
-  const [branding, setBranding] = useState(null)
-  const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
-  
-  // Customer Display
-  const { isOpen: isCustomerDisplayOpen, openDisplay: openCustomerDisplay, closeDisplay: closeCustomerDisplay } = useCustomerDisplay(selectedOrder, branding)
-
-  // Load branding on mount
-  useEffect(() => {
-    if (effectivePosProfile) {
-      loadBranding()
-      checkPrinterStatus()
-    }
-  }, [effectivePosProfile])
-
-  const loadBranding = async () => {
-    try {
-      // API get_branding is in public.py and uses operational context
-      const result = await apiCall('imogi_pos.api.public.get_branding')
-      if (result) {
-        setBranding(result)
-        console.log('[Cashier] Branding loaded:', result)
-      }
-    } catch (err) {
-      console.warn('[Cashier] Failed to load branding:', err)
-    }
-  }
-
-  const checkPrinterStatus = async () => {
-    try {
-      if (window.escposPrint && typeof window.escposPrint.getStatus === 'function') {
-        const status = await window.escposPrint.getStatus()
-        setPrinterStatus({ connected: status.connected || false, checking: false })
-      } else {
-        setPrinterStatus({ connected: false, checking: false })
-      }
-    } catch (err) {
-      console.warn('[Cashier] Printer status check failed:', err)
-      setPrinterStatus({ connected: false, checking: false })
-    }
-  }
-
-  // Listen for variant selection events from OrderDetailPanel
-  useEffect(() => {
-    const handleSelectVariant = (event) => {
-      const { itemRow, itemCode } = event.detail
-      setVariantPickerContext({
-        mode: 'convert',
-        templateName: itemCode,
-        orderItemRow: itemRow
-      })
-      setShowVariantPicker(true)
-    }
-
-    window.addEventListener('selectVariant', handleSelectVariant)
-    return () => window.removeEventListener('selectVariant', handleSelectVariant)
-  }, [selectedOrder])
-
-  // Listen for shift summary trigger from header
-  useEffect(() => {
-    const handleShowSummary = () => {
-      setShowSummary(true)
-      setShowPayment(false)
-      setShowCloseShift(false)
-      setViewMode('summary')
-    }
-
-    window.addEventListener('showShiftSummary', handleShowSummary)
-    return () => window.removeEventListener('showShiftSummary', handleShowSummary)
-  }, [])
-
-  // Listen for close shift trigger from header
-  useEffect(() => {
-    const handleCloseShift = () => {
-      setShowCloseShift(true)
-      setShowPayment(false)
-      setShowSplit(false)
-      setShowSummary(false)
-      setViewMode('close')
-    }
-
-    window.addEventListener('closeShift', handleCloseShift)
-    return () => window.removeEventListener('closeShift', handleCloseShift)
-  }, [])
-
-  // Guard timeout: redirect to module-select if guard doesn't pass within 10 seconds
-  // This prevents infinite loading state when context selection is required
-  useEffect(() => {
-    if (!guardLoading && !guardPassed) {
-      const timeout = setTimeout(() => {
-        console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
-        window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
-      }, 10000)
-      return () => clearTimeout(timeout)
-    }
-  }, [guardLoading, guardPassed])
 
   // Show loading while checking guard
   // No auth loading needed - Frappe Desk handles authentication
@@ -689,7 +691,9 @@ function CounterPOSContent({ initialState }) {
             
             {viewMode === 'catalog' && (
               <CatalogView
-                posProfile={posProfile}
+                posProfile={effectivePosProfile}
+                branch={effectiveBranch}
+                menuChannel="Cashier"
                 onSelectItem={handleCatalogItemSelect}
               />
             )}
