@@ -50,6 +50,8 @@ def _normalise_channel(value):
 def _channel_matches(entry_channel, requested_channel):
     """Check if entry channel matches requested channel.
     
+    Pure function - no DB calls. Domain check should be done by caller.
+    
     Args:
         entry_channel: Channel value from item/entry
         requested_channel: Requested channel filter

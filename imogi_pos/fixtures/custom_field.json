@@ -1367,5 +1367,20 @@
     "doctype": "Custom Field",
     "name": "POS Order-claimed_at",
     "description": "Timestamp when the order was claimed by the cashier. Used to track claim timing."
+  },
+  {
+    "fieldname": "imogi_menu_channel",
+    "fieldtype": "Select",
+    "label": "Menu Channel",
+    "options": "\nCashier\nSelf Order\nKiosk\nUniversal",
+    "default": "",
+    "description": "Channel where this item appears in POS (leave blank or use Universal for all channels)",
+    "insert_after": "item_group",
+    "in_standard_filter": 1,
+    "is_system_generated": 0,
+    "module": "IMOGI POS",
+    "dt": "Item",
+    "doctype": "Custom Field",
+    "name": "Item-imogi_menu_channel"
   }
 ]
