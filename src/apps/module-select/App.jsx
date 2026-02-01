@@ -10,6 +10,7 @@ import ModuleCard from './components/ModuleCard'
 import CashierSessionCard from './components/CashierSessionCard'
 import POSProfileSelectModal from './components/POSProfileSelectModal'
 import { deskNavigate } from '../../shared/utils/deskNavigate'
+import { getVisibleModules } from './utils/moduleUtils'
 
 function App() {
   // Use operational context hook to manage POS Profile
@@ -221,6 +222,40 @@ function App() {
     is_privileged: contextState.is_privileged
   }), [contextState])
   
+  // Get user roles from Frappe boot (for role-based filtering)
+  const userRoles = useMemo(() => {
+    const roles = frappe?.boot?.user?.roles || []
+    
+    // Debug log to help diagnose role visibility issues
+    if (debugRealtime && roles.length > 0) {
+      console.log('[Module Select] User roles loaded:', {
+        user: maskUser(frappe?.session?.user),
+        roles: roles,
+        has_system_manager: roles.includes('System Manager'),
+        has_administrator: roles.includes('Administrator')
+      })
+    }
+    
+    return roles
+  }, [debugRealtime])
+  
+  // Filter and sort modules based on user roles
+  const visibleModules = useMemo(() => {
+    const filtered = getVisibleModules(modules, userRoles)
+    
+    // Debug log to help diagnose filtering
+    if (debugRealtime && modules.length > 0) {
+      console.log('[Module Select] Module filtering:', {
+        total_modules: modules.length,
+        visible_modules: filtered.length,
+        filtered_out: modules.length - filtered.length,
+        user_roles: userRoles
+      })
+    }
+    
+    return filtered
+  }, [modules, userRoles, debugRealtime])
+  
   // Listen for POS opening events from native form
   useEffect(() => {
     const handleSessionOpened = (event) => {
@@ -311,8 +346,17 @@ function App() {
 
   const setOperationalContext = async (posProfile, branchOverride) => {
     if (!posProfile) {
+      console.warn('[module-select] setOperationalContext called with no posProfile')
       return null
     }
+
+    console.log('[module-select] setOperationalContext called', {
+      posProfile,
+      branchOverride,
+      hasFrappe: !!window.frappe,
+      hasCsrfToken: !!(window.frappe && window.frappe.csrf_token),
+      user: window.frappe?.session?.user
+    })
 
     try {
       const response = await apiCall('imogi_pos.utils.operational_context.set_operational_context', {
@@ -320,8 +364,12 @@ function App() {
         branch: branchOverride || null
       })
 
+      console.log('[module-select] setOperationalContext response', response)
+
       if (response?.success) {
         const context = response.context || {}
+        
+        console.log('[module-select] Context set successfully', context)
         
         // Update local state
         setContextState((prev) => ({
@@ -349,9 +397,19 @@ function App() {
         
         return response
       } else {
+        console.warn('[module-select] setOperationalContext failed', response)
         return response
       }
     } catch (error) {
+      console.error('[module-select] setOperationalContext error', {
+        error: error.message,
+        stack: error.stack,
+        httpStatus: error.httpStatus,
+        responseText: error.responseText?.substring(0, 500),
+        responseData: error.responseData,
+        posProfile,
+        branchOverride
+      })
       throw error
     }
   }
@@ -936,8 +994,8 @@ function App() {
           </div>
 
           <div className="modules-grid">
-            {modules.length > 0 ? (
-              modules.map((module) => (
+            {visibleModules.length > 0 ? (
+              visibleModules.map((module) => (
                 <ModuleCard
                   key={module.type}
                   module={module}
@@ -959,6 +1017,7 @@ function App() {
                       <li>Is Admin: {debugInfo.is_admin ? 'Yes' : 'No'}</li>
                       <li>Total Modules Configured: {debugInfo.total_modules_configured}</li>
                       <li>Modules Available: {debugInfo.modules_available}</li>
+                      <li>Visible After Filtering: {visibleModules.length}</li>
                     </ul>
                     <p className="help-text">
                       <i className="fa-solid fa-info-circle"></i>

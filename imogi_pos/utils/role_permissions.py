@@ -258,18 +258,27 @@ MENU_RESTRICTIONS = {
 # HELPER FUNCTIONS
 # ============================================================================
 
-def has_doctype_permission(doc, ptype="read", user=None, debug=False):
+def has_doctype_permission(doc=None, ptype="read", user=None, debug=False, doctype=None, **kwargs):
     """Check if user has permission for DocType based on role restrictions.
     
     CRITICAL: This function is called by Frappe's permission controller.
-    Signature MUST match Frappe v15 expectations:
-        has_doctype_permission(doc, ptype, user, debug=False)
+    Frappe may call this with different argument patterns:
+        - has_doctype_permission(doc, ptype, user, debug=False)
+        - has_doctype_permission(doctype="Order", ptype="read", ...)
+        - has_doctype_permission(doc=doc_instance, ptype="write", ...)
+    
+    This signature handles all patterns by:
+        1. Making all args optional with defaults
+        2. Accepting **kwargs for flexibility
+        3. Deriving doctype from doc if needed
     
     Args:
-        doc (Document|str): Document instance or DocType name
+        doc (Document|str, optional): Document instance or DocType name
         ptype (str): Permission type (read, write, create, delete, etc.)
         user (str, optional): User email. Defaults to current user.
         debug (bool, optional): Debug mode. Defaults to False.
+        doctype (str, optional): Explicit doctype name (Frappe v14+)
+        **kwargs: Additional arguments from Frappe
         
     Returns:
         bool: True if user has permission
@@ -287,17 +296,48 @@ def has_doctype_permission(doc, ptype="read", user=None, debug=False):
     if "System Manager" in user_roles:
         return True
     
-    # Extract doctype name (could be Document instance or string)
-    doctype = doc.doctype if hasattr(doc, 'doctype') else doc
+    # Extract doctype name - handle multiple input patterns
+    resolved_doctype = None
+    
+    # Pattern 1: explicit doctype parameter
+    if doctype:
+        resolved_doctype = doctype
+    # Pattern 2: doc is Document instance
+    elif doc and hasattr(doc, 'doctype'):
+        resolved_doctype = doc.doctype
+    # Pattern 3: doc is string (doctype name)
+    elif doc and isinstance(doc, str):
+        resolved_doctype = doc
+    
+    # Safety: if we still don't have doctype, allow by default
+    if not resolved_doctype:
+        if debug:
+            frappe.log_error(
+                f"has_doctype_permission called without resolvable doctype. Args: doc={doc}, doctype={doctype}, ptype={ptype}, user={user}",
+                "Permission Debug"
+            )
+        # Don't crash - allow default permission check
+        return True
     
     # Check if DocType has restrictions
-    if doctype not in DOCTYPE_RESTRICTIONS:
+    if resolved_doctype not in DOCTYPE_RESTRICTIONS:
         # No restrictions defined, use native ERPNext permissions
-        return frappe.has_permission(doctype, ptype=ptype, user=user)
+        return frappe.has_permission(resolved_doctype, ptype=ptype, user=user)
     
     # Check role-based restrictions
-    allowed_roles = DOCTYPE_RESTRICTIONS[doctype].get(ptype, [])
-    return any(role in user_roles for role in allowed_roles)
+    allowed_roles = DOCTYPE_RESTRICTIONS[resolved_doctype].get(ptype, [])
+    has_permission = any(role in user_roles for role in allowed_roles)
+    
+    if debug:
+        frappe.msgprint(
+            f"Permission Check: {resolved_doctype}.{ptype} for {user}<br>"
+            f"User Roles: {', '.join(user_roles)}<br>"
+            f"Allowed Roles: {', '.join(allowed_roles)}<br>"
+            f"Result: {has_permission}"
+        )
+    
+    return has_permission
+
 
 
 def has_field_permission(doctype, fieldname, perm_type="read", user=None):

@@ -167,8 +167,19 @@ async function callViaFetch(method, args, options) {
   // Get CSRF token
   const csrfToken = getCSRFToken()
   if (!csrfToken) {
+    logger.error('api', 'CSRF token not found', {
+      hasFrappe: !!window.frappe,
+      hasCsrfToken: !!(window.frappe && window.frappe.csrf_token),
+      hasWindowToken: !!window.FRAPPE_CSRF_TOKEN,
+      cookies: document.cookie
+    })
     throw new Error('CSRF token not found. Session may have expired.')
   }
+  
+  logger.debug('api', `Using CSRF token for ${method}`, {
+    tokenLength: csrfToken.length,
+    tokenPreview: csrfToken.substring(0, 10) + '...'
+  })
 
   // Create abort controller for timeout
   const controller = new AbortController()
@@ -191,9 +202,47 @@ async function callViaFetch(method, args, options) {
 
     // Check HTTP status
     if (!response.ok) {
-      const error = new Error(`HTTP ${response.status}: ${response.statusText}`)
+      // Try to parse error response for better debugging
+      let errorBody = ''
+      let errorData = null
+      
+      try {
+        errorBody = await response.text()
+        errorData = JSON.parse(errorBody)
+      } catch (e) {
+        // Not JSON, use text
+      }
+      
+      // Build detailed error message
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      
+      if (errorData) {
+        // Frappe error format
+        if (errorData.exception) {
+          errorMessage = errorData.exception
+        } else if (errorData._server_messages) {
+          try {
+            const messages = JSON.parse(errorData._server_messages)
+            errorMessage = messages.map(m => JSON.parse(m).message).join(', ')
+          } catch (e) {
+            errorMessage = errorData._server_messages
+          }
+        }
+      }
+      
+      logger.error('api', `HTTP Error ${response.status} calling ${method}`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorBody.substring(0, 500), // First 500 chars
+        errorData,
+        method,
+        args
+      })
+      
+      const error = new Error(errorMessage)
       error.httpStatus = response.status
-      error.responseText = await response.text().catch(() => '')
+      error.responseText = errorBody
+      error.responseData = errorData
       throw error
     }
 

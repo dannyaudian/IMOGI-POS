@@ -1,4 +1,6 @@
 import React from 'react'
+import { getModulePriority } from '../utils/moduleRules'
+import { getModuleStatusBadges, isModuleAccessible } from '../utils/moduleUtils'
 
 function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading }) {
   const getModuleIcon = (type) => {
@@ -33,14 +35,16 @@ function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading
     return colors[type] || 'color-default'
   }
 
-  // Determine if module is accessible
-  const isAccessible = !module.requires_opening || posOpeningStatus?.hasOpening
+  // Get module priority and badges
+  const priority = getModulePriority(module.type)
+  const badges = getModuleStatusBadges(module, posOpeningStatus)
+  const isAccessible = isModuleAccessible(module, posOpeningStatus)
   const needsOpening = module.requires_opening && !posOpeningStatus?.hasOpening
   const isDisabled = !isAccessible || isNavigating
 
   return (
     <div 
-      className={`module-card ${getModuleColor(module.type)} ${!isAccessible ? 'module-locked' : ''} ${isNavigating ? 'module-navigating' : ''} ${isLoading ? 'module-loading' : ''}`}
+      className={`module-card module-card--${priority} ${getModuleColor(module.type)} ${!isAccessible ? 'module-locked' : ''} ${isNavigating ? 'module-navigating' : ''} ${isLoading ? 'module-loading' : ''}`}
       onClick={!isDisabled ? onClick : undefined}
       role="button"
       tabIndex={!isDisabled ? 0 : -1}
@@ -66,19 +70,17 @@ function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading
         <h3 className="module-name">{module.name}</h3>
         <p className="module-description">{module.description}</p>
         
-        <div className="module-badges">
-          {module.requires_opening ? (
-            <div className={`module-badge ${posOpeningStatus?.hasOpening ? 'badge-success' : 'badge-warning'}`}>
-              <i className={`fa-solid ${posOpeningStatus?.hasOpening ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
-              {posOpeningStatus?.hasOpening ? 'Session Active' : 'Needs POS Opening'}
-            </div>
-          ) : (
-            <div className="module-badge badge-info">
-              <i className="fa-solid fa-circle-check"></i>
-              Always Available
-            </div>
-          )}
-        </div>
+        {/* Only show badges if there are constraints */}
+        {badges.length > 0 && (
+          <div className="module-badges">
+            {badges.map((badge, idx) => (
+              <div key={idx} className={`module-badge module-badge--${badge.tone}`}>
+                {badge.icon && <i className={`fa-solid ${badge.icon}`}></i>}
+                {badge.text}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="module-arrow">
