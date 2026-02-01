@@ -50,27 +50,31 @@ def _normalise_channel(value):
 def _channel_matches(entry_channel, requested_channel):
     """Check if entry channel matches requested channel.
     
-    Pure function - no DB calls. Domain check should be done by caller.
+    Pure function - NO DB calls. Caller must check domain and enable_menu_channels.
     
     Args:
-        entry_channel: Channel value from item/entry
-        requested_channel: Requested channel filter
+        entry_channel: Channel value from item/entry (can be None/empty)
+        requested_channel: Requested channel filter (can be None/empty)
         
     Returns:
         bool: True if matches, False otherwise
+        
+    Matching logic:
+        - None/""/"Universal"/"All"/"Both" in entry_channel = matches everything
+        - None/"" in requested_channel = matches everything
+        - Otherwise: case-insensitive exact match
     """
-    settings = get_restaurant_settings()
-    if not settings.get("enable_menu_channels"):
-        return True
-
+    # Normalize requested channel
     requested = _normalise_channel(requested_channel)
     if not requested or requested in CHANNEL_ALL:
         return True
 
+    # Normalize entry channel
     entry = _normalise_channel(entry_channel)
     if entry in CHANNEL_ALL:
         return True
 
+    # Exact match (case-insensitive)
     return entry == requested
 
 

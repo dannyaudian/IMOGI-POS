@@ -33,55 +33,225 @@ frappe.pages['imogi-cashier'].on_page_load = function(wrapper) {
 	wrapper.__imogiCashierPage = page;
 	wrapper.__imogiCashierRoot = container[0];
 	
-	// Setup popstate listener for back button auto-reload
-	// This ensures React remounts with fresh data when navigating back
-	if (!wrapper.__imogiPopstateHandler) {
-		wrapper.__imogiPopstateHandler = function(event) {
-			console.log('🔄 [POPSTATE] Back navigation detected, reloading Cashier', {
-				state: event.state,
-				route: frappe.get_route_str()
+	// Track mount state and last route
+	wrapper.__imogiReactMounted = false;
+	wrapper.__imogiLastRoute = null;
+	
+	// METHOD 1: frappe.router listener (primary - most reliable)
+	if (!wrapper.__imogiRouterHandler && frappe && frappe.router) {
+		wrapper.__imogiRouterHandler = function() {
+			const currentRoute = frappe.get_route_str();
+			const isOnCashierRoute = currentRoute.includes('imogi-cashier');
+			const routeChanged = wrapper.__imogiLastRoute !== currentRoute;
+			
+			if (!routeChanged) return; // Skip if route didn't actually change
+			
+			console.log('🔄 [ROUTER CHANGE] Route changed', {
+				from: wrapper.__imogiLastRoute,
+				to: currentRoute,
+				isOnCashierRoute: isOnCashierRoute,
+				reactMounted: wrapper.__imogiReactMounted,
+				timestamp: new Date().toISOString()
 			});
 			
-			// Check if we're on the cashier route
-			if (frappe.get_route_str().includes('imogi-cashier')) {
-				// Force remount React with fresh data
-				if (wrapper.__imogiCashierRoot) {
-					loadReactWidget(wrapper.__imogiCashierRoot, wrapper.__imogiCashierPage, true);
+			wrapper.__imogiLastRoute = currentRoute;
+			
+			// If navigating away from cashier, unmount React IMMEDIATELY
+			if (!isOnCashierRoute && wrapper.__imogiReactMounted) {
+				console.log('🔴 [ROUTER] Navigating AWAY from Cashier → unmounting');
+				if (wrapper.__imogiCashierRoot && window.imogiCashierUnmount) {
+					try {
+						window.imogiCashierUnmount(wrapper.__imogiCashierRoot);
+						wrapper.__imogiReactMounted = false;
+					} catch (err) {
+						console.error('[Cashier] Unmount error:', err);
+					}
 				}
 			}
 		};
+		
+		frappe.router.on('change', wrapper.__imogiRouterHandler);
+		console.log('✅ [Cashier] frappe.router listener registered');
+	}
+	
+	// METHOD 2: popstate listener (back/forward buttons)
+	if (!wrapper.__imogiPopstateHandler) {
+		wrapper.__imogiPopstateHandler = function(event) {
+			const currentRoute = frappe.get_route_str();
+			
+			console.log('🔄 [POPSTATE] Browser navigation', {
+				state: event.state,
+				route: currentRoute
+			});
+			
+			// Always unmount first when using popstate
+			if (wrapper.__imogiReactMounted && wrapper.__imogiCashierRoot) {
+				window.imogiCashierUnmount(wrapper.__imogiCashierRoot);
+				wrapper.__imogiReactMounted = false;
+			}
+			
+			// Then remount if on cashier route
+			if (currentRoute.includes('imogi-cashier')) {
+				console.log('🟢 [POPSTATE] Back to Cashier → force remount');
+				setTimeout(() => {
+					if (wrapper.__imogiCashierRoot) {
+						loadReactWidget(wrapper.__imogiCashierRoot, wrapper.__imogiCashierPage, true);
+					}
+				}, 50);
+			}
+		};
 		window.addEventListener('popstate', wrapper.__imogiPopstateHandler);
+		console.log('✅ [Cashier] popstate listener registered');
+	}
+	
+	// METHOD 3: MutationObserver fallback (catches DOM-based route changes)
+	if (!wrapper.__imogiMutationObserver && typeof MutationObserver !== 'undefined') {
+		let lastHref = window.location.href;
+		
+		wrapper.__imogiMutationObserver = new MutationObserver(() => {
+			if (window.location.href !== lastHref) {
+				const oldHref = lastHref;
+				lastHref = window.location.href;
+				
+				const currentRoute = frappe.get_route_str();
+				const wasOnCashier = oldHref.includes('imogi-cashier');
+				const isOnCashier = currentRoute.includes('imogi-cashier');
+				
+				console.log('🔄 [MUTATION] URL changed', {
+					from: oldHref,
+					to: window.location.href,
+					wasOnCashier,
+					isOnCashier
+				});
+				
+				// Navigating away from cashier
+				if (wasOnCashier && !isOnCashier && wrapper.__imogiReactMounted) {
+					console.log('🔴 [MUTATION] Left Cashier → unmounting');
+					if (wrapper.__imogiCashierRoot && window.imogiCashierUnmount) {
+						window.imogiCashierUnmount(wrapper.__imogiCashierRoot);
+						wrapper.__imogiReactMounted = false;
+					}
+				}
+			}
+		});
+		
+		wrapper.__imogiMutationObserver.observe(document.body, {
+			subtree: true,
+			childList: true,
+			attributes: false
+		});
+		
+		console.log('✅ [Cashier] MutationObserver fallback registered');
+	}
+	
+	// Cleanup function for proper teardown
+	wrapper.__imogiCleanup = function() {
+		console.log('🧹 [Cashier] Running cleanup');
+		
+		// Remove router listener
+		if (wrapper.__imogiRouterHandler && frappe && frappe.router) {
+			frappe.router.off('change', wrapper.__imogiRouterHandler);
+			wrapper.__imogiRouterHandler = null;
+		}
+		
+		// Remove popstate listener
+		if (wrapper.__imogiPopstateHandler) {
+			window.removeEventListener('popstate', wrapper.__imogiPopstateHandler);
+			wrapper.__imogiPopstateHandler = null;
+		}
+		
+		// Disconnect mutation observer
+		if (wrapper.__imogiMutationObserver) {
+			wrapper.__imogiMutationObserver.disconnect();
+			wrapper.__imogiMutationObserver = null;
+		}
+		
+		// Unmount React completely
+		if (wrapper.__imogiCashierRoot && window.imogiCashierUnmount) {
+			try {
+				window.imogiCashierUnmount(wrapper.__imogiCashierRoot);
+				wrapper.__imogiReactMounted = false;
+			} catch (err) {
+				console.error('[Cashier] Cleanup unmount error:', err);
+			}
+		}
+		
+		// Clear route tracking
+		wrapper.__imogiLastRoute = null;
+	};
+	
+	// Register cleanup on page hide
+	if (page && typeof page.on_page_hide === 'function') {
+		const originalOnHide = page.on_page_hide;
+		page.on_page_hide = function() {
+			console.log('🔴 [PAGE HIDE] Cashier page hidden');
+			if (wrapper.__imogiCleanup) {
+				wrapper.__imogiCleanup();
+			}
+			if (originalOnHide) {
+				originalOnHide.call(this);
+			}
+		};
 	}
 };
 
 frappe.pages['imogi-cashier'].on_page_show = function(wrapper) {
-	// Check if this is a fresh navigation from module-select (has _reload param)
-	const urlParams = new URLSearchParams(window.location.search);
-	const shouldReload = urlParams.has('_reload');
+	const isDev = frappe?.boot?.developer_mode || window.location.hostname === 'localhost';
+	const currentRoute = frappe.get_route_str();
 	
-	console.log('🟢 [DESK PAGE SHOW] Cashier', {
-		route: frappe.get_route_str(),
-		timestamp: new Date().toISOString(),
-		isBackNavigation: window.performance && window.performance.navigation.type === 2,
-		shouldReload: shouldReload
-	});
+	if (isDev) {
+		console.log('🟢 [PAGE SHOW] Cashier', {
+			route: currentRoute,
+			reactMounted: wrapper.__imogiReactMounted,
+			timestamp: new Date().toISOString()
+		});
+	}
 	
-	// Get container reference from wrapper
 	const container = wrapper.__imogiCashierRoot;
 	const page = wrapper.__imogiCashierPage;
 	
 	if (!container) {
-		console.error('[Desk] Cashier container not found - on_page_load not run?');
+		console.error('[Cashier] Container not found, on_page_load not run?');
 		return;
 	}
 
-	// Load React widget directly - let React handle operational context checking
-	// React usePOSProfileGuard will handle redirect to module-select if needed
-	// Force reload if _reload param exists (fresh navigation from module-select)
-	loadReactWidget(container, page, shouldReload);
+	// CRITICAL: Always unmount existing instance first for clean state
+	if (wrapper.__imogiReactMounted && window.imogiCashierUnmount) {
+		if (isDev) {
+			console.log('🔄 [PAGE SHOW] Unmounting existing React instance');
+		}
+		try {
+			window.imogiCashierUnmount(container);
+		} catch (err) {
+			console.warn('[PAGE SHOW] Unmount error:', err);
+		}
+		wrapper.__imogiReactMounted = false;
+	}
 	
-	// Clean up _reload param from URL to avoid reload loops
-	if (shouldReload) {
+	// Use requestAnimationFrame for robust DOM cleanup timing
+	// More reliable than setTimeout across different devices/browsers
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			if (isDev) {
+				console.log('🚀 [PAGE SHOW] Loading React widget');
+			}
+			
+			// Load fresh React instance
+			loadReactWidget(container, page, true);
+			
+			// Mark as mounted
+			wrapper.__imogiReactMounted = true;
+			wrapper.__imogiLastRoute = currentRoute;
+			
+			if (isDev) {
+				console.log('✅ [PAGE SHOW] React mounted successfully');
+			}
+		});
+	});
+	
+	// Clean up URL params
+	const urlParams = new URLSearchParams(window.location.search);
+	if (urlParams.has('_reload')) {
 		urlParams.delete('_reload');
 		const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
 		window.history.replaceState({}, '', cleanUrl);

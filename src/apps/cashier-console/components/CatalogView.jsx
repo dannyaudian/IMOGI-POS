@@ -24,7 +24,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     } else if (!posProfile) {
       setLoading(false)
     }
-  }, [selectedGroup, posProfile, menuChannel])
+  }, [selectedGroup, posProfile, menuChannel]) // menuChannel dependency ensures refetch on channel change
 
   const loadItemGroups = async () => {
     if (!posProfile) {

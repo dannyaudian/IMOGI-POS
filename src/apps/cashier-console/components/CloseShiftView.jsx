@@ -15,7 +15,8 @@ export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed,
 
   useEffect(() => {
     checkOpeningAndLoadSummary()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
 
   const checkOpeningAndLoadSummary = async () => {
     try {

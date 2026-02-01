@@ -42,6 +42,7 @@ def get_items_with_stock(
     price_list=None,
     base_price_list=None,
     menu_channel=None,
+    pos_profile=None,
 ):
     """Return POS items with stock and allowed payment methods.
 
@@ -63,6 +64,8 @@ def get_items_with_stock(
         menu_channel (str, optional): Channel context (``POS`` or
             ``Restaurant``) used to filter items that are specific to a
             service channel. When omitted, all items are returned.
+        pos_profile (str, optional): POS Profile name for domain checking.
+            Channel filtering only applies if domain is "Restaurant".
 
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
@@ -88,37 +91,89 @@ def get_items_with_stock(
         ["Item", "variant_of", "=", ""],
     ]
 
+    # Check if imogi_menu_channel field exists (defensive)
+    item_meta = frappe.get_meta("Item")
+    has_channel_field = item_meta.has_field("imogi_menu_channel")
+    
+    # Build fields list conditionally
+    fields = [
+        "name",
+        "item_name",
+        "item_code",
+        "description",
+        "image",
+        "standard_rate",
+        "has_variants",
+        "variant_of",
+        "item_group",
+        "menu_category",
+        "photo",
+        "default_kitchen",
+        "default_kitchen_station",
+        "pos_menu_profile",
+    ]
+    
+    if has_channel_field:
+        fields.append("imogi_menu_channel")
+    
     items = frappe.get_all(
         "Item",
         filters=item_filters,
         or_filters=or_filters,
-        fields=[
-            "name",
-            "item_name",
-            "item_code",
-            "description",
-            "image",
-            "standard_rate",
-            "has_variants",
-            "variant_of",
-            "item_group",
-            "menu_category",
-            "photo",
-            "default_kitchen",
-            "default_kitchen_station",
-            "pos_menu_profile",
-            "imogi_menu_channel",
-        ],
+        fields=fields,
         limit_page_length=limit,
     )
 
-    # Ensure only items with a valid menu category proceed and match the requested channel
-    items = [
-        d
-        for d in items
-        if (d.menu_category or "").strip()
-        and _channel_matches(getattr(d, "imogi_menu_channel", None), menu_channel)
-    ]
+    # Filter by menu_category first (always required)
+    items = [d for d in items if (d.menu_category or "").strip()]
+    
+    initial_count = len(items)
+    
+    # Check Restaurant Settings ONCE
+    from imogi_pos.api.items import get_restaurant_settings
+    settings = get_restaurant_settings()
+    enable_menu_channels = settings.get("enable_menu_channels", 0)
+    
+    # Determine if channel filtering should apply (same logic as get_template_items):
+    # 1) menu_channel provided, 2) Restaurant domain, 3) enable_menu_channels=1, 4) field exists
+    should_filter_channel = False
+    domain = None
+    
+    if menu_channel and has_channel_field and pos_profile:
+        domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain") or "Restaurant"
+        should_filter_channel = (domain == "Restaurant" and enable_menu_channels == 1)
+    
+    # Apply channel filter ONLY if all conditions met
+    if should_filter_channel:
+        items = [
+            d for d in items
+            if _channel_matches(getattr(d, "imogi_menu_channel", None), menu_channel)
+        ]
+        
+        # Diagnostic: log if filtering resulted in zero items
+        if frappe.conf.get("developer_mode") and len(items) == 0 and initial_count > 0:
+            sample_items = frappe.get_all(
+                "Item",
+                filters=item_filters,
+                fields=["name", "imogi_menu_channel"],
+                limit_page_length=10
+            )
+            sample_channels = {item.get("imogi_menu_channel") or "[NULL]" for item in sample_items}
+            
+            frappe.logger().warning(
+                f"[IMOGI Stock] get_items_with_stock returned ZERO items after channel filtering.\n"
+                f"  Args: menu_channel={menu_channel}, pos_profile={pos_profile}\n"
+                f"  Domain: {domain}, enable_menu_channels: {enable_menu_channels}\n"
+                f"  Initial: {initial_count}, Filtered: 0\n"
+                f"  Sample channels: {list(sample_channels)[:5]}"
+            )
+    elif menu_channel and not should_filter_channel:
+        # Log graceful degradation
+        reason = "field missing" if not has_channel_field else f"domain is '{domain}' (not Restaurant)"
+        frappe.logger().info(
+            f"get_items_with_stock: Skipping channel filter - {reason}. "
+            f"Returning all {initial_count} items."
+        )
 
     # Map of item group -> default POS Menu Profile
     group_defaults = {}
@@ -724,63 +779,70 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
         limit_page_length=cint(limit) or 500,
     )
     
-    # Early return: skip domain check if no channel filtering requested (optimization for Retail/Service)
-    if not menu_channel:
-        return items
-    
     initial_count = len(items)
     
-    # Check domain ONCE (not per item) - channel filtering ONLY for Restaurant
-    domain = None
-    should_filter_channel = False
-    if has_channel_field and pos_profile:
-        domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain") or "Restaurant"
-        should_filter_channel = (domain == "Restaurant")
+    # Check Restaurant Settings ONCE (not per item)
+    from imogi_pos.api.items import get_restaurant_settings
+    settings = get_restaurant_settings()
+    enable_menu_channels = settings.get("enable_menu_channels", 0)
     
-    # Filter by channel only if Restaurant domain + field exists (graceful degradation)
+    # Determine if channel filtering should apply:
+    # 1) menu_channel must be provided (non-empty)
+    # 2) POS Profile domain must be "Restaurant"
+    # 3) Restaurant Settings enable_menu_channels must be 1
+    # 4) imogi_menu_channel field must exist on Item
+    should_filter_channel = False
+    domain = None
+    
+    if menu_channel and has_channel_field and pos_profile:
+        domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain") or "Restaurant"
+        should_filter_channel = (domain == "Restaurant" and enable_menu_channels == 1)
+    
+    # Apply channel filtering ONLY if all conditions met
     if should_filter_channel:
         items = [
             item for item in items
             if _channel_matches(item.get("imogi_menu_channel"), menu_channel)
         ]
         
-        # DEBUG: Only log when filtering results in zero items (avoid spam)
+        # Diagnostic logging: only log when filtering results in ZERO items (avoid spam)
         if frappe.conf.get("developer_mode") and len(items) == 0 and initial_count > 0:
-            # Collect sample channels from initial results to help diagnose
-            sample_channels = list(set([item.get("imogi_menu_channel") or "[NULL]" for item in frappe.get_all(
+            # Collect sample channels from first 10 items to help diagnose
+            sample_items = frappe.get_all(
                 "Item",
                 filters=filters,
-                fields=["imogi_menu_channel"],
-                limit_page_length=20
-            )]))[:10]
-            
-            frappe.log_error(
-                title=f"get_template_items: Zero Results After Channel Filter",
-                message=f"""Requested channel: {menu_channel}
-POS Domain: {domain}
-Initial items: {initial_count}
-Filtered items: 0
-Sample channels in database: {sample_channels}
-
-Possible causes:
-1. No items have imogi_menu_channel = '{menu_channel}'
-2. All items have different channel values
-3. Restaurant Settings enable_menu_channels might be affecting filter
-
-Suggested fix: Check Item DocType and set imogi_menu_channel to '{menu_channel}' or 'All'"""
+                fields=["name", "item_name", "imogi_menu_channel"],
+                limit_page_length=10
             )
-    elif not has_channel_field:
-        frappe.logger().info(
-            f"get_template_items: menu_channel='{menu_channel}' requested but 'imogi_menu_channel' "
-            f"field not found in Item DocType. Skipping channel filter (returning all {initial_count} items). "
-            f"Action: Create Custom Field or run 'bench migrate' to enable channel filtering."
-        )
-    elif not should_filter_channel:
-        frappe.logger().info(
-            f"get_template_items: menu_channel='{menu_channel}' requested but POS domain is '{domain}' (not Restaurant). "
-            f"Skipping channel filter (returning all {initial_count} items). Channel filtering only applies to Restaurant domain."
-        )
-        # Continue without filtering - graceful degradation
+            sample_channels = {}
+            for item in sample_items:
+                ch = item.get("imogi_menu_channel") or "[NULL]"
+                if ch not in sample_channels:
+                    sample_channels[ch] = []
+                sample_channels[ch].append(item.get("name"))
+            
+            frappe.logger().warning(
+                f"[IMOGI Catalog] get_template_items returned ZERO items after channel filtering.\n"
+                f"  Args: pos_profile={pos_profile}, item_group={item_group}, menu_channel={menu_channel}, limit={limit}\n"
+                f"  Domain: {domain}\n"
+                f"  enable_menu_channels: {enable_menu_channels}\n"
+                f"  Initial count (before filter): {initial_count}\n"
+                f"  Filtered count: 0\n"
+                f"  Sample imogi_menu_channel values in DB: {dict(list(sample_channels.items())[:5])}\n"
+                f"  ACTION: Check Item records - set imogi_menu_channel to '{menu_channel}' or 'All/Universal'"
+            )
+    else:
+        # No filtering applied - return all items
+        if frappe.conf.get("developer_mode") and menu_channel:
+            reason = "field missing" if not has_channel_field else (
+                "not Restaurant domain" if domain != "Restaurant" else
+                "enable_menu_channels disabled" if not enable_menu_channels else
+                "no pos_profile"
+            )
+            frappe.logger().debug(
+                f"[IMOGI Catalog] get_template_items: Channel filter SKIPPED ({reason}). "
+                f"Returning all {initial_count} items. Domain={domain}, enable_menu_channels={enable_menu_channels}"
+            )
     
     # Get price list rates if POS profile provided
     price_list = None

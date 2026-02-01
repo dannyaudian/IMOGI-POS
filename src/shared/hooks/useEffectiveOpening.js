@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiCall } from '@/shared/utils/api'
 
 /**
@@ -43,6 +43,14 @@ export function useEffectiveOpening({
   const [error, setError] = useState(null)
   const [isUrlOpening, setIsUrlOpening] = useState(false)
   const [lastValidatedAt, setLastValidatedAt] = useState(null)
+
+  // Ref to track latest effectiveOpening without causing callback recreation
+  const effectiveOpeningRef = useRef(effectiveOpening)
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    effectiveOpeningRef.current = effectiveOpening
+  }, [effectiveOpening])
 
   // Load and validate opening on component mount
   useEffect(() => {
@@ -193,7 +201,9 @@ export function useEffectiveOpening({
    * Called before critical operations (payment, close shift)
    */
   const revalidate = useCallback(async () => {
-    if (!effectiveOpening?.name) {
+    const currentOpening = effectiveOpeningRef.current
+    
+    if (!currentOpening?.name) {
       console.warn('[useEffectiveOpening] No opening to revalidate')
       return
     }
@@ -202,7 +212,7 @@ export function useEffectiveOpening({
       setStatus('loading')
       
       if (import.meta.env.DEV) {
-        console.log('[useEffectiveOpening] Re-validating opening:', effectiveOpening.name)
+        console.log('[useEffectiveOpening] Re-validating opening:', currentOpening.name)
       }
 
       // Get current user's active opening
@@ -211,10 +221,10 @@ export function useEffectiveOpening({
       if (!response?.has_opening) {
         setStatus('mismatch')
         setError(
-          `Opening ${effectiveOpening.name} is no longer active. ` +
+          `Opening ${currentOpening.name} is no longer active. ` +
           `Please reload to proceed.`
         )
-        console.warn('[useEffectiveOpening] Opening no longer active:', effectiveOpening.name)
+        console.warn('[useEffectiveOpening] Opening no longer active:', currentOpening.name)
         return
       }
 
@@ -230,21 +240,21 @@ export function useEffectiveOpening({
       }
 
       // Check if URL opening differs from current active
-      if (isUrlOpening && currentActiveOpeningName !== effectiveOpening.name) {
+      if (isUrlOpening && currentActiveOpeningName !== currentOpening.name) {
         setStatus('mismatch')
         setError(
-          `Your opening (${effectiveOpening.name}) differs from current active opening (${currentActiveOpeningName}). ` +
+          `Your opening (${currentOpening.name}) differs from current active opening (${currentActiveOpeningName}). ` +
           `Please reload page to switch openings.`
         )
         console.warn('[useEffectiveOpening] Opening mismatch:', {
-          urlOpening: effectiveOpening.name,
+          urlOpening: currentOpening.name,
           activeOpening: currentActiveOpeningName
         })
         return
       }
 
       // If not URL opening and active changed, auto-update (backward compatible)
-      if (!isUrlOpening && currentActiveOpeningName !== effectiveOpening.name) {
+      if (!isUrlOpening && currentActiveOpeningName !== currentOpening.name) {
         if (import.meta.env.DEV) {
           console.log('[useEffectiveOpening] Active opening changed, updating:', currentActiveOpeningName)
         }
@@ -266,7 +276,7 @@ export function useEffectiveOpening({
       setStatus('error')
       setError(err.message || 'Re-validation failed')
     }
-  }, [effectiveOpening, isUrlOpening])
+  }, [isUrlOpening])
 
   // Auto-revalidate at configured interval
   useEffect(() => {
@@ -278,7 +288,7 @@ export function useEffectiveOpening({
     }, autoRefreshMs)
 
     return () => clearInterval(interval)
-  }, [status, autoRefreshMs, revalidate])
+  }, [status, autoRefreshMs]) // revalidate is stable now, no need in deps
 
   return {
     // Data

@@ -259,17 +259,78 @@ window.loadImogiReactApp = function(config) {
 		window.__imogiLoadCounts = {};
 	}
 	window.__imogiLoadCounts[appKey] = (window.__imogiLoadCounts[appKey] || 0) + 1;
-	console.log(`${logPrefix} [${appKey}] Load attempt #${window.__imogiLoadCounts[appKey]}, route: ${frappe.get_route_str()}`);
+	
+	const loadCount = window.__imogiLoadCounts[appKey];
+	const isDev = frappe?.boot?.developer_mode || window.location.hostname === 'localhost';
+	
+	if (isDev) {
+		console.log(`${logPrefix} [${appKey}] Load attempt #${loadCount}, route: ${frappe.get_route_str()}`);
+	}
 
 	// Guard: Check if script already exists
 	const scriptSelector = `script[data-imogi-app="${appKey}"][src="${scriptUrl}"]`;
 	const existingScript = document.querySelector(scriptSelector);
 
 	if (existingScript) {
-		console.log(`${logPrefix} [${appKey}] Script already injected, reusing...`);
+		if (isDev) {
+			console.log(`${logPrefix} [${appKey}] Script exists, ensuring FRESH mount (unmount → mount)`);
+		}
+		
+		// CRITICAL: Remove previous cleanup handlers to prevent duplicates
+		if (window.__imogiCleanupHandlers && window.__imogiCleanupHandlers[appKey]) {
+			const existing = window.__imogiCleanupHandlers[appKey];
+			
+			if (existing.routerHandler && frappe && frappe.router) {
+				frappe.router.off('change', existing.routerHandler);
+			}
+			
+			if (existing.popstateHandler) {
+				window.removeEventListener('popstate', existing.popstateHandler);
+			}
+			
+			if (existing.unloadHandler) {
+				window.removeEventListener('beforeunload', existing.unloadHandler);
+			}
+			
+			if (isDev) {
+				console.log(`${logPrefix} [${appKey}] Removed previous cleanup handlers`);
+			}
+		}
+		
+		// CRITICAL: Unmount previous instance to prevent stale state
+		if (unmountFnName && typeof window[unmountFnName] === 'function') {
+			if (isDev) {
+				console.log(`${logPrefix} [${appKey}] Unmounting previous instance`);
+			}
+			try {
+				window[unmountFnName](container);
+			} catch (err) {
+				console.warn(`${logPrefix} [${appKey}] Unmount error:`, err);
+			}
+		}
+		
+		// Defensive: Clear container and global flags (consistent __IMOGI_POS_ prefix)
+		if (container && container.innerHTML) {
+			container.innerHTML = '';
+		}
+		
+		const globalFlags = [
+			'__IMOGI_POS_CASHIER_MOUNTED',
+			'__IMOGI_POS_KITCHEN_MOUNTED',
+			'__IMOGI_POS_WAITER_MOUNTED',
+			'__IMOGI_POS_KIOSK_MOUNTED'
+		];
+		globalFlags.forEach(flag => {
+			if (window[flag]) {
+				delete window[flag];
+			}
+		});
+		
 		return waitForMountFunction(mountFnName, appKey, logPrefix)
 			.then(mountFn => {
-				console.log(`${logPrefix} [${appKey}] Mount function ready, mounting...`);
+				if (isDev) {
+					console.log(`${logPrefix} [${appKey}] Mounting FRESH instance`);
+				}
 				onReadyMount(mountFn, container);
 				registerCleanup(appKey, unmountFnName, container, page, logPrefix);
 			});
@@ -374,18 +435,48 @@ function waitForMountFunction(mountFnName, appKey, logPrefix, timeout = 10000) {
 
 /**
  * Register cleanup hooks for unmounting
- * Handles both Frappe page lifecycle and frappe.router events
+ * CRITICAL: Prevents duplicate listener registration and tracks handlers for cleanup
  */
 function registerCleanup(appKey, unmountFnName, container, page, logPrefix) {
 	if (!unmountFnName) {
-		console.log(`${logPrefix} [${appKey}] No unmount function specified, skipping cleanup registration`);
+		console.log(`${logPrefix} [${appKey}] No unmount function, skipping cleanup`);
 		return;
+	}
+
+	const isDev = frappe?.boot?.developer_mode || window.location.hostname === 'localhost';
+
+	// Initialize cleanup handler storage
+	if (!window.__imogiCleanupHandlers) {
+		window.__imogiCleanupHandlers = {};
+	}
+
+	// Remove existing handlers for this app (prevent duplicates)
+	if (window.__imogiCleanupHandlers[appKey]) {
+		const existing = window.__imogiCleanupHandlers[appKey];
+		
+		if (existing.routerHandler && frappe && frappe.router) {
+			frappe.router.off('change', existing.routerHandler);
+		}
+		
+		if (existing.popstateHandler) {
+			window.removeEventListener('popstate', existing.popstateHandler);
+		}
+		
+		if (existing.unloadHandler) {
+			window.removeEventListener('beforeunload', existing.unloadHandler);
+		}
+		
+		if (isDev) {
+			console.log(`${logPrefix} [${appKey}] Removed duplicate handlers`);
+		}
 	}
 
 	// Create cleanup function
 	const cleanup = () => {
 		if (typeof window[unmountFnName] === 'function') {
-			console.log(`${logPrefix} [${appKey}] Unmounting...`);
+			if (isDev) {
+				console.log(`${logPrefix} [${appKey}] Cleanup: unmounting`);
+			}
 			try {
 				window[unmountFnName](container);
 			} catch (error) {
@@ -393,14 +484,19 @@ function registerCleanup(appKey, unmountFnName, container, page, logPrefix) {
 			}
 		}
 
-		// Clear any pending intervals
+		// Clear pending intervals
 		if (window.__imogiLoadIntervals && window.__imogiLoadIntervals[appKey]) {
 			clearInterval(window.__imogiLoadIntervals[appKey]);
 			delete window.__imogiLoadIntervals[appKey];
 		}
+		
+		// Clear handlers reference
+		if (window.__imogiCleanupHandlers && window.__imogiCleanupHandlers[appKey]) {
+			delete window.__imogiCleanupHandlers[appKey];
+		}
 	};
 
-	// Register cleanup on Frappe page hide (if page object available)
+	// Register on Frappe page hide
 	if (page && typeof page.on_page_hide === 'function') {
 		const originalOnHide = page.on_page_hide;
 		page.on_page_hide = function() {
@@ -411,20 +507,88 @@ function registerCleanup(appKey, unmountFnName, container, page, logPrefix) {
 		};
 	}
 
-	// Register cleanup on frappe.router change
+	// Register on frappe.router change (detect route leave)
+	let routerHandler = null;
 	if (frappe && frappe.router) {
-		frappe.router.on('change', () => {
+		routerHandler = () => {
 			const currentRoute = frappe.get_route_str();
-			// Only cleanup if we're navigating away from this app
-			if (!currentRoute.includes(appKey.replace(/-/g, '_'))) {
+			const appRoute = appKey.replace(/-/g, '_');
+			
+			if (!currentRoute.includes(appRoute)) {
+				if (isDev) {
+					console.log(`${logPrefix} [${appKey}] Route left, cleaning up`);
+				}
 				cleanup();
 			}
-		});
+		};
+		frappe.router.on('change', routerHandler);
 	}
 
+	// Register on popstate (browser back/forward)
+	const popstateHandler = () => {
+		const currentRoute = frappe.get_route_str();
+		const appRoute = appKey.replace(/-/g, '_');
+		
+		if (!currentRoute.includes(appRoute)) {
+			if (isDev) {
+				console.log(`${logPrefix} [${appKey}] Popstate: route left, cleaning up`);
+			}
+			cleanup();
+		}
+	};
+	window.addEventListener('popstate', popstateHandler);
+
 	// Fallback: cleanup on window unload
-	window.addEventListener('beforeunload', cleanup);
+	const unloadHandler = cleanup;
+	window.addEventListener('beforeunload', unloadHandler);
+	
+	// Store handlers for duplicate prevention
+	window.__imogiCleanupHandlers[appKey] = {
+		routerHandler,
+		popstateHandler,
+		unloadHandler,
+		cleanup
+	};
+	
+	if (isDev) {
+		console.log(`${logPrefix} [${appKey}] Cleanup handlers registered`);
+	}
 }
+
+/**
+ * Force clean remount of an IMOGI app
+ * Usage: window.__imogiForceRemount('cashier-console')
+ * 
+ * This will:
+ * 1. Unmount the current React instance
+ * 2. Clear all cleanup handlers
+ * 3. Trigger a fresh mount
+ * 
+ * Useful for debugging stale state issues
+ */
+window.__imogiForceRemount = function(appKey) {
+	console.log(`[IMOGI Force Remount] Forcing clean remount for: ${appKey}`);
+	
+	// Get cleanup handlers
+	const handlers = window.__imogiCleanupHandlers?.[appKey];
+	if (handlers && handlers.cleanup) {
+		try {
+			handlers.cleanup();
+			console.log(`[IMOGI Force Remount] Cleanup completed for: ${appKey}`);
+		} catch (err) {
+			console.error(`[IMOGI Force Remount] Cleanup error:`, err);
+		}
+	} else {
+		console.warn(`[IMOGI Force Remount] No cleanup handlers found for: ${appKey}`);
+	}
+	
+	// Clear handlers reference
+	if (window.__imogiCleanupHandlers?.[appKey]) {
+		delete window.__imogiCleanupHandlers[appKey];
+	}
+	
+	console.log(`[IMOGI Force Remount] Navigate to page again to trigger fresh mount`);
+};
 
 /**
  * Debug helper: List all injected IMOGI scripts
@@ -442,8 +606,11 @@ window.__imogiDebugScripts = function() {
 
 	console.log('[IMOGI Debug] Script injection counts:', counts);
 	console.log('[IMOGI Debug] Load attempt counts:', window.__imogiLoadCounts || {});
+	console.log('[IMOGI Debug] Cleanup handlers:', Object.keys(window.__imogiCleanupHandlers || {}));
 	
 	return counts;
 };
 
-console.log('[IMOGI Loader] Shared utility loaded. Use window.__imogiDebugScripts() for debugging.');
+console.log('[IMOGI Loader] Shared utility loaded');
+console.log('[IMOGI Loader] Debug: window.__imogiDebugScripts()');
+console.log('[IMOGI Loader] Force remount: window.__imogiForceRemount("cashier-console")');
