@@ -40,6 +40,7 @@ function CounterPOSContent({ initialState }) {
     openingStatus,
     openingError,
     retryOpening,
+    error: contextError,  // FIX: Properly destructure to prevent ReferenceError
     serverContextReady,
     serverContextError,
     retryServerContext
@@ -111,6 +112,7 @@ function CounterPOSContent({ initialState }) {
 
   // Block screen if no opening (show error without redirect)
   // CRITICAL: This return must come AFTER all hook calls
+  // HARDENED: All variables have safe defaults to prevent ReferenceError
   if (!guardLoading && (!guardPassed || !hasValidOpening)) {
     const reason = !guardPassed ? 'guard_failed' : 'no_opening'
     const title = !guardPassed 
@@ -119,26 +121,30 @@ function CounterPOSContent({ initialState }) {
     const message = !guardPassed
       ? 'Silakan pilih POS Profile melalui Module Select.'
       : 'Silakan buat POS Opening Entry via ERPNext. Setelah itu refresh halaman ini.'
-    const error = !guardPassed 
-      ? serverContextError || contextError 
-      : openingValidationError || openingError?.message || openingError
     
-    console.error('[CashierConsole] Blocked:', {
-      reason,
-      guardPassed,
-      hasValidOpening,
-      posProfile,
-      effectiveOpening,
-      openingStatus,
-      openingValidationStatus,
-      error
-    })
+    // FIX: Safe error extraction with explicit null checks to prevent ReferenceError
+    const errorMessage = !guardPassed 
+      ? (serverContextError?.message || contextError?.message || serverContextError || contextError || null)
+      : (openingValidationError?.message || openingError?.message || openingValidationError || openingError || null)
+    
+    if (import.meta.env.DEV) {
+      console.error('[CashierConsole] Blocked:', {
+        reason,
+        guardPassed,
+        hasValidOpening,
+        posProfile: posProfile || null,
+        effectiveOpening: effectiveOpening || null,
+        openingStatus: openingStatus || 'unknown',
+        openingValidationStatus: openingValidationStatus || 'unknown',
+        error: errorMessage
+      })
+    }
     
     return (
       <BlockedScreen
         title={title}
         message={message}
-        error={error}
+        error={errorMessage}
         actions={
           !guardPassed ? [
             { 
@@ -281,19 +287,22 @@ function CounterPOSContent({ initialState }) {
     return <LoadingSpinner message="Loading Cashier Console..." />
   }
 
+  // HARDENED: Safe error checks with explicit null guards
   if (serverContextError) {
+    const errorMsg = serverContextError?.message || (typeof serverContextError === 'string' ? serverContextError : 'Failed to sync operational context.')
     return (
       <ErrorMessage
-        error={serverContextError?.message || 'Failed to sync operational context.'}
+        error={errorMsg}
         onRetry={() => retryServerContext && retryServerContext()}
       />
     )
   }
 
   if (openingStatus === 'error') {
+    const errorMsg = openingError?.message || posOpening?.error_message || (typeof openingError === 'string' ? openingError : 'Failed to verify POS opening.')
     return (
       <ErrorMessage
-        error={openingError?.message || posOpening?.error_message || 'Failed to verify POS opening.'}
+        error={errorMsg}
         onRetry={() => retryOpening && retryOpening()}
       />
     )
@@ -600,6 +609,25 @@ function CounterPOSContent({ initialState }) {
     setShowSummary(false)
     setShowSplit(false)
     setViewMode('orders')
+  }
+
+  // FIX: Add missing handlers referenced in CloseShiftView JSX
+  const handleCloseShiftView = () => {
+    setShowCloseShift(false)
+    setShowPayment(false)
+    setShowSplit(false)
+    setShowSummary(false)
+    setViewMode('orders')
+  }
+
+  const handleShiftClosed = (closingData) => {
+    console.log('[Cashier] Shift closed:', closingData)
+    // Refresh page or redirect after shift close
+    if (closingData?.success) {
+      alert('Shift closed successfully!')
+      // Reload to clear state and require new opening
+      window.location.reload()
+    }
   }
 
   const handleModeChange = (newMode) => {
