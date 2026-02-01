@@ -58,6 +58,7 @@ function CounterPOSContent({ initialState }) {
     error: openingValidationError,
     isValid: hasValidOpening,
     isMismatch: openingMismatch,
+    isUrlOpening,
     revalidate: revalidateOpening
   } = useEffectiveOpening({
     requiresOpening: true,
@@ -627,7 +628,7 @@ function CounterPOSContent({ initialState }) {
           onSelectOrder={handleSelectOrder}
           onClaimOrder={handleClaimOrder}
           posMode={posMode}
-          isMultiSession={!!validatedOpening || !!urlOpeningEntry}
+          isMultiSession={isUrlOpening}
         />
         
         <div className="cashier-console-main">
