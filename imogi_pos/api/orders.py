@@ -53,6 +53,41 @@ def _set_flag(name, value):
             setattr(flags, name, value)
 
 
+# =============================================================================
+# RESTAURANT FLOW: Edit Lock Helper
+# =============================================================================
+
+def assert_order_editable(order_doc, allow_branch_manager_override=True):
+    """
+    Assert that order can be edited (Restaurant Flow edit lock).
+    Raises PermissionError if order is claimed by another user.
+    
+    Args:
+        order_doc: POS Order document
+        allow_branch_manager_override: If True, Branch Manager can edit locked orders
+        
+    Raises:
+        frappe.PermissionError: If order locked by another user
+    """
+    claimed_by = getattr(order_doc, "claimed_by", None)
+    current_user = frappe.session.user
+    
+    if claimed_by and claimed_by != current_user:
+        # Check if user has Branch Manager role (can override)
+        if allow_branch_manager_override:
+            is_branch_manager = "Branch Manager" in frappe.get_roles(current_user)
+            if is_branch_manager:
+                return  # Allow edit
+        
+        # Get claimed user's full name for better error message
+        claimed_user_name = frappe.db.get_value("User", claimed_by, "full_name") or claimed_by
+        
+        frappe.throw(
+            _("Order claimed by {0} for payment. Cannot edit.").format(claimed_user_name),
+            frappe.PermissionError
+        )
+
+
 def _apply_native_pricing_rules_to_item(item_dict, customer=None, price_list=None, pos_profile=None):
     """Apply native ERPNext pricing rules to a single item."""
     if not NATIVE_PRICING_AVAILABLE:
@@ -172,6 +207,11 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
     - Role 'Cashier' has READ-ONLY access by default (cannot add items)
     - Use roles: Waiter, Branch Manager, or custom role with write permissions
     
+    RESTAURANT FLOW:
+    - Cannot edit if order claimed by another cashier
+    - Claimer can still edit (for corrections)
+    - Branch Manager can override lock
+    
     Args:
         pos_order: POS Order name
         item: Item code or dict with item details
@@ -182,6 +222,9 @@ def add_item_to_order(pos_order, item, qty=1, rate=None, item_options=None):
 
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_branch_access(order_doc.branch)
+    
+    # RESTAURANT FLOW: Enforce edit lock (centralized helper)
+    assert_order_editable(order_doc, allow_branch_manager_override=True)
 
     state = getattr(order_doc, "workflow_state", None)
     if state in WORKFLOW_CLOSED_STATES:
@@ -973,6 +1016,9 @@ def save_order(pos_order, items=None, customer=None, guests=None, table=None, **
     order_doc = frappe.get_doc("POS Order", pos_order)
     check_branch_access(order_doc.branch)
     
+    # RESTAURANT FLOW: Enforce edit lock
+    assert_order_editable(order_doc, allow_branch_manager_override=True)
+    
     # Check if order is in a closed state
     if order_doc.workflow_state in WORKFLOW_CLOSED_STATES:
         frappe.throw(
@@ -1471,3 +1517,310 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         frappe.throw(_("Failed to create order: {0}").format(str(e)))
 
 
+# =============================================================================
+# RESTAURANT FLOW: Waiter -> Cashier Bill Request & Claim
+# =============================================================================
+
+@frappe.whitelist()
+@require_permission("POS Order", "write")
+def request_bill(pos_order_name):
+    """
+    Waiter requests bill/payment for a dine-in order.
+    Sets request_payment=1 and requested_payment_at timestamp.
+    
+    Args:
+        pos_order_name (str): POS Order name
+        
+    Returns:
+        dict: Updated order info with request status
+        
+    Raises:
+        frappe.ValidationError: If order invalid for bill request
+    """
+    if not pos_order_name:
+        frappe.throw(_("POS Order name is required"), frappe.ValidationError)
+    
+    if not frappe.db.exists("POS Order", pos_order_name):
+        frappe.throw(_("POS Order {0} not found").format(pos_order_name), frappe.DoesNotExistError)
+    
+    order = frappe.get_doc("POS Order", pos_order_name)
+    
+    # Validation: Must be Dine-in with table
+    if order.order_type != "Dine-in":
+        frappe.throw(
+            _("Bill request only available for Dine-in orders. Current type: {0}").format(order.order_type),
+            frappe.ValidationError
+        )
+    
+    if not order.table:
+        frappe.throw(
+            _("Order must have a table assigned for bill request"),
+            frappe.ValidationError
+        )
+    
+    # Validation: Order must not be closed/cancelled
+    closed_states = ["Closed", "Cancelled", "Returned"]
+    if order.workflow_state in closed_states:
+        frappe.throw(
+            _("Cannot request bill for {0} order").format(order.workflow_state),
+            frappe.ValidationError
+        )
+    
+    # Check if already paid
+    if hasattr(order, "paid_at") and order.paid_at:
+        frappe.throw(
+            _("Order already paid at {0}").format(order.paid_at),
+            frappe.ValidationError
+        )
+    
+    # Set request fields
+    order.request_payment = 1
+    if not hasattr(order, "requested_payment_at") or not order.requested_payment_at:
+        order.requested_payment_at = now_datetime()
+    
+    order.save(ignore_permissions=True)
+    frappe.db.commit()
+    
+    # Publish realtime event for cashier UI refresh
+    frappe.publish_realtime(
+        event="bill_requested",
+        message={
+            "pos_order": pos_order_name,
+            "table": order.table,
+            "requested_at": order.requested_payment_at
+        },
+        doctype="POS Order",
+        docname=pos_order_name
+    )
+    
+    return {
+        "success": True,
+        "message": _("Bill requested successfully"),
+        "pos_order": pos_order_name,
+        "request_payment": order.request_payment,
+        "requested_payment_at": order.requested_payment_at,
+        "table": order.table,
+        "workflow_state": order.workflow_state
+    }
+
+
+@frappe.whitelist()
+@require_permission("POS Order", "write")
+def claim_order(pos_order_name, opening_entry=None):
+    """
+    Cashier claims an order for payment processing.
+    Implements concurrency guard - only one cashier can claim.
+    
+    ROBUST VALIDATION (Fix D):
+    - If opening_entry provided, validates:
+      * Opening exists and status = "Open"
+      * POS Profile matches order's profile
+      * User matches opening user (if scope = "User")
+    - Cashier role requires active opening (business rule)
+    - Waiter can request without opening
+    
+    Args:
+        pos_order_name (str): POS Order name
+        opening_entry (str, optional): POS Opening Entry for validation
+        
+    Returns:
+        dict: Claim status with order info
+        
+    Raises:
+        frappe.ValidationError: If already claimed, opening invalid, or validation fails
+    """
+    if not pos_order_name:
+        frappe.throw(_("POS Order name is required"), frappe.ValidationError)
+    
+    if not frappe.db.exists("POS Order", pos_order_name):
+        frappe.throw(_("POS Order {0} not found").format(pos_order_name), frappe.DoesNotExistError)
+    
+    order = frappe.get_doc("POS Order", pos_order_name)
+    current_user = frappe.session.user
+    
+    # ROBUST VALIDATION: POS Opening (if provided)
+    if opening_entry:
+        if not frappe.db.exists("POS Opening Entry", opening_entry):
+            frappe.throw(
+                _("POS Opening {0} not found").format(opening_entry),
+                frappe.DoesNotExistError
+            )
+        
+        opening = frappe.get_doc("POS Opening Entry", opening_entry)
+        
+        # Validate opening status = "Open"
+        opening_status = getattr(opening, "status", None)
+        if opening_status != "Open":
+            frappe.throw(
+                _("POS Opening {0} is not open (status: {1})").format(opening_entry, opening_status),
+                frappe.ValidationError
+            )
+        
+        # Validate POS Profile match
+        order_profile = order.pos_profile
+        opening_profile = getattr(opening, "pos_profile", None)
+        if opening_profile and opening_profile != order_profile:
+            frappe.throw(
+                _("POS Opening profile ({0}) does not match order profile ({1})").format(
+                    opening_profile, order_profile
+                ),
+                frappe.ValidationError
+            )
+        
+        # Validate user match (if scope = "User")
+        opening_user = getattr(opening, "user", None)
+        if opening_user and opening_user != current_user:
+            frappe.throw(
+                _("POS Opening {0} belongs to user {1}, not {2}").format(
+                    opening_entry, opening_user, current_user
+                ),
+                frappe.ValidationError
+            )
+    
+    # Concurrency guard: Check if already claimed by different user
+    if hasattr(order, "claimed_by") and order.claimed_by:
+        if order.claimed_by != current_user:
+            claimed_user_name = frappe.db.get_value("User", order.claimed_by, "full_name") or order.claimed_by
+            frappe.throw(
+                _("Order already claimed by {0} at {1}").format(
+                    claimed_user_name,
+                    order.claimed_at if hasattr(order, "claimed_at") else "unknown time"
+                ),
+                frappe.ValidationError
+            )
+        else:
+            # Already claimed by current user - return success (idempotent)
+            return {
+                "success": True,
+                "message": _("Order already claimed by you"),
+                "pos_order": pos_order_name,
+                "claimed_by": order.claimed_by,
+                "claimed_at": order.claimed_at,
+                "is_reentrant": True
+            }
+    
+    # Validation: Order should be in valid state for claim
+    closed_states = ["Closed", "Cancelled", "Returned"]
+    if order.workflow_state in closed_states:
+        frappe.throw(
+            _("Cannot claim {0} order").format(order.workflow_state),
+            frappe.ValidationError
+        )
+    
+    # Set claim fields
+    order.claimed_by = current_user
+    order.claimed_at = now_datetime()
+    
+    order.save(ignore_permissions=True)
+    frappe.db.commit()
+    
+    # Publish realtime event
+    frappe.publish_realtime(
+        event="order_claimed",
+        message={
+            "pos_order": pos_order_name,
+            "claimed_by": current_user,
+            "claimed_at": order.claimed_at
+        },
+        doctype="POS Order",
+        docname=pos_order_name
+    )
+    
+    return {
+        "success": True,
+        "message": _("Order claimed successfully"),
+        "pos_order": pos_order_name,
+        "claimed_by": order.claimed_by,
+        "claimed_at": order.claimed_at,
+        "table": order.table if hasattr(order, "table") else None,
+        "customer": order.customer,
+        "grand_total": order.grand_total,
+        "workflow_state": order.workflow_state
+    }
+
+
+@frappe.whitelist()
+def release_table_if_done(pos_order_name):
+    """
+    Release table (set Available) if order is in final state.
+    Called automatically after payment success, order completion, or cancellation.
+    Idempotent - safe to call multiple times.
+    
+    ROBUST CONDITIONS for release:
+    1. Order must have table assigned
+    2. Order must be in FINAL state:
+       - workflow_state in [Closed, Cancelled, Returned] OR
+       - paid_at timestamp exists (invoice submitted)
+    3. Table must currently be linked to this order (prevents race conditions)
+    
+    Args:
+        pos_order_name (str): POS Order name
+        
+    Returns:
+        dict: Release status
+    """
+    if not pos_order_name:
+        return {"success": False, "error": "POS Order name is required"}
+    
+    if not frappe.db.exists("POS Order", pos_order_name):
+        return {"success": False, "error": f"POS Order {pos_order_name} not found"}
+    
+    order = frappe.get_doc("POS Order", pos_order_name)
+    
+    # Only release if order has table
+    if not order.table:
+        return {"success": False, "error": "Order has no table assigned", "skipped": True}
+    
+    # Check if table exists
+    if not frappe.db.exists("Restaurant Table", order.table):
+        return {"success": False, "error": f"Table {order.table} not found"}
+    
+    table_doc = frappe.get_doc("Restaurant Table", order.table)
+    
+    # ROBUST VALIDATION: Check if order is in FINAL state
+    closed_states = ["Closed", "Cancelled", "Returned"]
+    is_closed_state = order.workflow_state in closed_states
+    is_paid = hasattr(order, "paid_at") and order.paid_at
+    
+    # Order is "done" if either closed state OR paid (invoice submitted)
+    is_order_done = is_closed_state or is_paid
+    
+    if not is_order_done:
+        return {
+            "success": False,
+            "error": f"Order not in final state. State: {order.workflow_state}, Paid: {bool(is_paid)}",
+            "skipped": True
+        }
+    
+    # IDEMPOTENT CHECK: Release table only if it's currently linked to this order
+    # Prevents race conditions if table reassigned to another order
+    if table_doc.current_pos_order == pos_order_name:
+        table_doc.set_status("Available", pos_order=None)
+        
+        frappe.publish_realtime(
+            event="table_released",
+            message={
+                "table": order.table,
+                "pos_order": pos_order_name,
+                "released_at": now_datetime(),
+                "reason": "closed" if is_closed_state else "paid"
+            },
+            doctype="Restaurant Table",
+            docname=order.table
+        )
+        
+        return {
+            "success": True,
+            "message": f"Table {order.table} released",
+            "table": order.table,
+            "pos_order": pos_order_name
+        }
+    else:
+        # Table already available or linked to different order
+        return {
+            "success": True,
+            "message": f"Table {order.table} already released or reassigned",
+            "table": order.table,
+            "pos_order": pos_order_name,
+            "skipped": True
+        }

@@ -13,6 +13,7 @@ export function OrderListSidebar({
   const [filterStatus, setFilterStatus] = useState('All')
   const [claimingOrderId, setClaimingOrderId] = useState(null)
   const [claimError, setClaimError] = useState(null)
+  const [showRequestedOnly, setShowRequestedOnly] = useState(false)
 
   // Explicitly define mode-specific labels and icons
   const MODE_CONFIG = {
@@ -37,6 +38,13 @@ export function OrderListSidebar({
 
   // Filter orders
   const filteredOrders = orders.filter(order => {
+    // Restaurant flow: Filter for requested bills only
+    if (showRequestedOnly) {
+      if (!order.request_payment) {
+        return false
+      }
+    }
+    
     // Status filter (only for Table mode)
     if (isTableMode && filterStatus !== 'All' && order.status !== filterStatus) {
       return false
@@ -132,17 +140,31 @@ export function OrderListSidebar({
         
         {/* Status filters only for Table mode */}
         {isTableMode && (
-          <div className="filter-buttons">
-            {['Ready', 'Served', 'All'].map(status => (
+          <>
+            <div className="filter-buttons">
+              {['Ready', 'Served', 'All'].map(status => (
+                <button
+                  key={status}
+                  className={`filter-button ${filterStatus === status ? 'active' : ''}`}
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            
+            {/* Restaurant Flow: Requested Bills toggle */}
+            <div className="requested-bills-toggle">
               <button
-                key={status}
-                className={`filter-button ${filterStatus === status ? 'active' : ''}`}
-                onClick={() => setFilterStatus(status)}
+                className={`filter-button ${showRequestedOnly ? 'active' : ''}`}
+                onClick={() => setShowRequestedOnly(!showRequestedOnly)}
               >
-                {status}
+                <i className="fa fa-receipt"></i> 
+                Requested Bills Only
+                {showRequestedOnly && ` (${filteredOrders.length})`}
               </button>
-            ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
       
@@ -169,6 +191,14 @@ export function OrderListSidebar({
               <div className="order-card-header">
                 <span className="order-card-number">{order.name}</span>
                 <div className="order-card-badges">
+                  {/* Restaurant Flow: Bill Requested Badge */}
+                  {order.request_payment && !order.paid_at && (
+                    <span className="order-card-badge badge-bill-requested">
+                      <i className="fa fa-receipt"></i>
+                      Bill Requested
+                    </span>
+                  )}
+                  
                   {/* Claim Status Badge (Multi-Session) */}
                   {isMultiSession && isClaimed && (
                     <span className={`order-card-badge ${isClaimedByMe ? 'badge-claimed-by-me' : 'badge-claimed-by-other'}`}>
@@ -177,8 +207,21 @@ export function OrderListSidebar({
                     </span>
                   )}
                   
-                  {/* Claim Button (Multi-Session) */}
-                  {isMultiSession && !isClaimed && (
+                  {/* Restaurant Flow: Claim Button for Bill Requested Orders */}
+                  {order.request_payment && !isClaimed && (
+                    <button
+                      className="order-card-claim-btn btn-claim-primary"
+                      onClick={(e) => handleClaimOrder(e, order)}
+                      disabled={claimingOrderId === order.name}
+                      title="Claim order for payment"
+                    >
+                      <i className={`fa ${claimingOrderId === order.name ? 'fa-spinner fa-spin' : 'fa-hand-holding-usd'}`}></i>
+                      Claim for Payment
+                    </button>
+                  )}
+                  
+                  {/* Claim Button (Multi-Session, non-requested orders) */}
+                  {isMultiSession && !isClaimed && !order.request_payment && (
                     <button
                       className="order-card-claim-btn"
                       onClick={(e) => handleClaimOrder(e, order)}

@@ -724,7 +724,7 @@ def find_template_for_variant(variant_item):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_template_items(pos_profile=None, item_group=None, menu_channel=None, limit=500):
+def get_template_items(pos_profile=None, item_group=None, menu_channel=None, limit=500, debug=0):
     """
     Get items for POS catalog - only templates and non-variant items.
     Excludes variant children (they're selected via variant picker).
@@ -734,9 +734,11 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
         item_group (str): Item Group to filter by
         menu_channel (str): Menu channel to filter by
         limit (int): Maximum items to return
+        debug (int): If 1, return debug metadata alongside items (dev mode)
     
     Returns:
         list: Items that should appear in POS catalog (templates + regular items)
+              OR dict with 'items' and 'debug' keys when debug=1
     """
     filters = [
         ["Item", "disabled", "=", 0],
@@ -799,14 +801,16 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
         should_filter_channel = (domain == "Restaurant" and enable_menu_channels == 1)
     
     # Apply channel filtering ONLY if all conditions met
+    filtered_count = initial_count
     if should_filter_channel:
         items = [
             item for item in items
             if _channel_matches(item.get("imogi_menu_channel"), menu_channel)
         ]
+        filtered_count = len(items)
         
         # Diagnostic logging: only log when filtering results in ZERO items (avoid spam)
-        if frappe.conf.get("developer_mode") and len(items) == 0 and initial_count > 0:
+        if frappe.conf.get("developer_mode") and filtered_count == 0 and initial_count > 0:
             # Collect sample channels from first 10 items to help diagnose
             sample_items = frappe.get_all(
                 "Item",
@@ -843,6 +847,22 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
                 f"[IMOGI Catalog] get_template_items: Channel filter SKIPPED ({reason}). "
                 f"Returning all {initial_count} items. Domain={domain}, enable_menu_channels={enable_menu_channels}"
             )
+    
+    # Debug mode: Return metadata for troubleshooting
+    if cint(debug) == 1:
+        debug_metadata = {
+            "initial_count": initial_count,
+            "filtered_count": filtered_count,
+            "domain": domain,
+            "enable_menu_channels": enable_menu_channels,
+            "has_channel_field": has_channel_field,
+            "should_filter_channel": should_filter_channel,
+            "filters_applied": {
+                "pos_profile": pos_profile,
+                "item_group": item_group,
+                "menu_channel": menu_channel
+            }
+        }
     
     # Get price list rates if POS profile provided
     price_list = None
@@ -904,6 +924,13 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
                     item.price_display = f"{prices['min_price']}"
                 else:
                     item.price_display = f"from {prices['min_price']}"
+    
+    # Return format: debug mode returns dict, normal mode returns array (backward compatible)
+    if cint(debug) == 1:
+        return {
+            "items": items,
+            "debug": debug_metadata
+        }
     
     return items
 

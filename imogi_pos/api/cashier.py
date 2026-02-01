@@ -1072,6 +1072,23 @@ def process_payment(invoice_name, payments=None, mode_of_payment=None, paid_amou
         invoice.save()
         invoice.submit()
         frappe.db.commit()
+        
+        # RESTAURANT FLOW: Update paid_at timestamp on linked POS Order
+        pos_order_name = getattr(invoice, "pos_order", None)
+        if pos_order_name and frappe.db.exists("POS Order", pos_order_name):
+            if _has_field("POS Order", "paid_at"):
+                frappe.db.set_value("POS Order", pos_order_name, "paid_at", now_datetime(), update_modified=False)
+                logger.info(f"process_payment: Set paid_at for POS Order {pos_order_name}")
+            
+            # Auto-release table if order is done (paid + closed)
+            try:
+                from imogi_pos.api.orders import release_table_if_done
+                release_result = release_table_if_done(pos_order_name)
+                if release_result.get("success"):
+                    logger.info(f"process_payment: {release_result.get('message')}")
+            except Exception as e:
+                logger.warning(f"process_payment: Table auto-release failed: {str(e)}")
+                # Non-critical, continue
 
         # Calculate change if cash received
         change_amount = None
@@ -1229,12 +1246,28 @@ def complete_order(order_name, invoice_name=None):
 
         order.save()
 
-        # Step 8: Clear table status
+        # Step 8: Clear table status (RESTAURANT FLOW: Use release_table_if_done)
         table_name = getattr(order, "table", None)
         if table_name and frappe.db.exists("Restaurant Table", table_name):
-            if _has_field("Restaurant Table", "status"):
-                frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
-                logger.info(f"complete_order: Cleared table {table_name}")
+            # Use restaurant flow helper for consistent table release
+            try:
+                from imogi_pos.api.orders import release_table_if_done
+                release_result = release_table_if_done(order_name)
+                if release_result.get("success"):
+                    logger.info(f"complete_order: {release_result.get('message')}")
+                else:
+                    # Fallback to direct method if release_table_if_done fails
+                    if _has_field("Restaurant Table", "status"):
+                        frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
+                        frappe.db.set_value("Restaurant Table", table_name, "current_pos_order", None, update_modified=False)
+                        logger.info(f"complete_order: Cleared table {table_name} (fallback)")
+            except Exception as e:
+                logger.warning(f"complete_order: Table release failed, using fallback: {str(e)}")
+                # Fallback to original method
+                if _has_field("Restaurant Table", "status"):
+                    frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
+                    frappe.db.set_value("Restaurant Table", table_name, "current_pos_order", None, update_modified=False)
+                    logger.info(f"complete_order: Cleared table {table_name} (fallback)")
 
         # Step 9: Close all KOTs (schema-safe)
         kots = frappe.get_all("KOT Ticket", filters={"pos_order": order_name}, fields=["name"])
@@ -1399,12 +1432,28 @@ def complete_order(order_name, invoice_name=None):
 
         order.save()
 
-        # Step 8: Clear table status
+        # Step 8: Clear table status (RESTAURANT FLOW: Use release_table_if_done)
         table_name = getattr(order, "table", None)
         if table_name and frappe.db.exists("Restaurant Table", table_name):
-            if _has_field("Restaurant Table", "status"):
-                frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
-                logger.info(f"complete_order: Cleared table {table_name}")
+            # Use restaurant flow helper for consistent table release
+            try:
+                from imogi_pos.api.orders import release_table_if_done
+                release_result = release_table_if_done(order_name)
+                if release_result.get("success"):
+                    logger.info(f"complete_order: {release_result.get('message')}")
+                else:
+                    # Fallback to direct method if release_table_if_done fails
+                    if _has_field("Restaurant Table", "status"):
+                        frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
+                        frappe.db.set_value("Restaurant Table", table_name, "current_pos_order", None, update_modified=False)
+                        logger.info(f"complete_order: Cleared table {table_name} (fallback)")
+            except Exception as e:
+                logger.warning(f"complete_order: Table release failed, using fallback: {str(e)}")
+                # Fallback to original method
+                if _has_field("Restaurant Table", "status"):
+                    frappe.db.set_value("Restaurant Table", table_name, "status", "Available", update_modified=False)
+                    frappe.db.set_value("Restaurant Table", table_name, "current_pos_order", None, update_modified=False)
+                    logger.info(f"complete_order: Cleared table {table_name} (fallback)")
 
         # Step 9: Close all KOTs (schema-safe)
         kots = frappe.get_all("KOT Ticket", filters={"pos_order": order_name}, fields=["name"])

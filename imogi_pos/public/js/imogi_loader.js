@@ -119,9 +119,13 @@ if (!window.fetchOperationalContext) {
 			return null;
 		}
 	};
-	console.log('[IMOGI Loader] window.fetchOperationalContext registered');
+	if (frappe?.boot?.developer_mode || window.location.hostname === 'localhost') {
+		console.log('[IMOGI Loader] window.fetchOperationalContext registered');
+	}
 } else {
-	console.log('[IMOGI Loader] window.fetchOperationalContext already exists');
+	if (frappe?.boot?.developer_mode || window.location.hostname === 'localhost') {
+		console.log('[IMOGI Loader] window.fetchOperationalContext already exists');
+	}
 }
 
 function setServerContextState(state) {
@@ -218,7 +222,9 @@ if (!window.ensureOperationalContext) {
 		window.__imogiEnsureContextPromises[routeKey] = promise;
 		return promise;
 	};
-	console.log('[IMOGI Loader] window.ensureOperationalContext registered');
+	if (frappe?.boot?.developer_mode || window.location.hostname === 'localhost') {
+		console.log('[IMOGI Loader] window.ensureOperationalContext registered');
+	}
 }
 
 window.loadImogiReactApp = function(config) {
@@ -611,6 +617,9 @@ window.__imogiDebugScripts = function() {
 	return counts;
 };
 
-console.log('[IMOGI Loader] Shared utility loaded');
-console.log('[IMOGI Loader] Debug: window.__imogiDebugScripts()');
-console.log('[IMOGI Loader] Force remount: window.__imogiForceRemount("cashier-console")');
+// Debug helpers - only log in development
+if (typeof frappe !== 'undefined' && (frappe?.boot?.developer_mode || window.location.hostname === 'localhost')) {
+	console.log('[IMOGI Loader] Shared utility loaded');
+	console.log('[IMOGI Loader] Debug: window.__imogiDebugScripts()');
+	console.log('[IMOGI Loader] Force remount: window.__imogiForceRemount("cashier-console")');
+}

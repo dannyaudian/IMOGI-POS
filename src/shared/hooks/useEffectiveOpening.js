@@ -270,7 +270,9 @@ export function useEffectiveOpening({
       setStatus('valid')
       setError(null)
       setLastValidatedAt(new Date())
-      console.log('[useEffectiveOpening] Re-validation passed')
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Re-validation passed')
+      }
     } catch (err) {
       console.error('[useEffectiveOpening] Re-validation failed:', err)
       setStatus('error')
@@ -278,12 +280,33 @@ export function useEffectiveOpening({
     }
   }, [isUrlOpening])
 
+  // Track mount count for debugging double-mount issues
+  useEffect(() => {
+    if (!window.__effectiveOpeningMountCount) {
+      window.__effectiveOpeningMountCount = 0
+    }
+    window.__effectiveOpeningMountCount++
+    const mountId = window.__effectiveOpeningMountCount
+    
+    if (import.meta.env.DEV) {
+      console.log(`[useEffectiveOpening] Hook mounted (instance #${mountId})`)
+    }
+    
+    return () => {
+      if (import.meta.env.DEV) {
+        console.log(`[useEffectiveOpening] Hook unmounted (instance #${mountId})`)
+      }
+    }
+  }, [])
+
   // Auto-revalidate at configured interval
   useEffect(() => {
     if (status !== 'valid' || !autoRefreshMs) return
 
     const interval = setInterval(() => {
-      console.log('[useEffectiveOpening] Auto-revalidating...')
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Auto-revalidating...')
+      }
       revalidate()
     }, autoRefreshMs)
 

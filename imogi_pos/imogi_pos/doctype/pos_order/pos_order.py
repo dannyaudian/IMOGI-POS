@@ -96,3 +96,22 @@ class POSOrder(Document):
                     "status": "Available",
                     "current_pos_order": None
                 })
+    
+    def on_cancel(self):
+        """Release table when order cancelled (Restaurant Flow)"""
+        if self.table:
+            try:
+                from imogi_pos.api.orders import release_table_if_done
+                release_table_if_done(self.name)
+            except Exception as e:
+                frappe.log_error(
+                    title="Restaurant Flow: Table Release on Cancel Failed",
+                    message=f"Order: {self.name}, Table: {self.table}, Error: {str(e)}"
+                )
+                # Fallback: direct release
+                table_pos_order = frappe.db.get_value("Restaurant Table", self.table, "current_pos_order")
+                if table_pos_order == self.name:
+                    frappe.db.set_value("Restaurant Table", self.table, {
+                        "status": "Available",
+                        "current_pos_order": None
+                    })

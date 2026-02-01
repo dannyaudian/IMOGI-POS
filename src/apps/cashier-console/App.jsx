@@ -113,7 +113,15 @@ function CounterPOSContent({ initialState }) {
   // CRITICAL: ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // State management - moved here to comply with React Rules of Hooks
   const [selectedOrder, setSelectedOrder] = useState(null)
-  const [viewMode, setViewMode] = useState('orders') // orders, catalog, payment, split, summary, close
+  const [viewMode, setViewModeRaw] = useState('orders') // orders, catalog, payment, split, summary, close
+  
+  // Wrapped setViewMode with logging for debugging catalog issues
+  const setViewMode = (newMode) => {
+    if (import.meta.env.DEV && newMode !== viewMode) {
+      console.log(`[Cashier] viewMode transition: "${viewMode}" -> "${newMode}"`)
+    }
+    setViewModeRaw(newMode)
+  }
   const [showPayment, setShowPayment] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
@@ -428,6 +436,7 @@ function CounterPOSContent({ initialState }) {
         if (orderDetails) {
           setSelectedOrder(orderDetails)
           console.log('[Cashier] Order selected:', orderDetails)
+          console.log('[Cashier] Switching viewMode -> catalog (Counter)')
         }
         
         setViewMode('catalog')
@@ -485,6 +494,7 @@ function CounterPOSContent({ initialState }) {
           setSelectedOrder(orderDetails)
           setSelectedTable(table)
           console.log('[Cashier] Order selected:', orderDetails)
+          console.log('[Cashier] Switching viewMode -> catalog (Table)')
         }
         
         setViewMode('catalog')

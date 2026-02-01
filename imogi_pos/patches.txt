@@ -24,3 +24,5 @@ imogi_pos.patches.v2_0.migrate_branding_consolidation
 # Removed: imogi_pos.patches.remove_pos_session_scope_field
 # Reason: POS Opening doctype no longer used, migrated to POS Opening Entry
 
+# v2.1 - Restaurant Flow Enhancement - February 2026
+imogi_pos.patches.add_restaurant_flow_fields

@@ -7,6 +7,19 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   const [selectedGroup, setSelectedGroup] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [debugInfo, setDebugInfo] = useState(null)
+
+  // Mount/unmount lifecycle logging
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('[CatalogView] Component mounted', { posProfile, branch, menuChannel })
+    }
+    return () => {
+      if (import.meta.env.DEV) {
+        console.log('[CatalogView] Component unmounted')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // Don't fetch if posProfile is null (guard not passed yet)
@@ -44,47 +57,73 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
 
   const loadItems = async () => {
     if (!posProfile) {
-      console.warn('[imogi][catalog] Cannot load items: posProfile is null')
+      console.warn('[CatalogView] Cannot load items: posProfile is null')
       setLoading(false)
       return
     }
 
     setLoading(true)
     setError(null)
+    setDebugInfo(null)
 
     try {
       const params = {
         pos_profile: posProfile,
         item_group: selectedGroup === 'all' ? null : selectedGroup,
-        menu_channel: menuChannel
+        menu_channel: menuChannel,
+        // Enable debug mode in development to get metadata
+        debug: import.meta.env.DEV ? 1 : 0
       }
 
       if (import.meta.env.DEV) {
-        console.log('[imogi][catalog] Fetching items:', params)
+        console.log('[CatalogView] API call params:', params)
       }
 
       const response = await apiCall('imogi_pos.api.variants.get_template_items', params)
       
       // Normalize response - handle both direct array and {message: [...]} wrapper
+      // Debug mode returns {items: [...], debug: {...}}
       let itemsData = []
+      let debugData = null
+      
       if (Array.isArray(response)) {
         itemsData = response
+      } else if (response && response.items && Array.isArray(response.items)) {
+        // Debug mode response
+        itemsData = response.items
+        debugData = response.debug
       } else if (response && Array.isArray(response.message)) {
         itemsData = response.message
       } else if (response && response.message) {
-        console.warn('[imogi][catalog] Unexpected response format:', response)
+        console.warn('[CatalogView] Unexpected response format:', response)
         itemsData = []
       }
       
       setItems(itemsData)
+      setDebugInfo(debugData)
 
       if (import.meta.env.DEV) {
-        console.log(`[imogi][catalog] Loaded ${itemsData.length} items for group "${selectedGroup}"`)
+        console.log(`[CatalogView] Response received:`, {
+          type: Array.isArray(response) ? 'array' : 'object',
+          itemsCount: itemsData.length,
+          hasDebug: !!debugData
+        })
+        
+        if (debugData) {
+          console.log('[CatalogView] Debug metadata:', debugData)
+        }
+        
         if (itemsData.length === 0) {
-          console.warn('[imogi][catalog] ZERO items returned! Check:')
-          console.warn('  1. Are there items in database with disabled=0, is_sales_item=1, variant_of=null?')
-          console.warn('  2. Does imogi_menu_channel match?', menuChannel)
-          console.warn('  3. Check backend logs in developer mode')
+          console.warn('[CatalogView] ⚠️  ZERO items returned!')
+          console.warn('  Params:', params)
+          if (debugData) {
+            console.warn('  Debug Info:', debugData)
+          }
+          console.warn('  Checklist:')
+          console.warn('    1. Items exist with disabled=0, is_sales_item=1, variant_of=null?')
+          console.warn('    2. imogi_menu_channel matches?', menuChannel)
+          console.warn('    3. POS Profile domain correct?')
+          console.warn('    4. enable_menu_channels setting enabled?')
         }
       }
     } catch (err) {
@@ -92,7 +131,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       const statusCode = err?.httpStatus || err?.status || 'N/A'
       
       setError('Failed to load items')
-      console.error('[imogi][catalog] Error loading items:', {
+      console.error('[CatalogView] API error:', {
         error: errorMsg,
         status: statusCode,
         params: { posProfile, selectedGroup, menuChannel },
