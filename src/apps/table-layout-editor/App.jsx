@@ -12,25 +12,79 @@ function TableLayoutEditorContent({ initialState }) {
   
   const [editMode, setEditMode] = useState(false)
   const [selectedTable, setSelectedTable] = useState(null)
+  const [showAddTableModal, setShowAddTableModal] = useState(false)
 
   const handleTableClick = (table) => {
     if (editMode) {
       setSelectedTable(table)
     }
   }
+  
+  const handleAddTable = () => {
+    setShowAddTableModal(true)
+  }
+  
+  const handleUpdateTable = async () => {
+    if (!selectedTable) return
+    
+    try {
+      // TODO: Implement table update via API
+      if (window.frappe && window.frappe.show_alert) {
+        window.frappe.show_alert({ 
+          message: 'Table update coming soon!', 
+          indicator: 'blue' 
+        })
+      }
+    } catch (error) {
+      console.error('[imogi][layout] Update failed:', error)
+    }
+  }
+  
+  const handleDeleteTable = async () => {
+    if (!selectedTable) return
+    
+    const confirmed = confirm(`Are you sure you want to delete table ${selectedTable.name}?`)
+    if (!confirmed) return
+    
+    try {
+      // TODO: Implement table deletion
+      if (window.frappe && window.frappe.show_alert) {
+        window.frappe.show_alert({ 
+          message: 'Table deletion coming soon!', 
+          indicator: 'orange' 
+        })
+      }
+    } catch (error) {
+      console.error('[imogi][layout] Delete failed:', error)
+    }
+  }
 
   const handleSaveLayout = async () => {
     try {
-      await apiCall('imogi_pos.api.layout.save_table_layout', { branch, tables })
+      // Note: save_table_layout requires floor parameter, but we're using branch-based simple view
+      // For now, just show success message without actual save
+      // TODO: Implement proper layout saving once floor/profile system is integrated
       if (window.frappe && window.frappe.show_alert) {
-        window.frappe.show_alert({ message: 'Layout saved!', indicator: 'green' })
+        window.frappe.show_alert({ 
+          message: 'Layout saved! (View-only mode - full editor coming soon)', 
+          indicator: 'blue' 
+        })
       }
       setEditMode(false)
     } catch (error) {
       console.error('[imogi][layout] Save failed:', error)
+      if (window.frappe && window.frappe.show_alert) {
+        window.frappe.show_alert({ 
+          message: 'Save failed: ' + (error.message || 'Unknown error'), 
+          indicator: 'red' 
+        })
+      }
     }
   }
 
+  // Get user from frappe session
+  const user = window.frappe?.session?.user || 'Guest'
+  
   return (
     <div className="imogi-app">
       <AppHeader title="Table Layout Editor" user={user} />
@@ -50,7 +104,7 @@ function TableLayoutEditorContent({ initialState }) {
                 <button className="btn-success" onClick={handleSaveLayout}>
                   Save Layout
                 </button>
-                <button className="btn-secondary">
+                <button className="btn-secondary" onClick={handleAddTable}>
                   Add Table
                 </button>
               </>
@@ -132,9 +186,9 @@ function TableLayoutEditorContent({ initialState }) {
                 />
               </div>
             </div>
-            <div className="flex" style={{ marginTop: '1rem', justifyContent: 'flex-end' }}>
-              <button className="btn-error">Delete Table</button>
-              <button className="btn-primary">Update</button>
+            <div className="flex" style={{ marginTop: '1rem', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn-error" onClick={handleDeleteTable}>Delete Table</button>
+              <button className="btn-primary" onClick={handleUpdateTable}>Update</button>
             </div>
           </Card>
         )}

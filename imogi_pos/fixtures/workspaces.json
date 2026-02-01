@@ -81,13 +81,13 @@
       },
       {
         "label": "Customer Display Editor",
-        "link_to": "/customer_display_editor",
-        "type": "URL"
+        "link_to": "customer_display_editor",
+        "type": "Page"
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "/table_layout_editor",
-        "type": "URL"
+        "link_to": "table_layout_editor",
+        "type": "Page"
       }
     ],
     "cards": [],
@@ -145,8 +145,8 @@
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "/table_layout_editor",
-        "type": "URL"
+        "link_to": "table_layout_editor",
+        "type": "Page"
       }
     ],
     "cards": [],
