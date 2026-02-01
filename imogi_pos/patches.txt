@@ -6,26 +6,26 @@
 #
 # Patches execute in order, from top to bottom
 # Each successful patch execution is recorded in the database to prevent rerunning
-imogi_pos.patches.v1_1.create_cash_accounts
-imogi_pos.patches.add_cashier_session_ref
 
-imogi_pos.patches.v1_1.reload_restaurant_settings_discounts
-imogi_pos.patches.add_pos_order_customer_gender_column
+# ============================================================================
+# LEGACY PATCHES (Commented out - already applied or modules removed)
+# ============================================================================
+# imogi_pos.patches.v1_1.create_cash_accounts  # Applied in v1.1
+# imogi_pos.patches.add_cashier_session_ref  # Module removed, already migrated
+# imogi_pos.patches.v1_1.reload_restaurant_settings_discounts  # Applied in v1.1
+# imogi_pos.patches.add_pos_order_customer_gender_column  # Module removed, already migrated
+# imogi_pos.patches.migrate_to_new_architecture  # Applied in January 2026
+# imogi_pos.patches.v2_0.migrate_kitchen_simplification  # Module removed, already migrated
+# imogi_pos.patches.v2_0.migrate_customer_fields_simplification  # Module removed, already migrated
+# imogi_pos.patches.v2_0.migrate_branding_consolidation  # Module removed, already migrated
 
-# Architecture reorganization - January 2026
-imogi_pos.patches.migrate_to_new_architecture
-
-# v2.0 - Kitchen Module Simplification - January 2026
-imogi_pos.patches.v2_0.migrate_kitchen_simplification
-imogi_pos.patches.v2_0.migrate_customer_fields_simplification
-imogi_pos.patches.v2_0.migrate_branding_consolidation
-
-# v2.0 - Fix POS Opening Scope Field Issue - January 2026
-# Removed: imogi_pos.patches.remove_pos_session_scope_field
-# Reason: POS Opening doctype no longer used, migrated to POS Opening Entry
+# ============================================================================
+# ACTIVE PATCHES
+# ============================================================================
 
 # v2.1 - Restaurant Flow Enhancement - February 2026
 imogi_pos.patches.add_restaurant_flow_fields
 
 # v2.1 - Fix Restaurant Floor Table Update SQL Error - February 2026
 imogi_pos.patches.fix_restaurant_floor_table_update
+
