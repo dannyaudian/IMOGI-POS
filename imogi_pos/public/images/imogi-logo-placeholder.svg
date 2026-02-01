@@ -1,0 +1,12 @@
+<svg width="480" height="360" viewBox="0 0 480 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Placeholder product image</title>
+  <desc id="desc">Muted illustration that represents a product image placeholder.</desc>
+  <rect width="480" height="360" rx="24" fill="#F5F7FA"/>
+  <rect x="56" y="48" width="368" height="264" rx="18" fill="#E5EBF0"/>
+  <rect x="86" y="76" width="308" height="160" rx="14" fill="#FDFEFE" stroke="#CED8E1" stroke-width="2" stroke-dasharray="10 10"/>
+  <circle cx="180" cy="184" r="44" fill="#D2DEE8"/>
+  <path d="M138 245.5C144.5 225 160 208 176 208H304C324.5 208 342 228 348 245.5" stroke="#B8C6D3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M269 140C269 159.882 252.882 176 233 176C213.118 176 197 159.882 197 140C197 120.118 213.118 104 233 104C252.882 104 269 120.118 269 140Z" fill="#C0CEDA"/>
+  <path d="M321 174C321 186.15 310.15 197 298 197C285.85 197 275 186.15 275 174C275 161.85 285.85 151 298 151C310.15 151 321 161.85 321 174Z" fill="#D9E4EC"/>
+  <text x="240" y="300" text-anchor="middle" font-family="'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="24" font-weight="600" fill="#7A8797">No product image</text>
+</svg>

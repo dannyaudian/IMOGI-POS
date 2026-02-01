@@ -26,3 +26,6 @@ imogi_pos.patches.v2_0.migrate_branding_consolidation
 
 # v2.1 - Restaurant Flow Enhancement - February 2026
 imogi_pos.patches.add_restaurant_flow_fields
+
+# v2.1 - Fix Restaurant Floor Table Update SQL Error - February 2026
+imogi_pos.patches.fix_restaurant_floor_table_update

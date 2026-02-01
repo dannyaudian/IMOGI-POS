@@ -173,10 +173,12 @@ def _check_currency_field_exists() -> bool:
         )
     
     # Priority 2: Fallback to DB column check
+    # Note: has_column requires table name WITH 'tab' prefix
     try:
-        has_column = frappe.db.has_column(doctype, field_name)
+        table_name = f"tab{doctype}"
+        has_column = frappe.db.has_column(table_name, field_name)
         frappe.logger("imogi_pos").debug(
-            f"[pos_opening] Field check via has_column: {doctype}.{field_name} = {has_column}"
+            f"[pos_opening] Field check via has_column: {table_name}.{field_name} = {has_column}"
         )
         return has_column
     except Exception as e:

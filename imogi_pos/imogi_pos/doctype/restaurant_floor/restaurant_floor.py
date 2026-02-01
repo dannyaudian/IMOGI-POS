@@ -54,16 +54,42 @@ class RestaurantFloor(Document):
                 "current_pos_order": table.current_pos_order
             })
 
-        # Save without triggering on_update again
+        # Save child table safely using SQL parameterized updates
         if tables:
-            table_data = [row.as_dict() for row in self.tables]
-            frappe.db.set_value(
-                "Restaurant Floor",
-                self.name,
-                "tables",
-                table_data,
-                update_modified=False,
+            # Delete existing child records for this floor
+            frappe.db.sql(
+                """
+                DELETE FROM `tabRestaurant Floor Table`
+                WHERE parent = %(parent)s
+                """,
+                {"parent": self.name}
             )
+            
+            # Insert new child records with parameterized query
+            for idx, row in enumerate(self.tables, start=1):
+                frappe.db.sql(
+                    """
+                    INSERT INTO `tabRestaurant Floor Table`
+                    (name, creation, modified, modified_by, owner, docstatus, 
+                     parent, parenttype, parentfield, idx,
+                     table, table_number, status, current_pos_order)
+                    VALUES (%(name)s, NOW(), NOW(), %(user)s, %(user)s, 0,
+                            %(parent)s, 'Restaurant Floor', 'tables', %(idx)s,
+                            %(table)s, %(table_number)s, %(status)s, %(current_pos_order)s)
+                    """,
+                    {
+                        "name": frappe.generate_hash(length=10),
+                        "user": frappe.session.user,
+                        "parent": self.name,
+                        "idx": idx,
+                        "table": row.table,
+                        "table_number": row.table_number,
+                        "status": row.status,
+                        "current_pos_order": row.current_pos_order
+                    }
+                )
+            
+            frappe.db.commit()
     
     def get_active_tables(self):
         """Get all active tables on this floor"""
