@@ -482,16 +482,19 @@ def resolve_active_pos_opening(
         opening_balance = sum(
             detail.get("opening_amount", 0) or 0 for detail in balance_details
         )
+        opening_name = entry[0].get("name")
         return {
-            "pos_opening_entry": entry[0].get("name"),
-            "pos_profile_name": entry[0].get("pos_profile"),
+            "name": opening_name,  # Frontend expects 'name' field
+            "pos_opening_entry": opening_name,  # Backward compatibility
+            "pos_profile": entry[0].get("pos_profile"),  # Frontend expects 'pos_profile'
+            "pos_profile_name": entry[0].get("pos_profile"),  # Backward compatibility
             "opening_balance": opening_balance,
             "balance_details": balance_details,
             "timestamp": entry[0].get(date_field) or entry[0].get("creation"),
             "company": entry[0].get("company"),
             "status": entry[0].get("status"),
             "scope": scope,
-            "user": user,
+            "user": entry[0].get("user"),  # Include user from DB for validation
             "device_id": device_id,
             "error_code": error_code,
             "error_message": error_message,

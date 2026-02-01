@@ -125,8 +125,22 @@ export function useEffectiveOpening({
     try {
       setStatus('loading')
 
-      console.log('[useEffectiveOpening] Loading active opening...')
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Loading active opening...')
+      }
       const response = await apiCall('imogi_pos.api.cashier.get_active_opening')
+
+      // Dev logging: log full response for debugging
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Response:', {
+          success: response?.success,
+          has_opening: response?.has_opening,
+          opening_exists: !!response?.opening,
+          opening_name: response?.opening?.name,
+          opening_entry: response?.opening?.pos_opening_entry,
+          pos_profile: response?.pos_profile
+        })
+      }
 
       if (!response?.has_opening) {
         if (requiresOpening) {
@@ -140,12 +154,33 @@ export function useEffectiveOpening({
         return
       }
 
-      setEffectiveOpening(response.opening || { name: response.opening_entry })
+      // FIXED: Backend returns "opening" object with "name" field
+      // Fallback to pos_opening_entry for backward compatibility
+      const openingData = response.opening
+      const openingName = openingData?.name || openingData?.pos_opening_entry
+      
+      if (!openingData || !openingName) {
+        setStatus('missing')
+        setError('Invalid opening data returned from server')
+        console.error('[useEffectiveOpening] has_opening=true but opening is null:', response)
+        return
+      }
+
+      // Ensure opening object has 'name' field for consistency
+      const normalizedOpening = {
+        ...openingData,
+        name: openingName
+      }
+
+      setEffectiveOpening(normalizedOpening)
       setIsUrlOpening(false)
       setStatus('valid')
       setError(null)
       setLastValidatedAt(new Date())
-      console.log('[useEffectiveOpening] Active opening loaded:', response.opening_entry)
+      
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Active opening loaded:', openingName)
+      }
     } catch (err) {
       console.error('[useEffectiveOpening] Failed to load active opening:', err)
       setStatus('error')
@@ -165,7 +200,10 @@ export function useEffectiveOpening({
 
     try {
       setStatus('loading')
-      console.log('[useEffectiveOpening] Re-validating opening:', effectiveOpening.name)
+      
+      if (import.meta.env.DEV) {
+        console.log('[useEffectiveOpening] Re-validating opening:', effectiveOpening.name)
+      }
 
       // Get current user's active opening
       const response = await apiCall('imogi_pos.api.cashier.get_active_opening')
@@ -180,24 +218,43 @@ export function useEffectiveOpening({
         return
       }
 
+      // FIXED: Backend returns "opening" object with "name" field
+      // Fallback to pos_opening_entry for backward compatibility
+      const currentActiveOpeningName = response.opening?.name || response.opening?.pos_opening_entry
+      
+      if (!currentActiveOpeningName) {
+        setStatus('error')
+        setError('Invalid opening data from server')
+        console.error('[useEffectiveOpening] has_opening=true but opening.name is null:', response)
+        return
+      }
+
       // Check if URL opening differs from current active
-      if (isUrlOpening && response.opening_entry !== effectiveOpening.name) {
+      if (isUrlOpening && currentActiveOpeningName !== effectiveOpening.name) {
         setStatus('mismatch')
         setError(
-          `Your opening (${effectiveOpening.name}) differs from current active opening (${response.opening_entry}). ` +
+          `Your opening (${effectiveOpening.name}) differs from current active opening (${currentActiveOpeningName}). ` +
           `Please reload page to switch openings.`
         )
         console.warn('[useEffectiveOpening] Opening mismatch:', {
           urlOpening: effectiveOpening.name,
-          activeOpening: response.opening_entry
+          activeOpening: currentActiveOpeningName
         })
         return
       }
 
       // If not URL opening and active changed, auto-update (backward compatible)
-      if (!isUrlOpening && response.opening_entry !== effectiveOpening.name) {
-        console.log('[useEffectiveOpening] Active opening changed, updating:', response.opening_entry)
-        setEffectiveOpening(response.opening || { name: response.opening_entry })
+      if (!isUrlOpening && currentActiveOpeningName !== effectiveOpening.name) {
+        if (import.meta.env.DEV) {
+          console.log('[useEffectiveOpening] Active opening changed, updating:', currentActiveOpeningName)
+        }
+        
+        // Ensure opening object has 'name' field
+        const normalizedOpening = {
+          ...response.opening,
+          name: currentActiveOpeningName
+        }
+        setEffectiveOpening(normalizedOpening)
       }
 
       setStatus('valid')

@@ -209,6 +209,9 @@ def get_active_opening(pos_profile=None):
     """
     Get active POS Opening Entry for current user + pos_profile.
     Returns opening dict or None if no active opening found.
+    
+    NO DATE FILTERS: Opening from yesterday/previous days remains valid
+    until explicitly closed by user.
     """
     from imogi_pos.utils.operational_context import require_operational_context
     from imogi_pos.utils.pos_opening import resolve_active_pos_opening
@@ -219,22 +222,41 @@ def get_active_opening(pos_profile=None):
 
         if not pos_profile:
             logger.warning(f"get_active_opening: No POS Profile for user {frappe.session.user}")
-            return {"success": False, "error": _("POS Profile required")}
+            return {
+                "success": False, 
+                "has_opening": False,
+                "opening": None,
+                "pos_profile": None,
+                "error": _("POS Profile required")
+            }
 
+        # resolve_active_pos_opening returns dict, not doc object
         opening = resolve_active_pos_opening(pos_profile=pos_profile, user=frappe.session.user)
-        opening_dict = _safe_get_dict(opening) if opening else None
+        
+        # Check if opening was found (has name field)
+        has_opening = bool(opening and opening.get("name"))
+        opening_name = opening.get("name") if has_opening else None
 
-        logger.info(f"Active opening for {frappe.session.user}: {opening_dict.get('name') if opening_dict else 'None'}")
+        logger.info(
+            f"get_active_opening: user={frappe.session.user} pos_profile={pos_profile} "
+            f"found={has_opening} opening={opening_name}"
+        )
 
         return {
             "success": True,
-            "has_opening": bool(opening_dict),
-            "opening": opening_dict,
+            "has_opening": has_opening,
+            "opening": opening if has_opening else None,
             "pos_profile": pos_profile,
         }
     except Exception as e:
         logger.error(f"get_active_opening failed: {str(e)}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False,
+            "has_opening": False,
+            "opening": None,
+            "pos_profile": pos_profile,
+            "error": str(e)
+        }
 
 
 @frappe.whitelist()

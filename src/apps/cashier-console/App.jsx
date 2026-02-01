@@ -111,29 +111,51 @@ function CounterPOSContent({ initialState }) {
 
   // Block screen if no opening (show error without redirect)
   // CRITICAL: This return must come AFTER all hook calls
-  if (!guardLoading && !guardPassed && openingStatus === 'missing') {
-    console.error('[CashierConsole] Blocked: No active POS Opening Entry', {
+  if (!guardLoading && (!guardPassed || !hasValidOpening)) {
+    const reason = !guardPassed ? 'guard_failed' : 'no_opening'
+    const title = !guardPassed 
+      ? 'POS Profile tidak tersedia' 
+      : 'POS Opening belum ada'
+    const message = !guardPassed
+      ? 'Silakan pilih POS Profile melalui Module Select.'
+      : 'Silakan buat POS Opening Entry via ERPNext. Setelah itu refresh halaman ini.'
+    const error = !guardPassed 
+      ? serverContextError || contextError 
+      : openingValidationError || openingError?.message || openingError
+    
+    console.error('[CashierConsole] Blocked:', {
+      reason,
+      guardPassed,
+      hasValidOpening,
       posProfile,
+      effectiveOpening,
       openingStatus,
-      openingError,
-      posOpening
+      openingValidationStatus,
+      error
     })
     
     return (
       <BlockedScreen
-        title="POS Opening belum ada"
-        message="Silakan buat POS Opening Entry via ERPNext. Setelah itu refresh halaman ini."
-        error={openingError?.message || openingError}
-        actions={[
-          { 
-            label: "Buat POS Opening Entry", 
-            href: `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(posProfile || '')}` 
-          },
-          { 
-            label: "Kembali ke Module Select", 
-            href: "/app/imogi-module-select" 
-          }
-        ]}
+        title={title}
+        message={message}
+        error={error}
+        actions={
+          !guardPassed ? [
+            { 
+              label: "Pilih POS Profile", 
+              href: "/app/imogi-module-select?target=imogi-cashier" 
+            }
+          ] : [
+            { 
+              label: "Buat POS Opening Entry", 
+              href: `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(posProfile || '')}` 
+            },
+            { 
+              label: "Kembali ke Module Select", 
+              href: "/app/imogi-module-select" 
+            }
+          ]
+        }
       />
     )
   }
