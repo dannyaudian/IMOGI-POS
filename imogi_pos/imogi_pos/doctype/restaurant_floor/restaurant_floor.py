@@ -27,69 +27,53 @@ class RestaurantFloor(Document):
     
     def after_insert(self):
         """Update tables list after insert"""
-        self.update_tables_list()
+        # Prevent loop - only update if tables child is empty
+        if not self.tables:
+            self.update_tables_list()
     
     def on_update(self):
         """Update tables list after update"""
-        self.update_tables_list()
+        # Skip update triggered from update_tables_list to prevent infinite loop
+        # Only sync if called externally (not from our own save)
+        if not self.flags.get("updating_tables_list"):
+            # Don't update if tables are already being managed
+            pass
     
     def update_tables_list(self):
         """Update the tables table with current linked tables"""
-        # Clear existing tables
-        self.tables = []
+        # Prevent infinite loop - set flag before save
+        if self.flags.get("updating_tables_list"):
+            return
         
-        # Get all tables linked to this floor
-        tables = frappe.get_all(
-            "Restaurant Table", 
-            filters={"floor": self.name},
-            fields=["name", "table_number", "status", "current_pos_order"]
-        )
+        self.flags.updating_tables_list = True
         
-        # Add them to the tables table
-        for table in tables:
-            self.append("tables", {
-                "table": table.name,
-                "table_number": table.table_number,
-                "status": table.status,
-                "current_pos_order": table.current_pos_order
-            })
-
-        # Save child table safely using SQL parameterized updates
-        if tables:
-            # Delete existing child records for this floor
-            frappe.db.sql(
-                """
-                DELETE FROM `tabRestaurant Floor Table`
-                WHERE parent = %(parent)s
-                """,
-                {"parent": self.name}
+        try:
+            # Clear existing tables
+            self.tables = []
+            
+            # Get all tables linked to this floor
+            tables = frappe.get_all(
+                "Restaurant Table", 
+                filters={"floor": self.name},
+                fields=["name", "table_number", "status", "current_pos_order"]
             )
             
-            # Insert new child records with parameterized query
-            for idx, row in enumerate(self.tables, start=1):
-                frappe.db.sql(
-                    """
-                    INSERT INTO `tabRestaurant Floor Table`
-                    (name, creation, modified, modified_by, owner, docstatus, 
-                     parent, parenttype, parentfield, idx,
-                     table, table_number, status, current_pos_order)
-                    VALUES (%(name)s, NOW(), NOW(), %(user)s, %(user)s, 0,
-                            %(parent)s, 'Restaurant Floor', 'tables', %(idx)s,
-                            %(table)s, %(table_number)s, %(status)s, %(current_pos_order)s)
-                    """,
-                    {
-                        "name": frappe.generate_hash(length=10),
-                        "user": frappe.session.user,
-                        "parent": self.name,
-                        "idx": idx,
-                        "table": row.table,
-                        "table_number": row.table_number,
-                        "status": row.status,
-                        "current_pos_order": row.current_pos_order
-                    }
-                )
-            
-            frappe.db.commit()
+            # Add them to the tables table
+            for table in tables:
+                self.append("tables", {
+                    "table": table.name,
+                    "table_number": table.table_number,
+                    "status": table.status,
+                    "current_pos_order": table.current_pos_order
+                })
+
+            # Use Frappe ORM to properly save child table
+            # This is the safest way - ORM handles idx, audit fields, hooks, etc.
+            self.flags.ignore_validate_update_after_submit = True
+            self.save(ignore_permissions=True)
+        finally:
+            # Always clear flag after operation
+            self.flags.updating_tables_list = False
     
     def get_active_tables(self):
         """Get all active tables on this floor"""

@@ -11,8 +11,8 @@ Issue:
 - Query SQL jadi: ... WHERE ... = '[{...}]' yang invalid
 
 Solution:
-- Ganti dengan `frappe.db.sql()` dengan parameterized query
-- Atau lebih baik: langsung pakai `doc.save()` untuk update child tables
+- Ganti dengan Frappe ORM `doc.save()` yang handle child tables dengan benar
+- Tambah flag protection untuk prevent infinite loop
 
 Related Error:
 "Restaurant Table Update Error" - (1064, "You have an error in your SQL syntax ... near '[{'name': None, ... }]'")
@@ -23,8 +23,8 @@ import frappe
 
 def execute():
     """
-    Patch ini tidak perlu migrasi data karena hanya fix bug di kode.
-    Tapi kita validate bahwa semua Restaurant Floor records bisa di-load dengan benar.
+    Patch ini rebuild semua Restaurant Floor child table records
+    dengan cara yang aman menggunakan Frappe ORM.
     """
     frappe.reload_doc("imogi_pos", "doctype", "restaurant_floor")
     frappe.reload_doc("imogi_pos", "doctype", "restaurant_floor_table")
@@ -39,7 +39,10 @@ def execute():
         try:
             floor_doc = frappe.get_doc("Restaurant Floor", floor_name)
             
-            # Clear dan rebuild tables list menggunakan metode yang aman
+            # Set flag to prevent triggering on_update loop
+            floor_doc.flags.updating_tables_list = True
+            
+            # Clear dan rebuild tables list menggunakan ORM
             floor_doc.tables = []
             
             tables = frappe.get_all(
@@ -56,10 +59,11 @@ def execute():
                     "current_pos_order": table.current_pos_order
                 })
             
-            # Gunakan save() yang aman untuk child tables, bukan set_value()
-            if tables:
-                floor_doc.save(ignore_permissions=True)
-                fixed_count += 1
+            # Save dengan ORM - aman untuk child tables
+            floor_doc.flags.ignore_validate_update_after_submit = True
+            floor_doc.save(ignore_permissions=True)
+            
+            fixed_count += 1
                 
         except Exception as e:
             error_count += 1
@@ -67,6 +71,10 @@ def execute():
                 title=f"Restaurant Floor Patch Error: {floor_name}",
                 message=str(e)
             )
+        finally:
+            # Always clear flag
+            if 'floor_doc' in locals():
+                floor_doc.flags.updating_tables_list = False
     
     print(f"Restaurant Floor patch completed: {fixed_count} fixed, {error_count} errors")
     
