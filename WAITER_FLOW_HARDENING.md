@@ -587,7 +587,7 @@ scheduler_events = {
 
 ## 📚 RELATED DOCUMENTATION
 
-- [ERROR_FIX_DEPLOYMENT_GUIDE.md](ERROR_FIX_DEPLOYMENT_GUIDE.md) - Cashier Console error hardening
+- [ERROR_FIX_SUMMARY.md](ERROR_FIX_SUMMARY.md) - Cashier Console error hardening
 - [RESTAURANT_FLOW_COMPLETE_GUIDE.md](RESTAURANT_FLOW_COMPLETE_GUIDE.md) - Complete restaurant flow
 - [ORDER_CONCURRENCY_GUIDE.md](#) - Multi-cashier concurrency (if exists)
 

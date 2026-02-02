@@ -356,6 +356,253 @@ Verify that after cleanup (12,279 LOC removed):
 
 ---
 
+---
+
+## 🏭 Production Manual Testing Checklist
+
+**Version**: 1.0  
+**Date**: February 2, 2026  
+**Tester**: _______________  
+**Environment**: [ ] Staging [ ] Production
+
+### ✅ Pre-Testing Setup
+
+- [ ] Backend patches applied (if any)
+- [ ] Frontend patches applied
+- [ ] `npm run build` completed successfully
+- [ ] Cache cleared (`bench clear-cache`)
+- [ ] Browser cache cleared (Ctrl+Shift+Delete)
+- [ ] Test data available:
+  - [ ] POS Profile configured
+  - [ ] Branch assigned to POS Profile
+  - [ ] Test items (minimum 5)
+  - [ ] Test tables (minimum 2)
+  - [ ] Test users (Cashier + Waiter roles)
+
+### 🏪 Cashier Console Testing
+
+#### Test Environment
+- **URL**: `/app/imogi-cashier`
+- **User**: _______________
+- **POS Profile**: _______________
+- **Branch**: _______________
+- **Opening Entry**: _______________
+
+#### TC-C1: Counter Mode - New Order Flow
+
+**Steps:**
+1. Navigate to `/app/imogi-cashier`
+2. Wait for guard to pass (loading screen)
+3. Click "New Order" button
+4. Verify catalog view opens
+5. Search for item using search box
+6. Add 2 different items to order
+7. Verify order total updates
+8. Click "Pay" button
+9. Select "Cash" payment mode
+10. Enter amount (equal to total)
+11. Click "Submit Payment"
+12. Verify payment success message
+13. Verify order clears and returns to list
+
+**Expected Results:**
+- [ ] Guard passes without errors
+- [ ] New order button clickable
+- [ ] Catalog loads items successfully
+- [ ] Search filters items correctly (with 300ms debounce - NEW)
+- [ ] Items add to order instantly
+- [ ] Total calculation correct
+- [ ] Payment modal opens
+- [ ] Payment processes successfully
+- [ ] Invoice submitted (check backend)
+- [ ] Order appears in history as "Paid"
+
+#### TC-C2: Network Status Indicator (NEW PATCH)
+
+**Steps:**
+1. Open Cashier Console
+2. Verify no network indicator visible (while online)
+3. Disconnect internet (turn off WiFi)
+4. Verify "Offline" badge appears
+5. Verify toast notification shows
+6. Reconnect internet
+7. Verify "Reconnected" badge appears briefly
+8. Verify badge disappears after 5 seconds
+
+**Expected Results:**
+- [ ] No indicator when online
+- [ ] "Offline" badge appears on disconnect
+- [ ] Toast shows "No internet connection"
+- [ ] "Reconnected" badge shows on reconnect
+- [ ] Badge auto-hides after 5 seconds
+
+#### TC-C3: Error Handling with Retry (NEW PATCH)
+
+**Steps:**
+1. Disconnect internet
+2. Try to create new order
+3. Verify error banner appears (not alert())
+4. Verify "Retry" button visible
+5. Reconnect internet
+6. Click "Retry" button
+7. Verify operation succeeds
+8. Click "Dismiss" to close banner
+
+**Expected Results:**
+- [ ] Error banner shows (NOT alert())
+- [ ] Error message is clear and actionable
+- [ ] "Retry" button present
+- [ ] Retry button triggers operation again
+- [ ] "Dismiss" button closes banner
+- [ ] Banner has warning styling (yellow/orange)
+
+#### TC-C4: Keyboard Shortcuts (NEW PATCH)
+
+**Prerequisite:** No input fields focused
+
+**Steps:**
+1. Press `/` key
+   - [ ] Catalog opens
+   - [ ] Search input focused
+2. Type search query, press ESC
+   - [ ] Catalog closes
+3. Select an order, press `F2`
+   - [ ] Payment modal opens
+4. Press ESC
+   - [ ] Payment modal closes
+5. Press `F3`
+   - [ ] Catalog toggles on/off
+6. Press `Ctrl+N` (or `Cmd+N` on Mac)
+   - [ ] New order dialog/action triggered
+
+**Expected Results:**
+- [ ] All shortcuts work as documented
+- [ ] Shortcuts don't trigger when typing in input fields
+- [ ] ESC key closes modals properly
+- [ ] Keyboard hint button visible in header (NEW)
+- [ ] Clicking hint shows shortcut list
+
+#### TC-C5: Skeleton Loaders (NEW PATCH)
+
+**Steps:**
+1. Open Cashier Console (slow 3G or throttled network)
+2. Observe order list loading
+3. Open catalog view
+4. Observe catalog loading
+
+**Expected Results:**
+- [ ] Skeleton cards show during order list load
+- [ ] Skeleton grid shows during catalog load
+- [ ] Skeletons have animated shimmer effect
+- [ ] Skeletons replaced by real data on load
+- [ ] No blank white areas during loading
+
+#### TC-C6: Table Mode - Claim and Settle
+
+**Steps:**
+1. Switch to Table mode (if POS Profile supports)
+2. View orders with "Bill Requested" flag
+3. Select an order
+4. Click "Claim" button
+5. Verify claim success
+6. Click "Pay" button
+7. Process payment
+8. Verify table released
+
+**Expected Results:**
+- [ ] Requested bills visible in list
+- [ ] Claim button clickable
+- [ ] Claim succeeds (order locked to current user)
+- [ ] Payment processes successfully
+- [ ] Table status updated to "Available"
+- [ ] Order disappears from active list
+
+#### TC-C7: Split Bill (Optional)
+
+**Steps:**
+1. Select an order with multiple items
+2. Click "Split Bill"
+3. Move some items to Split 2
+4. Process payment for Split 1
+5. Process payment for Split 2
+
+**Expected Results:**
+- [ ] Items can be assigned to split groups
+- [ ] Each split total correct
+- [ ] Payments processed separately
+- [ ] Order closes after all splits paid
+
+### 🧑‍🍳 Waiter Order Testing
+
+#### Test Environment
+- **URL**: `/app/imogi-waiter`
+- **User**: _______________
+- **POS Profile**: _______________
+- **Branch**: _______________
+
+#### TC-W1: Create Table Order
+
+**Steps:**
+1. Open `/app/imogi-waiter`
+2. Select a table
+3. Add items to cart
+4. Submit order
+5. Verify order created
+
+**Expected Results:**
+- [ ] Table loads with correct status
+- [ ] Items added to cart
+- [ ] Order submitted successfully
+- [ ] Table status changes to "Occupied"
+
+#### TC-W2: Request Bill
+
+**Steps:**
+1. Open active table with order
+2. Click "Request Bill"
+3. Confirm request
+4. Verify request sent
+
+**Expected Results:**
+- [ ] Request bill button visible
+- [ ] Confirmation modal appears
+- [ ] Request sent successfully
+- [ ] Table shows "Bill Requested" state
+
+#### TC-W3: Send to Kitchen
+
+**Steps:**
+1. Add items to order
+2. Click "Send to Kitchen"
+3. Verify KOT created
+
+**Expected Results:**
+- [ ] KOT created in backend
+- [ ] KDS receives ticket
+- [ ] Order workflow state updates
+
+### 🍽️ Kitchen Display Testing
+
+#### Test Environment
+- **URL**: `/app/imogi-kitchen`
+- **User**: _______________
+
+#### TC-K1: KOT Lifecycle
+
+**Steps:**
+1. Open kitchen display
+2. Verify new KOT appears
+3. Click "Start" → status changes to In Progress
+4. Click "Ready" → status changes to Ready
+5. Click "Serve" → status changes to Served
+
+**Expected Results:**
+- [ ] KOT appears in queue
+- [ ] Status updates realtime
+- [ ] KOT disappears after Served
+
+---
+
 ## ✅ SIGN-OFF
 
 **All Tests Passed**: □ Yes  □ No (__ failures)

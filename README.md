@@ -143,7 +143,7 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 - **[Finalization Archive](FINALIZATION_ARCHIVE.md)** - Historical fixes, audits, and refactor notes
 
 ### For Operations
-- **[Production Deploy Guide](PRODUCTION_DEPLOY_GUIDE.md)** - Complete deployment procedures
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Fresh deploy checklist and troubleshooting
 - **[Testing Guide](TESTING_GUIDE.md)** - Comprehensive testing procedures
 - **[Security Summary](SECURITY_SUMMARY.md)** - Security measures and best practices
 
