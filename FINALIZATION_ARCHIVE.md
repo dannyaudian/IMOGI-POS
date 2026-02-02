@@ -1355,12 +1355,12 @@ PRE_PRODUCTION_HARDENING_SUMMARY.md     # Superseded by SECURITY_SUMMARY.md
 PERMISSION_FIXES_SUMMARY.md             # Incorporated into SECURITY_SUMMARY.md
 DOCUMENTATION_CONSISTENCY_FIX.md        # Meta-doc, no longer needed
 SESSION_EXPIRY_TESTING.md               # Test scenarios in TESTING_GUIDE.md
-FINAL_GO_NOGO_CHECKLIST.md              # Deploy checklist superseded by PRODUCTION_DEPLOY_GUIDE.md
+FINAL_GO_NOGO_CHECKLIST.md              # Deploy checklist superseded by DEPLOYMENT_GUIDE.md
 ```
 
 **Keep These Essential Docs**:
 - `README.md` - Main project README
-- `PRODUCTION_DEPLOY_GUIDE.md` - Deployment steps
+- `DEPLOYMENT_GUIDE.md` - Deployment steps
 - `TESTING_GUIDE.md` - Testing procedures
 - `SECURITY_SUMMARY.md` - Security measures
 - `REACT_ARCHITECTURE.md` - React structure
@@ -1506,7 +1506,7 @@ export function logError(error, context = {}) {
 - [Operational Context](#operational-context)
 
 ## Deployment
-- See [PRODUCTION_DEPLOY_GUIDE.md](PRODUCTION_DEPLOY_GUIDE.md)
+- See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 
 ## Testing
 - See [TESTING_GUIDE.md](TESTING_GUIDE.md)
@@ -1638,7 +1638,7 @@ Update `README.md` to reference new docs:
 ## Documentation
 
 - **[Developer Guide](DEVELOPER_GUIDE.md)** - Complete development documentation
-- **[Production Deploy Guide](PRODUCTION_DEPLOY_GUIDE.md)** - Deployment procedures
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Deployment procedures
 - **[Testing Guide](TESTING_GUIDE.md)** - Testing procedures
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Security Summary](SECURITY_SUMMARY.md)** - Security measures
@@ -2148,7 +2148,7 @@ See [PERMANENT_CLEANUP_IMPLEMENTATION.md](PERMANENT_CLEANUP_IMPLEMENTATION.md) S
    ```
 
 9. **Production Deployment**
-   - Follow [PRODUCTION_DEPLOY_GUIDE.md](PRODUCTION_DEPLOY_GUIDE.md)
+   - Follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
    - Schedule maintenance window
    - Backup database before deploy
    - Monitor logs for 24 hours post-deploy
@@ -2222,10 +2222,9 @@ git commit -m "Partial rollback: Keep utilities, restore legacy JS"
 - `REACT_LOADER_REFACTOR.md` - Loader implementation
 - `API_SESSION_HANDLING_FIX.md` - API patterns
 - `ROUTE_TRANSITION_FIX.md` - Navigation patterns
-- `FRAPPE_UI_ALIGNMENT_GUIDE.md` - UI/UX patterns
 
 **Operations**:
-- `PRODUCTION_DEPLOY_GUIDE.md` - Deployment procedures
+- `DEPLOYMENT_GUIDE.md` - Deployment procedures
 - `TESTING_GUIDE.md` - Testing procedures
 - `SECURITY_SUMMARY.md` - Security measures
 
@@ -6450,13 +6449,13 @@ grep -r "cashier_console\|kitchen_display\|table_display\|customer_display" \
 ✗ PERMISSION_FIXES_SUMMARY.md             # → SECURITY_SUMMARY.md
 ✗ DOCUMENTATION_CONSISTENCY_FIX.md        # Meta-doc, no longer needed
 ✗ SESSION_EXPIRY_TESTING.md               # → TESTING_GUIDE.md
-✗ FINAL_GO_NOGO_CHECKLIST.md              # → PRODUCTION_DEPLOY_GUIDE.md
+✗ FINAL_GO_NOGO_CHECKLIST.md              # → DEPLOYMENT_GUIDE.md
 ```
 
 **Keep These Essential Docs** (19 files):
 ```bash
 ✓ README.md                                # Main project README
-✓ PRODUCTION_DEPLOY_GUIDE.md              # Deployment procedures
+✓ DEPLOYMENT_GUIDE.md              # Deployment procedures
 ✓ TESTING_GUIDE.md                         # Testing procedures
 ✓ SECURITY_SUMMARY.md                      # Security measures
 ✓ REACT_ARCHITECTURE.md                    # React structure
@@ -6467,7 +6466,6 @@ grep -r "cashier_console\|kitchen_display\|table_display\|customer_display" \
 ✓ IMOGI_POS_ARCHITECTURE.md                # System architecture
 ✓ POS_PROFILE_CENTRALIZATION.md            # Context handling
 ✓ CENTRALIZED_MODULES_ARCHITECTURE.md      # Module system
-✓ FRAPPE_UI_ALIGNMENT_GUIDE.md             # UI/UX patterns
 ✓ TRUE_HYBRID_MIGRATION_COMPLETE.md        # Hybrid Desk migration
 ✓ CLEANUP_AUDIT.md                         # This audit document
 ✓ PERMANENT_CLEANUP_IMPLEMENTATION.md      # This implementation guide
@@ -6666,7 +6664,7 @@ bench start
 See [TESTING_GUIDE.md](TESTING_GUIDE.md)
 
 ### Deployment
-See [PRODUCTION_DEPLOY_GUIDE.md](PRODUCTION_DEPLOY_GUIDE.md)
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 
 ## Troubleshooting
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
@@ -7483,7 +7481,7 @@ git commit -m "Partial rollback: Keep error handler, restore legacy JS"
 - [API_SESSION_HANDLING_FIX.md](API_SESSION_HANDLING_FIX.md) - API patterns
 - [ROUTE_TRANSITION_FIX.md](ROUTE_TRANSITION_FIX.md) - Navigation patterns
 - [TESTING_GUIDE.md](TESTING_GUIDE.md) - Testing procedures
-- [PRODUCTION_DEPLOY_GUIDE.md](PRODUCTION_DEPLOY_GUIDE.md) - Deployment steps
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Deployment steps
 
 ---
 

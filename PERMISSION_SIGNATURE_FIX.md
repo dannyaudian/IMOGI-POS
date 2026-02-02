@@ -257,7 +257,7 @@ Expected: ✅ Returns permission result (no crash)
 
 ### Issue #1: HTTP 400 on `set_operational_context`
 **Status:** Separate issue (frontend logging enhanced)  
-**Fix:** See [DEBUG_400_ERROR_GUIDE.md](DEBUG_400_ERROR_GUIDE.md)
+**Fix:** See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) (Issue B: 400 Error When Switching POS Profile)
 
 ### Issue #2: `has_doctype_permission` crash
 **Status:** ✅ FIXED (this document)  

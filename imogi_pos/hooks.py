@@ -154,31 +154,14 @@ on_login_fail = [
 
 # Website route redirects for new architecture
 website_route_rules = [
-    # Entry Points - DEPRECATED: Use /app/imogi-module-select instead
-    # {"from_route": "/shared/login", "to_route": "/shared/login"},  # DISABLED: Use Frappe's /login instead
-    {"from_route": "/shared/module-select", "to_route": "/app/imogi-module-select"},
-    {"from_route": "/shared/module_select", "to_route": "/app/imogi-module-select"},
-    
-    # POS Applications (operational) - HYBRID: Desk pages only
-    # Deleted: /counter/pos → Use /app/imogi-cashier
-    # Deleted: /restaurant/waiter → Use /app/imogi-waiter  
-    # Deleted: /restaurant/kitchen → Use /app/imogi-kitchen
-    # Deleted: /restaurant/tables → Use /app/imogi-tables
-    # Deleted: /devices/displays → Use /app/imogi-displays
+    # POS Applications (operational) - Desk pages only
     {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},  # Guest access - WWW only
-    
+
     # Tools & Editors (admin/manager only)
     {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
     {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
     {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},
-    
-    # Legacy/Deprecated Routes - redirect to new desk pages
-    {"from_route": "/counter/pos", "to_route": "/app/imogi-cashier"},
-    {"from_route": "/restaurant/waiter", "to_route": "/app/imogi-waiter"},
-    {"from_route": "/restaurant/kitchen", "to_route": "/app/imogi-kitchen"},
-    {"from_route": "/restaurant/tables", "to_route": "/app/imogi-tables"},
-    {"from_route": "/devices/displays", "to_route": "/app/imogi-displays"},
-    
+
     # Friendly Aliases → Desk Pages
     {"from_route": "/imogi-login", "to_route": "/login"},  # Use Frappe's built-in login
     {"from_route": "/module-select", "to_route": "/app/imogi-module-select"},
