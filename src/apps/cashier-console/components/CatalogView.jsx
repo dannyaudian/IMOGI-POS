@@ -1,13 +1,32 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiCall } from '@/shared/utils/api'
+
+// Debounce utility
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  
+  return debouncedValue
+}
 
 export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
   const [items, setItems] = useState([])
   const [selectedGroup, setSelectedGroup] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [debugInfo, setDebugInfo] = useState(null)
+  
+  // Debounce search query (300ms)
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
   // Mount/unmount lifecycle logging
   useEffect(() => {
@@ -158,6 +177,27 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
 
   return (
     <div className="catalog-panel">
+      <div className="catalog-header" style={{
+        padding: '1rem',
+        borderBottom: '1px solid #e0e0e0',
+        background: 'white'
+      }}>
+        <input
+          type="text"
+          className="catalog-search-input"
+          placeholder="Search items... (Press / to focus)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px 15px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px'
+          }}
+        />
+      </div>
+      
       <div className="catalog-container">
         {/* Item Groups Sidebar */}
         <div className="catalog-sidebar">
@@ -202,14 +242,29 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
 
           {!loading && !error && (
             <div className="catalog-items">
-              {items.length === 0 ? (
-                <div className="empty-state">
-                  <i className="fa fa-shopping-cart empty-icon"></i>
-                  <p>No items found in this category</p>
-                </div>
-              ) : (
-                <div className="catalog-grid">
-                  {items.map(item => {
+              {(() => {
+                // Filter items by debounced search
+                const filteredItems = debouncedSearch
+                  ? items.filter(item => {
+                      const query = debouncedSearch.toLowerCase()
+                      return item.item_name?.toLowerCase().includes(query) ||
+                             item.item_code?.toLowerCase().includes(query) ||
+                             item.description?.toLowerCase().includes(query)
+                    })
+                  : items
+                
+                if (filteredItems.length === 0) {
+                  return (
+                    <div className="empty-state">
+                      <i className="fa fa-shopping-cart empty-icon"></i>
+                      <p>{debouncedSearch ? `No items found for "${debouncedSearch}"` : 'No items found in this category'}</p>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <div className="catalog-grid">
+                    {filteredItems.map(item => {
                     const hasVariants = item.has_variants === 1 || item.has_variants === true
                     const priceText = hasVariants && item.price_display 
                       ? item.price_display 
@@ -244,7 +299,8 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
                     )
                   })}
                 </div>
-              )}
+                )
+              })()}
             </div>
           )}
         </div>

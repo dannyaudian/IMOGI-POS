@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useEffectiveOpening } from '@/shared/hooks/useEffectiveOpening'
 import { useOrderHistory } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { NetworkStatus } from '@/shared/components/NetworkStatus'
 import { apiCall } from '@/shared/utils/api'
 import { resolveOperationalContext } from '@/shared/utils/operationalContext'
 import { OrderListSidebar } from './components/OrderListSidebar'
@@ -199,6 +200,76 @@ function CounterPOSContent({ initialState }) {
       return () => clearTimeout(timeout)
     }
   }, [guardLoading, guardPassed])
+  
+  // Keyboard shortcuts for cashier operations
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if typing in input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        // Allow ESC to close modals even from input
+        if (e.key === 'Escape') {
+          if (showPayment || showSplit || showSummary || showCloseShift) {
+            setShowPayment(false)
+            setShowSplit(false)
+            setShowSummary(false)
+            setShowCloseShift(false)
+            setViewMode('orders')
+          }
+        }
+        return
+      }
+      
+      // "/" - Focus search and open catalog
+      if (e.key === '/' && viewMode !== 'catalog') {
+        e.preventDefault()
+        setViewMode('catalog')
+        // Focus search input after brief delay for render
+        setTimeout(() => {
+          const searchInput = document.querySelector('.catalog-search-input')
+          if (searchInput) searchInput.focus()
+        }, 100)
+      }
+      
+      // F2 - Open payment (if order selected)
+      if (e.key === 'F2') {
+        e.preventDefault()
+        if (selectedOrder && !showPayment) {
+          setShowPayment(true)
+          setViewMode('payment')
+        }
+      }
+      
+      // F3 - Toggle catalog view
+      if (e.key === 'F3') {
+        e.preventDefault()
+        setViewMode(viewMode === 'catalog' ? 'orders' : 'catalog')
+      }
+      
+      // ESC - Close modals
+      if (e.key === 'Escape') {
+        if (showPayment || showSplit || showSummary || showCloseShift) {
+          setShowPayment(false)
+          setShowSplit(false)
+          setShowSummary(false)
+          setShowCloseShift(false)
+          setViewMode('orders')
+        }
+      }
+      
+      // Ctrl+N / Cmd+N - New order
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        if (mode === 'Counter') {
+          createCounterOrder()
+        } else {
+          setShowTableSelector(true)
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode])
 
   // Helper functions for branding and printer
   const loadBranding = async () => {
@@ -446,11 +517,23 @@ function CounterPOSContent({ initialState }) {
       
       // Handle context-specific errors
       if (err.message?.includes('CONTEXT_')) {
-        alert('Context Error: ' + err.message.split(': ')[1])
+        if (window.frappe?.show_alert) {
+          frappe.show_alert({
+            message: 'Context Error: ' + err.message.split(': ')[1],
+            indicator: 'red'
+          }, 5)
+        }
         // Redirect to module select
-        window.location.href = '/app/imogi-module-select'
+        setTimeout(() => {
+          window.location.href = '/app/imogi-module-select'
+        }, 1500)
       } else {
-        alert('Failed to create order: ' + (err.message || 'Unknown error'))
+        if (window.frappe?.show_alert) {
+          frappe.show_alert({
+            message: 'Failed to create order: ' + (err.message || 'Unknown error'),
+            indicator: 'red'
+          }, 5)
+        }
       }
     } finally {
       setCreatingOrder(false)
@@ -504,11 +587,23 @@ function CounterPOSContent({ initialState }) {
       
       // Handle context-specific errors
       if (err.message?.includes('CONTEXT_')) {
-        alert('Context Error: ' + err.message.split(': ')[1])
+        if (window.frappe?.show_alert) {
+          frappe.show_alert({
+            message: 'Context Error: ' + err.message.split(': ')[1],
+            indicator: 'red'
+          }, 5)
+        }
         // Redirect to module select
-        window.location.href = '/app/imogi-module-select'
+        setTimeout(() => {
+          window.location.href = '/app/imogi-module-select'
+        }, 1500)
       } else {
-        alert('Failed to create order: ' + (err.message || 'Unknown error'))
+        if (window.frappe?.show_alert) {
+          frappe.show_alert({
+            message: 'Failed to create order: ' + (err.message || 'Unknown error'),
+            indicator: 'red'
+          }, 5)
+        }
       }
     } finally {
       setCreatingOrder(false)
@@ -671,6 +766,8 @@ function CounterPOSContent({ initialState }) {
   
   return (
     <div className="cashier-console" data-pos-mode={posMode}>
+      <NetworkStatus />
+      
       <CashierHeader
         posMode={mode}
         onModeChange={handleModeChange}
@@ -682,6 +779,22 @@ function CounterPOSContent({ initialState }) {
         printerStatus={printerStatus}
         onSearchScan={handleSearchScan}
       />
+      
+      {/* Keyboard shortcuts hint */}
+      <div className="keyboard-shortcuts-hint" style={{
+        position: 'fixed',
+        bottom: '10px',
+        right: '10px',
+        background: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        padding: '8px 12px',
+        borderRadius: '4px',
+        fontSize: '11px',
+        zIndex: 999,
+        opacity: 0.6
+      }}>
+        <div>/ - Catalog | F2 - Pay | F3 - Toggle | Ctrl+N - New | ESC - Close</div>
+      </div>
 
       <div className="cashier-console-layout">
         <OrderListSidebar

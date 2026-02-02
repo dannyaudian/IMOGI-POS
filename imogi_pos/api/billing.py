@@ -1066,6 +1066,8 @@ def generate_invoice(
         invoice_doc.insert(ignore_permissions=True)
         _create_manufacturing_stock_entries(invoice_doc, profile_doc)
 
+        # CRITICAL FIX: Wrap invoice.submit() with proper error logging
+        # Submit can fail due to: NegativeStockError, tax calc, GL posting, permissions
         try:
             invoice_doc.submit()
             
@@ -1097,6 +1099,44 @@ def generate_invoice(
                     ),
                     frappe.ValidationError,
                 )
+        except Exception as e:
+            # Catch any other submit errors (tax calc, GL posting, etc.)
+            context_info = {
+                "invoice": invoice_doc.name,
+                "pos_order": pos_order,
+                "grand_total": invoice_doc.grand_total,
+                "items_count": len(invoice_doc.items),
+                "pos_profile": invoice_doc.pos_profile,
+                "user": frappe.session.user
+            }
+            
+            error_message = f"""
+Sales Invoice Submit Failed (generate_invoice)
+
+Error: {str(e)}
+
+Context:
+- Invoice: {context_info['invoice']}
+- POS Order: {context_info['pos_order']}
+- Grand Total: {context_info['grand_total']}
+- Items Count: {context_info['items_count']}
+- POS Profile: {context_info['pos_profile']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+            
+            frappe.log_error(
+                title="Error submitting Sales Invoice (generate_invoice)",
+                message=error_message
+            )
+            
+            # Re-raise with clear user message
+            frappe.throw(
+                _("Failed to submit invoice: {0}").format(str(e)),
+                frappe.ValidationError
+            )
 
         notify_stock_update(invoice_doc, profile_doc)
 

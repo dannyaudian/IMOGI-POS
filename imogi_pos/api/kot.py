@@ -1143,8 +1143,92 @@ def send_to_kitchen(order_name, items_by_station):
             
             # Save KOT (ignore_permissions allows Waiter role via endpoint permission gate)
             # Security: Controlled by @require_permission on send_to_kitchen + validate_branch_access
-            kot_doc.insert(ignore_permissions=True)
-            kot_doc.submit()
+            
+            # CRITICAL FIX: Wrap KOT insert/submit with proper error logging
+            try:
+                kot_doc.insert(ignore_permissions=True)
+            except Exception as e:
+                # Log full traceback with context for debugging
+                context_info = {
+                    "pos_order": order_name,
+                    "station": station_name,
+                    "kitchen": kitchen,
+                    "items_count": len(station_items),
+                    "branch": order_doc.branch,
+                    "table": order_doc.get("table"),
+                    "user": frappe.session.user,
+                    "function": "send_to_kitchen::kot_insert"
+                }
+                
+                error_message = f"""
+KOT Creation Failed (Insert)
+
+Error: {str(e)}
+
+Context:
+- POS Order: {context_info['pos_order']}
+- Station: {context_info['station']}
+- Kitchen: {context_info['kitchen']}
+- Items Count: {context_info['items_count']}
+- Branch: {context_info['branch']}
+- Table: {context_info['table']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+                
+                frappe.log_error(
+                    title="Error creating KOT Ticket",
+                    message=error_message
+                )
+                
+                # Re-raise with clear user message
+                frappe.throw(
+                    _("Failed to create KOT for {0}: {1}").format(station_name, str(e)),
+                    frappe.ValidationError
+                )
+            
+            # Submit KOT with error logging
+            try:
+                kot_doc.submit()
+            except Exception as e:
+                # Log full traceback with context for debugging
+                context_info = {
+                    "kot_name": kot_doc.name,
+                    "pos_order": order_name,
+                    "station": station_name,
+                    "items_count": len(station_items),
+                    "user": frappe.session.user,
+                    "function": "send_to_kitchen::kot_submit"
+                }
+                
+                error_message = f"""
+KOT Submission Failed
+
+Error: {str(e)}
+
+Context:
+- KOT Name: {context_info['kot_name']}
+- POS Order: {context_info['pos_order']}
+- Station: {context_info['station']}
+- Items Count: {context_info['items_count']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+                
+                frappe.log_error(
+                    title="Error submitting KOT Ticket",
+                    message=error_message
+                )
+                
+                # Re-raise with clear user message
+                frappe.throw(
+                    _("Failed to submit KOT {0}: {1}").format(kot_doc.name, str(e)),
+                    frappe.ValidationError
+                )
             
             created_kots[station_name] = kot_doc.name
             
@@ -1157,19 +1241,42 @@ def send_to_kitchen(order_name, items_by_station):
             )
         
         # Update table status if dine-in
+        # This is a secondary operation - log error but don't fail the KOT creation
         if order_doc.get("table"):
-            table_doc = frappe.get_doc("Restaurant Table", order_doc.table)
-            if table_doc.status != "Occupied":
-                table_doc.status = "Occupied"
-                table_doc.current_order = order_name
-                table_doc.save(ignore_permissions=True)
-                
-            # Publish table update
-            publish_table_update(
-                order_name,
-                order_doc.table,
-                event_type="order_sent_to_kitchen"
-            )
+            try:
+                table_doc = frappe.get_doc("Restaurant Table", order_doc.table)
+                if table_doc.status != "Occupied":
+                    table_doc.status = "Occupied"
+                    table_doc.current_order = order_name
+                    table_doc.save(ignore_permissions=True)
+                    
+                # Publish table update
+                publish_table_update(
+                    order_name,
+                    order_doc.table,
+                    event_type="order_sent_to_kitchen"
+                )
+            except Exception as table_err:
+                # Log error but don't fail KOT creation
+                frappe.log_error(
+                    title="Warning: Failed to update table status after KOT",
+                    message=f"""
+Table Status Update Failed (Non-Critical)
+
+Error: {str(table_err)}
+
+Context:
+- Table: {order_doc.table}
+- Order: {order_name}
+- User: {frappe.session.user}
+
+Note: KOTs were created successfully. Table status update is a secondary operation.
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+                )
+                # Don't throw - KOTs were created successfully
         
         frappe.db.commit()
         

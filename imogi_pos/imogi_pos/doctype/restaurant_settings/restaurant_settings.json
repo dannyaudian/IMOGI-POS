@@ -360,7 +360,7 @@
     },
     {
       "default": "0",
-      "description": "Enable channel-specific filtering (POS, Restaurant, Dine-in, Takeaway)",
+      "description": "When enabled, items can be filtered by channel (POS/Restaurant). Items without a channel assignment will appear in ALL channels (universal fallback). When disabled, channel filtering is completely bypassed and all active items are shown.",
       "fieldname": "enable_menu_channels",
       "fieldtype": "Check",
       "label": "Enable Menu Channels"

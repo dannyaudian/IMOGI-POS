@@ -769,7 +769,50 @@ def create_order(order_type, pos_profile=None, branch=None, table=None, customer
                     _("Customer {0} not found").format(customer)
                 )
 
-    order_doc.insert()
+    # CRITICAL FIX: Wrap order_doc.insert() with proper error logging
+    try:
+        order_doc.insert()
+    except Exception as e:
+        # Log full traceback with context for debugging
+        context_info = {
+            "order_type": order_type,
+            "pos_profile": effective_pos_profile,
+            "branch": effective_branch,
+            "table": table,
+            "customer": customer,
+            "items_count": len(items) if items else 0,
+            "user": frappe.session.user
+        }
+        
+        error_message = f"""
+POS Order Creation Failed
+
+Error: {str(e)}
+
+Context:
+- Order Type: {context_info['order_type']}
+- POS Profile: {context_info['pos_profile']}
+- Branch: {context_info['branch']}
+- Table: {context_info['table']}
+- Customer: {context_info['customer']}
+- Items Count: {context_info['items_count']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+        
+        frappe.log_error(
+            title="Error creating POS Order",
+            message=error_message
+        )
+        
+        # Re-raise with clear user message
+        frappe.throw(
+            _("Failed to create POS Order: {0}").format(str(e)),
+            frappe.ValidationError
+        )
+    
     if customer_details:
         _apply_customer_metadata(customer, customer_details)
     # Allow downstream apps to reserve or deduct stock before invoicing
@@ -1315,8 +1358,48 @@ def create_counter_order(pos_profile, branch, items, customer=None, order_type="
             "default_kitchen_station": item_doc.get("default_kitchen_station")
         })
     
-    # Insert order (will trigger calculations)
-    order_doc.insert(ignore_permissions=True)
+    # CRITICAL FIX: Wrap order_doc.insert() with proper error logging
+    try:
+        order_doc.insert(ignore_permissions=True)
+    except Exception as e:
+        # Log full traceback with context for debugging
+        context_info = {
+            "order_type": order_type,
+            "pos_profile": pos_profile,
+            "branch": branch,
+            "customer": customer,
+            "items_count": len(items) if items else 0,
+            "user": frappe.session.user,
+            "function": "create_counter_order"
+        }
+        
+        error_message = f"""
+Counter Order Creation Failed
+
+Error: {str(e)}
+
+Context:
+- Order Type: {context_info['order_type']}
+- POS Profile: {context_info['pos_profile']}
+- Branch: {context_info['branch']}
+- Customer: {context_info['customer']}
+- Items Count: {context_info['items_count']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+        
+        frappe.log_error(
+            title="Error creating Counter Order",
+            message=error_message
+        )
+        
+        # Re-raise with clear user message
+        frappe.throw(
+            _("Failed to create Counter Order: {0}").format(str(e)),
+            frappe.ValidationError
+        )
     
     # Calculate totals
     totals = calculate_order_totals(order_doc.name)
@@ -1475,15 +1558,82 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         order_doc.net_total = total_amount
         order_doc.grand_total = total_amount  # Will be updated with taxes later
         
-        # Save order
-        order_doc.insert(ignore_permissions=True)
+        # CRITICAL FIX: Wrap order_doc.insert() with proper error logging
+        try:
+            order_doc.insert(ignore_permissions=True)
+        except Exception as e:
+            # Log full traceback with context for debugging
+            context_info = {
+                "mode": mode,
+                "pos_profile": effective_pos_profile,
+                "branch": effective_branch,
+                "table": table,
+                "customer": customer,
+                "waiter": waiter,
+                "items_count": len(items) if items else 0,
+                "user": frappe.session.user,
+                "function": "create_table_order"
+            }
+            
+            error_message = f"""
+Table Order Creation Failed
+
+Error: {str(e)}
+
+Context:
+- Mode: {context_info['mode']}
+- POS Profile: {context_info['pos_profile']}
+- Branch: {context_info['branch']}
+- Table: {context_info['table']}
+- Customer: {context_info['customer']}
+- Waiter: {context_info['waiter']}
+- Items Count: {context_info['items_count']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+            
+            frappe.log_error(
+                title="Error creating Table Order",
+                message=error_message
+            )
+            
+            # Re-raise with clear user message
+            frappe.throw(
+                _("Failed to create Table Order: {0}").format(str(e)),
+                frappe.ValidationError
+            )
         
         # Update table status if dine-in
+        # This is a secondary operation - log error but don't fail the order creation
         if table:
-            table_doc = frappe.get_doc("Restaurant Table", table)
-            table_doc.status = "Occupied"
-            table_doc.current_order = order_doc.name
-            table_doc.save(ignore_permissions=True)
+            try:
+                table_doc = frappe.get_doc("Restaurant Table", table)
+                table_doc.status = "Occupied"
+                table_doc.current_order = order_doc.name
+                table_doc.save(ignore_permissions=True)
+            except Exception as table_err:
+                # Log error but don't fail order creation
+                frappe.log_error(
+                    title="Warning: Failed to update table status",
+                    message=f"""
+Table Status Update Failed (Non-Critical)
+
+Error: {str(table_err)}
+
+Context:
+- Table: {table}
+- Order: {order_doc.name}
+- User: {frappe.session.user}
+
+Note: Order was created successfully. Table status update is a secondary operation.
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+                )
+                # Don't throw - order was created successfully
         
         frappe.db.commit()
         
@@ -1578,8 +1728,49 @@ def request_bill(pos_order_name):
     if not hasattr(order, "requested_payment_at") or not order.requested_payment_at:
         order.requested_payment_at = now_datetime()
     
-    order.save(ignore_permissions=True)
-    frappe.db.commit()
+    # CRITICAL FIX: Wrap order.save() with proper error logging
+    try:
+        order.save(ignore_permissions=True)
+        frappe.db.commit()
+    except Exception as e:
+        # Log full traceback with context for debugging
+        context_info = {
+            "pos_order": pos_order_name,
+            "table": order.table,
+            "waiter": order.waiter,
+            "workflow_state": order.workflow_state,
+            "order_type": order.order_type,
+            "user": frappe.session.user,
+            "function": "request_bill"
+        }
+        
+        error_message = f"""
+Request Bill Save Failed
+
+Error: {str(e)}
+
+Context:
+- POS Order: {context_info['pos_order']}
+- Table: {context_info['table']}
+- Waiter: {context_info['waiter']}
+- Workflow State: {context_info['workflow_state']}
+- Order Type: {context_info['order_type']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+        
+        frappe.log_error(
+            title="Error requesting bill for POS Order",
+            message=error_message
+        )
+        
+        # Re-raise with clear user message
+        frappe.throw(
+            _("Failed to request bill: {0}").format(str(e)),
+            frappe.ValidationError
+        )
     
     # Publish realtime event for cashier UI refresh
     frappe.publish_realtime(

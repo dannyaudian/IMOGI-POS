@@ -960,7 +960,47 @@ def process_payment(invoice_name, payments=None, mode_of_payment=None, paid_amou
         # Recalculate and submit
         invoice.run_method("calculate_taxes_and_totals")
         invoice.save()
-        invoice.submit()
+        
+        # CRITICAL FIX: Wrap invoice.submit() with proper error logging
+        # Submit can fail due to: tax calc, GL posting, stock errors, payment validation
+        try:
+            invoice.submit()
+        except Exception as e:
+            context_info = {
+                "invoice": invoice.name,
+                "grand_total": invoice.grand_total,
+                "payments": [{"mode": p.mode_of_payment, "amount": p.amount} for p in invoice.payments],
+                "pos_profile": invoice.get("pos_profile"),
+                "user": frappe.session.user
+            }
+            
+            error_message = f"""
+Sales Invoice Submit Failed
+
+Error: {str(e)}
+
+Context:
+- Invoice: {context_info['invoice']}
+- Grand Total: {context_info['grand_total']}
+- Payments: {context_info['payments']}
+- POS Profile: {context_info['pos_profile']}
+- User: {context_info['user']}
+
+Full Traceback:
+{frappe.get_traceback()}
+"""
+            
+            frappe.log_error(
+                title="Error submitting Sales Invoice",
+                message=error_message
+            )
+            
+            # Re-raise with clear user message
+            frappe.throw(
+                _("Failed to submit invoice: {0}").format(str(e)),
+                frappe.ValidationError
+            )
+        
         frappe.db.commit()
 
         # Calculate change if cash received

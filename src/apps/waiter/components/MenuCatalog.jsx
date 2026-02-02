@@ -1,9 +1,25 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 
 /**
  * MenuCatalog Component
  * Item listing with categories, search, and quick add
  */
+
+// Debounce hook
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  
+  return debouncedValue
+}
+
 export function MenuCatalog({ 
   items, 
   categories, 
@@ -13,28 +29,31 @@ export function MenuCatalog({
   loading 
 }) {
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
   
   // Ensure items and categories are arrays
   const itemList = Array.isArray(items) ? items : []
   const categoryList = Array.isArray(categories) ? categories : []
 
-  const filteredItems = itemList.filter(item => {
-    // Filter by category
-    if (selectedCategory && item.item_group !== selectedCategory) {
-      return false
-    }
+  const filteredItems = useMemo(() => {
+    return itemList.filter(item => {
+      // Filter by category
+      if (selectedCategory && item.item_group !== selectedCategory) {
+        return false
+      }
 
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      // Filter by search query (debounced)
+      if (debouncedSearch) {
+        const query = debouncedSearch.toLowerCase()
       return (
         item.item_name.toLowerCase().includes(query) ||
         item.item_code.toLowerCase().includes(query)
       )
     }
 
-    return true
-  })
+      return true
+    })
+  }, [itemList, selectedCategory, debouncedSearch])
 
   return (
     <div className="menu-catalog">

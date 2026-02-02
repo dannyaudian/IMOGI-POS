@@ -3,6 +3,7 @@ import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvid
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useTables, useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { NetworkStatus } from '@/shared/components/NetworkStatus'
 import { TableLayout, OrderCart, MenuCatalog } from './components'
 import { useCart, useTableOrder } from './hooks'
 import { deskNavigate } from '../../shared/utils/deskNavigate'
@@ -178,6 +179,8 @@ function WaiterContent({ initialState }) {
 
   return (
     <div className="waiter-app">
+      <NetworkStatus />
+      
       <AppHeader title={mode === 'Dine-in' ? 'Waiter - Table Service' : 'Waiter - Counter Service'} user={user} />
       
       {orderError && (
@@ -242,6 +245,24 @@ function WaiterContent({ initialState }) {
           />
         </div>
       </main>
+      
+      {/* Fixed Bottom Action Bar for Touch Devices */}
+      {cartItems.length > 0 && (
+        <div className="waiter-action-bar-fixed">
+          <div className="cart-summary">
+            <div>{cartSummary.totalItems} items</div>
+            <div className="total">{frappe.format(cartSummary.subtotal, { fieldtype: 'Currency' })}</div>
+          </div>
+          
+          <button 
+            className="btn-primary"
+            disabled={orderLoading || cartItems.length === 0}
+            onClick={handleSendToKitchen}
+          >
+            {orderLoading ? 'Sending...' : `Send to Kitchen (${cartSummary.totalItems})`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
