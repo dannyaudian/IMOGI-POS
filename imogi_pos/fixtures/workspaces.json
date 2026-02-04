@@ -21,13 +21,13 @@
       },
       {
         "label": "Customer Display Editor",
-        "link_to": "customer_display_editor",
-        "type": "Page"
+        "link_to": "/customer_display_editor",
+        "type": "URL"
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "table_layout_editor",
-        "type": "Page"
+        "link_to": "/table_layout_editor",
+        "type": "URL"
       },
       {
         "label": "POS Orders",

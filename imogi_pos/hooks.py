@@ -158,10 +158,15 @@ website_route_rules = [
     # POS Applications (operational) - Desk pages only
     {"from_route": "/restaurant/self-order", "to_route": "/restaurant/self-order"},  # Guest access - WWW only
 
-    # Tools & Editors (admin/manager only)
+    # Tools & Editors (admin/manager only) - WWW pages
     {"from_route": "/customer_display_editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/customer-display-editor", "to_route": "/customer_display_editor"},
+    {"from_route": "/display-editor", "to_route": "/customer_display_editor"},
+    
     {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
     {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/table-layout-editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/layout-editor", "to_route": "/table_layout_editor"},
 
     # Friendly Aliases → Desk Pages
     {"from_route": "/imogi-login", "to_route": "/login"},  # Use Frappe's built-in login
@@ -174,8 +179,6 @@ website_route_rules = [
     {"from_route": "/kiosk", "to_route": "/app/imogi-waiter?mode=kiosk"},
     {"from_route": "/table_display", "to_route": "/app/imogi-tables"},
     {"from_route": "/customer-display", "to_route": "/app/imogi-displays"},
-    {"from_route": "/customer-display-editor", "to_route": "/customer_display_editor"},
-    {"from_route": "/table-display-editor", "to_route": "/table_layout_editor"},
     {"from_route": "/so", "to_route": "/restaurant/self-order"},
 ]
 
