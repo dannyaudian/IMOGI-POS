@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function VariantPickerModal({ 
   isOpen, 
@@ -70,15 +71,6 @@ export function VariantPickerModal({
     }
     onClose()
   }
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
-
   const getAttributeValues = (attributeName) => {
     const values = new Set()
     variants.forEach(variant => {

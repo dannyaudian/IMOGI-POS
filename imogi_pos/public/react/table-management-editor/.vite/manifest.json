@@ -1,0 +1,11 @@
+{
+  "src/apps/table-management-editor/main.jsx": {
+    "file": "static/js/main.B9x_aMmI.js",
+    "name": "main",
+    "src": "src/apps/table-management-editor/main.jsx",
+    "isEntry": true,
+    "css": [
+      "static/css/main.Bm4yXPpN.css"
+    ]
+  }
+}

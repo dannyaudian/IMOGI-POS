@@ -2,13 +2,16 @@ import { useEffect } from 'react'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
-import { useItems, useCreateOrder } from '@/shared/api/imogi-api'
-import { AppHeader, LoadingSpinner, ErrorMessage, Card } from '@/shared/components/UI'
+import { useItems } from '@/shared/api/imogi-api'
+import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { KioskProvider } from './context/KioskContext'
+import { KioskMenu, KioskActions } from './components'
 
 function KioskContent({ initialState }) {
-  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager']) // Allow Guest and staff
-  
-  // POS Profile guard - kiosk doesn't require opening, just profile
+  // GUARD: Authentication
+  const { user, loading: authLoading, hasAccess, error: authError } = useAuth(['Guest', 'Waiter', 'Branch Manager', 'System Manager'])
+
+  // GUARD: POS Profile
   const {
     isLoading: guardLoading,
     guardPassed,
@@ -19,19 +22,20 @@ function KioskContent({ initialState }) {
     serverContextError,
     retryServerContext
   } = usePOSProfileGuard({ requiresOpening: false, autoRedirect: false })
-  
-  // Fallback to initialState for backward compatibility
+
+  // SETUP: Effective values with fallback
   const effectiveBranch = branch || initialState.branch || null
   const effectivePosProfile = posProfile || initialState.pos_profile || null
   const serviceType = initialState.service_type || 'Dine In'
-  
+
+  // API: Fetch items
   const shouldFetchItems = guardPassed && serverContextReady && effectivePosProfile
   const { data: items, error: itemsError, isLoading: itemsLoading } = useItems(
     shouldFetchItems ? effectivePosProfile : null,
     shouldFetchItems ? effectiveBranch : null
   )
 
-  // Guard check: redirect to module-select if no profile after loading
+  // EFFECT: Guard check with redirect
   useEffect(() => {
     if (!guardLoading && !authLoading && !effectivePosProfile) {
       const timeout = setTimeout(() => {
@@ -42,10 +46,12 @@ function KioskContent({ initialState }) {
     }
   }, [guardLoading, authLoading, effectivePosProfile])
 
+  // GUARD: Loading
   if (authLoading || guardLoading) {
     return <LoadingSpinner message="Loading..." />
   }
 
+  // GUARD: Server context error
   if (serverContextError) {
     return (
       <ErrorMessage
@@ -55,46 +61,22 @@ function KioskContent({ initialState }) {
     )
   }
 
+  // RENDER: Kiosk display with provider
   return (
     <div className="imogi-app">
       <AppHeader title={`Self-Service Kiosk - ${serviceType}`} user="Guest" />
-      
-      <main className="imogi-main">
-        <Card title="Welcome! Select your items">
-          {itemsLoading && <LoadingSpinner message="Loading menu..." />}
-          {itemsError && <ErrorMessage error={itemsError} />}
-          {items && (
-            <div className="grid grid-4">
-              {items.slice(0, 12).map(item => (
-                <div 
-                  key={item.item_code}
-                  style={{
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                  onMouseOut={(e) => e.currentTarget.style.borderColor = '#e5e7eb'}
-                >
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🍽️</div>
-                  <strong>{item.item_name}</strong>
-                  <div style={{ marginTop: '0.5rem', color: '#667eea', fontSize: '1.125rem' }}>
-                    ${item.rate || '0.00'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-        
-        <div className="flex" style={{ marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-          <button className="btn-secondary">View Cart</button>
-          <button className="btn-primary">Proceed to Checkout</button>
-        </div>
-      </main>
+
+      <KioskProvider
+        serviceType={serviceType}
+        items={items}
+        itemsLoading={itemsLoading}
+        itemsError={itemsError}
+      >
+        <main className="imogi-main">
+          <KioskMenu />
+          <KioskActions />
+        </main>
+      </KioskProvider>
     </div>
   )
 }

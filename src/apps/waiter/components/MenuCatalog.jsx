@@ -1,24 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useDebounce } from '@/shared/hooks/useDebounce'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 /**
  * MenuCatalog Component
  * Item listing with categories, search, and quick add
  */
-
-// Debounce hook
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value)
-  
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-    
-    return () => clearTimeout(handler)
-  }, [value, delay])
-  
-  return debouncedValue
-}
 
 export function MenuCatalog({ 
   items, 

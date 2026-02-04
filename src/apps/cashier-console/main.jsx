@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import '@/shared/styles/global.css'
 
 // Get initial state from server
@@ -13,7 +14,9 @@ if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <ImogiPOSProvider initialState={initialState}>
-        <App initialState={initialState} />
+        <ErrorBoundary>
+          <App initialState={initialState} />
+        </ErrorBoundary>
       </ImogiPOSProvider>
     </React.StrictMode>
   )
@@ -101,8 +104,10 @@ window.imogiCashierMount = function(element, options = {}) {
   // Render with conditional StrictMode (dev only to avoid double-invoke confusion)
   const app = (
     <ImogiPOSProvider initialState={state} key={mountKey}>
-      <App initialState={state} />
-    </ImogiPOSProvider>
+        <ErrorBoundary>
+          <App initialState={state} />
+        </ErrorBoundary>
+      </ImogiPOSProvider>
   )
   
   root.render(

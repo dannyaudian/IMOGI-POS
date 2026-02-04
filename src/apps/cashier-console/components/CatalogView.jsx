@@ -1,20 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { apiCall } from '@/shared/utils/api'
-
-// Debounce utility
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value)
-  
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-    
-    return () => clearTimeout(handler)
-  }, [value, delay])
-  
-  return debouncedValue
-}
+import { useDebounce } from '@/shared/hooks/useDebounce'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
@@ -159,14 +146,6 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
   }
 
   const handleItemClick = (item) => {

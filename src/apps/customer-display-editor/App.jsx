@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { apiCall } from '../../shared/utils/api'
 import {
   DeviceSelector,
-  PreviewPanel,
-  TemplateSelector,
-  VisualLayoutCanvas,
-  BlockLibrary,
-  BlockEditor
+  TemplateSelector
 } from './components'
 import {
   useCustomerDisplayProfiles,
@@ -17,7 +13,8 @@ import {
   useDuplicateProfile,
   useCreateProfile
 } from '../../shared/api/imogi-api'
-import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
+import { DisplayEditorProvider } from './context/DisplayEditorContext'
+import { DisplayEditorContent } from './components/DisplayEditorContent'
 import { createBlock, getBlockDefinition } from './utils/blockDefinitions'
 import './styles.css'
 import './visual-block-editor.css'
@@ -28,8 +25,9 @@ import 'react-grid-layout/css/styles.css'
  * Manages configuration of customer-facing displays
  */
 function App() {
-  // No need for useAuth - www page with @require_roles decorator handles authentication
-  // State
+  // GUARD: No additional auth needed - www page with @require_roles decorator handles it
+
+  // STATE: Display configuration
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [blocks, setBlocks] = useState([])
   const [selectedBlock, setSelectedBlock] = useState(null)
@@ -37,7 +35,7 @@ function App() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
-  // API Hooks
+  // API: Fetch profiles and templates
   const { data: profilesData, isLoading: loadingProfiles, error: profilesError, mutate: refreshProfiles } = useCustomerDisplayProfiles()
   const { data: templates, isLoading: loadingTemplates } = useDisplayTemplates()
   const { trigger: saveConfig, isMutating: saving } = useSaveDisplayConfig()
@@ -45,66 +43,21 @@ function App() {
   const { trigger: testDisplay } = useTestDisplay()
   const { trigger: duplicateProfile } = useDuplicateProfile()
   const { trigger: createProfile, isMutating: creating } = useCreateProfile()
-  
-  // Handle API errors with graceful degradation
-  if (profilesError) {
-    return (
-      <div className="cde-error" style={{ padding: '2rem', textAlign: 'center' }}>
-        <h3>Failed to Load Profiles</h3>
-        <p style={{ color: '#d32f2f' }}>
-          {profilesError.message || 'Unable to fetch Customer Display Profiles'}
-        </p>
-        <button 
-          onClick={() => window.location.reload()}
-          style={{ 
-            marginTop: '1rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#1976d2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Retry
-        </button>
-      </div>
-    )
-  }
-  
-  // Handle backend permission errors (graceful error response)
-  if (profilesData && profilesData.success === false) {
-    return (
-      <div className="cde-error" style={{ padding: '2rem', textAlign: 'center' }}>
-        <h3>Permission Denied</h3>
-        <p style={{ color: '#d32f2f', marginBottom: '0.5rem' }}>
-          {profilesData.message}
-        </p>
-        <p style={{ fontSize: '0.875rem', color: '#666' }}>
-          Please contact your system administrator to grant you access to Customer Display Profiles.
-        </p>
-      </div>
-    )
-  }
-  
-  // Extract profiles array from API response
-  const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
 
-  // Load device config on selection and deserialize blocks
+  // EFFECT: Load device config when device selected
   useEffect(() => {
-    if (selectedDevice && profiles.length > 0) {
-      const device = profiles.find(p => p.name === selectedDevice)
+    if (selectedDevice && profilesData?.devices) {
+      const device = profilesData.devices.find(p => p.name === selectedDevice)
       if (device && device.config) {
-        // Deserialize blocks from config
         const loadedBlocks = device.config.blocks || []
         setBlocks(loadedBlocks)
         setDeviceType(device.config.device_type || 'tablet')
         setHasChanges(false)
       }
     }
-  }, [selectedDevice, profiles])
+  }, [selectedDevice, profilesData])
 
-  // Handle template selection
+  // HANDLER: Template selection and profile creation
   const handleTemplateSelect = async (data) => {
     if (!data) {
       setShowTemplateSelector(false)
@@ -126,8 +79,7 @@ function App() {
           message: 'Profile created successfully',
           indicator: 'green'
         })
-        
-        // Refresh profiles and select the new one
+
         await refreshProfiles()
         setSelectedDevice(result.profile.name)
         setShowTemplateSelector(false)
@@ -140,7 +92,7 @@ function App() {
     }
   }
 
-  // Handle block operations
+  // HANDLER: Block operations
   const handleAddBlock = (blockType) => {
     const newBlock = createBlock(blockType)
     setBlocks(prev => [...prev, newBlock])
@@ -148,7 +100,7 @@ function App() {
   }
 
   const handleLayoutChange = (newLayout) => {
-    setBlocks(prev => 
+    setBlocks(prev =>
       prev.map(block => {
         const layoutUpdate = newLayout.find(l => l.i === block.id)
         if (layoutUpdate) {
@@ -189,15 +141,14 @@ function App() {
     setSelectedBlock(block)
   }
 
-  // Save configuration with backend response validation
+  // HANDLER: Save configuration
   const handleSave = async () => {
     if (!selectedDevice) return
 
-    // Serialize blocks to config
     const config = {
       blocks: blocks,
       device_type: deviceType,
-      version: '2.0' // Visual block editor version
+      version: '2.0'
     }
 
     try {
@@ -205,8 +156,7 @@ function App() {
         device: selectedDevice,
         config: config
       })
-      
-      // Check backend success flag (structured error response)
+
       if (result && result.success) {
         frappe.show_alert({
           message: result.message || 'Configuration saved successfully',
@@ -215,14 +165,12 @@ function App() {
         setHasChanges(false)
         await refreshProfiles()
       } else {
-        // Backend returned error in response (not exception)
         frappe.show_alert({
           message: result?.message || 'Failed to save configuration',
           indicator: 'red'
         })
       }
     } catch (error) {
-      // Network error or exception
       frappe.show_alert({
         message: error.message || 'Failed to save configuration',
         indicator: 'red'
@@ -231,7 +179,7 @@ function App() {
     }
   }
 
-  // Reset configuration
+  // HANDLER: Reset configuration
   const handleReset = async () => {
     if (!selectedDevice) return
 
@@ -255,7 +203,7 @@ function App() {
     )
   }
 
-  // Test display
+  // HANDLER: Test display
   const handleTest = async () => {
     if (!selectedDevice) return
 
@@ -276,7 +224,7 @@ function App() {
     }
   }
 
-  // Duplicate profile
+  // HANDLER: Duplicate profile
   const handleDuplicate = async () => {
     if (!selectedDevice) return
 
@@ -305,61 +253,17 @@ function App() {
     }
   }
 
-  // Create new profile
-  
-  // Handle empty state (no profiles)
-  if (!loadingProfiles && profiles.length === 0) {
-    return (
-      <div className="cde-empty" style={{ padding: '2rem', textAlign: 'center' }}>
-        <h3>No Display Profiles</h3>
-        <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-          Create your first Customer Display Profile to get started.
-        </p>
-        <button 
-          onClick={handleCreateNew}
-          style={{ 
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#1976d2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
-        >
-          Create New Profile
-        </button>
-      </div>
-    )
-  }
+  // HANDLER: Create new profile
   const handleCreateNew = () => {
     setShowTemplateSelector(true)
   }
 
-  if (loadingProfiles) {
-    return (
-      <div className="cde-loading">
-        <div className="cde-spinner"></div>
-        <p>Loading profiles...</p>
-      </div>
-    )
-  }
+  // Extract profiles array from API response
+  const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
 
-  if (showTemplateSelector) {
-    return (
-      <div className="cde-container">
-        <TemplateSelector
-          templates={templates?.templates || []}
-          onTemplateSelect={handleTemplateSelect}
-          onCancel={() => setShowTemplateSelector(false)}
-        />
-      </div>
-    )
-  }
-
+  // RENDER: Main container with provider and sidebar
   return (
     <div className="cde-container">
-      {/* Sidebar */}
       <DeviceSelector
         devices={profiles}
         selectedDevice={selectedDevice}
@@ -367,128 +271,40 @@ function App() {
         onCreateNew={handleCreateNew}
       />
 
-      {/* Main Content */}
-      <main className="cde-main">
-        {!selectedDevice ? (
-          <div className="cde-empty-content">
-            <div className="cde-empty-illustration">
-              <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="100" cy="100" r="80" fill="#EEF2FF" />
-                <rect x="60" y="40" width="80" height="120" rx="8" fill="white" stroke="#6366f1" strokeWidth="3" />
-                <rect x="70" y="55" width="60" height="40" rx="4" fill="#6366f1" fillOpacity="0.1" />
-                <rect x="70" y="100" width="60" height="6" rx="3" fill="#6366f1" fillOpacity="0.3" />
-                <rect x="70" y="112" width="40" height="6" rx="3" fill="#6366f1" fillOpacity="0.2" />
-                <circle cx="100" cy="145" r="3" fill="#6366f1" />
-              </svg>
-            </div>
-            <h2>Welcome to Customer Display Editor</h2>
-            <p className="cde-empty-subtitle">Configure and manage your customer-facing displays</p>
-            <p className="cde-empty-description">
-              Select a profile from the sidebar or create a new one to start customizing your display settings
-            </p>
-            <button className="cde-btn-primary cde-btn-large" onClick={handleCreateNew}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Create New Profile
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Header */}
-            <header className="cde-header">
-              <div className="cde-header-left">
-                <h1>Customer Display Editor</h1>
-                <span className="cde-header-device">
-                  {profiles?.find(p => p.name === selectedDevice)?.profile_name || selectedDevice}
-                </span>
-              </div>
-              <div className="cde-header-right">
-                <button
-                  className="cde-btn-secondary"
-                  onClick={() => setShowTemplateSelector(true)}
-                >
-                  Templates
-                </button>
-                <button className="cde-btn-secondary" onClick={handleDuplicate}>
-                  Duplicate
-                </button>
-                <button className="cde-btn-secondary" onClick={handleTest}>
-                  Test
-                </button>
-                <button className="cde-btn-secondary" onClick={handleReset}>
-                  Reset
-                </button>
-                <button
-                  className="cde-btn-primary"
-                  onClick={handleSave}
-                  disabled={!hasChanges || saving}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </header>
-
-            {/* Content */}
-            <div className="cde-content">
-              {/* Block Library */}
-              <div className="cde-sidebar-right">
-                <BlockLibrary onAddBlock={handleAddBlock} />
-                
-                {/* Block Editor */}
-                <div className="cde-block-editor-panel">
-                  <BlockEditor
-                    block={selectedBlock}
-                    onUpdate={handleBlockUpdate}
-                    onClose={() => setSelectedBlock(null)}
-                  />
-                </div>
-              </div>
-
-              {/* Visual Canvas */}
-              <div className="cde-canvas-area">
-                <div className="cde-canvas-header">
-                  <h3>Visual Layout Editor</h3>
-                  <div className="cde-device-selector">
-                    <button
-                      className={`cde-device-btn ${deviceType === 'phone' ? 'active' : ''}`}
-                      onClick={() => setDeviceType('phone')}
-                      title="Phone"
-                    >
-                      📱
-                    </button>
-                    <button
-                      className={`cde-device-btn ${deviceType === 'tablet' ? 'active' : ''}`}
-                      onClick={() => setDeviceType('tablet')}
-                      title="Tablet"
-                    >
-                      📱
-                    </button>
-                    <button
-                      className={`cde-device-btn ${deviceType === 'monitor' ? 'active' : ''}`}
-                      onClick={() => setDeviceType('monitor')}
-                      title="Monitor"
-                    >
-                      🖥️
-                    </button>
-                  </div>
-                </div>
-                
-                <VisualLayoutCanvas
-                  blocks={blocks}
-                  onLayoutChange={handleLayoutChange}
-                  onBlockClick={handleBlockSelect}
-                  onRemoveBlock={handleBlockRemove}
-                  selectedBlockId={selectedBlock?.id}
-                />
-              </div>
-
-              {/* Preview */}
-              <PreviewPanel blocks={blocks} deviceType={deviceType} />
-            </div>
-          </>
-        )}
-      </main>
+      <DisplayEditorProvider
+        selectedDevice={selectedDevice}
+        setSelectedDevice={setSelectedDevice}
+        blocks={blocks}
+        setBlocks={setBlocks}
+        selectedBlock={selectedBlock}
+        setSelectedBlock={setSelectedBlock}
+        deviceType={deviceType}
+        setDeviceType={setDeviceType}
+        showTemplateSelector={showTemplateSelector}
+        setShowTemplateSelector={setShowTemplateSelector}
+        hasChanges={hasChanges}
+        setHasChanges={setHasChanges}
+        profiles={profiles}
+        saving={saving}
+        creating={creating}
+        profilesError={profilesError}
+        loadingProfiles={loadingProfiles}
+        loadingTemplates={loadingTemplates}
+        templates={templates}
+        onTemplateSelect={handleTemplateSelect}
+        onAddBlock={handleAddBlock}
+        onLayoutChange={handleLayoutChange}
+        onBlockUpdate={handleBlockUpdate}
+        onBlockRemove={handleBlockRemove}
+        onBlockSelect={handleBlockSelect}
+        onSave={handleSave}
+        onReset={handleReset}
+        onTest={handleTest}
+        onDuplicate={handleDuplicate}
+        onCreateNew={handleCreateNew}
+      >
+        <DisplayEditorContent />
+      </DisplayEditorProvider>
     </div>
   )
 }

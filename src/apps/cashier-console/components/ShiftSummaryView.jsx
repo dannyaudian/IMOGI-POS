@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { BlockedScreen } from './BlockedScreen'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function ShiftSummaryView({ posProfile, posOpening, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -48,15 +49,6 @@ export function ShiftSummaryView({ posProfile, posOpening, onClose }) {
       setLoading(false)
     }
   }
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
-
   const handleRefresh = () => {
     checkOpeningAndLoadSummary()
   }

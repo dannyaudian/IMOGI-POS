@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import '@/shared/styles/global.css'
 
 const initialState = window.__INITIAL_STATE__ || {}
@@ -9,8 +10,10 @@ const initialState = window.__INITIAL_STATE__ || {}
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ImogiPOSProvider initialState={initialState}>
-      <App initialState={initialState} />
-    </ImogiPOSProvider>
+        <ErrorBoundary>
+          <App initialState={initialState} />
+        </ErrorBoundary>
+      </ImogiPOSProvider>
   </React.StrictMode>
 )
 
@@ -21,7 +24,9 @@ window.imogiKitchenMount = function(element, options = {}) {
   root.render(
     <React.StrictMode>
       <ImogiPOSProvider initialState={state}>
-        <App initialState={state} />
+        <ErrorBoundary>
+          <App initialState={state} />
+        </ErrorBoundary>
       </ImogiPOSProvider>
     </React.StrictMode>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function CustomerDisplay({ order, branding }) {
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -9,14 +10,6 @@ export function CustomerDisplay({ order, branding }) {
     }, 1000)
     return () => clearInterval(timer)
   }, [])
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('id-ID', {

@@ -2,14 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import '@/shared/styles/global.css'
-
-const initialState = window.__INITIAL_STATE__ || {}
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App initialState={initialState} />
-  </React.StrictMode>
-)
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 
 // Expose mount/unmount functions for Desk page integration
 window.imogiDisplaysMount = function(element, options = {}) {
@@ -17,7 +10,9 @@ window.imogiDisplaysMount = function(element, options = {}) {
   const root = ReactDOM.createRoot(element)
   root.render(
     <React.StrictMode>
-      <App initialState={state} />
+      <ErrorBoundary>
+   <App initialState={state} />
+ </ErrorBoundary>
     </React.StrictMode>
   )
   element._reactRoot = root

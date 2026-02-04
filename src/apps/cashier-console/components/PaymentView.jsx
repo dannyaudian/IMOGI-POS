@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
 import { usePaymentMethods } from '@/shared/api/imogi-api'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function PaymentView({ order, onClose, onPaymentComplete, posProfile, effectiveOpeningName, revalidateOpening }) {
   const [selectedMethod, setSelectedMethod] = useState(null)
@@ -12,15 +13,6 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
   // Fetch payment methods from POS Profile
   const { data: paymentMethodsData, isLoading: loadingMethods } = usePaymentMethods(posProfile)
   const paymentMethods = paymentMethodsData?.payment_methods || []
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
-
   const handleMethodSelect = (method) => {
     setError(null)
     setSelectedMethod(method)

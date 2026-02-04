@@ -163,10 +163,14 @@ website_route_rules = [
     {"from_route": "/customer-display-editor", "to_route": "/customer_display_editor"},
     {"from_route": "/display-editor", "to_route": "/customer_display_editor"},
     
-    {"from_route": "/table_layout_editor", "to_route": "/table_layout_editor"},
-    {"from_route": "/Table_layout_editor", "to_route": "/table_layout_editor"},
-    {"from_route": "/table-layout-editor", "to_route": "/table_layout_editor"},
-    {"from_route": "/layout-editor", "to_route": "/table_layout_editor"},
+    {"from_route": "/table_management", "to_route": "/table_management"},
+    {"from_route": "/table-management", "to_route": "/table_management"},
+    {"from_route": "/table_layout_editor", "to_route": "/table_management"},
+    {"from_route": "/Table_layout_editor", "to_route": "/table_management"},
+    {"from_route": "/table-layout-editor", "to_route": "/table_management"},
+    {"from_route": "/layout-editor", "to_route": "/table_management"},
+    {"from_route": "/table_display_editor", "to_route": "/table_management"},
+    {"from_route": "/table-display-editor", "to_route": "/table_management"},
 
     # Friendly Aliases → Desk Pages
     {"from_route": "/imogi-login", "to_route": "/login"},  # Use Frappe's built-in login

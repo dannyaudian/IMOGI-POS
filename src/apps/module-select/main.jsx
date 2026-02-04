@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { FrappeProvider } from 'frappe-react-sdk'
 import App from './App'
 import '@/shared/styles/global.css'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 
 // Expose mount/unmount functions for Desk page integration
 const MODULE_SELECT_ROOT_KEY = '__imogiModuleSelectRoot'
@@ -31,7 +32,9 @@ window.imogiModuleSelectMount = function(element, options = {}) {
         url={window.location.origin}
         tokenParams={{ useToken: false, type: 'Bearer' }}
       >
-        <App initialState={state} />
+        <ErrorBoundary>
+   <App initialState={state} />
+ </ErrorBoundary>
       </FrappeProvider>
     </React.StrictMode>
   )

@@ -1,3 +1,5 @@
+import { formatCurrency } from '@/shared/utils/formatters'
+
 export function OrderDetailPanel({ order, posMode }) {
   if (!order) {
     return (
@@ -12,14 +14,6 @@ export function OrderDetailPanel({ order, posMode }) {
   const currentMode = posMode || 'Counter'
   const isTableMode = currentMode === 'Table'
   const isCounterMode = currentMode === 'Counter'
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
 
   const formatDateTime = (dateStr) => {
     if (!dateStr) return ''

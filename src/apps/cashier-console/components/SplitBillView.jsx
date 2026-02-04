@@ -1,17 +1,10 @@
 import { useState } from 'react'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function SplitBillView({ order, onClose, onSplitConfirm }) {
   const [splitMethod, setSplitMethod] = useState('equal') // equal, item, amount
   const [splitCount, setSplitCount] = useState(2)
   const [splits, setSplits] = useState([])
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
 
   const generateEqualSplit = () => {
     if (!order) return []

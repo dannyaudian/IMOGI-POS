@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatCurrency } from '@/shared/utils/formatters'
 
 export function OrderListSidebar({ 
   orders = [], 
@@ -62,14 +63,6 @@ export function OrderListSidebar({
     
     return true
   })
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
 
   const formatTime = (dateStr) => {
     if (!dateStr) return ''
