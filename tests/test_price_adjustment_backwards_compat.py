@@ -223,7 +223,7 @@ def test_get_items_with_stock_applies_adjustment_when_column_exists(variants_mod
         if doctype == "Item":
             return [_base_item()]
         if doctype == "Item Group":
-            return [Row(name="Group", default_)]
+            return [Row(name="Group")]
         if doctype == "Item Price":
             return []
         return []
@@ -251,7 +251,7 @@ def test_get_items_with_stock_skips_adjustment_when_column_missing(variants_modu
         if doctype == "Item":
             return [_base_item()]
         if doctype == "Item Group":
-            return [Row(name="Group", default_)]
+            return [Row(name="Group")]
         if doctype == "Item Price":
             return []
         return []
