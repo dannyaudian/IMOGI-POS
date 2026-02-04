@@ -111,6 +111,7 @@ fixtures = [
     {"dt": "Workflow", "filters": [["name", "in", ["IMOGI POS Order", "IMOGI KOT Ticket"]]]},
     {"dt": "Item Attribute", "filters": [["name", "=", "Doneness"]]},
     {"dt": "Workspace", "filters": [["module", "=", "IMOGI POS"]]},
+    {"dt": "Workspace Shortcut", "filters": [["module", "=", "IMOGI POS"]]},
 ]
 
 scheduler_events = {
