@@ -4,7 +4,9 @@ import {
   DeviceSelector,
   PreviewPanel,
   TemplateSelector,
-  ConfigPanel
+  VisualLayoutCanvas,
+  BlockLibrary,
+  BlockEditor
 } from './components'
 import {
   useCustomerDisplayProfiles,
@@ -16,7 +18,10 @@ import {
   useCreateProfile
 } from '../../shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '../../shared/components/UI'
+import { createBlock, getBlockDefinition } from './utils/blockDefinitions'
 import './styles.css'
+import './visual-block-editor.css'
+import 'react-grid-layout/css/styles.css'
 
 /**
  * Customer Display Editor - Main App
@@ -26,10 +31,10 @@ function App() {
   // No need for useAuth - www page with @require_roles decorator handles authentication
   // State
   const [selectedDevice, setSelectedDevice] = useState(null)
-  const [config, setConfig] = useState({})
-  const [activeTab, setActiveTab] = useState('layout')
+  const [blocks, setBlocks] = useState([])
+  const [selectedBlock, setSelectedBlock] = useState(null)
+  const [deviceType, setDeviceType] = useState('tablet')
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
-  const [sampleData, setSampleData] = useState(null)
   const [hasChanges, setHasChanges] = useState(false)
 
   // API Hooks
@@ -85,45 +90,19 @@ function App() {
   // Extract profiles array from API response
   const profiles = Array.isArray(profilesData?.devices) ? profilesData.devices : []
 
-  // Load device config on selection
+  // Load device config on selection and deserialize blocks
   useEffect(() => {
     if (selectedDevice && profiles.length > 0) {
       const device = profiles.find(p => p.name === selectedDevice)
       if (device && device.config) {
-        setConfig(device.config)
+        // Deserialize blocks from config
+        const loadedBlocks = device.config.blocks || []
+        setBlocks(loadedBlocks)
+        setDeviceType(device.config.device_type || 'tablet')
         setHasChanges(false)
       }
     }
   }, [selectedDevice, profiles])
-
-  // Load sample data
-  useEffect(() => {
-    if (selectedDevice) {
-      const loadSampleData = async () => {
-        try {
-          const result = await apiCall('imogi_pos.api.customer_display_editor.get_preview_data', {
-            device: selectedDevice,
-            sample_type: 'restaurant'
-          })
-          if (result) {
-            setSampleData(result)
-          }
-        } catch (error) {
-          console.error('[imogi][customer-display] Error loading sample data:', error)
-        }
-      }
-      loadSampleData()
-    }
-  }, [selectedDevice])
-
-  // Handle config changes
-  const handleConfigChange = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      [key]: value
-    }))
-    setHasChanges(true)
-  }
 
   // Handle template selection
   const handleTemplateSelect = async (data) => {
@@ -161,9 +140,65 @@ function App() {
     }
   }
 
+  // Handle block operations
+  const handleAddBlock = (blockType) => {
+    const newBlock = createBlock(blockType)
+    setBlocks(prev => [...prev, newBlock])
+    setHasChanges(true)
+  }
+
+  const handleLayoutChange = (newLayout) => {
+    setBlocks(prev => 
+      prev.map(block => {
+        const layoutUpdate = newLayout.find(l => l.i === block.id)
+        if (layoutUpdate) {
+          return {
+            ...block,
+            layout: {
+              x: layoutUpdate.x,
+              y: layoutUpdate.y,
+              w: layoutUpdate.w,
+              h: layoutUpdate.h
+            }
+          }
+        }
+        return block
+      })
+    )
+    setHasChanges(true)
+  }
+
+  const handleBlockUpdate = (blockId, updates) => {
+    setBlocks(prev =>
+      prev.map(block =>
+        block.id === blockId ? { ...block, ...updates } : block
+      )
+    )
+    setHasChanges(true)
+  }
+
+  const handleBlockRemove = (blockId) => {
+    setBlocks(prev => prev.filter(block => block.id !== blockId))
+    if (selectedBlock?.id === blockId) {
+      setSelectedBlock(null)
+    }
+    setHasChanges(true)
+  }
+
+  const handleBlockSelect = (block) => {
+    setSelectedBlock(block)
+  }
+
   // Save configuration with backend response validation
   const handleSave = async () => {
     if (!selectedDevice) return
+
+    // Serialize blocks to config
+    const config = {
+      blocks: blocks,
+      device_type: deviceType,
+      version: '2.0' // Visual block editor version
+    }
 
     try {
       const result = await saveConfig({
@@ -396,40 +431,60 @@ function App() {
 
             {/* Content */}
             <div className="cde-content">
-              {/* Preview */}
-              <PreviewPanel config={config} sampleData={sampleData} />
-
-              {/* Configuration */}
-              <div className="cde-config">
-                {/* Tabs */}
-                <div className="cde-tabs">
-                  <button
-                    className={`cde-tab ${activeTab === 'layout' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('layout')}
-                  >
-                    Layout
-                  </button>
-                  <button
-                    className={`cde-tab ${activeTab === 'theme' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('theme')}
-                  >
-                    Theme
-                  </button>
-                  <button
-                    className={`cde-tab ${activeTab === 'advanced' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('advanced')}
-                  >
-                    Advanced
-                  </button>
+              {/* Block Library */}
+              <div className="cde-sidebar-right">
+                <BlockLibrary onAddBlock={handleAddBlock} />
+                
+                {/* Block Editor */}
+                <div className="cde-block-editor-panel">
+                  <BlockEditor
+                    block={selectedBlock}
+                    onUpdate={handleBlockUpdate}
+                    onClose={() => setSelectedBlock(null)}
+                  />
                 </div>
+              </div>
 
-                {/* Config Panel */}
-                <ConfigPanel
-                  activeTab={activeTab}
-                  config={config}
-                  onChange={handleConfigChange}
+              {/* Visual Canvas */}
+              <div className="cde-canvas-area">
+                <div className="cde-canvas-header">
+                  <h3>Visual Layout Editor</h3>
+                  <div className="cde-device-selector">
+                    <button
+                      className={`cde-device-btn ${deviceType === 'phone' ? 'active' : ''}`}
+                      onClick={() => setDeviceType('phone')}
+                      title="Phone"
+                    >
+                      📱
+                    </button>
+                    <button
+                      className={`cde-device-btn ${deviceType === 'tablet' ? 'active' : ''}`}
+                      onClick={() => setDeviceType('tablet')}
+                      title="Tablet"
+                    >
+                      📱
+                    </button>
+                    <button
+                      className={`cde-device-btn ${deviceType === 'monitor' ? 'active' : ''}`}
+                      onClick={() => setDeviceType('monitor')}
+                      title="Monitor"
+                    >
+                      🖥️
+                    </button>
+                  </div>
+                </div>
+                
+                <VisualLayoutCanvas
+                  blocks={blocks}
+                  onLayoutChange={handleLayoutChange}
+                  onBlockClick={handleBlockSelect}
+                  onRemoveBlock={handleBlockRemove}
+                  selectedBlockId={selectedBlock?.id}
                 />
               </div>
+
+              {/* Preview */}
+              <PreviewPanel blocks={blocks} deviceType={deviceType} />
             </div>
           </>
         )}

@@ -1,122 +1,97 @@
 import React, { useEffect, useState } from 'react'
+import { BlockRenderer } from './BlockRenderer'
 
 /**
  * PreviewPanel Component
- * Live preview of customer display with sample data
+ * Live preview of customer display with blocks layout
  */
-export function PreviewPanel({ config, sampleData }) {
-  const [items, setItems] = useState([])
-  const [total, setTotal] = useState(0)
+export function PreviewPanel({ blocks = [], deviceType = 'tablet' }) {
+  const [sampleData, setSampleData] = useState({
+    items: [
+      { item_name: 'Nasi Goreng Special', qty: 2, rate: 25000, amount: 50000 },
+      { item_name: 'Es Teh Manis', qty: 1, rate: 5000, amount: 5000 },
+      { item_name: 'Ayam Bakar', qty: 1, rate: 35000, amount: 35000 }
+    ],
+    subtotal: 90000,
+    tax: 10000,
+    total: 100000,
+    order_number: 'ORD-001',
+    brand_name: 'IMOGI POS'
+  })
 
-  useEffect(() => {
-    if (sampleData && Array.isArray(sampleData.items)) {
-      setItems(sampleData.items)
-      setTotal(sampleData.total || sampleData.items.reduce((sum, item) => sum + item.amount, 0))
-    } else {
-      // Default sample data
-      setItems([
-        { item_name: 'Sample Item 1', qty: 2, rate: 25000, amount: 50000 },
-        { item_name: 'Sample Item 2', qty: 1, rate: 35000, amount: 35000 },
-        { item_name: 'Sample Item 3', qty: 3, rate: 15000, amount: 45000 }
-      ])
-      setTotal(130000)
+  // Device dimensions for preview
+  const deviceDimensions = {
+    tablet: { width: 768, height: 1024 },
+    phone: { width: 375, height: 667 },
+    monitor: { width: 1920, height: 1080 }
+  }
+
+  const dimensions = deviceDimensions[deviceType] || deviceDimensions.tablet
+  const scale = deviceType === 'monitor' ? 0.4 : deviceType === 'tablet' ? 0.6 : 0.8
+
+  // Sort blocks by y position, then x position
+  const sortedBlocks = [...blocks].sort((a, b) => {
+    if (a.layout.y === b.layout.y) {
+      return a.layout.x - b.layout.x
     }
-  }, [sampleData])
-
-  const bgColor = config.backgroundColor || '#1f2937'
-  const textColor = config.textColor || '#ffffff'
-  const accentColor = config.accentColor || '#3b82f6'
-  const priceColor = config.priceColor || '#10b981'
-  const fontSize = config.fontSize || '1rem'
-  const layoutType = config.layout_type || config.layoutType || 'List'
+    return a.layout.y - b.layout.y
+  })
 
   return (
     <div className="cde-preview-panel">
       <div className="cde-preview-header">
         <h3>Live Preview</h3>
-        <span className="cde-preview-badge">{layoutType} Layout</span>
+        <span className="cde-preview-badge">{deviceType}</span>
       </div>
 
-      <div 
-        className={`cde-preview-display ${layoutType.toLowerCase()}`}
-        style={{
-          backgroundColor: bgColor,
-          color: textColor,
-          fontSize: fontSize
-        }}
-      >
-        {/* Header */}
-        {config.showLogo && config.brand_name && (
-          <div className="cde-display-header" style={{ borderBottomColor: accentColor }}>
-            <h2>{config.brand_name}</h2>
-          </div>
-        )}
-
-        {/* Items */}
-        <div className="cde-display-content">
-          <div className="cde-display-title">
-            <h3>Current Order</h3>
-          </div>
-
-          <div className="cde-display-items">
-            {items.map((item, idx) => (
-              <div key={idx} className="cde-display-item">
-                <div className="cde-item-left">
-                  {config.showImages && (
-                    <div className="cde-item-image">
-                      <div className="cde-item-image-placeholder">📷</div>
-                    </div>
-                  )}
-                  <div className="cde-item-info">
-                    <div className="cde-item-name">{item.item_name}</div>
-                    {config.showDescription && item.description && (
-                      <div className="cde-item-description">{item.description}</div>
-                    )}
-                    <div className="cde-item-qty">Qty: {item.qty}</div>
-                  </div>
-                </div>
-                <div className="cde-item-right">
-                  <div className="cde-item-price" style={{ color: priceColor }}>
-                    {frappe.format(item.amount, { fieldtype: 'Currency' })}
-                  </div>
-                </div>
+      <div className="cde-preview-viewport">
+        <div 
+          className="cde-preview-device"
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center'
+          }}
+        >
+          <div className="cde-preview-screen">
+            {sortedBlocks.length === 0 ? (
+              <div className="cde-preview-empty">
+                <div className="cde-empty-icon">📱</div>
+                <p>No blocks added yet</p>
+                <small>Add blocks from the library to see the preview</small>
               </div>
-            ))}
-          </div>
-
-          {/* Totals */}
-          <div className="cde-display-totals">
-            {config.showSubtotal && sampleData?.subtotal && (
-              <div className="cde-total-row">
-                <span>Subtotal</span>
-                <span>{frappe.format(sampleData.subtotal, { fieldtype: 'Currency' })}</span>
+            ) : (
+              <div 
+                className="cde-preview-blocks"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(12, 1fr)',
+                  gap: '10px',
+                  padding: '20px',
+                  minHeight: '100%'
+                }}
+              >
+                {sortedBlocks.map((block) => (
+                  <div
+                    key={block.id}
+                    style={{
+                      gridColumn: `span ${block.layout.w}`,
+                      minHeight: `${block.layout.h * 30}px`
+                    }}
+                  >
+                    <BlockRenderer block={block} sampleData={sampleData} />
+                  </div>
+                ))}
               </div>
             )}
-            {config.showTaxes && sampleData?.tax && (
-              <div className="cde-total-row">
-                <span>Tax</span>
-                <span>{frappe.format(sampleData.tax, { fieldtype: 'Currency' })}</span>
-              </div>
-            )}
-            <div className="cde-total-row cde-total-grand" style={{ borderTopColor: accentColor }}>
-              <span>Total</span>
-              <span style={{ color: priceColor }}>
-                {frappe.format(total, { fieldtype: 'Currency' })}
-              </span>
-            </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="cde-display-footer" style={{ backgroundColor: accentColor }}>
-          <p>Thank you for your purchase!</p>
         </div>
       </div>
 
-      {/* Preview Info */}
       <div className="cde-preview-info">
         <small>
-          This is a live preview. Changes to configuration will update in real-time.
+          Live preview updates in real-time as you add and edit blocks.
         </small>
       </div>
     </div>

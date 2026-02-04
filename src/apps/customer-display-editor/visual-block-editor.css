@@ -1,0 +1,457 @@
+/* ===========================
+   VISUAL BLOCK EDITOR STYLES
+   =========================== */
+
+/* Canvas Area */
+.cde-canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--cde-bg-alt);
+  overflow: hidden;
+}
+
+.cde-canvas-header {
+  background: white;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid var(--cde-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cde-canvas-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--cde-text);
+}
+
+.cde-device-selector {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--cde-bg-alt);
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.cde-device-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+
+.cde-device-btn:hover {
+  background: white;
+}
+
+.cde-device-btn.active {
+  background: var(--cde-primary);
+  color: white;
+}
+
+/* Block Library */
+.cde-sidebar-right {
+  width: 320px;
+  background: white;
+  border-left: 2px solid var(--cde-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cde-block-library {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.cde-library-header {
+  margin-bottom: 1.5rem;
+}
+
+.cde-library-header h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--cde-text);
+}
+
+.cde-library-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--cde-text-secondary);
+}
+
+.cde-block-category {
+  margin-bottom: 1.5rem;
+}
+
+.cde-category-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cde-text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.cde-block-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.cde-block-item {
+  background: var(--cde-bg-alt);
+  border: 2px solid var(--cde-border);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cde-block-item:hover {
+  border-color: var(--cde-primary);
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: var(--cde-shadow);
+}
+
+.cde-block-icon {
+  font-size: 2rem;
+}
+
+.cde-block-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--cde-text);
+}
+
+/* Block Editor Panel */
+.cde-block-editor-panel {
+  border-top: 2px solid var(--cde-border);
+  max-height: 50%;
+  overflow-y: auto;
+}
+
+.cde-block-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cde-editor-header {
+  background: var(--cde-bg-alt);
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid var(--cde-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.cde-editor-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cde-text);
+}
+
+.cde-editor-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--cde-text-secondary);
+}
+
+.cde-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--cde-text-secondary);
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.cde-close-btn:hover {
+  background: var(--cde-border);
+  color: var(--cde-text);
+}
+
+.cde-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.cde-form-field {
+  margin-bottom: 1.25rem;
+}
+
+.cde-form-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--cde-text);
+  margin-bottom: 0.5rem;
+}
+
+.cde-form-field input[type="text"],
+.cde-form-field input[type="number"],
+.cde-form-field textarea,
+.cde-form-field select {
+  width: 100%;
+  padding: 0.625rem;
+  border: 2px solid var(--cde-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.cde-form-field input:focus,
+.cde-form-field textarea:focus,
+.cde-form-field select:focus {
+  outline: none;
+  border-color: var(--cde-primary);
+}
+
+.cde-form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.cde-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.cde-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.cde-color-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cde-color-swatch {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--cde-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.cde-color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.cde-color-picker-popover {
+  position: relative;
+}
+
+.cde-color-picker-cover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.cde-color-picker-popover .sketch-picker {
+  position: absolute !important;
+  right: 0;
+  top: 8px;
+  z-index: 1001;
+  box-shadow: var(--cde-shadow-xl) !important;
+}
+
+.cde-editor-footer {
+  padding: 1rem 1.5rem;
+  border-top: 2px solid var(--cde-border);
+  background: white;
+}
+
+.cde-block-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--cde-text-secondary);
+}
+
+.cde-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Visual Canvas */
+.cde-visual-canvas {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+}
+
+.react-grid-layout {
+  position: relative;
+  background: white;
+  border: 2px dashed var(--cde-border);
+  border-radius: 12px;
+  min-height: 600px;
+  padding: 1rem;
+}
+
+.react-grid-item {
+  background: white;
+  border: 2px solid var(--cde-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  transition: all 0.2s;
+  cursor: move;
+}
+
+.react-grid-item:hover {
+  border-color: var(--cde-primary-light);
+  box-shadow: var(--cde-shadow);
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--cde-primary);
+  opacity: 0.2;
+  border-radius: 8px;
+}
+
+.react-grid-item.selected {
+  border-color: var(--cde-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.cde-block-wrapper {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cde-block-controls {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.react-grid-item:hover .cde-block-controls {
+  opacity: 1;
+}
+
+.cde-block-control-btn {
+  background: white;
+  border: 2px solid var(--cde-border);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.cde-block-control-btn:hover {
+  border-color: var(--cde-error);
+  background: var(--cde-error);
+  color: white;
+}
+
+.cde-canvas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  color: var(--cde-text-secondary);
+}
+
+/* Preview Panel Enhancements */
+.cde-preview-viewport {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: repeating-linear-gradient(
+    45deg,
+    #f8fafc,
+    #f8fafc 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
+}
+
+.cde-preview-device {
+  background: white;
+  border-radius: 24px;
+  box-shadow: var(--cde-shadow-xl);
+  overflow: hidden;
+  border: 8px solid #1f2937;
+}
+
+.cde-preview-screen {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: white;
+}
+
+.cde-preview-blocks {
+  position: relative;
+}
+
+.cde-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  color: var(--cde-text-secondary);
+  padding: 3rem;
+}
+
+/* Content Layout */
+.cde-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
