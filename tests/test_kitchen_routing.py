@@ -26,7 +26,7 @@ def kitchen_routing_env():
         'imogi_pos.utils.restaurant_settings',
         'imogi_pos.utils.kitchen_routing',
         'imogi_pos.imogi_pos.doctype.pos_order_item.pos_order_item',
-        'imogi_pos.kitchen.kot_service',
+        'imogi_pos.kitchen.kot_service'
     ]:
         sys.modules.pop(module, None)
 
@@ -51,7 +51,7 @@ def kitchen_routing_env():
         "ITEM-001": {
             "menu_category": "Main Course",
             "default_kitchen": None,
-            "default_kitchen_station": None,
+            "default_kitchen_station": None
         }
     }
 
@@ -140,7 +140,7 @@ def kitchen_routing_env():
         'frappe',
         'frappe.utils',
         'frappe.model',
-        'frappe.model.document',
+        'frappe.model.document'
     ]:
         sys.modules.pop(module, None)
 

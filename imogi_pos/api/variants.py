@@ -38,7 +38,6 @@ def get_order_branch(pos_order):
 def get_items_with_stock(
     warehouse=None,
     limit=None,
-    pos_menu_profile=None,
     price_list=None,
     base_price_list=None,
     menu_channel=None,
@@ -50,10 +49,6 @@ def get_items_with_stock(
         warehouse (str, optional): Warehouse to fetch stock levels from.
         limit (int, optional): Maximum number of items to return. If not provided,
             uses max_items_per_query from Restaurant Settings (default: 500).
-        pos_menu_profile (str, optional): If provided, only items for this
-            POS Menu Profile will be returned. Each item uses its own
-            ``pos_menu_profile`` if set, falling back to its Item Group's
-            ``default_pos_menu_profile``.
         price_list (str, optional): Selling Price List used for explicit
             channel pricing and adjustments.
         base_price_list (str, optional): Baseline Price List that represents
@@ -81,8 +76,6 @@ def get_items_with_stock(
     item_filters = [
         ["Item", "disabled", "=", 0],
         ["Item", "is_sales_item", "=", 1],
-        ["Item", "menu_category", "is", "set"],
-        ["Item", "menu_category", "!=", ""],
     ]
     
     # Filter to exclude variant children - only show templates and regular items
@@ -106,11 +99,9 @@ def get_items_with_stock(
         "has_variants",
         "variant_of",
         "item_group",
-        "menu_category",
         "photo",
         "default_kitchen",
         "default_kitchen_station",
-        "pos_menu_profile",
     ]
     
     if has_channel_field:
@@ -174,25 +165,6 @@ def get_items_with_stock(
             f"get_items_with_stock: Skipping channel filter - {reason}. "
             f"Returning all {initial_count} items."
         )
-
-    # Map of item group -> default POS Menu Profile
-    group_defaults = {}
-    groups = {d.item_group for d in items if d.item_group}
-    if groups:
-        group_rows = frappe.get_all(
-            "Item Group",
-            filters={"name": ["in", list(groups)]},
-            fields=["name", "default_pos_menu_profile"],
-        )
-        group_defaults = {g.name: g.default_pos_menu_profile for g in group_rows}
-
-    # Resolve effective POS Menu Profile for each item
-    for item in items:
-        item.pos_menu_profile = item.pos_menu_profile or group_defaults.get(item.item_group)
-
-    # If a profile filter is provided, apply it
-    if pos_menu_profile:
-        items = [d for d in items if d.pos_menu_profile == pos_menu_profile]
 
     item_names = [d.name for d in items]
 

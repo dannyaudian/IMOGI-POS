@@ -114,7 +114,7 @@ def variants_module():
             "price_list_rates": {},
             "price_list_currencies": {},
             "base_price_list_rates": {},
-            "base_price_list_currencies": {},
+            "base_price_list_currencies": {}
         }
 
     pricing.get_price_list_rate_maps = get_price_list_rate_maps
@@ -154,17 +154,13 @@ def test_get_items_with_stock_limits_by_bom_capacity(variants_module):
             'standard_rate': 10,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Beverages',
-            'menu_category': 'Drinks',
-            'photo': None,
+            'item_group': 'Beverages',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-        })
+            'default_kitchen_station': None        })
     ]
 
     frappe._mock_data['Item Group'] = [
-        MockRow({'name': 'Beverages', 'default_pos_menu_profile': None})
+        MockRow({'name': 'Beverages'})
     ]
 
     frappe._mock_data['Bin'] = [
@@ -247,17 +243,13 @@ def test_get_items_with_stock_uses_bom_capacity_even_without_finished_goods(vari
             'standard_rate': 10,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Beverages',
-            'menu_category': 'Drinks',
-            'photo': None,
+            'item_group': 'Beverages',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-        })
+            'default_kitchen_station': None        })
     ]
 
     frappe._mock_data['Item Group'] = [
-        MockRow({'name': 'Beverages', 'default_pos_menu_profile': None})
+        MockRow({'name': 'Beverages'})
     ]
 
     frappe._mock_data['Bin'] = [
@@ -333,17 +325,13 @@ def test_get_items_with_stock_component_shortage_overrides_finished_goods(varian
             'standard_rate': 10,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Beverages',
-            'menu_category': 'Drinks',
-            'photo': None,
+            'item_group': 'Beverages',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-        })
+            'default_kitchen_station': None        })
     ]
 
     frappe._mock_data['Item Group'] = [
-        MockRow({'name': 'Beverages', 'default_pos_menu_profile': None})
+        MockRow({'name': 'Beverages'})
     ]
 
     frappe._mock_data['Bin'] = [
@@ -419,20 +407,16 @@ def test_component_low_stock_recovers_when_quantity_restored(variants_module):
             'standard_rate': 10,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Beverages',
-            'menu_category': 'Drinks',
-            'photo': None,
+            'item_group': 'Beverages',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-        })
+            'default_kitchen_station': None        })
     ]
 
     frappe._mock_item_details['COMP-1'] = {'item_name': 'Component 1', 'stock_uom': 'PCS'}
     frappe._mock_item_details['ITEM-1'] = {'item_name': 'Item 1', 'stock_uom': 'PCS'}
 
     frappe._mock_data['Item Group'] = [
-        MockRow({'name': 'Beverages', 'default_pos_menu_profile': None})
+        MockRow({'name': 'Beverages'})
     ]
 
     frappe._mock_data['Bin'] = [
@@ -504,13 +488,9 @@ def test_get_items_with_stock_filters_by_menu_channel(variants_module):
             'standard_rate': 10,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Snacks',
-            'menu_category': 'Snack',
-            'photo': None,
+            'item_group': 'Snacks',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-            'imogi_menu_channel': 'POS',
+            'default_kitchen_station': None,            'imogi_menu_channel': 'POS'
         }),
         MockRow({
             'name': 'ITEM-REST',
@@ -521,13 +501,9 @@ def test_get_items_with_stock_filters_by_menu_channel(variants_module):
             'standard_rate': 12,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Meals',
-            'menu_category': 'Meal',
-            'photo': None,
+            'item_group': 'Meals',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-            'imogi_menu_channel': 'Restaurant',
+            'default_kitchen_station': None,            'imogi_menu_channel': 'Restaurant'
         }),
         MockRow({
             'name': 'ITEM-UNIV',
@@ -538,19 +514,15 @@ def test_get_items_with_stock_filters_by_menu_channel(variants_module):
             'standard_rate': 11,
             'has_variants': 0,
             'variant_of': None,
-            'item_group': 'Snacks',
-            'menu_category': 'Snack',
-            'photo': None,
+            'item_group': 'Snacks',            'photo': None,
             'default_kitchen': None,
-            'default_kitchen_station': None,
-            'pos_menu_profile': None,
-            'imogi_menu_channel': 'Universal',
-        }),
+            'default_kitchen_station': None,            'imogi_menu_channel': 'Universal'
+        })
     ]
 
     frappe._mock_data['Item Group'] = [
-        MockRow({'name': 'Snacks', 'default_pos_menu_profile': None}),
-        MockRow({'name': 'Meals', 'default_pos_menu_profile': None}),
+        MockRow({'name': 'Snacks'}),
+        MockRow({'name': 'Meals'})
     ]
 
     frappe._mock_data['Bin'] = []

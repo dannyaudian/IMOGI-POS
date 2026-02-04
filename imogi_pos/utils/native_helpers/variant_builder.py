@@ -154,7 +154,7 @@ def create_item_variant(template, attributes, variant_code=None, **kwargs):
         # Copy fields from template
         copy_fields = [
             "description", "item_group", "default_kitchen", 
-            "default_kitchen_station", "menu_category", "image"
+            "default_kitchen_station", "image"
         ]
         
         for field in copy_fields:

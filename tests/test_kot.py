@@ -55,7 +55,7 @@ def kot_module():
                     "notes": "Note",
                     "kitchen": "KIT-1",
                     "kitchen_station": "ST-1",
-                    "item_options": {"size": "Large"},
+                    "item_options": {"size": "Large"}
                 }
                 if isinstance(fieldname, (list, tuple)):
                     return data if as_dict else [data.get(f) for f in fieldname]
@@ -66,7 +66,7 @@ def kot_module():
                     "item_name": "Item Name",
                     "default_kitchen": None,
                     "default_kitchen_station": None,
-                    "menu_category": None,
+                    "menu_category": None
                 }
                 if isinstance(fieldname, (list, tuple)):
                     if as_dict:
@@ -230,7 +230,7 @@ def test_send_items_to_kitchen_uses_station_fallback(kot_module):
                 "notes": "Note",
                 "kitchen": None,
                 "kitchen_station": None,
-                "item_options": {"size": "Large"},
+                "item_options": {"size": "Large"}
             }
             if isinstance(fieldname, (list, tuple)):
                 return data if as_dict else [data.get(f) for f in fieldname]
@@ -241,7 +241,7 @@ def test_send_items_to_kitchen_uses_station_fallback(kot_module):
                 "item_name": "Item Name",
                 "default_kitchen": None,
                 "default_kitchen_station": None,
-                "menu_category": None,
+                "menu_category": None
             }
             if isinstance(fieldname, (list, tuple)):
                 if as_dict:
@@ -289,7 +289,7 @@ def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):
                 "branch": "BR-1",
                 "kitchen": "KIT-1",
                 "kitchen_station": "ST-1",
-                "items": [{"name": "ITEM-1"}],
+                "items": [{"name": "ITEM-1"}]
             }
 
     ticket = Ticket()
@@ -336,7 +336,7 @@ def test_get_kots_for_kitchen_handles_missing_priority_column(kot_module):
                     "customer": "CUST-1",
                     "creation_time": "2023-01-01 00:00:00",
                     "created_by": "chef@example.com",
-                    "owner": "owner@example.com",
+                    "owner": "owner@example.com"
                 }
             ]
 
@@ -351,7 +351,7 @@ def test_get_kots_for_kitchen_handles_missing_priority_column(kot_module):
                     "qty": 1,
                     "notes": None,
                     "item_options": None,
-                    "options_display": None,
+                    "options_display": None
                 }
             ]
 
@@ -407,7 +407,7 @@ def kot_service_env():
 
     items = {
         "KOTI-1": Item("KOTI-1", "KT-1", "Queued"),
-        "KOTI-2": Item("KOTI-2", "KT-1", "Queued"),
+        "KOTI-2": Item("KOTI-2", "KT-1", "Queued")
     }
 
     class Ticket:

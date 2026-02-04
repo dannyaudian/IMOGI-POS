@@ -66,7 +66,7 @@ def frappe_env():
         "imogi_pos.api.pricing",
         "imogi_pos.api.variants",
         "frappe",
-        "frappe.utils",
+        "frappe.utils"
     ]:
         sys.modules.pop(module, None)
 
@@ -181,7 +181,7 @@ def test_get_allowed_price_lists_includes_table_multiselect_links(pricing_module
                     currency="IDR",
                     enabled=1,
                     imogi_price_adjustment=3.25,
-                ),
+                )
             ]
         return []
 
@@ -212,8 +212,7 @@ def _base_item():
         menu_category="Default",
         photo=None,
         default_kitchen=None,
-        default_kitchen_station=None,
-        pos_menu_profile=None,
+        default_kitchen_station=None
     )
 
 
@@ -224,7 +223,7 @@ def test_get_items_with_stock_applies_adjustment_when_column_exists(variants_mod
         if doctype == "Item":
             return [_base_item()]
         if doctype == "Item Group":
-            return [Row(name="Group", default_pos_menu_profile=None)]
+            return [Row(name="Group", default_)]
         if doctype == "Item Price":
             return []
         return []
@@ -252,7 +251,7 @@ def test_get_items_with_stock_skips_adjustment_when_column_missing(variants_modu
         if doctype == "Item":
             return [_base_item()]
         if doctype == "Item Group":
-            return [Row(name="Group", default_pos_menu_profile=None)]
+            return [Row(name="Group", default_)]
         if doctype == "Item Price":
             return []
         return []

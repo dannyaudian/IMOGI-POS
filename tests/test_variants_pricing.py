@@ -124,8 +124,7 @@ def test_get_items_with_stock_falls_back_to_base_price_list():
             menu_category="Beverages",
             photo=None,
             default_kitchen=None,
-            default_kitchen_station=None,
-            pos_menu_profile=None,
+            default_kitchen_station=None
         )
     ]
 
@@ -137,13 +136,13 @@ def test_get_items_with_stock_falls_back_to_base_price_list():
             DictNamespace(item_code="ITEM-001", price_list_rate=15000, currency="IDR")
         ]
         if filters.get("price_list") == "Standard"
-        else [],
+        else []
     }
 
     get_value_map = {
         ("Price List", "Channel", ("currency", "imogi_price_adjustment")): {
             "currency": "IDR",
-            "imogi_price_adjustment": 500,
+            "imogi_price_adjustment": 500
         }
     }
 
@@ -190,7 +189,7 @@ def test_get_item_variants_flags_base_rate_from_price_list():
             description=None,
             standard_rate=0,
             stock_uom="Nos",
-        ),
+        )
     ]
 
     def item_price_handler(filters, *_):
@@ -198,11 +197,11 @@ def test_get_item_variants_flags_base_rate_from_price_list():
         if price_list == "Standard":
             return [
                 DictNamespace(item_code="ITEM-RED", price_list_rate=12000, currency="IDR"),
-                DictNamespace(item_code="ITEM-BLUE", price_list_rate=14000, currency="IDR"),
+                DictNamespace(item_code="ITEM-BLUE", price_list_rate=14000, currency="IDR")
             ]
         if price_list == "Channel":
             return [
-                DictNamespace(item_code="ITEM-BLUE", price_list_rate=9000, currency="IDR"),
+                DictNamespace(item_code="ITEM-BLUE", price_list_rate=9000, currency="IDR")
             ]
         return []
 
@@ -217,7 +216,7 @@ def test_get_item_variants_flags_base_rate_from_price_list():
     get_all_handlers = {
         "Item": lambda *_: variant_rows,
         "Item Variant Attribute": variant_attribute_handler,
-        "Item Price": item_price_handler,
+        "Item Price": item_price_handler
     }
 
     get_value_map = {
@@ -231,7 +230,7 @@ def test_get_item_variants_flags_base_rate_from_price_list():
             "Item",
             "ITEM-BLUE",
             ("menu_category", "default_kitchen", "default_kitchen_station"),
-        ): {"menu_category": None, "default_kitchen": None, "default_kitchen_station": None},
+        ): {"menu_category": None, "default_kitchen": None, "default_kitchen_station": None}
     }
 
     variants = load_variants_module(
