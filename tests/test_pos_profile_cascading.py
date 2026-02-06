@@ -233,11 +233,17 @@ class TestPOSProfileCascadingValidation(FrappeTestCase):
         profile.__dict__.update(self.pos_profile.__dict__)
         profile.flags = frappe._dict()
         
-        # Set mode-specific fields
+        # Set mode-specific fields for all modes
         profile.imogi_mode = "Counter"
         profile.imogi_order_customer_flow = "Order First"
         profile.imogi_kiosk_receipt_format = "Kiosk Receipt"
+        profile.imogi_print_notes_on_kiosk_receipt = 1
+        profile.imogi_kiosk_cashless_only = 1
         profile.imogi_queue_format = "Queue Ticket"
+        profile.imogi_use_table_display = 0
+        profile.imogi_default_floor = None
+        profile.imogi_default_layout_profile = None
+        profile.imogi_hide_notes_on_table_bill = 0
         
         # Change mode to Table
         profile.imogi_mode = "Table"
@@ -249,8 +255,37 @@ class TestPOSProfileCascadingValidation(FrappeTestCase):
         self.assertIsNone(profile.imogi_order_customer_flow)
         # Kiosk-only fields should be cleared
         self.assertIsNone(profile.imogi_kiosk_receipt_format)
+        self.assertEqual(profile.imogi_print_notes_on_kiosk_receipt, 0)
+        self.assertEqual(profile.imogi_kiosk_cashless_only, 0)
         # Queue format (Kiosk/Counter) should be cleared in Table mode
         self.assertIsNone(profile.imogi_queue_format)
+    
+    def test_clear_table_fields_when_mode_changes(self):
+        """Verify table-specific fields are cleared when mode is not Table."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        # Start with Table mode
+        profile.imogi_mode = "Table"
+        profile.imogi_use_table_display = 1
+        profile.imogi_default_floor = "Test Floor"
+        profile.imogi_default_layout_profile = "Test Layout"
+        profile.imogi_hide_notes_on_table_bill = 1
+        
+        # Change mode to Counter (not Table)
+        profile.imogi_mode = "Counter"
+        
+        # Call the clear method
+        profile._clear_mode_dependent_fields()
+        
+        # Verify table-specific fields are cleared
+        self.assertEqual(profile.imogi_use_table_display, 0)
+        self.assertIsNone(profile.imogi_default_floor)
+        self.assertIsNone(profile.imogi_default_layout_profile)
+        self.assertEqual(profile.imogi_hide_notes_on_table_bill, 0)
 
     def test_full_cascading_validation(self):
         """Test complete cascading validation flow."""
