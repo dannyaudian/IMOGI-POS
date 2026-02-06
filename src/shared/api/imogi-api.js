@@ -173,7 +173,7 @@ export function useItems(posProfile, branch = null) {
   }
   
   return useFrappeGetCall(
-    'imogi_pos.api.items.get_items',
+    'imogi_pos.api.items.get_pos_items',
     params,  // null = don't fetch
     cacheKey,  // null = no cache key
     {

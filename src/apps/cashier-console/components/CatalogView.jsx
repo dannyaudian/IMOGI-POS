@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
+import { VariantPickerModal } from './VariantPickerModal'
 
 export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
@@ -12,6 +13,10 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [debugInfo, setDebugInfo] = useState(null)
+  
+  // Variant picker state
+  const [showVariantPicker, setShowVariantPicker] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
   
   // Debounce search query (300ms)
   const debouncedSearch = useDebounce(searchQuery, 300)
@@ -74,19 +79,26 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     setDebugInfo(null)
 
     try {
+      // Build API params with POS Profile scoping
       const params = {
-        pos_profile: posProfile,
+        pos_profile: posProfile,  // Required for POS Menu Profile scoping
         item_group: selectedGroup === 'all' ? null : selectedGroup,
-        menu_channel: menuChannel,
+        mode: 'template',  // Show templates + standalone (user can pick variants via modal)
+        // price_list will be fetched from POS Profile in backend
+        // but we can pass it explicitly if available in state
+        require_menu_category: 0,  // Don't filter out items without category
+        require_price: 0,  // Dev-friendly: don't filter zero prices (change to 1 for production)
         // Enable debug mode in development to get metadata
         debug: import.meta.env.DEV ? 1 : 0
       }
 
       if (import.meta.env.DEV) {
         console.log('[CatalogView] API call params:', params)
+        console.log('[CatalogView] POS Profile:', posProfile)
       }
 
-      const response = await apiCall('imogi_pos.api.variants.get_template_items', params)
+      // Use unified get_pos_items API
+      const response = await apiCall('imogi_pos.api.items.get_pos_items', params)
       
       // Normalize response - handle both direct array and {message: [...]} wrapper
       // Debug mode returns {items: [...], debug: {...}}
@@ -150,9 +162,29 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   }
 
   const handleItemClick = (item) => {
-    if (onSelectItem) {
-      onSelectItem(item)
+    const hasVariants = item.has_variants === 1 || item.has_variants === true
+    
+    if (hasVariants) {
+      // Template item - open variant picker
+      setSelectedTemplate(item)
+      setShowVariantPicker(true)
+    } else {
+      // Sellable item (standalone or already a variant) - add directly
+      if (onSelectItem) {
+        onSelectItem(item)
+      }
     }
+  }
+  
+  const handleVariantSelect = (variantItemCode) => {
+    // When variant is selected from picker, call onSelectItem with variant item_code
+    if (onSelectItem) {
+      // Fetch the variant details or just pass the item code
+      // For now, create a minimal item object with the variant code
+      onSelectItem({ item_code: variantItemCode, name: variantItemCode })
+    }
+    setShowVariantPicker(false)
+    setSelectedTemplate(null)
   }
 
   return (
@@ -285,6 +317,19 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
           )}
         </div>
       </div>
+      
+      {/* Variant Picker Modal */}
+      <VariantPickerModal
+        isOpen={showVariantPicker}
+        onClose={() => {
+          setShowVariantPicker(false)
+          setSelectedTemplate(null)
+        }}
+        templateName={selectedTemplate?.name}
+        posProfile={posProfile}
+        onSelectVariant={handleVariantSelect}
+        mode="add"
+      />
     </div>
   )
 }

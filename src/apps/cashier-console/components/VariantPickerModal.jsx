@@ -6,6 +6,7 @@ export function VariantPickerModal({
   isOpen, 
   onClose, 
   templateName,
+  posProfile,
   mode = 'add', // 'add' or 'convert'
   onSelectVariant 
 }) {
@@ -19,21 +20,42 @@ export function VariantPickerModal({
     if (isOpen && templateName) {
       loadVariants()
     }
-  }, [isOpen, templateName])
+  }, [isOpen, templateName, posProfile])
 
   const loadVariants = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const result = await apiCall('imogi_pos.api.variants.get_item_variants', {
-        template: templateName
+      // Use unified get_pos_items API with mode="variant"
+      const response = await apiCall('imogi_pos.api.items.get_pos_items', {
+        mode: 'variant',
+        item_code: templateName,  // Required for variant mode
+        pos_profile: posProfile,
+        debug: import.meta.env.DEV ? 1 : 0
       })
-      setVariants(result.variants || [])
-      setAttributes(result.attributes || [])
+      
+      // Normalize response
+      const variantItems = Array.isArray(response) ? response : response.items || []
+      
+      setVariants(variantItems)
+      
+      // Extract unique attributes from variants
+      const attrSet = new Set()
+      variantItems.forEach(variant => {
+        if (variant.attributes) {
+          Object.keys(variant.attributes).forEach(attr => attrSet.add(attr))
+        }
+      })
+      setAttributes(Array.from(attrSet))
+      
+      if (import.meta.env.DEV) {
+        console.log('[VariantPicker] Loaded variants:', variantItems.length)
+        console.log('[VariantPicker] Attributes:', Array.from(attrSet))
+      }
     } catch (err) {
       setError('Failed to load variants')
-      console.error('[imogi][variants] Error loading variants:', err)
+      console.error('[VariantPicker] Error loading variants:', err)
     } finally {
       setLoading(false)
     }
@@ -67,10 +89,12 @@ export function VariantPickerModal({
 
   const handleVariantClick = (variant) => {
     if (onSelectVariant) {
-      onSelectVariant(variant.name, mode)
+      // Pass variant item_code (name) to parent
+      onSelectVariant(variant.name)
     }
     onClose()
   }
+  
   const getAttributeValues = (attributeName) => {
     const values = new Set()
     variants.forEach(variant => {
@@ -129,8 +153,7 @@ export function VariantPickerModal({
                   </div>
                   
                   <div className="filter-grid">
-                    {attributes.map(attr => {
-                      const attrName = attr.name || attr.attribute
+                    {attributes.map(attrName => {
                       const values = getAttributeValues(attrName)
                       
                       return (
@@ -171,7 +194,7 @@ export function VariantPickerModal({
                   <div className="variant-grid">
                     {filteredVariants.map(variant => {
                       const attrs = variant.attributes || {}
-                      const price = variant.rate || variant.standard_rate || 0
+                      const price = variant.price_list_rate || variant.standard_rate || 0
                       
                       return (
                         <div

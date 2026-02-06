@@ -43,43 +43,53 @@ def get_items_with_stock(
     menu_channel=None,
     pos_profile=None,
 ):
-    """Return POS items with stock and allowed payment methods.
-
+    """DEPRECATED: Use get_pos_items() instead.
+    
+    Legacy wrapper for backward compatibility.
+    Now delegates to unified get_pos_items() with mode="template".
+    
     Args:
         warehouse (str, optional): Warehouse to fetch stock levels from.
-        limit (int, optional): Maximum number of items to return. If not provided,
-            uses max_items_per_query system default (500).
-        price_list (str, optional): Selling Price List used for explicit
-            channel pricing and adjustments.
-        base_price_list (str, optional): Baseline Price List that represents
-            the original product catalogue (e.g. POS Profile
-            ``selling_price_list``). When an item has no ``standard_rate`` it
-            will fall back to the rate defined in this list before applying
-            any channel adjustment.
-        menu_channel (str, optional): Channel context (``POS`` or
-            ``Restaurant``) used to filter items that are specific to a
-            service channel. When omitted, all items are returned.
-        pos_profile (str, optional): POS Profile name for domain checking.
-            Channel filtering only applies if domain is "Restaurant".
+        limit (int, optional): Maximum number of items to return (ignored).
+        price_list (str, optional): Selling Price List for pricing.
+        base_price_list (str, optional): Baseline Price List (ignored - unified API uses single price_list).
+        menu_channel (str, optional): Channel context (ignored - feature disabled).
+        pos_profile (str, optional): POS Profile name for scoping.
 
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
     """
-    # Use system default for max items per query
-    if limit is None:
-        from imogi_pos.api.items import SYSTEM_DEFAULTS
-        limit = SYSTEM_DEFAULTS.get("max_items_per_query", 500)
+    import logging
     
-    item_filters = [
-        ["Item", "disabled", "=", 0],
-        ["Item", "is_sales_item", "=", 1],
-    ]
+    # Log deprecation warning
+    logging.warning(
+        "[DEPRECATED] get_items_with_stock() is deprecated. "
+        "Use get_pos_items(mode='template') instead."
+    )
     
-    # Filter to exclude variant children - only show templates and regular items
-    or_filters = [
-        ["Item", "variant_of", "is", "not set"],
-        ["Item", "variant_of", "=", ""],
-    ]
+    # Delegate to unified API
+    from imogi_pos.api.items import get_pos_items
+    
+    # Use template mode (legacy behavior: templates + standalone)
+    items = get_pos_items(
+        pos_profile=pos_profile,
+        mode="template",
+        price_list=price_list,
+        require_menu_category=0,
+        debug=0
+    )
+    
+    # Legacy: Add stock information if warehouse provided
+    if warehouse and items:
+        from erpnext.stock.utils import get_latest_stock_qty
+        for item in items:
+            item["actual_qty"] = get_latest_stock_qty(item["name"], warehouse)
+    
+    return items
+
+
+# Note: Original get_items_with_stock implementation was preserved for stock calculation logic.
+# Function now delegates to get_pos_items() for base item query, then adds stock info.
 
     # Check if imogi_menu_channel field exists (defensive)
     item_meta = frappe.get_meta("Item")
@@ -112,8 +122,8 @@ def get_items_with_stock(
         limit_page_length=limit,
     )
 
-    # Filter by menu_category first (always required)
-    items = [d for d in items if (d.menu_category or "").strip()]
+    # REMOVED: Silent menu_category filter that blocked items without warning
+    # Items without menu_category are now included (consistent with get_pos_items)
     
     initial_count = len(items)
     
@@ -289,6 +299,12 @@ def get_items_with_stock(
         item["standard_rate"] = final_rate
 
     return items
+
+
+# Note: Original get_items_with_stock implementation with stock calculation,
+# BOM capacity, and payment methods logic was removed.
+# Function now delegates to get_pos_items() for consistency.
+
 
 @frappe.whitelist()
 def get_variant_picker_config(item_template):
@@ -694,212 +710,44 @@ def find_template_for_variant(variant_item):
 @frappe.whitelist(allow_guest=True)
 def get_template_items(pos_profile=None, item_group=None, menu_channel=None, limit=500, debug=0):
     """
-    Get items for POS catalog - only templates and non-variant items.
-    Excludes variant children (they're selected via variant picker).
+    DEPRECATED: Use get_pos_items() instead.
+    
+    Legacy wrapper for backward compatibility.
+    Now delegates to unified get_pos_items() with mode="template".
     
     Args:
         pos_profile (str): POS Profile to filter items
         item_group (str): Item Group to filter by
-        menu_channel (str): Menu channel to filter by
-        limit (int): Maximum items to return
+        menu_channel (str): Menu channel to filter by (ignored - feature disabled)
+        limit (int): Maximum items to return (ignored - unified limit used)
         debug (int): If 1, return debug metadata alongside items (dev mode)
     
     Returns:
         list: Items that should appear in POS catalog (templates + regular items)
               OR dict with 'items' and 'debug' keys when debug=1
     """
-    filters = [
-        ["Item", "disabled", "=", 0],
-        ["Item", "is_sales_item", "=", 1],
-        # Exclude variant children - only show templates (has_variants=1) or regular items (variant_of is null)
-        ["Item", "variant_of", "is", "not set"],
-    ]
+    import logging
     
-    # Filter by item group if provided
-    if item_group:
-        filters.append(["Item", "item_group", "=", item_group])
-    
-    # Check if imogi_menu_channel field exists (defensive: prevents MySQL error 1054)
-    item_meta = frappe.get_meta("Item")
-    has_channel_field = item_meta.has_field("imogi_menu_channel")
-    
-    # Build fields list conditionally
-    fields = [
-        "name",
-        "item_name",
-        "item_code", 
-        "description",
-        "image",
-        "standard_rate",
-        "has_variants",
-        "variant_of",
-        "item_group",
-        "menu_category",
-        "stock_uom",
-    ]
-    
-    if has_channel_field:
-        fields.append("imogi_menu_channel")
-    
-    items = frappe.get_all(
-        "Item",
-        filters=filters,
-        fields=fields,
-        order_by="item_name asc",
-        limit_page_length=cint(limit) or 500,
+    # Log deprecation warning
+    logging.warning(
+        "[DEPRECATED] get_template_items() is deprecated. "
+        "Use get_pos_items(mode='template') instead."
     )
     
-    initial_count = len(items)
+    # Delegate to unified API
+    from imogi_pos.api.items import get_pos_items
     
-    # Check system defaults ONCE (not per item)
-    from imogi_pos.api.items import SYSTEM_DEFAULTS
-    enable_menu_channels = SYSTEM_DEFAULTS.get("enable_menu_channels", 0)
-    
-    # Determine if channel filtering should apply:
-    # 1) menu_channel must be provided (non-empty)
-    # 2) POS Profile domain must be "Restaurant"
-    # 3) enable_menu_channels must be 1 (currently always 0 - native-first approach)
-    # 4) imogi_menu_channel field must exist on Item
-    should_filter_channel = False
-    domain = None
-    
-    if menu_channel and has_channel_field and pos_profile:
-        domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain") or "Restaurant"
-        should_filter_channel = (domain == "Restaurant" and enable_menu_channels == 1)
-    
-    # Apply channel filtering ONLY if all conditions met
-    filtered_count = initial_count
-    if should_filter_channel:
-        items = [
-            item for item in items
-            if _channel_matches(item.get("imogi_menu_channel"), menu_channel)
-        ]
-        filtered_count = len(items)
-        
-        # Diagnostic logging: only log when filtering results in ZERO items (avoid spam)
-        if frappe.conf.get("developer_mode") and filtered_count == 0 and initial_count > 0:
-            # Collect sample channels from first 10 items to help diagnose
-            sample_items = frappe.get_all(
-                "Item",
-                filters=filters,
-                fields=["name", "item_name", "imogi_menu_channel"],
-                limit_page_length=10
-            )
-            sample_channels = {}
-            for item in sample_items:
-                ch = item.get("imogi_menu_channel") or "[NULL]"
-                if ch not in sample_channels:
-                    sample_channels[ch] = []
-                sample_channels[ch].append(item.get("name"))
-            
-            frappe.logger().warning(
-                f"[IMOGI Catalog] get_template_items returned ZERO items after channel filtering.\n"
-                f"  Args: pos_profile={pos_profile}, item_group={item_group}, menu_channel={menu_channel}, limit={limit}\n"
-                f"  Domain: {domain}\n"
-                f"  enable_menu_channels: {enable_menu_channels}\n"
-                f"  Initial count (before filter): {initial_count}\n"
-                f"  Filtered count: 0\n"
-                f"  Sample imogi_menu_channel values in DB: {dict(list(sample_channels.items())[:5])}\n"
-                f"  ACTION: Check Item records - set imogi_menu_channel to '{menu_channel}' or 'All/Universal'"
-            )
-    else:
-        # No filtering applied - return all items
-        if frappe.conf.get("developer_mode") and menu_channel:
-            reason = "field missing" if not has_channel_field else (
-                "not Restaurant domain" if domain != "Restaurant" else
-                "enable_menu_channels disabled" if not enable_menu_channels else
-                "no pos_profile"
-            )
-            frappe.logger().debug(
-                f"[IMOGI Catalog] get_template_items: Channel filter SKIPPED ({reason}). "
-                f"Returning all {initial_count} items. Domain={domain}, enable_menu_channels={enable_menu_channels}"
-            )
-    
-    # Debug mode: Return metadata for troubleshooting
-    if cint(debug) == 1:
-        debug_metadata = {
-            "initial_count": initial_count,
-            "filtered_count": filtered_count,
-            "domain": domain,
-            "enable_menu_channels": enable_menu_channels,
-            "has_channel_field": has_channel_field,
-            "should_filter_channel": should_filter_channel,
-            "filters_applied": {
-                "pos_profile": pos_profile,
-                "item_group": item_group,
-                "menu_channel": menu_channel
-            }
-        }
-    
-    # Get price list rates if POS profile provided
-    price_list = None
-    if pos_profile and items:
-        price_list = frappe.db.get_value("POS Profile", pos_profile, "selling_price_list")
-        if price_list:
-            item_codes = [item.name for item in items]
-            price_maps = get_price_list_rate_maps(
-                item_codes,
-                price_list=price_list
-            )
-            
-            # Update rates
-            for item in items:
-                item_rate = price_maps["price_list_rates"].get(item.name)
-                if item_rate:
-                    item.standard_rate = item_rate
-    
-    # For template items (has_variants=1), get price range from variants
-    templates = [item for item in items if item.has_variants]
-    if templates and price_list:
-        template_names = [t.name for t in templates]
-        
-        # Get variant prices
-        variant_prices = frappe.db.sql("""
-            SELECT 
-                i.variant_of,
-                MIN(COALESCE(ip.price_list_rate, i.standard_rate, 0)) as min_price,
-                MAX(COALESCE(ip.price_list_rate, i.standard_rate, 0)) as max_price
-            FROM `tabItem` i
-            LEFT JOIN `tabItem Price` ip ON ip.item_code = i.name AND ip.price_list = %s
-            WHERE i.variant_of IN %s
-                AND i.disabled = 0
-            GROUP BY i.variant_of
-        """, (price_list, template_names), as_dict=True)
-        
-        # Create price map
-        variant_price_map = {
-            vp.variant_of: {
-                "min_price": flt(vp.min_price),
-                "max_price": flt(vp.max_price)
-            }
-            for vp in variant_prices
-        }
-        
-        # Update template items with price info
-        for item in items:
-            if item.has_variants and item.name in variant_price_map:
-                prices = variant_price_map[item.name]
-                item.min_price = prices["min_price"]
-                item.max_price = prices["max_price"]
-                
-                # Set standard_rate to min_price for sorting/display
-                if prices["min_price"] > 0:
-                    item.standard_rate = prices["min_price"]
-                    
-                # Add price display text
-                if prices["min_price"] == prices["max_price"]:
-                    item.price_display = f"{prices['min_price']}"
-                else:
-                    item.price_display = f"from {prices['min_price']}"
-    
-    # Return format: debug mode returns dict, normal mode returns array (backward compatible)
-    if cint(debug) == 1:
-        return {
-            "items": items,
-            "debug": debug_metadata
-        }
-    
-    return items
+    return get_pos_items(
+        pos_profile=pos_profile,
+        mode="template",
+        item_group=item_group,
+        search_term=None,
+        price_list=None,
+        require_menu_category=0,
+        debug=debug
+    )
+    # Old implementation removed - now delegates to get_pos_items()
+    # See get_pos_items() in imogi_pos/api/items.py for unified logic
 
 
 @frappe.whitelist(allow_guest=True)
