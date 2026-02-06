@@ -1,0 +1,47 @@
+{
+  "actions": [],
+  "creation": "2026-02-05 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "printer_profile",
+    "printer_type",
+    "sequence"
+  ],
+  "fields": [
+    {
+      "fieldname": "printer_profile",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Printer Profile",
+      "options": "Printer Profile",
+      "reqd": 1
+    },
+    {
+      "default": "Receipt",
+      "fieldname": "printer_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Printer Type",
+      "options": "Receipt\nKitchen\nCustomer Bill\nLabel"
+    },
+    {
+      "fieldname": "sequence",
+      "fieldtype": "Int",
+      "in_list_view": 1,
+      "label": "Sequence",
+      "description": "Lower number = higher priority"
+    }
+  ],
+  "istable": 1,
+  "links": [],
+  "modified": "2026-02-05 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "IMOGI POS",
+  "name": "POS Profile Printer",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
+}

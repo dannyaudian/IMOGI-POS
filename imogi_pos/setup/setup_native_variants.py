@@ -191,7 +191,7 @@ def execute():
     print("="*60)
     print("\nNext steps:")
     print("1. Go to Item List and explore the sample items")
-    print("2. Check Restaurant Settings for variant options")
+    print("2. Configure POS Profile for your point-of-sale")
     print("3. Use native variants in POS instead of custom options")
     print("\nDocumentation: ARCHITECTURE.md")
     print("="*60 + "\n")

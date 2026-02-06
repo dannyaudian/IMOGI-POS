@@ -123,21 +123,17 @@ def require_roles(*roles):
     return decorator
 
 
-def allow_guest_if_configured(setting_field="imogi_allow_guest_access", setting_doctype="Restaurant Settings"):
+def allow_guest_if_configured(setting_field=None, setting_doctype=None):
     """
-    Decorator to allow guest access if enabled in settings.
+    Decorator to allow guest access.
     
     This is used for pages like Kiosk and Self-Order that can optionally
-    allow unauthenticated access based on configuration.
-    
-    Args:
-        setting_field: Name of the boolean field in settings DocType
-        setting_doctype: Name of the settings DocType to check
+    allow unauthenticated access. Parameters are deprecated (for backward compatibility).
     
     Example:
-        @allow_guest_if_configured("imogi_kiosk_allow_guest")
+        @allow_guest_if_configured()
         def get_context(context):
-            # Guest access allowed if setting is enabled
+            # Guest access allowed
             pass
     """
     def decorator(func):

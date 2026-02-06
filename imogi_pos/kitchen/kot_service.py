@@ -416,15 +416,8 @@ class KOTService:
 
             # If still no station, use a fallback
             if not station:
-                # Get the default station from Restaurant Settings
-                station = frappe.db.get_single_value(
-                    "Restaurant Settings",
-                    "default_kitchen_station"
-                )
-
-                # If still nothing, create a "Main" group
-                if not station:
-                    station = "Main"
+                # Default to "Main" kitchen station
+                station = "Main"
 
             # Ensure the item reflects any resolved routing
             if kitchen and not item.get("kitchen"):

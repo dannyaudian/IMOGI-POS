@@ -449,11 +449,8 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
                 station = getattr(kitchen_doc, "default_station", None) or station
 
         if not station:
-            station = frappe.db.get_single_value(
-                "Restaurant Settings", "default_kitchen_station"
-            )
-            if not station:
-                station = "Main"
+            # Default to "Main" kitchen station
+            station = "Main"
 
         if kitchen:
             item_details["kitchen"] = kitchen
@@ -499,8 +496,8 @@ def send_items_to_kitchen(pos_order=None, item_rows=None, order=None):
             error_msg += "\n" + _("Missing for item: {0}").format(missing_station_item)
         error_msg += "\n\n" + _("Please configure one of the following:")
         error_msg += "\n" + _("1. Set default kitchen/station on Item master")
-        error_msg += "\n" + _("2. Configure Menu Category Routes in Restaurant Settings")
-        error_msg += "\n" + _("3. Set Default Kitchen Station in Restaurant Settings")
+        error_msg += "\n" + _("2. Configure Menu Category Routes in Menu Category master")
+        error_msg += "\n" + _("3. Set Default Kitchen Station in Kitchen master")
         frappe.throw(error_msg, frappe.ValidationError)
 
     kot_doc.insert()

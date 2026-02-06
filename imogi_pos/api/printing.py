@@ -15,7 +15,7 @@ import base64
 def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, kitchen_station=None):
     """
     Gets settings for a print adapter based on context.
-    Follows cascading priority: Kitchen Station > POS Profile > Restaurant Settings
+    Follows cascading priority: Kitchen Station > POS Profile > OS (default)
     
     Args:
         adapter_type (str): Adapter type (LAN/Bluetooth/OS)
@@ -86,31 +86,9 @@ def get_print_adapter_settings(adapter_type, source_doc=None, pos_profile=None, 
                     "bridge_token": profile_doc.get("imogi_print_bridge_token")
                 })
     
-    # Third priority: Restaurant Settings (fallback)
-    if not settings["adapter_config"] or not settings["interface"]:
-        try:
-            restaurant_settings = frappe.get_single("Restaurant Settings")
-
-            if not settings["interface"]:
-                settings["interface"] = restaurant_settings.get("imogi_default_printer_interface") or "OS"
-
-            # Add default settings from Restaurant Settings if needed
-            if settings["interface"] == "LAN" and not settings["adapter_config"].get("host"):
-                settings["adapter_config"].update({
-                    "host": restaurant_settings.get("imogi_default_printer_lan_host"),
-                    "port": restaurant_settings.get("imogi_default_printer_lan_port") or 9100
-                })
-            elif settings["interface"] == "Bluetooth" and not settings["adapter_config"].get("device_name"):
-                settings["adapter_config"].update({
-                    "device_name": restaurant_settings.get("imogi_default_bt_device_name"),
-                    "vendor_profile": restaurant_settings.get("imogi_default_bt_vendor_profile") or "ESC/POS",
-                    "bridge_url": restaurant_settings.get("imogi_default_print_bridge_url"),
-                    "bridge_token": restaurant_settings.get("imogi_default_print_bridge_token")
-                })
-        except:
-            # Fallback to OS if no Restaurant Settings
-            if not settings["interface"]:
-                settings["interface"] = "OS"
+    # Default to OS if no adapter config found
+    if not settings["adapter_config"]:
+        settings["interface"] = "OS"
 
     validate_adapter_settings(settings)
 
@@ -263,8 +241,9 @@ def print_kot(kot_ticket, kitchen_station=None, copies=1, reprint=False, print_f
                 profile_doc = frappe.get_doc("POS Profile", pos_order.pos_profile)
                 print_format = profile_doc.get("imogi_kot_format")
             
+            # Default to standard KOT format if not configured
             if not print_format:
-                print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_kot_format")
+                print_format = "KOT Ticket"
         
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(
@@ -341,10 +320,9 @@ def get_customer_bill_html(pos_order, pos_profile=None):
             if profile_doc.imogi_mode == "Table" and profile_doc.get("imogi_hide_notes_on_table_bill"):
                 hide_notes = True
 
+        # Default to standard bill format if not configured
         if not print_format:
-            print_format = frappe.db.get_single_value(
-                "Restaurant Settings", "imogi_default_customer_bill_format"
-            )
+            print_format = "Bill"
 
         html_content = get_print_format_html(order_doc, print_format)
 
@@ -387,8 +365,9 @@ def print_customer_bill(pos_order, print_format=None):
             profile_doc = frappe.get_doc("POS Profile", order_doc.pos_profile)
             print_format = profile_doc.get("imogi_customer_bill_format")
 
+        # Default to standard bill format if not configured
         if not print_format:
-            print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_customer_bill_format")
+            print_format = "Bill"
 
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(
@@ -462,7 +441,7 @@ def print_receipt(sales_invoice, print_format=None):
             print_format = profile_doc.get("imogi_receipt_format")
         
         if not print_format:
-            print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_receipt_format")
+            print_format = "Receipt"
         
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(
@@ -517,10 +496,9 @@ def get_queue_ticket_html(sales_invoice, pos_profile=None):
                 check_branch_access(profile_doc.imogi_branch)
             print_format = profile_doc.get("imogi_queue_format")
 
+        # Default to standard queue format if not configured
         if not print_format:
-            print_format = frappe.db.get_single_value(
-                "Restaurant Settings", "imogi_default_queue_format"
-            )
+            print_format = "Queue Ticket"
 
         queue_no = (
             invoice_doc.get("queue_no")
@@ -590,8 +568,9 @@ def print_queue_ticket(queue_no, pos_profile=None, print_format=None):
             if profile_doc.get("imogi_branch"):
                 check_branch_access(profile_doc.imogi_branch)
         
+        # Default to standard queue format if not configured
         if not print_format:
-            print_format = frappe.db.get_single_value("Restaurant Settings", "imogi_default_queue_format")
+            print_format = "Queue Ticket"
         
         # Get print adapter settings
         adapter_settings = get_print_adapter_settings(

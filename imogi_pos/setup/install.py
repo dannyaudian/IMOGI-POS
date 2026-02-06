@@ -9,7 +9,6 @@ def after_install():
     """Run all post-installation tasks."""
     sync_pages()
     sync_workspace_fixtures()
-    create_cash_accounts()
     create_default_menu_categories()
     create_default_kitchen_setup()
     create_default_customer_settings()
@@ -20,7 +19,6 @@ def after_migrate():
     """Run all post-migration tasks."""
     sync_pages()
     sync_workspace_fixtures()
-    create_cash_accounts()
     create_default_menu_categories()
     create_default_kitchen_setup()
     create_default_customer_settings()
@@ -131,64 +129,6 @@ def sync_workspace_fixtures():
         frappe.logger().error(f"Error syncing workspace fixtures: {str(e)}")
 
 
-def create_cash_accounts():
-    """Ensure required cash accounts exist for each company.
-
-    Creates "Kas Besar" and "Kas Kecil" accounts under the "Cash" group for
-    every Company if missing. Also updates the single Restaurant Settings
-    document with the created account names.
-    """
-    companies = frappe.get_all("Company", pluck="name")
-    if not companies:
-        return
-
-    big_cash_name = None
-    petty_cash_name = None
-
-    for company in companies:
-        cash_group = frappe.db.get_value(
-            "Account",
-            {"account_name": "Cash", "company": company, "is_group": 1},
-            "name",
-        )
-        if not cash_group:
-            continue
-
-        for label, flag in (("Kas Besar", "big"), ("Kas Kecil", "petty")):
-            account_name = frappe.db.get_value(
-                "Account",
-                {"account_name": label, "company": company},
-                "name",
-            )
-            if not account_name:
-                account_doc = frappe.get_doc(
-                    {
-                        "doctype": "Account",
-                        "account_name": label,
-                        "parent_account": cash_group,
-                        "company": company,
-                        "is_group": 0,
-                        "account_type": "Cash",
-                        "root_type": "Asset",
-                    }
-                )
-                account_doc.insert(ignore_permissions=True)
-                account_name = account_doc.name
-
-            if flag == "big" and not big_cash_name:
-                big_cash_name = account_name
-            if flag == "petty" and not petty_cash_name:
-                petty_cash_name = account_name
-
-    if big_cash_name or petty_cash_name:
-        settings = frappe.get_single("Restaurant Settings")
-        if big_cash_name:
-            settings.big_cash_account = big_cash_name
-        if petty_cash_name:
-            settings.petty_cash_account = petty_cash_name
-        settings.save(ignore_permissions=True)
-
-
 def create_default_menu_categories():
     """Create default menu categories if they don't exist."""
     default_categories = [
@@ -295,15 +235,8 @@ def create_default_kitchen_setup():
         kitchen_doc.save(ignore_permissions=True)
         frappe.logger().info(f"Linked Kitchen '{kitchen_name}' to Station '{station_name}'")
     
-    # Update Restaurant Settings with defaults
-    try:
-        settings = frappe.get_single("Restaurant Settings")
-        if not settings.enable_kot:
-            settings.enable_kot = 1
-            settings.save(ignore_permissions=True)
-            frappe.logger().info("Enabled KOT in Restaurant Settings")
-    except Exception as e:
-        frappe.logger().error(f"Error updating Restaurant Settings: {str(e)}")
+    # Kitchen routing is now configured via POS Profile and Menu Category, not Restaurant Settings
+    # Default KOT is always enabled in the system
     
     frappe.db.commit()
 
@@ -392,13 +325,7 @@ def create_default_brand_profile():
         brand_profile.insert(ignore_permissions=True)
         frappe.logger().info("Created default Brand Profile: IMOGI POS")
         
-        # Link to Restaurant Settings if it exists
-        if frappe.db.exists("Restaurant Settings", "Restaurant Settings"):
-            settings = frappe.get_single("Restaurant Settings")
-            if not settings.get('brand_profile'):
-                settings.brand_profile = brand_profile.name
-                settings.save(ignore_permissions=True)
-                frappe.logger().info("Linked default Brand Profile to Restaurant Settings")
+        # Brand profiles can be configured in POS Profile (native field) or Brand Profile doctype
         
         frappe.db.commit()
     

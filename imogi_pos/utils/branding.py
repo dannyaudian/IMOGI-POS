@@ -73,16 +73,7 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
             except frappe.DoesNotExistError:
                 pass
         
-        # Fallback to Restaurant Settings brand_profile
-        if not brand_profile:
-            try:
-                settings = frappe.get_cached_doc("Restaurant Settings")
-                if hasattr(settings, 'brand_profile') and settings.brand_profile:
-                    brand_profile = frappe.get_doc("Brand Profile", settings.brand_profile)
-            except (frappe.DoesNotExistError, AttributeError):
-                pass
-        
-        # Legacy support: check old brand profile fields
+        # Legacy support: check old brand profile fields in POS Profile
         if not brand_profile and profile_doc:
             brand_profile_name = getattr(
                 profile_doc, "imogi_self_order_brand_profile", None
@@ -125,24 +116,6 @@ def get_brand_context(pos_profile: str | None = None) -> dict[str, Any]:
                     value = getattr(profile_doc, attr, None)
                     if value:
                         branding[key] = value
-
-        # Fallback to Restaurant Settings old fields (legacy support)
-        if not branding["logo"] or branding["name"] == "IMOGI POS":
-            settings = frappe.get_cached_doc("Restaurant Settings")
-            if not branding["logo"] and getattr(settings, "imogi_brand_logo", None):
-                branding["logo"] = settings.imogi_brand_logo
-            if not branding["logo_dark"] and getattr(settings, "imogi_brand_logo_dark", None):
-                branding["logo_dark"] = settings.imogi_brand_logo_dark
-            if branding["name"] == "IMOGI POS" and getattr(
-                settings, "imogi_brand_name", None
-            ):
-                branding["name"] = settings.imogi_brand_name
-            if branding["home_url"] == "/" and getattr(
-                settings, "imogi_brand_home_url", None
-            ):
-                branding["home_url"] = settings.imogi_brand_home_url
-            if not branding["css_vars"] and getattr(settings, "imogi_brand_css_vars", None):
-                branding["css_vars"] = settings.imogi_brand_css_vars
 
         # Final fallback to Company
         if not branding["logo"]:

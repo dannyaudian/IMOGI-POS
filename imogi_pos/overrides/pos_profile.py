@@ -41,21 +41,28 @@ class CustomPOSProfile(POSProfile):
     def _clear_domain_dependent_fields(self):
         """Clear Restaurant-only fields when domain is not Restaurant."""
         if self.get("imogi_pos_domain") != "Restaurant":
-            # Restaurant features
-            self.imogi_use_table_display = 0
+            # Restaurant features (KOT, tables, self-order)
             self.imogi_enable_kot = 0
+            self.imogi_enable_self_order = 0
+            # Table-only fields (only clear if domain changes, mode change handled separately)
+            self.imogi_use_table_display = 0
             self.imogi_default_floor = None
             self.imogi_default_layout_profile = None
-            # Self-order (Restaurant only)
-            self.imogi_enable_self_order = 0
-            # Customer bill (Restaurant only)
+            self.imogi_hide_notes_on_table_bill = 0
+            # Customer bill (Restaurant only - applies to Table/Counter modes)
             self.imogi_customer_bill_format = None
             self.imogi_customer_bill_copies = None
-            self.imogi_hide_notes_on_table_bill = 0
     
     def _clear_mode_dependent_fields(self):
         """Clear mode-specific fields when mode changes."""
         mode = self.get("imogi_mode")
+        
+        # Table-only fields (Dine-In mode)
+        if mode != "Table":
+            self.imogi_use_table_display = 0
+            self.imogi_default_floor = None
+            self.imogi_default_layout_profile = None
+            self.imogi_hide_notes_on_table_bill = 0
         
         # Counter-only fields
         if mode != "Counter":
@@ -65,6 +72,7 @@ class CustomPOSProfile(POSProfile):
         if mode != "Kiosk":
             self.imogi_kiosk_receipt_format = None
             self.imogi_print_notes_on_kiosk_receipt = 0
+            self.imogi_kiosk_cashless_only = 0
         
         # Queue format (Kiosk or Counter)
         if mode not in ("Kiosk", "Counter"):

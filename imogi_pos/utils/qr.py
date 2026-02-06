@@ -28,14 +28,12 @@ def build_order_qr_payload(
         Dict containing token, signature, and other order parameters
     """
     if not branch:
-        branch = frappe.db.get_single_value("Restaurant Settings", "default_branch")
-        if not branch:
-            frappe.throw(_("Branch is required to generate Order QR"))
+        # Branch must be provided or configured in POS Profile/Restaurant Floor
+        frappe.throw(_("Branch is required to generate Order QR"))
 
     if not pos_profile:
-        pos_profile = frappe.db.get_single_value("Restaurant Settings", "default_self_order_pos_profile")
-        if not pos_profile:
-            frappe.throw(_("POS Profile is required to generate Order QR"))
+        # POS Profile must be provided or configured in Restaurant Floor
+        frappe.throw(_("POS Profile is required to generate Order QR"))
     
     # Generate unique token/slug
     token = str(uuid.uuid4())[:8]
@@ -165,10 +163,16 @@ def refresh_table_qr_token(table_name: str) -> Dict:
         pos_profile = floor_doc.get("default_pos_profile")
     
     if not pos_profile:
-        pos_profile = frappe.db.get_single_value("Restaurant Settings", "default_self_order_pos_profile")
+        # Use first available POS Profile as fallback
+        pos_profile = frappe.db.get_value(
+            "POS Profile",
+            {"disabled": 0},
+            "name",
+            order_by="creation"
+        )
     
-    # Get TTL from settings
-    ttl_minutes = frappe.db.get_single_value("Restaurant Settings", "self_order_token_ttl") or 120
+    # Get TTL from settings - default to 120 minutes (2 hours)
+    ttl_minutes = 120
     
     # Generate new QR payload
     payload = build_order_qr_payload(

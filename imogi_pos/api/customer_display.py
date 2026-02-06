@@ -520,7 +520,7 @@ def get_customer_display_config(device_id=None, pairing_code=None):
                     "blocks": blocks
                 }
             
-            # Get branding from POS Profile or Restaurant Settings
+            # Get branding from POS Profile
             branding = {}
             pos_profile = None
             

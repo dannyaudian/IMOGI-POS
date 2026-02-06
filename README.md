@@ -108,7 +108,7 @@ feature is turned off, meaning:
 
 ### Kitchen Routing Defaults
 
-- Configure **Restaurant Settings → Menu Category Routes** to map categories to a Kitchen and Station.
+- Configure **Menu Category → default_kitchen** and **default_kitchen_station** fields to map categories to a Kitchen and Station.
 - When an Item in that category is saved, the defaults are now copied into `default_kitchen` and `default_kitchen_station` automatically if those fields are left blank.
 - Manually entered values on the Item still win—existing defaults are never overwritten by the automatic routing.
 

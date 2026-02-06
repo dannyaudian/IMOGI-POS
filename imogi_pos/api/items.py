@@ -17,26 +17,13 @@ from imogi_pos.utils.permission_manager import check_branch_access, check_doctyp
 CHANNEL_ALL = {"", "both", "all", "any", "universal"}
 
 
-def get_restaurant_settings():
-    """Get Restaurant Settings with caching.
-    
-    Returns:
-        dict: Restaurant settings values
-    """
-    try:
-        settings = frappe.get_cached_doc("Restaurant Settings", "Restaurant Settings")
-        return {
-            "use_native_variants": settings.get("use_native_variants", 1),
-            "enable_menu_channels": settings.get("enable_menu_channels", 0),
-            "max_items_per_query": settings.get("max_items_per_query", 500),
-        }
-    except Exception:
-        # Fallback to defaults if settings not found
-        return {
-            "use_native_variants": 1,
-            "enable_menu_channels": 0,
-            "max_items_per_query": 500,
-        }
+# System defaults - these were previously in Restaurant Settings
+# For native-first approach, always use native variants and don't use menu channels
+SYSTEM_DEFAULTS = {
+    "use_native_variants": 1,  # Always native first (user's requirement)
+    "enable_menu_channels": 0,  # Always off - use Item Group native filtering instead
+    "max_items_per_query": 500,
+}
 
 
 def _normalise_channel(value):
@@ -89,9 +76,8 @@ def get_item_options(item, menu_channel=None):
     Returns:
         dict: Item options grouped by attribute
     """
-    settings = get_restaurant_settings()
-    
-    if settings.get("use_native_variants", 1):
+    # Always use native variants (user's native-first requirement)
+    if SYSTEM_DEFAULTS.get("use_native_variants", 1):
         return get_item_options_native(item, menu_channel)
     
     return {}
@@ -183,13 +169,13 @@ def get_item_options_native(item, menu_channel=None):
 
 
 def set_item_flags(doc, method=None):
-    """Set kitchen routing for items based on Restaurant Settings.
+    """Set kitchen routing for items based on Menu Category configuration.
 
     Args:
         doc: The Item document being saved
         method: The event method name (unused)
     """
-    # Auto-set kitchen routing from Restaurant Settings menu category routes
+    # Auto-set kitchen routing from Menu Category routes
     kitchen, kitchen_station = get_menu_category_kitchen_station_by_category(
         doc.get("menu_category")
     )

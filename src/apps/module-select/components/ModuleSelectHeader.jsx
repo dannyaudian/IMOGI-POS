@@ -26,12 +26,9 @@ export function ModuleSelectHeader({ onDebugClick }) {
           <span className="user-name">
             {frappe?.session?.user_fullname || frappe?.session?.user}
           </span>
-          <button onClick={onDebugClick} className="logout-btn" style={{ marginRight: '10px' }}>
+          <button onClick={onDebugClick} className="logout-btn">
             Debug Logs
           </button>
-          <a href="/api/method/frappe.auth.logout" className="logout-btn">
-            Logout
-          </a>
         </div>
       </div>
     </header>

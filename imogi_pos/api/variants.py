@@ -48,7 +48,7 @@ def get_items_with_stock(
     Args:
         warehouse (str, optional): Warehouse to fetch stock levels from.
         limit (int, optional): Maximum number of items to return. If not provided,
-            uses max_items_per_query from Restaurant Settings (default: 500).
+            uses max_items_per_query system default (500).
         price_list (str, optional): Selling Price List used for explicit
             channel pricing and adjustments.
         base_price_list (str, optional): Baseline Price List that represents
@@ -65,13 +65,10 @@ def get_items_with_stock(
     Returns:
         list[dict]: List of item data including available quantity and payment methods.
     """
-    # Get limit from Restaurant Settings if not provided
+    # Use system default for max items per query
     if limit is None:
-        try:
-            settings = frappe.get_cached_doc("Restaurant Settings", "Restaurant Settings")
-            limit = settings.get("max_items_per_query", 500)
-        except Exception:
-            limit = 500
+        from imogi_pos.api.items import SYSTEM_DEFAULTS
+        limit = SYSTEM_DEFAULTS.get("max_items_per_query", 500)
     
     item_filters = [
         ["Item", "disabled", "=", 0],
@@ -120,10 +117,9 @@ def get_items_with_stock(
     
     initial_count = len(items)
     
-    # Check Restaurant Settings ONCE
-    from imogi_pos.api.items import get_restaurant_settings
-    settings = get_restaurant_settings()
-    enable_menu_channels = settings.get("enable_menu_channels", 0)
+    # Menu channels feature disabled (native-first approach uses Item Group filtering instead)
+    from imogi_pos.api.items import SYSTEM_DEFAULTS
+    enable_menu_channels = SYSTEM_DEFAULTS.get("enable_menu_channels", 0)
     
     # Determine if channel filtering should apply (same logic as get_template_items):
     # 1) menu_channel provided, 2) Restaurant domain, 3) enable_menu_channels=1, 4) field exists
@@ -755,15 +751,14 @@ def get_template_items(pos_profile=None, item_group=None, menu_channel=None, lim
     
     initial_count = len(items)
     
-    # Check Restaurant Settings ONCE (not per item)
-    from imogi_pos.api.items import get_restaurant_settings
-    settings = get_restaurant_settings()
-    enable_menu_channels = settings.get("enable_menu_channels", 0)
+    # Check system defaults ONCE (not per item)
+    from imogi_pos.api.items import SYSTEM_DEFAULTS
+    enable_menu_channels = SYSTEM_DEFAULTS.get("enable_menu_channels", 0)
     
     # Determine if channel filtering should apply:
     # 1) menu_channel must be provided (non-empty)
     # 2) POS Profile domain must be "Restaurant"
-    # 3) Restaurant Settings enable_menu_channels must be 1
+    # 3) enable_menu_channels must be 1 (currently always 0 - native-first approach)
     # 4) imogi_menu_channel field must exist on Item
     should_filter_channel = False
     domain = None

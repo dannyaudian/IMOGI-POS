@@ -1405,15 +1405,12 @@ Full Traceback:
     totals = calculate_order_totals(order_doc.name)
     order_doc.reload()
     
-    # Send to kitchen if KOT is enabled in Restaurant Settings
-    # Check global setting instead of hardcoding based on order_type
+    # Send to kitchen - KOT is always enabled for counter orders in Restaurant mode
+    # Kitchen routing is configured via Item > default_kitchen or Menu Category routes
     kot_ticket = None
     try:
-        from imogi_pos.utils.restaurant_settings import get_kot_settings
-        kot_settings = get_kot_settings()
-        
-        # If KOT is enabled, send ALL counter orders to kitchen (Takeaway + Dine-in)
-        if kot_settings.get("enable_kot"):
+        # Always try to create KOT for counter orders
+        if order_doc.order_type == "Counter":
             from imogi_pos.kitchen.kot_service import create_kot_from_order
             kot_result = create_kot_from_order(
                 pos_order=order_doc.name,
