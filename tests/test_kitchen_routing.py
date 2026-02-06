@@ -23,7 +23,6 @@ def kitchen_routing_env():
         'frappe.model',
         'frappe.model.document',
         'imogi_pos',
-        'imogi_pos.utils.restaurant_settings',
         'imogi_pos.utils.kitchen_routing',
         'imogi_pos.imogi_pos.doctype.pos_order_item.pos_order_item',
         'imogi_pos.kitchen.kot_service'
@@ -68,8 +67,6 @@ def kitchen_routing_env():
             return None
 
         def get_single_value(self, doctype, fieldname):
-            if doctype == "Restaurant Settings" and fieldname == "default_kitchen_station":
-                return "DEFAULT-STATION"
             return None
 
     frappe.db = DB()
@@ -94,8 +91,6 @@ def kitchen_routing_env():
     ]
 
     def get_single(doctype):
-        if doctype == "Restaurant Settings":
-            return types.SimpleNamespace(menu_category_routes=routes)
         raise Exception(f"Unexpected get_single call for {doctype}")
 
     frappe.get_single = get_single
@@ -120,8 +115,6 @@ def kitchen_routing_env():
     sys.modules['frappe.model'] = model
     sys.modules['frappe.model.document'] = document
 
-    import imogi_pos.utils.restaurant_settings as restaurant_settings
-    importlib.reload(restaurant_settings)
     import imogi_pos.utils.kitchen_routing as kitchen_routing
     importlib.reload(kitchen_routing)
 
@@ -133,7 +126,6 @@ def kitchen_routing_env():
 
     for module in [
         'imogi_pos.utils.kitchen_routing',
-        'imogi_pos.utils.restaurant_settings',
         'imogi_pos.imogi_pos.doctype.pos_order_item.pos_order_item',
         'imogi_pos.kitchen.kot_service',
         'imogi_pos',

@@ -119,10 +119,6 @@ def public_module():
     frappe.db = DB()
 
     def get_cached_doc(doctype):
-        if doctype == "Restaurant Settings":
-            return types.SimpleNamespace(
-                big_cash_account="Kas Besar", petty_cash_account="Kas Kecil"
-            )
         raise KeyError(doctype)
 
     frappe.get_cached_doc = get_cached_doc

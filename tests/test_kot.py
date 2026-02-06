@@ -83,8 +83,6 @@ def kot_module():
             return doctype == "POS Order Item" and column_name == "item_code"
 
         def get_single_value(self, doctype, fieldname):
-            if doctype == "Restaurant Settings" and fieldname == "default_kitchen_station":
-                return "ST-DEFAULT"
             return None
 
     frappe.db = DB()
@@ -269,7 +267,6 @@ def test_send_items_to_kitchen_uses_station_fallback(kot_module):
     assert insert_called
     assert result["kitchen_station"] == "Main"
     assert result.get("kitchen") is None
-    assert single_value_calls == [("Restaurant Settings", "default_kitchen_station")]
 
 
 def test_publish_kitchen_update_handles_non_callable_as_dict(kot_module):

@@ -235,8 +235,8 @@ def create_default_kitchen_setup():
         kitchen_doc.save(ignore_permissions=True)
         frappe.logger().info(f"Linked Kitchen '{kitchen_name}' to Station '{station_name}'")
     
-    # Kitchen routing is now configured via POS Profile and Menu Category, not Restaurant Settings
-    # Default KOT is always enabled in the system
+    # Kitchen routing is configured via POS Profile and Menu Category
+    # KOT settings are configured per POS Profile
     
     frappe.db.commit()
 

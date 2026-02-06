@@ -17,7 +17,7 @@ from imogi_pos.utils.permission_manager import check_branch_access, check_doctyp
 CHANNEL_ALL = {"", "both", "all", "any", "universal"}
 
 
-# System defaults - these were previously in Restaurant Settings
+# System defaults for item handling
 # For native-first approach, always use native variants and don't use menu channels
 SYSTEM_DEFAULTS = {
     "use_native_variants": 1,  # Always native first (user's requirement)

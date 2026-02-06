@@ -11,10 +11,13 @@ import { ModuleSelectGrid } from './components/ModuleSelectGrid'
 import { ModuleSelectFooter } from './components/ModuleSelectFooter'
 import POSProfileSelectModal from './components/POSProfileSelectModal'
 import CashierSessionCard from './components/CashierSessionCard'
+import ErrorModal from './components/ErrorModal'
+import { SidebarSkeleton, GridSkeleton } from './components/LoadingSkeleton'
 
 // Context & Utils
 import { ModuleSelectProvider } from './context/ModuleSelectContext'
 import { getVisibleModules } from './utils/moduleUtils'
+import { TIMING, API } from './constants'
 
 /**
  * Module Select App - Refactored Architecture
@@ -71,20 +74,26 @@ function App() {
   const [navigationLock, setNavigationLock] = useState(false)
   const [navigatingToModule, setNavigatingToModule] = useState(null)
 
+  // State: Error handling
+  const [apiError, setApiError] = useState(null)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+
   // API: Fetch available modules
   const { 
     data: moduleData, 
     isLoading: modulesLoading, 
     mutate: refetchModuleData 
   } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_available_modules',
+    API.METHOD,
     undefined,
     undefined,
     {
-      errorRetryCount: 1,
-      shouldRetryOnError: true,
+      errorRetryCount: API.ERROR_RETRY_COUNT,
+      shouldRetryOnError: API.SHOULD_RETRY_ON_ERROR,
       onError: (error) => {
         console.error('[module-select] API call failed:', error)
+        setApiError(error)
+        setShowErrorModal(true)
       }
     }
   )
@@ -146,49 +155,103 @@ function App() {
     }
   }, [moduleData, modulesLoading])
 
-  // EFFECT: Setup realtime socket listeners
+  // EFFECT: Setup realtime socket listeners with improved reconnection strategy
   useEffect(() => {
     if (!realtimeSocket) return
+
+    let disconnectTimer = null
+    let reconnectAttempts = 0
+    const MAX_RECONNECT_ATTEMPTS = TIMING.MAX_RECONNECT_ATTEMPTS
+    const GRACE_PERIOD = TIMING.GRACE_PERIOD
 
     const logRealtime = (message, detail) => {
       if (!debugRealtime) return
       console.warn('[module-select][realtime]', message, {
         ...detail,
         user: maskUser(frappe?.session?.user),
-        sid: maskSid(frappe?.session?.sid)
+        sid: maskSid(frappe?.session?.sid),
+        reconnectAttempts
       })
     }
 
     const handlers = {
       connect: () => {
+        // Clear disconnect timer on successful reconnect
+        if (disconnectTimer) {
+          clearTimeout(disconnectTimer)
+          disconnectTimer = null
+        }
+        
+        // Clear banner and reset attempts
         setRealtimeBanner(null)
+        reconnectAttempts = 0
         logRealtime('connected')
       },
+      
       disconnect: (reason) => {
-        setRealtimeBanner('Realtime disconnected, continuing without realtime')
         logRealtime('disconnected', { reason })
+        
+        // Only show banner after grace period (avoid flashing for quick reconnects)
+        disconnectTimer = setTimeout(() => {
+          if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            setRealtimeBanner('Realtime connection lost. Attempting to reconnect...')
+          } else {
+            setRealtimeBanner('Realtime disconnected. App will continue without live updates.')
+          }
+        }, GRACE_PERIOD)
       },
+      
       connect_error: (error) => {
-        setRealtimeBanner('Realtime disconnected, continuing without realtime')
-        logRealtime('connect_error', { error: error?.message || error })
+        reconnectAttempts++
+        logRealtime('connect_error', { 
+          error: error?.message || error,
+          attempt: reconnectAttempts 
+        })
+        
+        // Show persistent error after max attempts
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          setRealtimeBanner('Unable to establish realtime connection. App will continue without live updates.')
+        }
+      },
+
+      reconnect_attempt: (attemptNumber) => {
+        logRealtime('reconnect_attempt', { attemptNumber })
+      },
+
+      reconnect: (attemptNumber) => {
+        logRealtime('reconnected', { afterAttempts: attemptNumber })
+        setRealtimeBanner(null)
+        reconnectAttempts = 0
       }
     }
 
     try {
-      realtimeSocket.io?.reconnectionAttempts?.(1)
-      realtimeSocket.io?.reconnectionDelay?.(1000)
-      realtimeSocket.io?.reconnectionDelayMax?.(3000)
+      // Configure reconnection with exponential backoff
+      if (realtimeSocket.io) {
+        realtimeSocket.io.reconnectionAttempts(TIMING.MAX_RECONNECT_ATTEMPTS)
+        realtimeSocket.io.reconnectionDelay(TIMING.RECONNECT_DELAY)
+        realtimeSocket.io.reconnectionDelayMax(TIMING.RECONNECT_DELAY_MAX)
+        realtimeSocket.io.randomizationFactor(0.5) // Add jitter
+      }
+
       realtimeSocket.on('connect', handlers.connect)
       realtimeSocket.on('disconnect', handlers.disconnect)
       realtimeSocket.on('connect_error', handlers.connect_error)
+      realtimeSocket.on('reconnect_attempt', handlers.reconnect_attempt)
+      realtimeSocket.on('reconnect', handlers.reconnect)
     } catch (error) {
       logRealtime('init_failed', { error: error?.message || error })
     }
 
     return () => {
+      if (disconnectTimer) {
+        clearTimeout(disconnectTimer)
+      }
       realtimeSocket.off('connect', handlers.connect)
       realtimeSocket.off('disconnect', handlers.disconnect)
       realtimeSocket.off('connect_error', handlers.connect_error)
+      realtimeSocket.off('reconnect_attempt', handlers.reconnect_attempt)
+      realtimeSocket.off('reconnect', handlers.reconnect)
     }
   }, [realtimeSocket, debugRealtime])
 
@@ -288,7 +351,7 @@ function App() {
 
     setTimeout(() => {
       window.location.href = url.href
-    }, 100)
+    }, TIMING.NAVIGATION_DELAY)
   }
 
   // HANDLER: Module click (checks profile, handles cashier sessions)
@@ -348,7 +411,7 @@ function App() {
       if (pendingProfileModule) {
         setTimeout(() => {
           handleModuleClick(pendingProfileModule)
-        }, 100)
+        }, TIMING.NAVIGATION_DELAY)
       }
     } catch (error) {
       console.error('[module-select] Failed to set profile:', error)
@@ -369,7 +432,7 @@ function App() {
     const cashierUrl = `/app/imogi-cashier?session=${encodeURIComponent(session.pos_opening_entry || session.name)}`
     setTimeout(() => {
       window.location.href = cashierUrl
-    }, 100)
+    }, TIMING.NAVIGATION_DELAY)
   }
 
   // DEBUG: Show debug logs in console
@@ -383,6 +446,15 @@ function App() {
     }
     console.log('[Module Select Debug]', debugData)
     console.table(debugData)
+  }
+
+  // HANDLER: Retry API call dari ErrorModal
+  const handleRetryApiCall = () => {
+    setShowErrorModal(false)
+    setApiError(null)
+    if (refetchModuleData) {
+      refetchModuleData()
+    }
   }
 
   return (
@@ -404,11 +476,28 @@ function App() {
         <ModuleSelectHeader onDebugClick={showDebugLogs} />
 
         <main className="module-select-main">
-          <ModuleSelectSidebar />
-          <ModuleSelectGrid onModuleClick={handleModuleClick} />
+          {loading ? (
+            <>
+              <SidebarSkeleton />
+              <GridSkeleton />
+            </>
+          ) : (
+            <>
+              <ModuleSelectSidebar />
+              <ModuleSelectGrid onModuleClick={handleModuleClick} />
+            </>
+          )}
         </main>
 
         <ModuleSelectFooter />
+
+        {/* Error Modal */}
+        <ErrorModal
+          isOpen={showErrorModal}
+          error={apiError}
+          onRetry={handleRetryApiCall}
+          onClose={() => setShowErrorModal(false)}
+        />
 
         {/* Profile Selection Modal */}
         <POSProfileSelectModal

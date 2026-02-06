@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { usePaymentMethods } from '@/shared/api/imogi-api'
 import { formatCurrency } from '@/shared/utils/formatters'
+import { ErrorModal } from './ErrorModal'
+import { PaymentConfirmationModal } from './PaymentConfirmationModal'
 
 export function PaymentView({ order, onClose, onPaymentComplete, posProfile, effectiveOpeningName, revalidateOpening }) {
   const [selectedMethod, setSelectedMethod] = useState(null)
@@ -9,6 +12,8 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
   const [showCashModal, setShowCashModal] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
+  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
 
   // Fetch payment methods from POS Profile
   const { data: paymentMethodsData, isLoading: loadingMethods } = usePaymentMethods(posProfile)

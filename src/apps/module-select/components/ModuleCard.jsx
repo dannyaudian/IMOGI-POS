@@ -1,39 +1,12 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 import { getModulePriority } from '../utils/moduleRules'
 import { getModuleStatusBadges, isModuleAccessible } from '../utils/moduleUtils'
+import { MODULE_ICONS, MODULE_COLORS, DEFAULTS } from '../constants'
 
 function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading }) {
-  const getModuleIcon = (type) => {
-    const icons = {
-      'cashier': 'fa-cash-register',
-      'cashier-payment': 'fa-money-bill-wave',
-      'waiter': 'fa-server',
-      'kiosk': 'fa-tablet',
-      'kitchen': 'fa-fire',
-      'self-order': 'fa-shopping-bag',
-      'customer-display': 'fa-tv',
-      'table-display': 'fa-th',
-      'table-editor': 'fa-edit',
-      'device-select': 'fa-mobile'
-    }
-    return icons[type] || 'fa-box'
-  }
-
-  const getModuleColor = (type) => {
-    const colors = {
-      'cashier': 'color-cashier',
-      'cashier-payment': 'color-cashier-payment',
-      'waiter': 'color-waiter',
-      'kiosk': 'color-kiosk',
-      'kitchen': 'color-kitchen',
-      'self-order': 'color-selforder',
-      'customer-display': 'color-display',
-      'table-display': 'color-table',
-      'table-editor': 'color-editor',
-      'device-select': 'color-device'
-    }
-    return colors[type] || 'color-default'
-  }
+  const getModuleIcon = (type) => MODULE_ICONS[type] || DEFAULTS.MODULE_ICON
+  const getModuleColor = (type) => MODULE_COLORS[type] || DEFAULTS.MODULE_COLOR
 
   // Get module priority and badges
   const priority = getModulePriority(module.type)
@@ -42,13 +15,37 @@ function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading
   const needsOpening = module.requires_opening && !posOpeningStatus?.hasOpening
   const isDisabled = !isAccessible || isNavigating
 
+  // Handle keyboard interactions
+  const handleKeyDown = (e) => {
+    if (isDisabled) return
+    
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick()
+    }
+  }
+
+  const getAriaLabel = () => {
+    let label = `${module.name}: ${module.description}`
+    if (needsOpening) {
+      label += '. Requires POS opening. Please open a POS opening first.'
+    } else if (!isAccessible) {
+      label += '. Module is currently locked.'
+    } else if (isNavigating) {
+      label += '. Navigation in progress.'
+    }
+    return label
+  }
+
   return (
     <div 
       className={`module-card module-card--${priority} ${getModuleColor(module.type)} ${!isAccessible ? 'module-locked' : ''} ${isNavigating ? 'module-navigating' : ''} ${isLoading ? 'module-loading' : ''}`}
       onClick={!isDisabled ? onClick : undefined}
       role="button"
       tabIndex={!isDisabled ? 0 : -1}
-      onKeyDown={(e) => !isDisabled && e.key === 'Enter' && onClick()}
+      onKeyDown={handleKeyDown}
+      aria-label={getAriaLabel()}
+      aria-disabled={isDisabled}
       title={needsOpening ? 'Please open a POS opening first' : isNavigating ? 'Navigation in progress...' : ''}
     >
       <div className="module-icon">
@@ -92,6 +89,29 @@ function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading
       </div>
     </div>
   )
+}
+
+ModuleCard.propTypes = {
+  module: PropTypes.shape({
+    type: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    requires_opening: PropTypes.bool,
+    requires_pos_profile: PropTypes.bool,
+  }).isRequired,
+  onClick: PropTypes.func.isRequired,
+  posOpeningStatus: PropTypes.shape({
+    hasOpening: PropTypes.bool,
+    posOpeningEntry: PropTypes.string,
+  }),
+  isNavigating: PropTypes.bool,
+  isLoading: PropTypes.bool,
+}
+
+ModuleCard.defaultProps = {
+  posOpeningStatus: {},
+  isNavigating: false,
+  isLoading: false,
 }
 
 export default ModuleCard

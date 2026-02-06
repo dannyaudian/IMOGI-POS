@@ -7,9 +7,11 @@
  * - Opening & sessions data
  * - User roles & permissions
  * - Navigation state
+ * 
+ * OPTIMIZATION: Deep memoization to prevent unnecessary re-renders
  */
 
-import React, { createContext, useContext, useMemo } from 'react'
+import React, { createContext, useContext, useMemo, useCallback } from 'react'
 
 export const ModuleSelectContext = createContext()
 
@@ -29,36 +31,69 @@ export function ModuleSelectProvider({
   children 
 }) {
   
+  // Memoize complex objects separately to avoid reference changes
+  const memoizedContextData = useMemo(() => contextData, [
+    contextData.pos_profile,
+    contextData.branch,
+    contextData.require_selection,
+    contextData.is_privileged,
+    // Don't include available_pos_profiles in deps unless it changes frequently
+  ])
+
+  const memoizedSessionsToday = useMemo(() => sessionsToday, [
+    sessionsToday.total,
+    sessionsToday.sessions?.length
+  ])
+
+  const memoizedPosOpeningStatus = useMemo(() => posOpeningStatus, [
+    posOpeningStatus.hasOpening,
+    posOpeningStatus.posOpeningEntry
+  ])
+
+  // Memoize arrays to prevent re-renders on same content
+  const memoizedModules = useMemo(() => modules, [modules.length, modules.map(m => m.type).join(',')])
+  const memoizedVisibleModules = useMemo(() => visibleModules, [visibleModules.length, visibleModules.map(m => m.type).join(',')])
+  const memoizedUserRoles = useMemo(() => userRoles, [userRoles.join(',')])
+
   const value = useMemo(() => ({
     // Module data
-    modules,
+    modules: memoizedModules,
     loading,
     
     // POS Opening & Sessions
     activeOpening,
-    sessionsToday,
+    sessionsToday: memoizedSessionsToday,
     
     // Realtime status
     realtimeBanner,
     debugInfo,
     
     // Context data (profile, branch, roles)
-    contextData,
-    userRoles,
+    contextData: memoizedContextData,
+    userRoles: memoizedUserRoles,
     
     // Filtered & visible modules
-    visibleModules,
+    visibleModules: memoizedVisibleModules,
     
     // Navigation state
     navigationLock,
     navigatingToModule,
     
     // POS opening status
-    posOpeningStatus
+    posOpeningStatus: memoizedPosOpeningStatus
   }), [
-    modules, loading, activeOpening, sessionsToday, realtimeBanner,
-    debugInfo, contextData, userRoles, visibleModules, navigationLock,
-    navigatingToModule, posOpeningStatus
+    memoizedModules,
+    loading,
+    activeOpening,
+    memoizedSessionsToday,
+    realtimeBanner,
+    debugInfo,
+    memoizedContextData,
+    memoizedUserRoles,
+    memoizedVisibleModules,
+    navigationLock,
+    navigatingToModule,
+    memoizedPosOpeningStatus
   ])
 
   return (

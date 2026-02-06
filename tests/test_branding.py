@@ -95,32 +95,7 @@ def test_get_branding_from_pos_profile(public_module):
     assert log == []
 
 
-def test_get_branding_from_restaurant_settings(public_module):
-    public, frappe, log = public_module
-    log.clear()
-
-    class RestaurantSettings:
-        imogi_brand_logo = "rest_logo.png"
-        imogi_brand_logo_dark = "rest_logo_dark.png"
-
-        def get(self, field):
-            return getattr(self, field, None)
-
-    def get_doc(doctype, name=None):
-        if doctype == "Restaurant Settings":
-            return RestaurantSettings()
-        raise frappe.DoesNotExistError
-
-    frappe.get_doc = get_doc
-
-    result = public.get_branding()
-
-    assert result["logo"] == "http://test/rest_logo.png"
-    assert result["logo_dark"] == "http://test/rest_logo_dark.png"
-    assert log == []
-
-
-def test_get_branding_restaurant_settings_missing(public_module):
+def test_get_branding_no_profile(public_module):
     public, frappe, log = public_module
     log.clear()
 
@@ -132,4 +107,4 @@ def test_get_branding_restaurant_settings_missing(public_module):
     result = public.get_branding()
 
     assert result["logo"] == "/company_logo.png"
-    assert "Restaurant Settings not found for branding" in log
+    assert log == []
