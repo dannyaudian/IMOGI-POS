@@ -9,19 +9,43 @@ export const TIMING = {
   GUARD_TIMEOUT: 10000, // 10s - redirect if guard doesn't pass
   DEBOUNCE_SEARCH: 300, // 300ms - debounce search input
   TOAST_DURATION: 3000, // 3s - toast notification duration
+  REALTIME_GRACE_PERIOD: 3000, // 3s - grace period before showing reconnecting
+  REALTIME_MAX_RECONNECT: 10, // max reconnection attempts
+  REALTIME_BASE_DELAY: 1000, // 1s - base delay for exponential backoff
+  REALTIME_MAX_DELAY: 32000, // 32s - max delay between reconnects
 }
 
 // API Endpoints
 export const API = {
+  // Cashier Operations
   GET_ACTIVE_OPENING: 'imogi_pos.api.cashier.get_active_opening',
   CREATE_INVOICE_FROM_ORDER: 'imogi_pos.api.cashier.create_invoice_from_order',
   PROCESS_PAYMENT: 'imogi_pos.api.cashier.process_payment',
   COMPLETE_ORDER: 'imogi_pos.api.cashier.complete_order',
   GET_CASHIER_DEVICE_SESSIONS: 'imogi_pos.api.cashier.get_cashier_device_sessions',
-  CREATE_ORDER: 'imogi_pos.api.cashier.create_order',
-  ADD_ITEM: 'imogi_pos.api.cashier.add_item_to_order',
-  UPDATE_ITEM_QTY: 'imogi_pos.api.cashier.update_item_qty',
-  REMOVE_ITEM: 'imogi_pos.api.cashier.remove_item',
+  GET_OPENING_SUMMARY: 'imogi_pos.api.cashier.get_opening_summary',
+  CLOSE_POS_OPENING: 'imogi_pos.api.cashier.close_pos_opening',
+  
+  // Order Operations (uses orders.* namespace)
+  CREATE_ORDER: 'imogi_pos.api.orders.create_order',
+  GET_ORDER: 'imogi_pos.api.orders.get_order',
+  ADD_ITEM: 'imogi_pos.api.orders.add_item_to_order',
+  UPDATE_ITEM_QTY: 'imogi_pos.api.orders.update_item_qty',
+  REMOVE_ITEM: 'imogi_pos.api.orders.remove_item',
+  
+  // Variant Operations
+  GET_ITEM_GROUPS: 'imogi_pos.api.variants.get_item_groups',
+  GET_TEMPLATE_ITEMS: 'imogi_pos.api.variants.get_template_items',
+  GET_ITEM_VARIANTS: 'imogi_pos.api.variants.get_item_variants',
+  CHOOSE_VARIANT: 'imogi_pos.api.variants.choose_variant_for_order_item',
+  
+  // Table Operations
+  GET_TABLES: 'imogi_pos.api.table.get_tables',
+  
+  // Public/Common Operations
+  GET_BRANDING: 'imogi_pos.api.public.get_branding',
+  
+  // Printing Operations
   PRINT_BILL: 'imogi_pos.api.cashier.print_bill',
   PRINT_KOT: 'imogi_pos.api.cashier.print_kot',
   CHECK_PRINTER: 'imogi_pos.api.cashier.check_printer_status',

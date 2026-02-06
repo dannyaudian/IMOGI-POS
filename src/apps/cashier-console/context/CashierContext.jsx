@@ -73,20 +73,69 @@ export function CashierProvider({
   // Children
   children
 }) {
+  // DEEP MEMOIZATION: Check specific props instead of entire objects
+  // This prevents re-renders when object reference changes but content is same
+  
+  // Memoize orders array (check length and order names)
+  const memoizedOrders = useMemo(() => orders, [
+    orders?.length,
+    orders?.map(o => o.name).join(',')
+  ])
+  
+  // Memoize selfOrders array
+  const memoizedSelfOrders = useMemo(() => selfOrders, [
+    selfOrders?.length,
+    selfOrders?.map(o => o.name).join(',')
+  ])
+  
+  // Memoize kioskOrders array
+  const memoizedKioskOrders = useMemo(() => kioskOrders, [
+    kioskOrders?.length,
+    kioskOrders?.map(o => o.name).join(',')
+  ])
+  
+  // Memoize selected order (check name and grand_total)
+  const memoizedSelectedOrder = useMemo(() => selectedOrder, [
+    selectedOrder?.name,
+    selectedOrder?.grand_total,
+    selectedOrder?.items?.length
+  ])
+  
+  // Memoize profile data (check critical fields only)
+  const memoizedProfileData = useMemo(() => profileData, [
+    profileData?.name,
+    profileData?.mode,
+    profileData?.imogi_enable_self_order,
+    profileData?.imogi_enable_kiosk
+  ])
+  
+  // Memoize branding (check logo and colors)
+  const memoizedBranding = useMemo(() => branding, [
+    branding?.logo,
+    branding?.primary_color,
+    branding?.secondary_color
+  ])
+  
+  // Memoize printer status
+  const memoizedPrinterStatus = useMemo(() => printerStatus, [
+    printerStatus?.connected,
+    printerStatus?.checking
+  ])
+
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     // Order state
-    selectedOrder,
+    selectedOrder: memoizedSelectedOrder,
     setSelectedOrder,
     viewMode,
     setViewMode,
-    orders,
+    orders: memoizedOrders,
     ordersLoading,
     ordersError,
     
     // Multi-channel orders
-    selfOrders,
-    kioskOrders,
+    selfOrders: memoizedSelfOrders,
+    kioskOrders: memoizedKioskOrders,
     
     // Modal/view state
     showPayment,
@@ -111,9 +160,9 @@ export function CashierProvider({
     posMode,
     posProfile,
     branch,
-    profileData,
-    branding,
-    printerStatus,
+    profileData: memoizedProfileData,
+    branding: memoizedBranding,
+    printerStatus: memoizedPrinterStatus,
     
     // Status & validation
     guardPassed,
@@ -123,32 +172,44 @@ export function CashierProvider({
     openCustomerDisplay,
     closeCustomerDisplay,
   }), [
-    selectedOrder,
+    memoizedSelectedOrder,
+    setSelectedOrder,
     viewMode,
-    orders,
+    setViewMode,
+    memoizedOrders,
     ordersLoading,
     ordersError,
-    selfOrders,
-    kioskOrders,
+    memoizedSelfOrders,
+    memoizedKioskOrders,
     showPayment,
+    setShowPayment,
     showSplit,
+    setShowSplit,
     showSummary,
+    setShowSummary,
     showCloseShift,
+    setShowCloseShift,
     showVariantPicker,
+    setShowVariantPicker,
     variantPickerContext,
+    setVariantPickerContext,
     showTableSelector,
+    setShowTableSelector,
     selectedTable,
+    setSelectedTable,
     effectiveOpening,
     posMode,
     posProfile,
     branch,
-    profileData,
-    branding,
-    printerStatus,
+    memoizedProfileData,
+    memoizedBranding,
+    memoizedPrinterStatus,
     guardPassed,
     hasValidOpening,
     creatingOrder,
-    isCustomerDisplayOpen
+    isCustomerDisplayOpen,
+    openCustomerDisplay,
+    closeCustomerDisplay
   ])
 
   return (

@@ -21,7 +21,17 @@ export const UI = {
 
 // API Constants
 export const API = {
-  METHOD: 'imogi_pos.api.module_select.get_available_modules',
+  // Module Select Operations
+  GET_AVAILABLE_MODULES: 'imogi_pos.api.module_select.get_available_modules',
+  METHOD: 'imogi_pos.api.module_select.get_available_modules', // Alias for backward compatibility
+  
+  // Session Management
+  GET_CASHIER_DEVICE_SESSIONS: 'imogi_pos.api.cashier.get_cashier_device_sessions',
+  
+  // Branch Management
+  SET_USER_BRANCH: 'imogi_pos.api.public.set_user_branch',
+  
+  // Configuration
   ERROR_RETRY_COUNT: 1,
   SHOULD_RETRY_ON_ERROR: false,
 }

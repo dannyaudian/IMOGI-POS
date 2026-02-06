@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { formatCurrency } from '@/shared/utils/formatters'
 
 export function OrderDetailPanel({ order, posMode }) {
@@ -150,4 +151,24 @@ export function OrderDetailPanel({ order, posMode }) {
       </div>
     </div>
   )
+}
+
+OrderDetailPanel.propTypes = {
+  order: PropTypes.shape({
+    name: PropTypes.string,
+    table_name: PropTypes.string,
+    creation: PropTypes.string,
+    items: PropTypes.arrayOf(PropTypes.shape({
+      item_code: PropTypes.string,
+      item_name: PropTypes.string,
+      qty: PropTypes.number,
+      rate: PropTypes.number,
+      amount: PropTypes.number,
+    })),
+    net_total: PropTypes.number,
+    total_taxes_and_charges: PropTypes.number,
+    discount_amount: PropTypes.number,
+    grand_total: PropTypes.number,
+  }),
+  posMode: PropTypes.string,
 }

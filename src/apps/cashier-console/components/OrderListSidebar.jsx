@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PropTypes from 'prop-types'
 import { formatCurrency } from '@/shared/utils/formatters'
 
 export function OrderListSidebar({ 
@@ -285,4 +286,20 @@ export function OrderListSidebar({
       </div>
     </div>
   )
+}
+
+OrderListSidebar.propTypes = {
+  orders: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string,
+    table_name: PropTypes.string,
+    status: PropTypes.string,
+    grand_total: PropTypes.number,
+    requested_payment: PropTypes.number,
+  })),
+  selectedOrder: PropTypes.object,
+  onSelectOrder: PropTypes.func.isRequired,
+  onClaimOrder: PropTypes.func,
+  claimedOrders: PropTypes.object,
+  posMode: PropTypes.string,
+  isMultiSession: PropTypes.bool,
 }

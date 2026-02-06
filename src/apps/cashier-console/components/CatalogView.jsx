@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
@@ -286,4 +287,11 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       </div>
     </div>
   )
+}
+
+CatalogView.propTypes = {
+  posProfile: PropTypes.string,
+  branch: PropTypes.string,
+  menuChannel: PropTypes.string,
+  onSelectItem: PropTypes.func.isRequired,
 }

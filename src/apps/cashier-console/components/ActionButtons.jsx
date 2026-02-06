@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
 
 export function ActionButtons({ 
   selectedOrder,
@@ -251,4 +252,25 @@ export function ActionButtons({
       </div>
     </div>
   )
+}
+
+ActionButtons.propTypes = {
+  selectedOrder: PropTypes.object,
+  viewMode: PropTypes.string.isRequired,
+  onViewChange: PropTypes.func.isRequired,
+  onNewOrder: PropTypes.func.isRequired,
+  onPrintBill: PropTypes.func.isRequired,
+  onSplitBill: PropTypes.func.isRequired,
+  onRequestPayment: PropTypes.func.isRequired,
+  posMode: PropTypes.string.isRequired,
+  selectedTable: PropTypes.object,
+  creatingOrder: PropTypes.bool,
+  posProfile: PropTypes.string,
+  branch: PropTypes.string,
+  posOpening: PropTypes.object,
+  branding: PropTypes.object,
+  profileData: PropTypes.object,
+  isCustomerDisplayOpen: PropTypes.bool,
+  onOpenCustomerDisplay: PropTypes.func,
+  onCloseCustomerDisplay: PropTypes.func,
 }
