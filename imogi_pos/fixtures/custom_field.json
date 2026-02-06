@@ -384,6 +384,7 @@
     "label": "Enable Waiter",
     "default": 0,
     "insert_after": "imogi_enable_cashier",
+    "depends_on": "eval:doc.imogi_pos_domain==\"Restaurant\"",
     "description": "Enable waiter module for table service",
     "is_system_generated": 0,
     "module": "IMOGI POS",

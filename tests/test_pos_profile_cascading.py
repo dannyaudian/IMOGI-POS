@@ -305,9 +305,139 @@ class TestPOSProfileCascadingValidation(FrappeTestCase):
         # Restaurant fields cleared
         self.assertEqual(profile.imogi_use_table_display, 0)
         self.assertEqual(profile.imogi_enable_kot, 0)
+        self.assertEqual(profile.imogi_enable_waiter, 0)  # Added: waiter is Restaurant-only
         # Self-order cleared (because Restaurant only and enable_self_order set to 0)
         self.assertEqual(profile.imogi_enable_self_order, 0)
         self.assertIsNone(profile.imogi_self_order_mode)
+    
+    def test_mode_round_trip_clearing(self):
+        """Test clearing fields during mode round-trip: Table -> Counter -> Kiosk -> Table."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        # Start with Table mode (populated)
+        profile.imogi_pos_domain = "Restaurant"
+        profile.imogi_mode = "Table"
+        profile.imogi_use_table_display = 1
+        profile.imogi_default_floor = "Main Floor"
+        profile.imogi_default_layout_profile = "Main Layout"
+        profile.imogi_customer_bill_format = "Customer Bill"
+        profile.imogi_customer_bill_copies = 2
+        
+        # Switch to Counter mode
+        profile.imogi_mode = "Counter"
+        profile._clear_mode_dependent_fields()
+        # Verify table fields cleared
+        self.assertEqual(profile.imogi_use_table_display, 0)
+        self.assertIsNone(profile.imogi_default_floor)
+        self.assertIsNone(profile.imogi_default_layout_profile)
+        # But bill format should still be visible/available (bill format is Table OR Counter)
+        # Note: bill clearing happens in Domain check, not Mode check for Counter
+        
+        # Set Counter-specific field
+        profile.imogi_order_customer_flow = "Order First"
+        
+        # Switch to Kiosk mode
+        profile.imogi_mode = "Kiosk"
+        profile._clear_mode_dependent_fields()
+        # Counter field should be cleared
+        self.assertIsNone(profile.imogi_order_customer_flow)
+        # Kiosk fields should be available (set by application logic)
+        
+        # Switch back to Table
+        profile.imogi_mode = "Table"
+        profile._clear_mode_dependent_fields()
+        # Kiosk fields should be cleared
+        self.assertIsNone(profile.imogi_kiosk_receipt_format)
+        self.assertEqual(profile.imogi_kiosk_cashless_only, 0)
+    
+    def test_bill_format_clearing_on_mode_change(self):
+        """Test that bill format fields are cleared when mode changes away from Table/Counter."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        profile.imogi_pos_domain = "Restaurant"
+        profile.imogi_mode = "Counter"
+        profile.imogi_customer_bill_format = "Customer Bill"
+        profile.imogi_customer_bill_copies = 3
+        
+        # Switch to Kiosk (bill format not available in Kiosk)
+        profile.imogi_mode = "Kiosk"
+        profile._clear_mode_dependent_fields()
+        
+        # Bill format should be cleared (new logic: mode-based clearing)
+        self.assertIsNone(profile.imogi_customer_bill_format)
+        self.assertIsNone(profile.imogi_customer_bill_copies)
+    
+    def test_kot_format_clearing_on_domain_change(self):
+        """Test that KOT format fields are cleared when domain changes away from Restaurant."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        profile.imogi_pos_domain = "Restaurant"
+        profile.imogi_enable_kot = 1
+        profile.imogi_kot_format = "KOT Ticket"
+        profile.imogi_kot_copies = 2
+        
+        # Switch domain to Retail
+        profile.imogi_pos_domain = "Retail"
+        profile._clear_mode_dependent_fields()
+        
+        # KOT format should be cleared (new logic: domain-based clearing in mode method)
+        self.assertIsNone(profile.imogi_kot_format)
+        self.assertIsNone(profile.imogi_kot_copies)
+    
+    def test_waiter_clearing_on_domain_change(self):
+        """Test that waiter module is cleared when domain changes away from Restaurant."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        profile.imogi_pos_domain = "Restaurant"
+        profile.imogi_enable_waiter = 1
+        
+        # Change domain to Retail
+        profile.imogi_pos_domain = "Retail"
+        profile._clear_domain_dependent_fields()
+        
+        # Waiter should be cleared (new fix: added to domain clearing)
+        self.assertEqual(profile.imogi_enable_waiter, 0)
+    
+    def test_nested_kiosk_cashless_only_dependency(self):
+        """Test nested dependency: kiosk_cashless_only cleared by both mode AND payment_gateway."""
+        from imogi_pos.overrides.pos_profile import CustomPOSProfile
+        
+        profile = CustomPOSProfile.__new__(CustomPOSProfile)
+        profile.__dict__.update(self.pos_profile.__dict__)
+        profile.flags = frappe._dict()
+        
+        # Setup: Kiosk mode with payment gateway enabled and cashless_only set
+        profile.imogi_mode = "Kiosk"
+        profile.imogi_enable_payment_gateway = 1
+        profile.imogi_kiosk_cashless_only = 1
+        
+        # Scenario 1: Switch away from Kiosk (mode check clears it)
+        profile.imogi_mode = "Counter"
+        profile._clear_mode_dependent_fields()
+        self.assertEqual(profile.imogi_kiosk_cashless_only, 0)
+        
+        # Scenario 2: Back to Kiosk but disable payment_gateway (payment gateway check clears it)
+        profile.imogi_mode = "Kiosk"
+        profile.imogi_kiosk_cashless_only = 1  # Re-set for this test
+        profile.imogi_enable_payment_gateway = 0
+        profile._clear_payment_gateway_fields()
+        self.assertEqual(profile.imogi_kiosk_cashless_only, 0)
         # Kitchen printer cleared (no KOT)
         self.assertIsNone(profile.imogi_printer_kitchen_interface)
 

@@ -41,8 +41,9 @@ class CustomPOSProfile(POSProfile):
     def _clear_domain_dependent_fields(self):
         """Clear Restaurant-only fields when domain is not Restaurant."""
         if self.get("imogi_pos_domain") != "Restaurant":
-            # Restaurant features (KOT, tables, self-order)
+            # Restaurant features (KOT, tables, self-order, waiter)
             self.imogi_enable_kot = 0
+            self.imogi_enable_waiter = 0
             self.imogi_enable_self_order = 0
             # Table-only fields (only clear if domain changes, mode change handled separately)
             self.imogi_use_table_display = 0
@@ -56,6 +57,7 @@ class CustomPOSProfile(POSProfile):
     def _clear_mode_dependent_fields(self):
         """Clear mode-specific fields when mode changes."""
         mode = self.get("imogi_mode")
+        domain = self.get("imogi_pos_domain")
         
         # Table-only fields (Dine-In mode)
         if mode != "Table":
@@ -77,6 +79,18 @@ class CustomPOSProfile(POSProfile):
         # Queue format (Kiosk or Counter)
         if mode not in ("Kiosk", "Counter"):
             self.imogi_queue_format = None
+        
+        # Bill format (Table or Counter in Restaurant domain)
+        if domain != "Restaurant" or mode not in ("Table", "Counter"):
+            self.imogi_customer_bill_format = None
+            self.imogi_customer_bill_copies = None
+        
+        # KOT format (Restaurant + KOT enabled, handled separately but clearing here for consistency)
+        # Actually KOT is enable/disable, not mode-based, so handle in domain & enable_kot methods
+        # But for safety, clear when leaving Restaurant
+        if domain != "Restaurant":
+            self.imogi_kot_format = None
+            self.imogi_kot_copies = None
     
     def _clear_self_order_fields(self):
         """Clear self-order fields when self-order is disabled."""

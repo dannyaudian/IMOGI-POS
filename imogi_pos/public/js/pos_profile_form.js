@@ -4,12 +4,20 @@
  */
 
 frappe.ui.form.on('POS Profile', {
+    onload(frm) {
+        // Initialize field visibility on form load
+        updateAllFieldVisibility(frm);
+    },
+
     refresh(frm) {
         // Organize sections based on domain
         cur_frm.sections_head.find('.form-section-head').each(function() {
             const sectionName = $(this).data('fieldname');
             updateSectionVisibility(frm, sectionName);
         });
+
+        // Re-initialize field visibility on refresh (in case of external changes)
+        updateAllFieldVisibility(frm);
 
         // Add custom event handlers
         frm.on_change = function() {
@@ -18,7 +26,7 @@ frappe.ui.form.on('POS Profile', {
     },
 
     imogi_pos_domain(frm) {
-        // When domain changes, update field visibility
+        // When domain changes, update all field visibility
         updateAllFieldVisibility(frm);
         frappe.ui.form.layout.make_section(frm);
     },
@@ -29,17 +37,26 @@ frappe.ui.form.on('POS Profile', {
         frappe.ui.form.layout.make_section(frm);
     },
 
+    imogi_enable_cashier(frm) {
+        updateSectionVisibility(frm, 'imogi_pos_session_section');
+    },
+
+    imogi_enable_waiter(frm) {
+        // Waiter is Restaurant-only, visibility already handled in updateAllFieldVisibility
+        // But update if any downstream effects
+    },
+
     imogi_enable_kot(frm) {
         updateSectionVisibility(frm, 'imogi_kitchen_routing_section');
+        // KOT affects bill format visibility (only shows when KOT enabled or Bill needed)
+        updateAllFieldVisibility(frm);
     },
 
     imogi_enable_self_order(frm) {
         updateSectionVisibility(frm, 'imogi_self_order_section');
         updateSectionVisibility(frm, 'imogi_self_order_settings_section');
-    },
-
-    imogi_enable_cashier(frm) {
-        updateSectionVisibility(frm, 'imogi_pos_session_section');
+        // Self-order affects visibility of related fields
+        updateAllFieldVisibility(frm);
     },
 
     imogi_require_pos_session(frm) {
@@ -50,10 +67,13 @@ frappe.ui.form.on('POS Profile', {
     },
 
     imogi_enable_payment_gateway(frm) {
+        // Payment gateway affects multiple fields
         updateFieldVisibility(frm, 'imogi_payment_gateway_account');
         updateFieldVisibility(frm, 'imogi_checkout_payment_mode');
         updateFieldVisibility(frm, 'imogi_show_payment_qr_on_customer_display');
         updateFieldVisibility(frm, 'imogi_payment_timeout_seconds');
+        // Kiosk cashless only depends on payment_gateway being enabled
+        updateFieldVisibility(frm, 'imogi_kiosk_cashless_only');
     }
 });
 
@@ -65,6 +85,12 @@ function updateAllFieldVisibility(frm) {
     const mode = frm.doc.imogi_mode;
     const kotEnabled = frm.doc.imogi_enable_kot;
     const selfOrderEnabled = frm.doc.imogi_enable_self_order;
+    const paymentGatewayEnabled = frm.doc.imogi_enable_payment_gateway;
+
+    // ==== Domain-dependent sections ====
+    setFieldHidden(frm, 'imogi_branding_section', !domain);
+    setFieldHidden(frm, 'brand_profile', !domain);
+    setFieldHidden(frm, 'imogi_printer_configuration_section', !domain);
 
     // ==== Table Mode Specific (Restaurant domain + Table mode) ====
     setFieldHidden(frm, 'imogi_use_table_display', !(domain === 'Restaurant' && mode === 'Table'));
@@ -76,7 +102,7 @@ function updateAllFieldVisibility(frm) {
     setFieldHidden(frm, 'imogi_order_customer_flow', mode !== 'Counter');
 
     // ==== Kiosk Mode Specific ====
-    setFieldHidden(frm, 'imogi_kiosk_cashless_only', !(mode === 'Kiosk' && frm.doc.imogi_enable_payment_gateway));
+    setFieldHidden(frm, 'imogi_kiosk_cashless_only', !(mode === 'Kiosk' && paymentGatewayEnabled));
     setFieldHidden(frm, 'imogi_kiosk_receipt_format', mode !== 'Kiosk');
     setFieldHidden(frm, 'imogi_print_notes_on_kiosk_receipt', mode !== 'Kiosk');
 
@@ -88,6 +114,8 @@ function updateAllFieldVisibility(frm) {
     setFieldHidden(frm, 'imogi_enable_waiter', domain !== 'Restaurant');
     setFieldHidden(frm, 'imogi_enable_self_order', domain !== 'Restaurant');
     setFieldHidden(frm, 'imogi_kitchen_routing_section', !(domain === 'Restaurant' && kotEnabled));
+    
+    // ==== Bill format (Table or Counter in Restaurant) ====
     setFieldHidden(frm, 'imogi_customer_bill_format', !(domain === 'Restaurant' && (mode === 'Table' || mode === 'Counter')));
     setFieldHidden(frm, 'imogi_customer_bill_copies', !(domain === 'Restaurant' && (mode === 'Table' || mode === 'Counter')));
 
@@ -108,6 +136,12 @@ function updateAllFieldVisibility(frm) {
     setFieldHidden(frm, 'imogi_enforce_session_on_cashier', !showSession);
     setFieldHidden(frm, 'imogi_enforce_session_on_kiosk', !showSession);
     setFieldHidden(frm, 'imogi_enforce_session_on_counter', !showSession);
+
+    // ==== Payment gateway fields ====
+    setFieldHidden(frm, 'imogi_payment_gateway_account', !paymentGatewayEnabled);
+    setFieldHidden(frm, 'imogi_checkout_payment_mode', !paymentGatewayEnabled);
+    setFieldHidden(frm, 'imogi_show_payment_qr_on_customer_display', !paymentGatewayEnabled);
+    setFieldHidden(frm, 'imogi_payment_timeout_seconds', !paymentGatewayEnabled);
 }
 
 /**
@@ -170,17 +204,23 @@ function updateFieldVisibility(frm, fieldName) {
 }
 
 /**
- * Hide or show a field
+ * Hide or show a field using Frappe API
+ * Uses frm.set_df_property for reliable cross-version compatibility
  */
 function setFieldHidden(frm, fieldName, hidden) {
     const field = frm.get_field(fieldName);
     if (!field) return;
 
-    if (hidden) {
-        field.df.hidden = 1;
-        field.$wrapper?.hide();
-    } else {
-        field.df.hidden = 0;
-        field.$wrapper?.show();
+    // Use Frappe's set_df_property for more reliable field hiding
+    // This updates field.df.hidden and triggers proper UI updates
+    frm.set_df_property(fieldName, 'hidden', hidden ? 1 : 0);
+    
+    // Also update field wrapper visibility as fallback for DOM consistency
+    if (field.$wrapper) {
+        if (hidden) {
+            field.$wrapper.hide();
+        } else {
+            field.$wrapper.show();
+        }
     }
 }
