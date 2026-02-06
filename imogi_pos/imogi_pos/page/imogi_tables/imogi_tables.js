@@ -58,13 +58,33 @@ frappe.pages['imogi-tables'].on_page_show = function(wrapper) {
 		shouldReload: shouldReload
 	});
 	
-	// Get container reference from wrapper
-	const container = wrapper.__imogiTablesRoot;
-	const page = wrapper.__imogiTablesPage;
+	// Get container reference from wrapper - with fallback initialization
+	let container = wrapper.__imogiTablesRoot;
+	let page = wrapper.__imogiTablesPage;
 	
-	if (!container) {
-		console.error('[Desk] Tables container not found - on_page_load not run?');
-		return;
+	if (!container || !page) {
+		console.warn('[Desk] Tables container not initialized - initializing now');
+		
+		// Initialize page if not exists
+		if (!page) {
+			page = frappe.ui.make_app_page({
+				parent: wrapper,
+				title: 'Table Display',
+				single_column: true
+			});
+			wrapper.__imogiTablesPage = page;
+		}
+		
+		// Create container if not exists
+		if (!container) {
+			const containerDiv = $(document.createElement('div'));
+			containerDiv.attr('id', 'imogi-tables-root');
+			containerDiv.attr('style', 'width: 100%; height: calc(100vh - 60px); overflow: auto;');
+			page.main.html('');
+			page.main.append(containerDiv);
+			container = containerDiv[0];
+			wrapper.__imogiTablesRoot = container;
+		}
 	}
 
 	// Load React widget directly - let React handle operational context checking

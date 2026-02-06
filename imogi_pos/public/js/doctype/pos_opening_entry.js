@@ -53,43 +53,18 @@ function open_imogi_pos(frm) {
         return;
     }
     
-    // Get POS Profile to determine mode for redirect
-    frappe.call({
-        method: 'frappe.client.get_value',
-        args: {
-            doctype: 'POS Profile',
-            filters: { name: frm.doc.pos_profile },
-            fieldname: ['imogi_mode', 'imogi_pos_domain']
-        },
-        callback: function(r) {
-            let redirect_url = '/counter/pos'; // Default
-            
-            if (r.message) {
-                const mode = r.message.imogi_mode || 'Counter';
-                
-                // Route based on operation mode
-                if (mode === 'Table') {
-                    redirect_url = '/restaurant/waiter';
-                } else if (mode === 'Counter') {
-                    redirect_url = '/counter/pos';
-                } else if (mode === 'Kiosk') {
-                    redirect_url = '/restaurant/waiter?mode=kiosk';
-                } else if (mode === 'Self-Order') {
-                    redirect_url = '/restaurant/self-order';
-                }
-            }
-            
-            frappe.show_alert({
-                message: __('Opening POS...'),
-                indicator: 'green'
-            });
-            
-            // Redirect to custom POS
-            setTimeout(function() {
-                window.location.href = redirect_url;
-            }, 500);
-        }
+    // Always route to Module Select - it handles all module routing
+    const redirect_url = '/app/imogi-module-select';
+    
+    frappe.show_alert({
+        message: __('Opening Module Select...'),
+        indicator: 'green'
     });
+    
+    // Redirect to Module Select
+    setTimeout(function() {
+        window.location.href = redirect_url;
+    }, 500);
 }
 
 function check_custom_redirect(frm) {

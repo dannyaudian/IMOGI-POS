@@ -148,6 +148,17 @@ def get_available_modules():
         # Administrator or System Manager sees all modules
         is_admin = role_context.get("is_admin", False)
 
+        # Get POS Profile settings if available
+        pos_profile_doc = None
+        if pos_profile:
+            try:
+                pos_profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+            except Exception as e:
+                frappe.log_error(
+                    f"Could not fetch POS Profile {pos_profile}: {str(e)}",
+                    "Module Select: POS Profile Fetch Error"
+                )
+
         # Filter modules based on user roles
         available_modules = []
         for module_type, config in MODULE_CONFIGS.items():
@@ -159,6 +170,26 @@ def get_available_modules():
                 module_url = config['url']
                 requires_pos_profile = config.get('requires_pos_profile', False)
 
+                # Check if module is enabled in POS Profile
+                is_enabled = True
+                has_access = True
+                if pos_profile_doc and requires_pos_profile:
+                    # Map module types to POS Profile enable flags
+                    enable_field_map = {
+                        'cashier': 'imogi_enable_cashier',
+                        'waiter': 'imogi_enable_waiter',
+                        'kitchen': 'imogi_enable_kot',
+                        'self-order': 'imogi_enable_self_order',
+                        'kiosk': 'imogi_enable_kiosk',
+                        'table-display': 'imogi_use_table_display'
+                    }
+                    
+                    enable_field = enable_field_map.get(module_type)
+                    if enable_field:
+                        is_enabled = pos_profile_doc.get(enable_field, 0) == 1
+                        has_access = is_enabled  # Module can't be accessed if not enabled
+
+                # Add module to list (even if disabled, so user can see it exists)
                 available_modules.append({
                     'type': config['type'],
                     'name': config['name'],
@@ -170,6 +201,8 @@ def get_available_modules():
                     'requires_opening': config.get('requires_opening', False),
                     'requires_pos_profile': requires_pos_profile,
                     'requires_active_cashier': config.get('requires_active_cashier', False),
+                    'is_active': is_enabled,  # Module is enabled in POS Profile
+                    'has_access': has_access,  # Module can be clicked/accessed
                     'order': config.get('order', 99)
                 })
 
@@ -178,10 +211,21 @@ def get_available_modules():
         
         # Log for debugging when no modules are available
         if not available_modules:
+            profile_info = ""
+            if pos_profile_doc:
+                profile_info = f"\nPOS Profile: {pos_profile}\n"
+                profile_info += f"  - Cashier: {pos_profile_doc.get('imogi_enable_cashier', 0)}\n"
+                profile_info += f"  - Waiter: {pos_profile_doc.get('imogi_enable_waiter', 0)}\n"
+                profile_info += f"  - Kitchen: {pos_profile_doc.get('imogi_enable_kot', 0)}\n"
+                profile_info += f"  - Self Order: {pos_profile_doc.get('imogi_enable_self_order', 0)}\n"
+                profile_info += f"  - Kiosk: {pos_profile_doc.get('imogi_enable_kiosk', 0)}\n"
+                profile_info += f"  - Table Display: {pos_profile_doc.get('imogi_use_table_display', 0)}"
+            
             frappe.log_error(
                 f"No modules available for user: {frappe.session.user}\n"
                 f"User roles: {user_roles}\n"
                 f"Is admin: {is_admin}\n"
+                f"{profile_info}\n"
                 f"Required roles per module:\n" + 
                 "\n".join([f"  - {k}: {v.get('requires_roles', [])}" for k, v in MODULE_CONFIGS.items()]),
                 "IMOGI POS: No Modules Available"
@@ -194,6 +238,25 @@ def get_available_modules():
         sessions_today = _get_pos_sessions_today_for_context({"current_branch": branch})
 
         # Return modules with operational context + opening/session info
+        debug_info = {
+            'user_roles': user_roles,
+            'is_admin': is_admin,
+            'total_modules_configured': len(MODULE_CONFIGS),
+            'modules_available': len(available_modules),
+            'pos_profile': pos_profile
+        }
+        
+        # Add POS Profile module flags to debug info
+        if pos_profile_doc:
+            debug_info['pos_profile_modules'] = {
+                'cashier': pos_profile_doc.get('imogi_enable_cashier', 0) == 1,
+                'waiter': pos_profile_doc.get('imogi_enable_waiter', 0) == 1,
+                'kitchen': pos_profile_doc.get('imogi_enable_kot', 0) == 1,
+                'self_order': pos_profile_doc.get('imogi_enable_self_order', 0) == 1,
+                'kiosk': pos_profile_doc.get('imogi_enable_kiosk', 0) == 1,
+                'table_display': pos_profile_doc.get('imogi_use_table_display', 0) == 1
+            }
+        
         return {
             'modules': available_modules,
             'context': {
@@ -207,12 +270,7 @@ def get_available_modules():
             },
             'active_opening': active_opening,
             'sessions_today': sessions_today,
-            'debug_info': {
-                'user_roles': user_roles,
-                'is_admin': is_admin,
-                'total_modules_configured': len(MODULE_CONFIGS),
-                'modules_available': len(available_modules)
-            }
+            'debug_info': debug_info
         }
 
     except frappe.DoesNotExistError as e:

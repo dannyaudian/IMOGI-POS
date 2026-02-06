@@ -56,13 +56,30 @@ frappe.pages['imogi-kitchen'].on_page_show = function(wrapper) {
 		shouldReload: shouldReload
 	});
 	
-	// Get container reference from wrapper
-	const container = wrapper.__imogiKitchenRoot;
-	const page = wrapper.__imogiKitchenPage;
+	// Get container reference from wrapper - with fallback initialization
+	let container = wrapper.__imogiKitchenRoot;
+	let page = wrapper.__imogiKitchenPage;
 	
-	if (!container) {
-		console.error('[Desk] Kitchen container not found - on_page_load not run?');
-		return;
+	if (!container || !page) {
+		console.warn('[Desk] Kitchen container not initialized - initializing now');
+		
+		// Initialize page if not exists
+		if (!page) {
+			page = frappe.ui.make_app_page({
+				parent: wrapper,
+				title: 'Kitchen Display',
+				single_column: true
+			});
+			wrapper.__imogiKitchenPage = page;
+		}
+		
+		// Create container if not exists
+		if (!container) {
+			const pageContent = page.main.find('.page-content');
+			pageContent.attr('id', 'imogi-kitchen-root');
+			container = pageContent[0];
+			wrapper.__imogiKitchenRoot = container;
+		}
 	}
 
 	// Load React widget directly - let React handle operational context checking

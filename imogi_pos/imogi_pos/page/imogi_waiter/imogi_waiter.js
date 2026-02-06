@@ -63,13 +63,30 @@ frappe.pages['imogi-waiter'].on_page_show = function(wrapper) {
 		shouldReload: shouldReload
 	});
 	
-	// Get container reference from wrapper
-	const container = wrapper.__imogiWaiterRoot;
-	const page = wrapper.__imogiWaiterPage;
+	// Get container reference from wrapper - with fallback initialization
+	let container = wrapper.__imogiWaiterRoot;
+	let page = wrapper.__imogiWaiterPage;
 	
-	if (!container) {
-		console.error('[Desk] Waiter container not found - on_page_load not run?');
-		return;
+	if (!container || !page) {
+		console.warn('[Desk] Waiter container not initialized - initializing now');
+		
+		// Initialize page if not exists
+		if (!page) {
+			page = frappe.ui.make_app_page({
+				parent: wrapper,
+				title: 'Waiter Order',
+				single_column: true
+			});
+			wrapper.__imogiWaiterPage = page;
+		}
+		
+		// Create container if not exists
+		if (!container) {
+			const pageContent = page.main.find('.page-content');
+			pageContent.attr('id', 'imogi-waiter-root');
+			container = pageContent[0];
+			wrapper.__imogiWaiterRoot = container;
+		}
 	}
 
 	// Load React widget directly - let React handle operational context checking

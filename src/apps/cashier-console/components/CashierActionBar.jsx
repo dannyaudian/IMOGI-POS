@@ -1,26 +1,63 @@
 import { useState } from 'react'
+import { useCashierContext } from '../context/CashierContext'
 
-export function CashierActionBar({
-  selectedOrder,
-  viewMode,
-  onViewChange,
-  onNewOrder,
-  onPrintBill,
-  onSplitBill,
-  onRequestPayment,
-  onHoldOrder,
-  onClearOrder,
-  posMode,
-  selectedTable,
-  creatingOrder,
-  isCustomerDisplayOpen,
-  onOpenCustomerDisplay,
-  onCloseCustomerDisplay
-}) {
+export function CashierActionBar() {
+  const {
+    selectedOrder,
+    viewMode,
+    setViewMode,
+    posMode,
+    selectedTable,
+    setShowTableSelector,
+    setShowPayment,
+    setShowSplit,
+    creatingOrder,
+    isCustomerDisplayOpen,
+    openCustomerDisplay,
+    closeCustomerDisplay
+  } = useCashierContext()
+  
   const [showMoreActions, setShowMoreActions] = useState(false)
   const hasOrder = !!selectedOrder
   const isCounterMode = posMode === 'Counter'
   const isTableMode = posMode === 'Table'
+
+  // Action handlers
+  const handleNewOrder = () => {
+    if (isTableMode) {
+      setShowTableSelector(true)
+    } else {
+      // Counter mode: trigger new order creation
+      // This would be handled by the main app logic
+      console.log('[CashierActionBar] New order requested')
+      window.dispatchEvent(new CustomEvent('createNewOrder'))
+    }
+  }
+
+  const handleRequestPayment = () => {
+    setShowPayment(true)
+    setViewMode('payment')
+  }
+
+  const handlePrintBill = () => {
+    console.log('[CashierActionBar] Print bill requested for order:', selectedOrder?.name)
+    // TODO: Implement print bill logic
+  }
+
+  const handleSplitBill = () => {
+    setShowSplit(true)
+    setViewMode('split')
+  }
+
+  const handleHoldOrder = () => {
+    console.log('[CashierActionBar] Hold order requested for order:', selectedOrder?.name)
+    // TODO: Implement hold order logic
+  }
+
+  const handleClearOrder = () => {
+    console.log('[CashierActionBar] Clear order requested for order:', selectedOrder?.name)
+    // TODO: Implement clear order logic
+  }
 
   // Primary CTA Logic (State Machine)
   const getPrimaryCTA = () => {
@@ -39,7 +76,7 @@ export function CashierActionBar({
         label: 'Select Table',
         icon: 'fa-chair',
         disabled: false,
-        onClick: onNewOrder
+        onClick: handleNewOrder
       }
     }
 
@@ -49,7 +86,7 @@ export function CashierActionBar({
         label: 'Charge',
         icon: 'fa-credit-card',
         disabled: false,
-        onClick: onRequestPayment,
+        onClick: handleRequestPayment,
         accent: true
       }
     }
@@ -59,7 +96,7 @@ export function CashierActionBar({
       label: isCounterMode ? 'New Order' : 'New Table',
       icon: 'fa-plus',
       disabled: false,
-      onClick: onNewOrder
+      onClick: handleNewOrder
     }
   }
 
@@ -70,14 +107,14 @@ export function CashierActionBar({
     {
       label: 'Hold Order',
       icon: 'fa-pause',
-      onClick: onHoldOrder,
+      onClick: handleHoldOrder,
       disabled: !hasOrder,
       show: true
     },
     {
       label: 'Clear Order',
       icon: 'fa-trash',
-      onClick: onClearOrder,
+      onClick: handleClearOrder,
       disabled: !hasOrder,
       show: true,
       danger: true
@@ -91,7 +128,7 @@ export function CashierActionBar({
         <div className="view-controls-mobile">
           <button
             className={`view-tab ${viewMode === 'orders' ? 'active' : ''}`}
-            onClick={() => onViewChange('orders')}
+            onClick={() => setViewMode('orders')}
             aria-label="View Orders"
           >
             <i className="fa fa-list"></i>
@@ -99,7 +136,7 @@ export function CashierActionBar({
           </button>
           <button
             className={`view-tab ${viewMode === 'catalog' ? 'active' : ''}`}
-            onClick={() => onViewChange('catalog')}
+            onClick={() => setViewMode('catalog')}
             disabled={!hasOrder}
             aria-label="View Catalog"
           >
@@ -112,7 +149,7 @@ export function CashierActionBar({
         <div className="quick-actions">
           <button
             className="action-btn icon-btn"
-            onClick={onPrintBill}
+            onClick={handlePrintBill}
             disabled={!hasOrder}
             title="Print Bill"
             aria-label="Print Bill"
@@ -122,7 +159,7 @@ export function CashierActionBar({
 
           <button
             className="action-btn icon-btn"
-            onClick={onSplitBill}
+            onClick={handleSplitBill}
             disabled={!hasOrder}
             title="Split Bill"
             aria-label="Split Bill"
@@ -132,7 +169,7 @@ export function CashierActionBar({
 
           <button
             className={`action-btn icon-btn ${isCustomerDisplayOpen ? 'active' : ''}`}
-            onClick={isCustomerDisplayOpen ? onCloseCustomerDisplay : onOpenCustomerDisplay}
+            onClick={isCustomerDisplayOpen ? closeCustomerDisplay : openCustomerDisplay}
             title={isCustomerDisplayOpen ? 'Close Customer Display' : 'Open Customer Display'}
             aria-label="Customer Display"
           >

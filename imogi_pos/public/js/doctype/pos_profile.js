@@ -9,76 +9,14 @@ frappe.ui.form.on('POS Profile', {
             // Remove native "Open POS" button if exists
             frm.page.clear_primary_action();
             
-            // Determine redirect URL and button label based on mode
-            const mode = frm.doc.imogi_mode || 'Counter';
-            let button_label = __('Open POS');
-            let redirect_url = '/counter/pos';
-            
-            // Route based on operation mode
-            if (mode === 'Table') {
-                button_label = __('Open Waiter Order');
-                redirect_url = '/restaurant/waiter';
-            } else if (mode === 'Counter') {
-                button_label = __('Open Cashier Console');
-                redirect_url = '/counter/pos';
-            } else if (mode === 'Kiosk') {
-                button_label = __('Open Kiosk');
-                redirect_url = '/restaurant/waiter?mode=kiosk';
-            } else if (mode === 'Self-Order') {
-                button_label = __('Open Self Order');
-                redirect_url = '/restaurant/self-order';
-            }
+            // All modes now route to Module Select
+            const button_label = __('Open Module Select');
+            const redirect_url = '/app/imogi-module-select';
             
             // Add custom button
             frm.add_custom_button(button_label, function() {
-                // Check if POS Opening Entry is required
-                const require_session = frm.doc.imogi_require_pos_session;
-                
-                if (!require_session) {
-                    // Session not required, go directly to POS
-                    window.location.href = redirect_url;
-                    return;
-                }
-                
-                // Check if there's an active POS Opening Entry first
-                frappe.call({
-                    method: 'frappe.client.get_list',
-                    args: {
-                        doctype: 'POS Opening Entry',
-                        filters: {
-                            pos_profile: frm.doc.name,
-                            user: frappe.session.user,
-                            docstatus: 1,
-                            status: 'Open'
-                        },
-                        limit: 1
-                    },
-                    callback: function(r) {
-                        if (r.message && r.message.length > 0) {
-                            // Has active session, go to POS
-                            window.location.href = redirect_url;
-                        } else {
-                            // No active session, prompt to create one
-                            frappe.msgprint({
-                                title: __('No Active Session'),
-                                message: __('Please open a POS Opening Entry first before accessing the POS.'),
-                                indicator: 'orange',
-                                primary_action: {
-                                    label: __('Create Opening Entry'),
-                                    action: function() {
-                                        frappe.new_doc('POS Opening Entry', {
-                                            pos_profile: frm.doc.name
-                                        });
-                                    }
-                                }
-                            });
-                        }
-                    },
-                    error: function() {
-                        // Error or session feature not available, just proceed
-                        window.location.href = redirect_url;
-                    }
-                });
+                // Always route to Module Select - it will handle POS Opening check
+                window.location.href = redirect_url;
             }, __('POS')).addClass('btn-primary');
         }
     },

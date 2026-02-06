@@ -141,6 +141,7 @@ function CounterPOSContent({ initialState }) {
   const [creatingOrder, setCreatingOrder] = useState(false)
   const [branding, setBranding] = useState(null)
   const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
+  const [isCustomerDisplayOpen, setIsCustomerDisplayOpen] = useState(false)
 
   // Logged setViewMode for debugging
   const setViewMode = (newMode) => {
@@ -149,6 +150,19 @@ function CounterPOSContent({ initialState }) {
     }
     setViewModeRaw(newMode)
   }
+
+  // Customer Display handlers
+  const openCustomerDisplay = useCallback(() => {
+    setIsCustomerDisplayOpen(true)
+    // TODO: Implement actual customer display window opening logic
+    console.log('[Cashier] Customer display opened')
+  }, [])
+
+  const closeCustomerDisplay = useCallback(() => {
+    setIsCustomerDisplayOpen(false)
+    // TODO: Implement actual customer display window closing logic
+    console.log('[Cashier] Customer display closed')
+  }, [])
 
   // EFFECT: Load branding
   useEffect(() => {
@@ -532,6 +546,9 @@ function CounterPOSContent({ initialState }) {
       guardPassed={guardPassed}
       hasValidOpening={hasValidOpening}
       creatingOrder={creatingOrder}
+      isCustomerDisplayOpen={isCustomerDisplayOpen}
+      openCustomerDisplay={openCustomerDisplay}
+      closeCustomerDisplay={closeCustomerDisplay}
     >
       <div className="cashier-console" data-pos-mode={mode}>
         <NetworkStatus />
