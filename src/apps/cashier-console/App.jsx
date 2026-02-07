@@ -242,6 +242,7 @@ function CounterPOSContent({ initialState }) {
         
         if (updatedOrder) {
           setSelectedOrder(updatedOrder)
+          setViewMode('orders') // Switch back to order view after adding item
         }
         
         return
@@ -293,6 +294,7 @@ function CounterPOSContent({ initialState }) {
           setSelectedOrder(orderDetails)
           setPendingOrderType(null)
           setPendingTable(null)
+          setViewMode('orders') // Switch back to order view after creating order
           
           frappe.show_alert({
             message: `Order created with ${item.item_name}`,
@@ -319,7 +321,7 @@ function CounterPOSContent({ initialState }) {
     } finally {
       setCreatingOrder(false)
     }
-  }, [selectedOrder, pendingOrderType, pendingTable])
+  }, [selectedOrder, pendingOrderType, pendingTable, setViewMode])
 
   // EFFECT: Sync default view when mode resolves or changes
   useEffect(() => {
