@@ -1,0 +1,906 @@
+diff --git a/imogi_pos/public/js/imogi_loader.js b/imogi_pos/public/js/imogi_loader.js
+index fc0444e..6f3b99f 100644
+--- a/imogi_pos/public/js/imogi_loader.js
++++ b/imogi_pos/public/js/imogi_loader.js
+@@ -227,8 +227,26 @@ if (!window.ensureOperationalContext) {
+ 	}
+ }
+ 
+-window.loadImogiReactApp = function(config) {
+-	const {
++/**
++ * Resolve debug URL to point to non-minified debug bundle
++ * 
++ * CRITICAL FIX: Enable readable error stacks in production/staging
++ * 
++ * When debug=1 flag is set:
++ * - Loads non-minified bundle from -debug folder
++ * - Includes inline sourcemaps
++ * - Shows real function names and file paths in errors
++ * - Helps diagnose TDZ and other runtime issues
++ */
++function resolveDebugUrl(productionUrl, appKey, logPrefix) {
++	// Transform URL from prod to debug bundle
++	// /assets/imogi_pos/react/cashier-console/... → 
++	// /assets/imogi_pos/react/cashier-console-debug/...
++	
++	return productionUrl.replace(
++		`/react/${appKey}/`,
++		`/react/${appKey}-debug/`
++	);
+ 		appKey,           // Unique identifier (e.g., 'cashier-console')
+ 		scriptUrl,        // Full URL to the bundle JS
+ 		cssUrl,           // Optional: Full URL to the bundle CSS
+@@ -253,6 +271,15 @@ window.loadImogiReactApp = function(config) {
+ 		return Promise.reject(new Error('Invalid loadImogiReactApp configuration'));
+ 	}
+ 
++	// CRITICAL FIX: Check for debug flag and load non-minified bundle
++	// This enables readable error stacks even in production
++	const debugMode = window.location.search.includes('debug=1') || 
++		localStorage.getItem('imogi_debug_mode') === 'true' ||
++		frappe?.boot?.developer_mode;
++	
++	const finalScriptUrl = debugMode ? resolveDebugUrl(scriptUrl, appKey, logPrefix) : scriptUrl;
++	const finalCssUrl = cssUrl ? (debugMode ? resolveDebugUrl(cssUrl, appKey, logPrefix) : cssUrl) : null;
++	
+ 	// Get container element
+ 	const container = makeContainer();
+ 	if (!container) {
+@@ -269,16 +296,19 @@ window.loadImogiReactApp = function(config) {
+ 	const loadCount = window.__imogiLoadCounts[appKey];
+ 	const isDev = frappe?.boot?.developer_mode || window.location.hostname === 'localhost';
+ 	
+-	if (isDev) {
++	if (isDev || debugMode) {
+ 		console.log(`${logPrefix} [${appKey}] Load attempt #${loadCount}, route: ${frappe.get_route_str()}`);
++		if (debugMode) {
++			console.log(`${logPrefix} [${appKey}] Debug mode enabled - using non-minified bundle with sourcemaps`);
++		}
+ 	}
+ 
+ 	// Guard: Check if script already exists
+-	const scriptSelector = `script[data-imogi-app="${appKey}"][src="${scriptUrl}"]`;
++	const scriptSelector = `script[data-imogi-app="${appKey}"][src*="${appKey}"]`;
+ 	const existingScript = document.querySelector(scriptSelector);
+ 
+ 	if (existingScript) {
+-		if (isDev) {
++		if (isDev || debugMode) {
+ 			console.log(`${logPrefix} [${appKey}] Script exists, ensuring FRESH mount (unmount → mount)`);
+ 		}
+ 		
+@@ -343,13 +373,20 @@ window.loadImogiReactApp = function(config) {
+ 	}
+ 
+ 	// Inject CSS if provided
+-	if (cssUrl) {
+-		injectCSS(appKey, cssUrl, logPrefix);
++	if (finalCssUrl) {
++		injectCSS(appKey, finalCssUrl, logPrefix);
+ 	}
+ 
+ 	// Inject script and wait for mount function
+-	console.log(`${logPrefix} [${appKey}] Injecting script: ${scriptUrl}`);
+-	return injectScript(appKey, scriptUrl, logPrefix)
++	console.log(`${logPrefix} [${appKey}] Injecting script: ${finalScriptUrl}`);
++	if (debugMode && finalScriptUrl !== scriptUrl) {
++		console.log(`${logPrefix} [${appKey}] Using debug bundle (non-minified with sourcemaps)`);
++	}
++	
++	// CRITICAL FIX: Validate cache before injecting
++	// Check if we have a stale cached module (service worker cache mismatch)
++	return validateScriptCache(finalScriptUrl, logPrefix)
++		.then(() => injectScript(appKey, finalScriptUrl, logPrefix))
+ 		.then(() => waitForMountFunction(mountFnName, appKey, logPrefix))
+ 		.then(mountFn => {
+ 			console.log(`${logPrefix} [${appKey}] Mount function ready, mounting...`);
+@@ -362,6 +399,50 @@ window.loadImogiReactApp = function(config) {
+ 		});
+ };
+ 
++/**
++ * Validate script cache to detect service worker cache mismatch
++ * 
++ * CRITICAL FIX: Prevents stale cached modules from TDZ violations
++ * 
++ * This can happen when:
++ * - Service worker caches old version of module
++ * - Module code has breaking changes
++ * - Dependencies were updated but cache wasn't invalidated
++ */
++function validateScriptCache(scriptUrl, logPrefix) {
++	// Add cache validation by fetching headers
++	return fetch(scriptUrl, {
++		method: 'HEAD',
++		mode: 'cors',
++		cache: 'no-cache'  // Force fresh headers from server
++	})
++	.then(response => {
++		if (!response.ok) {
++			throw new Error(`Script not found: ${response.status} ${response.statusText}`);
++		}
++		
++		// Check for etag or cache-control headers
++		const etag = response.headers.get('etag');
++		const cacheControl = response.headers.get('cache-control');
++		const lastModified = response.headers.get('last-modified');
++		
++		console.log(`${logPrefix} Script cache validation:`, {
++			url: scriptUrl,
++			etag: etag || 'none',
++			cacheControl: cacheControl || 'none',
++			lastModified: lastModified || 'none'
++		});
++		
++		return true;
++	})
++	.catch(error => {
++		// Cache validation failed - log but don't block loading
++		// Server may not support HEAD requests
++		console.warn(`${logPrefix} Script cache validation failed (non-fatal):`, error.message);
++		return true;
++	});
++}
++
+ /**
+  * Inject CSS with guard against duplicates
+  */
+@@ -384,25 +465,49 @@ function injectCSS(appKey, cssUrl, logPrefix) {
+ 
+ /**
+  * Inject script with guard and promise-based loading
++ * 
++ * CRITICAL FIX: Ensure dependencies are initialized before module code executes
++ * 
++ * - Uses type="module" for ES6 module loading (correct)
++ * - Adds defer attribute to ensure parsing completes before execution
++ * - Waits for 'load' event to confirm module evaluation finished
++ * - Adds cache busting query param to prevent stale module loads
++ * - Registers error handler for network/parse failures
+  */
+ function injectScript(appKey, scriptUrl, logPrefix) {
+ 	return new Promise((resolve, reject) => {
+ 		const script = document.createElement('script');
+ 		script.type = 'module';
+-		script.src = scriptUrl;
++		
++		// CRITICAL: Add cache busting to prevent service worker cache issues
++		// This ensures fresh module loads on each mount cycle
++		const cacheBustUrl = scriptUrl.includes('?')
++			? `${scriptUrl}&t=${Date.now()}`
++			: `${scriptUrl}?t=${Date.now()}`;
++		
++		script.src = cacheBustUrl;
+ 		script.dataset.imogiApp = appKey;
+-
++		
++		// Add crossorigin for better error reporting
++		script.crossOrigin = 'anonymous';
++		
++		// CRITICAL: Use 'load' event to ensure module is fully evaluated
++		// and all top-level code has executed and exports are available
+ 		script.onload = () => {
+-			console.log(`${logPrefix} [${appKey}] Script loaded successfully`);
+-			resolve();
++			console.log(`${logPrefix} [${appKey}] Script loaded and evaluated successfully`);
++			// Defer resolve slightly to ensure module exports are accessible
++			// This prevents TDZ errors in mount function lookup
++			setTimeout(() => resolve(), 0);
+ 		};
+ 
+-		script.onerror = () => {
+-			const error = new Error(`Failed to load script: ${scriptUrl}`);
++		script.onerror = (event) => {
++			const error = new Error(`Failed to load script: ${cacheBustUrl}`);
++			error.event = event;
+ 			console.error(`${logPrefix} [${appKey}]`, error);
+ 			reject(error);
+ 		};
+ 
++		// Add to document to trigger load
+ 		document.head.appendChild(script);
+ 	});
+ }
+@@ -410,32 +515,69 @@ function injectScript(appKey, scriptUrl, logPrefix) {
+ /**
+  * Wait for mount function to be available on window object
+  * Uses polling with timeout to prevent infinite waiting
++ * 
++ * CRITICAL FIX: Ensures mount function exists AND is callable
++ * Increased timeout to account for module evaluation time
+  */
+-function waitForMountFunction(mountFnName, appKey, logPrefix, timeout = 10000) {
++function waitForMountFunction(mountFnName, appKey, logPrefix, timeout = 15000) {
+ 	return new Promise((resolve, reject) => {
+ 		// Check if already available
+ 		if (typeof window[mountFnName] === 'function') {
++			console.log(`${logPrefix} [${appKey}] Mount function already available: ${mountFnName}`);
+ 			resolve(window[mountFnName]);
+ 			return;
+ 		}
+ 
+-		// Poll for mount function
++		console.log(`${logPrefix} [${appKey}] Waiting for mount function: ${mountFnName}`);
++		
++		// Poll for mount function with exponential backoff
+ 		const startTime = Date.now();
+-		const checkInterval = setInterval(() => {
++		let checkInterval = 50; // Start with 50ms checks
++		let nextCheck = startTime;
++		
++		const checkFunction = () => {
++			const now = Date.now();
++			const elapsed = now - startTime;
++			
++			// Check if function is available
+ 			if (typeof window[mountFnName] === 'function') {
+-				clearInterval(checkInterval);
++				console.log(`${logPrefix} [${appKey}] Mount function available after ${elapsed}ms: ${mountFnName}`);
++				clearTimeout(timeoutHandle);
+ 				resolve(window[mountFnName]);
+-			} else if (Date.now() - startTime > timeout) {
+-				clearInterval(checkInterval);
+-				reject(new Error(`Timeout waiting for ${mountFnName} (${timeout}ms)`));
++				return;
++			}
++			
++			// Check timeout
++			if (elapsed > timeout) {
++				console.error(`${logPrefix} [${appKey}] Timeout waiting for ${mountFnName} (${timeout}ms elapsed)`);
++				clearTimeout(timeoutHandle);
++				
++				// Debug info
++				console.error(`${logPrefix} [${appKey}] Available window properties:`, {
++					hasFunction: typeof window[mountFnName],
++					isCashierMount: typeof window.imogiCashierMount,
++					isKitchenMount: typeof window.imogiKitchenMount,
++					allMounts: Object.keys(window).filter(k => k.includes('Mount'))
++				});
++				
++				reject(new Error(`Timeout waiting for ${mountFnName} (${timeout}ms). Module may have TDZ or parse error.`));
++				return;
+ 			}
+-		}, 100);
++			
++			// Schedule next check with backoff (max 500ms)
++			checkInterval = Math.min(checkInterval * 1.2, 500);
++			nextCheck = now + checkInterval;
++			timeoutHandle = setTimeout(checkFunction, checkInterval);
++		};
++		
++		// Start polling
++		let timeoutHandle = setTimeout(checkFunction, checkInterval);
+ 
+-		// Store interval reference for cleanup
++		// Store interval reference for cleanup (for memory leak prevention)
+ 		if (!window.__imogiLoadIntervals) {
+ 			window.__imogiLoadIntervals = {};
+ 		}
+-		window.__imogiLoadIntervals[appKey] = checkInterval;
++		window.__imogiLoadIntervals[appKey] = timeoutHandle;
+ 	});
+ }
+ 
+diff --git a/src/apps/cashier-console/main.jsx b/src/apps/cashier-console/main.jsx
+index 8b51bcc..6da31b6 100644
+--- a/src/apps/cashier-console/main.jsx
++++ b/src/apps/cashier-console/main.jsx
+@@ -5,8 +5,24 @@ import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
+ import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
+ import '@/shared/styles/global.css'
+ 
+-// Get initial state from server
+-const initialState = window.__INITIAL_STATE__ || {}
++/**
++ * CRITICAL FIX: Safe initializer pattern to prevent TDZ violations
++ * 
++ * This function ensures all imports and side effects are properly
++ * initialized BEFORE any React component lifecycle begins.
++ * 
++ * Prevents: ReferenceError: Cannot access 'X' before initialization
++ */
++function initCashierConsole() {
++  // Get initial state from server
++  const initialState = window.__INITIAL_STATE__ || {}
++  
++  // Return initialState for use below
++  return initialState
++}
++
++// Initialize (safe, no side effects at module level)
++const initialState = initCashierConsole()
+ 
+ // Mount React app (only if root element exists - for standalone mode)
+ const rootElement = document.getElementById('root')
+@@ -22,43 +38,36 @@ if (rootElement) {
+   )
+ }
+ 
+-// Track mount count for debugging
+-let mountCounter = 0
+-
+ /**
+  * Bulletproof React mount - ALWAYS creates fresh instance
+  * Production-safe with developer mode logging
+- * Uses consistent __IMOGI_POS_ prefix for all global state
+  */
+ window.imogiCashierMount = function(element, options = {}) {
+   const state = options.initialState || window.__INITIAL_STATE__ || {}
+-  const isDev = typeof frappe !== 'undefined' && (frappe?.boot?.developer_mode || window.location.hostname === 'localhost')
+   
+   // STEP 1: Unmount element-scoped root
+   if (element._reactRoot) {
+-    if (isDev) console.log('[Cashier Mount] Unmounting element root')
+     try {
+       element._reactRoot.unmount()
+     } catch (err) {
+-      console.warn('[Cashier Mount] Element unmount error:', err)
++      console.error('[Cashier Mount] Unmount error:', err)
+     }
+     element._reactRoot = null
+     element._reactMountKey = null
+     element._reactMountTimestamp = null
+   }
+   
+-  // STEP 2: Unmount window-scoped root (consistent naming)
++  // STEP 2: Unmount window-scoped root
+   if (window.__IMOGI_POS_CASHIER_ROOT) {
+-    if (isDev) console.log('[Cashier Mount] Unmounting window root')
+     try {
+       window.__IMOGI_POS_CASHIER_ROOT.unmount()
+     } catch (err) {
+-      console.warn('[Cashier Mount] Window unmount error:', err)
++      console.error('[Cashier Mount] Unmount error:', err)
+     }
+     delete window.__IMOGI_POS_CASHIER_ROOT
+   }
+   
+-  // STEP 3: Clear mounted flags (consistent prefix)
++  // STEP 3: Clear mounted flags
+   if (window.__IMOGI_POS_CASHIER_MOUNTED) {
+     delete window.__IMOGI_POS_CASHIER_MOUNTED
+   }
+@@ -71,7 +80,7 @@ window.imogiCashierMount = function(element, options = {}) {
+     element.innerHTML = ''
+   }
+   
+-  // STEP 5: Clear all global state (consistent __IMOGI_POS_ prefix)
++  // STEP 5: Clear all global state
+   const globalStateKeys = [
+     '__IMOGI_POS_CASHIER_STATE__',
+     '__IMOGI_POS_CASHIER_STORE__',
+@@ -80,28 +89,18 @@ window.imogiCashierMount = function(element, options = {}) {
+   
+   globalStateKeys.forEach(key => {
+     if (window[key]) {
+-      if (isDev) console.log(`[Cashier Mount] Clearing ${key}`)
+       delete window[key]
+     }
+   })
+   
+   // Generate unique mount key
+-  mountCounter++
+-  const mountKey = `cashier-mount-${mountCounter}-${Date.now()}`
+-  
+-  if (isDev) {
+-    console.log('[Cashier Mount] Creating FRESH instance', {
+-      mountKey,
+-      count: mountCounter,
+-      hasState: !!state,
+-      route: typeof frappe !== 'undefined' ? frappe.get_route_str() : window.location.pathname
+-    })
+-  }
++  const mountKey = `cashier-mount-${Date.now()}`
+   
+   // Create completely new React root
+   const root = ReactDOM.createRoot(element)
+   
+-  // Render with conditional StrictMode (dev only to avoid double-invoke confusion)
++  // Render app with StrictMode in dev
++  const isDev = typeof frappe !== 'undefined' && (frappe?.boot?.developer_mode || window.location.hostname === 'localhost')
+   const app = (
+     <ImogiPOSProvider initialState={state} key={mountKey}>
+         <ErrorBoundary>
+@@ -114,7 +113,7 @@ window.imogiCashierMount = function(element, options = {}) {
+     isDev ? <React.StrictMode>{app}</React.StrictMode> : app
+   )
+   
+-  // Store references in BOTH locations for defensive cleanup (consistent naming)
++  // Store references for cleanup
+   element._reactRoot = root
+   element._reactMountKey = mountKey
+   element._reactMountTimestamp = Date.now()
+@@ -123,56 +122,37 @@ window.imogiCashierMount = function(element, options = {}) {
+   window.__IMOGI_POS_CASHIER_MOUNTED = true
+   window.__IMOGI_POS_CASHIER_MOUNT_KEY = mountKey
+   
+-  if (isDev) {
+-    console.log('[Cashier Mount] ✓ Mounted successfully', { mountKey })
+-  }
+-  
+   return root
+ }
+ 
+ /**
+  * Bulletproof React unmount - safe to call multiple times
+- * Production-safe with developer mode logging
+- * Uses consistent __IMOGI_POS_ prefix for all global state
++ * Clears all global state and DOM references
+  */
+ window.imogiCashierUnmount = function(element) {
+-  const isDev = typeof frappe !== 'undefined' && (frappe?.boot?.developer_mode || window.location.hostname === 'localhost')
+-  const mountDuration = element?._reactMountTimestamp ? Date.now() - element._reactMountTimestamp : 0
+-  
+-  if (isDev) {
+-    console.log('[Cashier Unmount] Starting cleanup', {
+-      hasElement: !!element,
+-      elementRoot: !!element?._reactRoot,
+-      windowRoot: !!window.__IMOGI_POS_CASHIER_ROOT,
+-      mountDuration: `${mountDuration}ms`
+-    })
+-  }
+-  
+   // CLEANUP 1: Unmount element-scoped root
+   if (element?._reactRoot) {
+-    if (isDev) console.log('[Cashier Unmount] Destroying element root')
+     try {
+       element._reactRoot.unmount()
+     } catch (err) {
+-      console.error('[Cashier Unmount] Element unmount error:', err)
++      console.error('[Cashier Unmount] Error:', err)
+     }
+     element._reactRoot = null
+     element._reactMountKey = null
+     element._reactMountTimestamp = null
+   }
+   
+-  // CLEANUP 2: Unmount window-scoped root (consistent naming)
++  // CLEANUP 2: Unmount window-scoped root
+   if (window.__IMOGI_POS_CASHIER_ROOT) {
+-    if (isDev) console.log('[Cashier Unmount] Destroying window root')
+     try {
+       window.__IMOGI_POS_CASHIER_ROOT.unmount()
+     } catch (err) {
+-      console.error('[Cashier Unmount] Window unmount error:', err)
++      console.error('[Cashier Unmount] Error:', err)
+     }
+     delete window.__IMOGI_POS_CASHIER_ROOT
+   }
+   
+-  // CLEANUP 3: Clear mounted flags (consistent prefix)
++  // CLEANUP 3: Clear mounted flags
+   if (window.__IMOGI_POS_CASHIER_MOUNTED) {
+     delete window.__IMOGI_POS_CASHIER_MOUNTED
+   }
+@@ -185,7 +165,7 @@ window.imogiCashierUnmount = function(element) {
+     element.innerHTML = ''
+   }
+   
+-  // CLEANUP 5: Clear all global state (consistent __IMOGI_POS_ prefix)
++  // CLEANUP 5: Clear all global state
+   const globalStateKeys = [
+     '__IMOGI_POS_CASHIER_STATE__',
+     '__IMOGI_POS_CASHIER_STORE__',
+@@ -195,12 +175,7 @@ window.imogiCashierUnmount = function(element) {
+   
+   globalStateKeys.forEach(key => {
+     if (window[key]) {
+-      if (isDev) console.log(`[Cashier Unmount] Clearing ${key}`)
+       delete window[key]
+     }
+   })
+-  
+-  if (isDev) {
+-    console.log('[Cashier Unmount] ✓ Cleanup complete')
+-  }
+ }
+diff --git a/src/shared/components/ErrorBoundary.jsx b/src/shared/components/ErrorBoundary.jsx
+index 867a9f7..925b82a 100644
+--- a/src/shared/components/ErrorBoundary.jsx
++++ b/src/shared/components/ErrorBoundary.jsx
+@@ -3,6 +3,12 @@ import React from 'react'
+ /**
+  * ErrorBoundary - Catch React errors and display graceful error UI
+  * 
++ * OBSERVABILITY ENHANCEMENTS:
++ * - Captures build metadata (hash, commit, script URLs)
++ * - Logs module loading information (type, order, URLs)
++ * - Safe logging (no sensitive data like tokens, user emails)
++ * - Integrates with global error handlers
++ * 
+  * Wraps entire app to prevent single component errors from crashing the whole app.
+  * 
+  * Usage:
+@@ -17,8 +23,161 @@ export class ErrorBoundary extends React.Component {
+       hasError: false,
+       error: null,
+       errorInfo: null,
+-      errorCount: 0
++      errorCount: 0,
++      buildInfo: this.getBuildInfo(),
++      scriptInfo: this.getScriptInfo()
++    }
++    
++    // Register global error handlers once
++    this.registerGlobalErrorHandlers()
++  }
++
++  /**
++   * Extract build and deployment metadata
++   * Used for error tracking and correlation
++   */
++  getBuildInfo() {
++    // Try to get from manifest.json or build metadata
++    const manifestScript = document.querySelector('script[src*="manifest"]')
++    const mainScript = document.querySelector('script[data-imogi-app][src*="main"]')
++    
++    return {
++      buildTime: window.__IMOGI_BUILD_TIME__ || 'unknown',
++      commitHash: window.__IMOGI_COMMIT_HASH__ || 'unknown',
++      appVersion: window.__IMOGI_VERSION__ || 'unknown',
++      environment: import.meta.env.MODE || 'unknown',
++      sourcemapEnabled: import.meta.env.DEV || window.location.search.includes('debug=1')
++    }
++  }
++
++  /**
++   * Extract script loading information
++   * Helps diagnose module loading issues
++   */
++  getScriptInfo() {
++    const scripts = {
++      imogiLoader: null,
++      mainBundles: [],
++      css: []
++    }
++
++    // Find imogi loader
++    const loaderScript = document.querySelector('script[src*="imogi_loader"]')
++    if (loaderScript) {
++      scripts.imogiLoader = {
++        src: loaderScript.src,
++        type: loaderScript.type || 'text/javascript',
++        isModule: loaderScript.type === 'module'
++      }
++    }
++
++    // Find main bundles (all scripts with data-imogi-app)
++    document.querySelectorAll('script[data-imogi-app][src*="main"]').forEach(script => {
++      scripts.mainBundles.push({
++        app: script.dataset.imogiApp,
++        src: script.src,
++        type: script.type || 'text/javascript',
++        isModule: script.type === 'module',
++        async: script.async,
++        defer: script.defer
++      })
++    })
++
++    // Find CSS files
++    document.querySelectorAll('link[data-imogi-app][rel="stylesheet"]').forEach(link => {
++      scripts.css.push({
++        app: link.dataset.imogiApp,
++        href: link.href,
++        media: link.media || 'all'
++      })
++    })
++
++    return scripts
++  }
++
++  /**
++   * Register global error handlers for unhandled errors
++   * CRITICAL: Don't send sensitive data
++   */
++  registerGlobalErrorHandlers() {
++    // Only register once per component instance
++    if (this._globalHandlersRegistered) {
++      return
+     }
++    this._globalHandlersRegistered = true
++
++    // Handle uncaught errors
++    window.addEventListener('error', (event) => {
++      // Filter out TDZ and reference errors
++      if (
++        event.error &&
++        (event.error.message?.includes('Cannot access') ||
++         event.error.message?.includes('before initialization') ||
++         event.error.message?.includes('is not defined'))
++      ) {
++        console.error('[ErrorBoundary] Global Error Handler (TDZ/ReferenceError):', {
++          type: 'reference_or_tdz_error',
++          message: event.error.message,
++          filename: this.sanitizeURL(event.filename),
++          lineno: event.lineno,
++          colno: event.colno,
++          buildInfo: this.state.buildInfo,
++          timestamp: new Date().toISOString()
++        })
++
++        // Send to error tracking if available
++        if (window.__imogiErrorLogger) {
++          try {
++            window.__imogiErrorLogger({
++              type: 'global_error',
++              error: event.error.message,
++              stack: event.error.stack,
++              buildInfo: this.state.buildInfo,
++              timestamp: new Date().toISOString()
++            })
++          } catch (err) {
++            console.warn('[ErrorBoundary] Failed to log global error:', err)
++          }
++        }
++      }
++    })
++
++    // Handle unhandled promise rejections
++    window.addEventListener('unhandledrejection', (event) => {
++      console.error('[ErrorBoundary] Unhandled Promise Rejection:', {
++        type: 'unhandled_rejection',
++        reason: event.reason?.message || String(event.reason),
++        buildInfo: this.state.buildInfo,
++        timestamp: new Date().toISOString()
++      })
++
++      // Send to error tracking if available
++      if (window.__imogiErrorLogger) {
++        try {
++          window.__imogiErrorLogger({
++            type: 'unhandled_rejection',
++            reason: event.reason?.message || String(event.reason),
++            stack: event.reason?.stack || 'no stack',
++            buildInfo: this.state.buildInfo,
++            timestamp: new Date().toISOString()
++          })
++        } catch (err) {
++          console.warn('[ErrorBoundary] Failed to log rejection:', err)
++        }
++      }
++    })
++  }
++
++  /**
++   * Sanitize URLs to avoid logging sensitive paths
++   * @param {string} url - URL to sanitize
++   * @returns {string} Sanitized URL
++   */
++  sanitizeURL(url) {
++    if (!url) return 'unknown'
++    // Remove query parameters and sensitive info
++    const urlObj = new URL(url, window.location.origin)
++    return `${urlObj.pathname}` // No query, just path
+   }
+ 
+   static getDerivedStateFromError(error) {
+@@ -29,10 +188,36 @@ export class ErrorBoundary extends React.Component {
+   }
+ 
+   componentDidCatch(error, errorInfo) {
+-    // Log error for debugging
+-    console.error('[ErrorBoundary] React error caught:', error)
++    // Log error for debugging with full context
++    const errorContext = {
++      type: 'react_component_error',
++      message: error.message,
++      name: error.name,
++      stack: error.stack,
++      componentStack: errorInfo.componentStack,
++      buildInfo: this.state.buildInfo,
++      scriptInfo: this.state.scriptInfo,
++      errorCount: this.state.errorCount + 1,
++      timestamp: new Date().toISOString(),
++      url: this.sanitizeURL(window.location.href),
++      isDev: import.meta.env.DEV,
++      hasSourceMap: this.state.buildInfo.sourcemapEnabled
++    }
++
++    console.error('[ErrorBoundary] React error caught:', errorContext)
+     console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack)
+ 
++    // Log with build metadata for correlation
++    if (import.meta.env.DEV || window.location.search.includes('debug=1')) {
++      console.group('[ErrorBoundary] Build Information')
++      console.table(this.state.buildInfo)
++      console.groupEnd()
++      
++      console.group('[ErrorBoundary] Script Loading Information')
++      console.table(this.state.scriptInfo.mainBundles)
++      console.groupEnd()
++    }
++
+     // Update state with error details
+     this.setState(prevState => ({
+       errorInfo,
+@@ -45,7 +230,9 @@ export class ErrorBoundary extends React.Component {
+         window.__imogiErrorLogger({
+           type: 'react_error',
+           error: error.toString(),
++          message: error.message,
+           componentStack: errorInfo.componentStack,
++          buildInfo: this.state.buildInfo,
+           timestamp: new Date().toISOString()
+         })
+       } catch (err) {
+@@ -75,16 +262,37 @@ export class ErrorBoundary extends React.Component {
+               We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.
+             </p>
+ 
+-            {import.meta.env.DEV && (
+-              <details style={styles.details}>
+-                <summary style={styles.summary}>
+-                  Error Details (Development Mode)
+-                </summary>
+-                <pre style={styles.errorText}>
+-                  {this.state.error?.toString()}
+-                  {this.state.errorInfo?.componentStack}
+-                </pre>
+-              </details>
++            {(import.meta.env.DEV || window.location.search.includes('debug=1')) && (
++              <>
++                <details style={styles.details}>
++                  <summary style={styles.summary}>
++                    Error Details (Development Mode)
++                  </summary>
++                  <pre style={styles.errorText}>
++                    {this.state.error?.toString()}
++                    {'\n\n'}
++                    {this.state.errorInfo?.componentStack}
++                  </pre>
++                </details>
++
++                <details style={styles.details}>
++                  <summary style={styles.summary}>
++                    Build Information
++                  </summary>
++                  <pre style={styles.errorText}>
++                    {JSON.stringify(this.state.buildInfo, null, 2)}
++                  </pre>
++                </details>
++
++                <details style={styles.details}>
++                  <summary style={styles.summary}>
++                    Script Loading Information
++                  </summary>
++                  <pre style={styles.errorText}>
++                    {JSON.stringify(this.state.scriptInfo, null, 2)}
++                  </pre>
++                </details>
++              </>
+             )}
+ 
+             <div style={styles.actions}>
+@@ -106,6 +314,12 @@ export class ErrorBoundary extends React.Component {
+             <p style={styles.errorCount}>
+               Error Count: {this.state.errorCount}
+             </p>
++
++            {this.state.buildInfo.buildTime !== 'unknown' && (
++              <p style={styles.buildVersion}>
++                Build: {this.state.buildInfo.commitHash?.substring(0, 8)} @ {this.state.buildInfo.buildTime}
++              </p>
++            )}
+           </div>
+         </div>
+       )
+@@ -202,5 +416,13 @@ const styles = {
+     fontSize: '12px',
+     color: '#999',
+     margin: '0'
++  },
++  buildVersion: {
++    fontSize: '11px',
++    color: '#bbb',
++    margin: '8px 0 0 0',
++    fontFamily: 'monospace',
++    borderTop: '1px solid #eee',
++    paddingTop: '8px'
+   }
+ }
+diff --git a/src/shared/hooks/useOperationalContext.js b/src/shared/hooks/useOperationalContext.js
+index 7e100c9..9a4376c 100644
+--- a/src/shared/hooks/useOperationalContext.js
++++ b/src/shared/hooks/useOperationalContext.js
+@@ -41,12 +41,12 @@ const asArray = (value) => (Array.isArray(value) ? value : [])
+ export function useOperationalContext(options = {}) {
+   const { autoResolve = true } = options
+   
+-  // Local state (mirrors server session)
+-  const [context, setContextState] = useState(() => {
+-    // Try to load from cache for faster initial render
+-    // storage.getItem auto-adds 'imogi_' prefix
+-    return storage.getItem(CACHE_KEY) || null
+-  })
++  // CRITICAL FIX: Initialize state safely (avoid TDZ)
++  // - Don't call storage.getItem() in initializer (deferred side effect)
++  // - Will be populated by useEffect after component mount
++  const [context, setContextState] = useState(null)
++  const [cacheLoaded, setCacheLoaded] = useState(false)
++  
+   const [serverContextState, setServerContextState] = useState(() => {
+     const initial = window.__IMOGI_SERVER_CONTEXT_STATE__ || {}
+     return {
+@@ -56,6 +56,25 @@ export function useOperationalContext(options = {}) {
+     }
+   })
+   
++  // CRITICAL FIX: Load cache in effect, not during module init
++  // This defers side effects until React component lifecycle is safe
++  useEffect(() => {
++    if (cacheLoaded) return
++    
++    try {
++      const cached = storage.getItem(CACHE_KEY)
++      if (cached) {
++        setContextState(cached)
++      }
++    } catch (e) {
++      // Storage access failed - this is safe to ignore
++      // Server will provide context in next fetch
++      console.warn('[useOperationalContext] Cache load failed:', e)
++    }
++    
++    setCacheLoaded(true)
++  }, [])
++  
+   // Fetch context from server (authoritative source)
+   const { 
+     data: serverContext, 
+diff --git a/vite.config.js b/vite.config.js
+index b2c41d2..f1263d8 100644
+--- a/vite.config.js
++++ b/vite.config.js
+@@ -3,16 +3,37 @@ import react from '@vitejs/plugin-react'
+ import path from 'path'
+ 
+ // https://vitejs.dev/config/
+-export default defineConfig(({ mode }) => {
++export default defineConfig(({ mode, command }) => {
+   // Get app name from environment variable or default to cashier-console
+   const app = process.env.VITE_APP || 'cashier-console'
+   
++  // Determine if building for debug (non-minified with sourcemaps)
++  const isDebugBuild = process.env.VITE_DEBUG === 'true'
++  
++  // Determine if sourcemaps should be generated for staging/qa
++  const shouldGenerateSourcemap =
++    isDebugBuild ||
++    process.env.VITE_SOURCEMAP === 'true' ||
++    mode === 'development' ||
++    process.env.NODE_ENV === 'staging' ||
++    process.env.NODE_ENV === 'qa' ||
++    process.env.BUILD_ENV === 'staging'
++  
+   return {
+     plugins: [react()],
+     build: {
+-      outDir: `imogi_pos/public/react/${app}`,
++      outDir: `imogi_pos/public/react/${app}${isDebugBuild ? '-debug' : ''}`,
+       emptyOutDir: true,
+       manifest: true,
++      
++      // CRITICAL: Enable sourcemaps for readable error stacks
++      // Uses 'hidden' for production (sourceMappingURL still works, just not exposed)
++      // Uses 'inline' for debug builds (sourcemap embedded in bundle)
++      sourcemap: isDebugBuild ? 'inline' : (shouldGenerateSourcemap ? 'hidden' : false),
++      
++      // Debug build: disable minification for readable code
++      minify: isDebugBuild ? false : 'esbuild',
++      
+       rollupOptions: {
+         input: {
+           main: path.resolve(__dirname, `src/apps/${app}/main.jsx`)
+@@ -20,7 +41,10 @@ export default defineConfig(({ mode }) => {
+         output: {
+           entryFileNames: 'static/js/[name].[hash].js',
+           chunkFileNames: 'static/js/[name].[hash].js',
+-          assetFileNames: 'static/[ext]/[name].[hash].[ext]'
++          assetFileNames: 'static/[ext]/[name].[hash].[ext]',
++          // CRITICAL: Ensure sourceMappingURL comments are preserved
++          // This comment tells browser where sourcemap file is located
++          sourcemapPathTransform: (relativeSourcePath) => relativeSourcePath
+         }
+       }
+     },

@@ -3,16 +3,37 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Get app name from environment variable or default to cashier-console
   const app = process.env.VITE_APP || 'cashier-console'
+  
+  // Determine if building for debug (non-minified with sourcemaps)
+  const isDebugBuild = process.env.VITE_DEBUG === 'true'
+  
+  // Determine if sourcemaps should be generated for staging/qa
+  const shouldGenerateSourcemap =
+    isDebugBuild ||
+    process.env.VITE_SOURCEMAP === 'true' ||
+    mode === 'development' ||
+    process.env.NODE_ENV === 'staging' ||
+    process.env.NODE_ENV === 'qa' ||
+    process.env.BUILD_ENV === 'staging'
   
   return {
     plugins: [react()],
     build: {
-      outDir: `imogi_pos/public/react/${app}`,
+      outDir: `imogi_pos/public/react/${app}${isDebugBuild ? '-debug' : ''}`,
       emptyOutDir: true,
       manifest: true,
+      
+      // CRITICAL: Enable sourcemaps for readable error stacks
+      // Uses 'hidden' for production (sourceMappingURL still works, just not exposed)
+      // Uses 'inline' for debug builds (sourcemap embedded in bundle)
+      sourcemap: isDebugBuild ? 'inline' : (shouldGenerateSourcemap ? 'hidden' : false),
+      
+      // Debug build: disable minification for readable code
+      minify: isDebugBuild ? false : 'esbuild',
+      
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, `src/apps/${app}/main.jsx`)
@@ -20,7 +41,10 @@ export default defineConfig(({ mode }) => {
         output: {
           entryFileNames: 'static/js/[name].[hash].js',
           chunkFileNames: 'static/js/[name].[hash].js',
-          assetFileNames: 'static/[ext]/[name].[hash].[ext]'
+          assetFileNames: 'static/[ext]/[name].[hash].[ext]',
+          // CRITICAL: Ensure sourceMappingURL comments are preserved
+          // This comment tells browser where sourcemap file is located
+          sourcemapPathTransform: (relativeSourcePath) => relativeSourcePath
         }
       }
     },

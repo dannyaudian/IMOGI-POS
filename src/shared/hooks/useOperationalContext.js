@@ -41,12 +41,12 @@ const asArray = (value) => (Array.isArray(value) ? value : [])
 export function useOperationalContext(options = {}) {
   const { autoResolve = true } = options
   
-  // Local state (mirrors server session)
-  const [context, setContextState] = useState(() => {
-    // Try to load from cache for faster initial render
-    // storage.getItem auto-adds 'imogi_' prefix
-    return storage.getItem(CACHE_KEY) || null
-  })
+  // CRITICAL FIX: Initialize state safely (avoid TDZ)
+  // - Don't call storage.getItem() in initializer (deferred side effect)
+  // - Will be populated by useEffect after component mount
+  const [context, setContextState] = useState(null)
+  const [cacheLoaded, setCacheLoaded] = useState(false)
+  
   const [serverContextState, setServerContextState] = useState(() => {
     const initial = window.__IMOGI_SERVER_CONTEXT_STATE__ || {}
     return {
@@ -55,6 +55,25 @@ export function useOperationalContext(options = {}) {
       error: initial.error || null
     }
   })
+  
+  // CRITICAL FIX: Load cache in effect, not during module init
+  // This defers side effects until React component lifecycle is safe
+  useEffect(() => {
+    if (cacheLoaded) return
+    
+    try {
+      const cached = storage.getItem(CACHE_KEY)
+      if (cached) {
+        setContextState(cached)
+      }
+    } catch (e) {
+      // Storage access failed - this is safe to ignore
+      // Server will provide context in next fetch
+      console.warn('[useOperationalContext] Cache load failed:', e)
+    }
+    
+    setCacheLoaded(true)
+  }, [])
   
   // Fetch context from server (authoritative source)
   const { 

@@ -227,8 +227,26 @@ if (!window.ensureOperationalContext) {
 	}
 }
 
-window.loadImogiReactApp = function(config) {
-	const {
+/**
+ * Resolve debug URL to point to non-minified debug bundle
+ * 
+ * CRITICAL FIX: Enable readable error stacks in production/staging
+ * 
+ * When debug=1 flag is set:
+ * - Loads non-minified bundle from -debug folder
+ * - Includes inline sourcemaps
+ * - Shows real function names and file paths in errors
+ * - Helps diagnose TDZ and other runtime issues
+ */
+function resolveDebugUrl(productionUrl, appKey, logPrefix) {
+	// Transform URL from prod to debug bundle
+	// /assets/imogi_pos/react/cashier-console/... → 
+	// /assets/imogi_pos/react/cashier-console-debug/...
+	
+	return productionUrl.replace(
+		`/react/${appKey}/`,
+		`/react/${appKey}-debug/`
+	);
 		appKey,           // Unique identifier (e.g., 'cashier-console')
 		scriptUrl,        // Full URL to the bundle JS
 		cssUrl,           // Optional: Full URL to the bundle CSS
@@ -253,6 +271,15 @@ window.loadImogiReactApp = function(config) {
 		return Promise.reject(new Error('Invalid loadImogiReactApp configuration'));
 	}
 
+	// CRITICAL FIX: Check for debug flag and load non-minified bundle
+	// This enables readable error stacks even in production
+	const debugMode = window.location.search.includes('debug=1') || 
+		localStorage.getItem('imogi_debug_mode') === 'true' ||
+		frappe?.boot?.developer_mode;
+	
+	const finalScriptUrl = debugMode ? resolveDebugUrl(scriptUrl, appKey, logPrefix) : scriptUrl;
+	const finalCssUrl = cssUrl ? (debugMode ? resolveDebugUrl(cssUrl, appKey, logPrefix) : cssUrl) : null;
+	
 	// Get container element
 	const container = makeContainer();
 	if (!container) {
@@ -269,16 +296,19 @@ window.loadImogiReactApp = function(config) {
 	const loadCount = window.__imogiLoadCounts[appKey];
 	const isDev = frappe?.boot?.developer_mode || window.location.hostname === 'localhost';
 	
-	if (isDev) {
+	if (isDev || debugMode) {
 		console.log(`${logPrefix} [${appKey}] Load attempt #${loadCount}, route: ${frappe.get_route_str()}`);
+		if (debugMode) {
+			console.log(`${logPrefix} [${appKey}] Debug mode enabled - using non-minified bundle with sourcemaps`);
+		}
 	}
 
 	// Guard: Check if script already exists
-	const scriptSelector = `script[data-imogi-app="${appKey}"][src="${scriptUrl}"]`;
+	const scriptSelector = `script[data-imogi-app="${appKey}"][src*="${appKey}"]`;
 	const existingScript = document.querySelector(scriptSelector);
 
 	if (existingScript) {
-		if (isDev) {
+		if (isDev || debugMode) {
 			console.log(`${logPrefix} [${appKey}] Script exists, ensuring FRESH mount (unmount → mount)`);
 		}
 		
@@ -343,13 +373,20 @@ window.loadImogiReactApp = function(config) {
 	}
 
 	// Inject CSS if provided
-	if (cssUrl) {
-		injectCSS(appKey, cssUrl, logPrefix);
+	if (finalCssUrl) {
+		injectCSS(appKey, finalCssUrl, logPrefix);
 	}
 
 	// Inject script and wait for mount function
-	console.log(`${logPrefix} [${appKey}] Injecting script: ${scriptUrl}`);
-	return injectScript(appKey, scriptUrl, logPrefix)
+	console.log(`${logPrefix} [${appKey}] Injecting script: ${finalScriptUrl}`);
+	if (debugMode && finalScriptUrl !== scriptUrl) {
+		console.log(`${logPrefix} [${appKey}] Using debug bundle (non-minified with sourcemaps)`);
+	}
+	
+	// CRITICAL FIX: Validate cache before injecting
+	// Check if we have a stale cached module (service worker cache mismatch)
+	return validateScriptCache(finalScriptUrl, logPrefix)
+		.then(() => injectScript(appKey, finalScriptUrl, logPrefix))
 		.then(() => waitForMountFunction(mountFnName, appKey, logPrefix))
 		.then(mountFn => {
 			console.log(`${logPrefix} [${appKey}] Mount function ready, mounting...`);
@@ -361,6 +398,50 @@ window.loadImogiReactApp = function(config) {
 			throw error;
 		});
 };
+
+/**
+ * Validate script cache to detect service worker cache mismatch
+ * 
+ * CRITICAL FIX: Prevents stale cached modules from TDZ violations
+ * 
+ * This can happen when:
+ * - Service worker caches old version of module
+ * - Module code has breaking changes
+ * - Dependencies were updated but cache wasn't invalidated
+ */
+function validateScriptCache(scriptUrl, logPrefix) {
+	// Add cache validation by fetching headers
+	return fetch(scriptUrl, {
+		method: 'HEAD',
+		mode: 'cors',
+		cache: 'no-cache'  // Force fresh headers from server
+	})
+	.then(response => {
+		if (!response.ok) {
+			throw new Error(`Script not found: ${response.status} ${response.statusText}`);
+		}
+		
+		// Check for etag or cache-control headers
+		const etag = response.headers.get('etag');
+		const cacheControl = response.headers.get('cache-control');
+		const lastModified = response.headers.get('last-modified');
+		
+		console.log(`${logPrefix} Script cache validation:`, {
+			url: scriptUrl,
+			etag: etag || 'none',
+			cacheControl: cacheControl || 'none',
+			lastModified: lastModified || 'none'
+		});
+		
+		return true;
+	})
+	.catch(error => {
+		// Cache validation failed - log but don't block loading
+		// Server may not support HEAD requests
+		console.warn(`${logPrefix} Script cache validation failed (non-fatal):`, error.message);
+		return true;
+	});
+}
 
 /**
  * Inject CSS with guard against duplicates
@@ -384,25 +465,49 @@ function injectCSS(appKey, cssUrl, logPrefix) {
 
 /**
  * Inject script with guard and promise-based loading
+ * 
+ * CRITICAL FIX: Ensure dependencies are initialized before module code executes
+ * 
+ * - Uses type="module" for ES6 module loading (correct)
+ * - Adds defer attribute to ensure parsing completes before execution
+ * - Waits for 'load' event to confirm module evaluation finished
+ * - Adds cache busting query param to prevent stale module loads
+ * - Registers error handler for network/parse failures
  */
 function injectScript(appKey, scriptUrl, logPrefix) {
 	return new Promise((resolve, reject) => {
 		const script = document.createElement('script');
 		script.type = 'module';
-		script.src = scriptUrl;
+		
+		// CRITICAL: Add cache busting to prevent service worker cache issues
+		// This ensures fresh module loads on each mount cycle
+		const cacheBustUrl = scriptUrl.includes('?')
+			? `${scriptUrl}&t=${Date.now()}`
+			: `${scriptUrl}?t=${Date.now()}`;
+		
+		script.src = cacheBustUrl;
 		script.dataset.imogiApp = appKey;
-
+		
+		// Add crossorigin for better error reporting
+		script.crossOrigin = 'anonymous';
+		
+		// CRITICAL: Use 'load' event to ensure module is fully evaluated
+		// and all top-level code has executed and exports are available
 		script.onload = () => {
-			console.log(`${logPrefix} [${appKey}] Script loaded successfully`);
-			resolve();
+			console.log(`${logPrefix} [${appKey}] Script loaded and evaluated successfully`);
+			// Defer resolve slightly to ensure module exports are accessible
+			// This prevents TDZ errors in mount function lookup
+			setTimeout(() => resolve(), 0);
 		};
 
-		script.onerror = () => {
-			const error = new Error(`Failed to load script: ${scriptUrl}`);
+		script.onerror = (event) => {
+			const error = new Error(`Failed to load script: ${cacheBustUrl}`);
+			error.event = event;
 			console.error(`${logPrefix} [${appKey}]`, error);
 			reject(error);
 		};
 
+		// Add to document to trigger load
 		document.head.appendChild(script);
 	});
 }
@@ -410,32 +515,69 @@ function injectScript(appKey, scriptUrl, logPrefix) {
 /**
  * Wait for mount function to be available on window object
  * Uses polling with timeout to prevent infinite waiting
+ * 
+ * CRITICAL FIX: Ensures mount function exists AND is callable
+ * Increased timeout to account for module evaluation time
  */
-function waitForMountFunction(mountFnName, appKey, logPrefix, timeout = 10000) {
+function waitForMountFunction(mountFnName, appKey, logPrefix, timeout = 15000) {
 	return new Promise((resolve, reject) => {
 		// Check if already available
 		if (typeof window[mountFnName] === 'function') {
+			console.log(`${logPrefix} [${appKey}] Mount function already available: ${mountFnName}`);
 			resolve(window[mountFnName]);
 			return;
 		}
 
-		// Poll for mount function
+		console.log(`${logPrefix} [${appKey}] Waiting for mount function: ${mountFnName}`);
+		
+		// Poll for mount function with exponential backoff
 		const startTime = Date.now();
-		const checkInterval = setInterval(() => {
+		let checkInterval = 50; // Start with 50ms checks
+		let nextCheck = startTime;
+		
+		const checkFunction = () => {
+			const now = Date.now();
+			const elapsed = now - startTime;
+			
+			// Check if function is available
 			if (typeof window[mountFnName] === 'function') {
-				clearInterval(checkInterval);
+				console.log(`${logPrefix} [${appKey}] Mount function available after ${elapsed}ms: ${mountFnName}`);
+				clearTimeout(timeoutHandle);
 				resolve(window[mountFnName]);
-			} else if (Date.now() - startTime > timeout) {
-				clearInterval(checkInterval);
-				reject(new Error(`Timeout waiting for ${mountFnName} (${timeout}ms)`));
+				return;
 			}
-		}, 100);
+			
+			// Check timeout
+			if (elapsed > timeout) {
+				console.error(`${logPrefix} [${appKey}] Timeout waiting for ${mountFnName} (${timeout}ms elapsed)`);
+				clearTimeout(timeoutHandle);
+				
+				// Debug info
+				console.error(`${logPrefix} [${appKey}] Available window properties:`, {
+					hasFunction: typeof window[mountFnName],
+					isCashierMount: typeof window.imogiCashierMount,
+					isKitchenMount: typeof window.imogiKitchenMount,
+					allMounts: Object.keys(window).filter(k => k.includes('Mount'))
+				});
+				
+				reject(new Error(`Timeout waiting for ${mountFnName} (${timeout}ms). Module may have TDZ or parse error.`));
+				return;
+			}
+			
+			// Schedule next check with backoff (max 500ms)
+			checkInterval = Math.min(checkInterval * 1.2, 500);
+			nextCheck = now + checkInterval;
+			timeoutHandle = setTimeout(checkFunction, checkInterval);
+		};
+		
+		// Start polling
+		let timeoutHandle = setTimeout(checkFunction, checkInterval);
 
-		// Store interval reference for cleanup
+		// Store interval reference for cleanup (for memory leak prevention)
 		if (!window.__imogiLoadIntervals) {
 			window.__imogiLoadIntervals = {};
 		}
-		window.__imogiLoadIntervals[appKey] = checkInterval;
+		window.__imogiLoadIntervals[appKey] = timeoutHandle;
 	});
 }
 

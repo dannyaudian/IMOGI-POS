@@ -18,16 +18,22 @@
     "dev:module-select": "VITE_APP=module-select vite",
     "build": "npm run build:all",
     "build:all": "npm run build:cashier && npm run build:kitchen && npm run build:waiter && npm run build:kiosk && npm run build:self-order && npm run build:customer-display && npm run build:table-display && npm run build:customer-display-editor && npm run build:table-management-editor && npm run build:module-select",
+    "build:debug": "npm run build:cashier:debug && npm run build:kitchen:debug && npm run build:waiter:debug && npm run build:kiosk:debug && npm run build:module-select:debug",
     "build:cashier": "VITE_APP=cashier-console vite build",
+    "build:cashier:debug": "VITE_APP=cashier-console VITE_DEBUG=true vite build",
     "build:kitchen": "VITE_APP=kitchen vite build",
+    "build:kitchen:debug": "VITE_APP=kitchen VITE_DEBUG=true vite build",
     "build:waiter": "VITE_APP=waiter vite build",
+    "build:waiter:debug": "VITE_APP=waiter VITE_DEBUG=true vite build",
     "build:kiosk": "VITE_APP=kiosk vite build",
+    "build:kiosk:debug": "VITE_APP=kiosk VITE_DEBUG=true vite build",
     "build:self-order": "VITE_APP=self-order vite build",
     "build:customer-display": "VITE_APP=customer-display vite build",
     "build:table-display": "VITE_APP=table-display vite build",
     "build:customer-display-editor": "VITE_APP=customer-display-editor vite build",
     "build:table-management-editor": "VITE_APP=table-management-editor vite build",
     "build:module-select": "VITE_APP=module-select vite build",
+    "build:module-select:debug": "VITE_APP=module-select VITE_DEBUG=true vite build",
     "preview": "vite preview",
     "check:api-constants": "node scripts/check-api-constants.js"
   },
@@ -51,6 +57,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "madge": "^8.0.0",
     "vite": "^5.4.11"
   }
 }
