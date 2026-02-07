@@ -16,7 +16,7 @@
  *   → Sub-components (read from context via useCashierContext hook)
  */
 
-import { useState, useEffect, useCallback, useContext, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
