@@ -28,7 +28,8 @@
     "build:customer-display-editor": "VITE_APP=customer-display-editor vite build",
     "build:table-management-editor": "VITE_APP=table-management-editor vite build",
     "build:module-select": "VITE_APP=module-select vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:api-constants": "node scripts/check-api-constants.js"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

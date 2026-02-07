@@ -48,6 +48,13 @@ let sessionExpiredHandlerCalled = false
  * @returns {Promise} Promise resolving with response.message or rejecting with error
  */
 export async function apiCall(method, args = {}, options = {}) {
+  // GUARD: Validate method parameter (prevent /api/method/undefined errors)
+  if (!method || typeof method !== 'string') {
+    const error = new Error(`[apiCall] Invalid method parameter: ${JSON.stringify(method)}. Expected non-empty string.`)
+    logger.error('api', 'Invalid method parameter', { method, args, options })
+    throw error
+  }
+
   const {
     freeze = false,           // Show loading overlay
     silent = false,           // Don't show error toasts

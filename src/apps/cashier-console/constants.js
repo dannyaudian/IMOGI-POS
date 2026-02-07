@@ -6,8 +6,22 @@
  *   import { API, TIMING, ... } from '@/shared/api/constants'
  */
 
-// Export from unified source
-export * from '@/shared/api/constants'
+// Export from unified source (named exports to avoid circular imports)
+export {
+  API,
+  TIMING,
+  UI,
+  ORDER_TYPES,
+  ORDER_STATUS,
+  ITEM_MODES,
+  MODULE_ICONS,
+  MODULE_COLORS,
+  MODULE_PRIORITY,
+  MODULE_DEFAULTS,
+  ERRORS,
+  LINKS,
+  REALTIME,
+} from '@/shared/api/constants'
 
 // Payment Methods
 export const PAYMENT_METHODS = {

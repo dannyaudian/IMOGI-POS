@@ -17,7 +17,7 @@ import { SidebarSkeleton, GridSkeleton } from './components/LoadingSkeleton'
 // Context & Utils
 import { ModuleSelectProvider } from './context/ModuleSelectContext'
 import { getVisibleModules } from './utils/moduleUtils'
-import { TIMING, API } from '@/shared/api/constants'
+import { TIMING, API, ERRORS } from '@/shared/api/constants'
 
 /**
  * Module Select App - Refactored Architecture
@@ -84,12 +84,12 @@ function App() {
     isLoading: modulesLoading, 
     mutate: refetchModuleData 
   } = useFrappeGetCall(
-    API.METHOD,
+    API.GET_AVAILABLE_MODULES,
     undefined,
     undefined,
     {
-      errorRetryCount: API.ERROR_RETRY_COUNT,
-      shouldRetryOnError: API.SHOULD_RETRY_ON_ERROR,
+      errorRetryCount: ERRORS.RETRY_COUNT,
+      shouldRetryOnError: ERRORS.SHOULD_RETRY_ON_ERROR,
       onError: (error) => {
         console.error('[module-select] API call failed:', error)
         setApiError(error)
