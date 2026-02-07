@@ -2417,7 +2417,9 @@
 .catalog-container {
   display: flex;
   height: 100%;
-  overflow: hidden;
+  /* Allow vertical scroll on catalog */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .catalog-sidebar {

@@ -4,7 +4,7 @@ import { apiCall } from '@/shared/utils/api'
 import { API, ITEM_MODES } from '@/shared/api/constants'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
-import { VariantListModal } from './VariantListModal'
+import { VariantPickerModal } from './VariantPickerModal'
 
 export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
@@ -163,7 +163,8 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   }
 
   const handleItemClick = (item) => {
-    const hasVariants = item.has_variants === 1 || item.has_variants === true
+    // Convert has_variants to boolean: backend can send 1, "1", true, or 0, "0", false
+    const hasVariants = Boolean(Number(item.has_variants))
     
     if (hasVariants) {
       setSelectedTemplate(item)
@@ -187,8 +188,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     <div className="catalog-panel" style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
-      overflow: 'hidden'
+      height: '100%'
     }}>
       <div className="catalog-header" style={{
         padding: '1rem',
@@ -320,16 +320,24 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         </div>
       </div>
       
-      {/* Variant List Modal */}
-      <VariantListModal
+      {/* Variant Picker Modal - Attribute-based ERPNext v15+ */}
+      <VariantPickerModal
         isOpen={showVariantModal}
         onClose={() => {
           setShowVariantModal(false)
           setSelectedTemplate(null)
         }}
-        templateItem={selectedTemplate}
+        templateName={selectedTemplate?.name}
         posProfile={posProfile}
-        onSelectVariant={handleVariantSelect}
+        mode="add"
+        onSelectVariant={(variantName) => {
+          // After user selects attributes, variant name is returned
+          if (onSelectItem && variantName) {
+            onSelectItem({ name: variantName, item_code: variantName })
+          }
+          setShowVariantModal(false)
+          setSelectedTemplate(null)
+        }}
       />
     </div>
   )

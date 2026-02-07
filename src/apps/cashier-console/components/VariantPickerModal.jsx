@@ -69,6 +69,21 @@ export function VariantPickerModal({
     }))
   }
 
+  // Auto-select when only one variant matches filters (ERPNext v15+ UX)
+  useEffect(() => {
+    if (!isOpen || loading) return
+    
+    const filtered = getFilteredVariants()
+    
+    // If only one variant matches all selected filters, auto-select it
+    if (filtered.length === 1 && Object.keys(selectedFilters).length > 0) {
+      if (import.meta.env.DEV) {
+        console.log('[VariantPicker] Auto-selecting unique variant:', filtered[0].name)
+      }
+      handleVariantClick(filtered[0])
+    }
+  }, [selectedFilters, variants, isOpen, loading])
+
   const clearFilters = () => {
     setSelectedFilters({})
   }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useCashierContext } from '../context/CashierContext'
+import { apiCall } from '@/shared/utils/api'
+import { API } from '@/shared/api/constants'
 
 export function CashierActionBar() {
   const {
@@ -39,9 +41,33 @@ export function CashierActionBar() {
     setViewMode('payment')
   }
 
-  const handlePrintBill = () => {
-    console.log('[CashierActionBar] Print bill requested for order:', selectedOrder?.name)
-    // TODO: Implement print bill logic
+  const handlePrintBill = async () => {
+    if (!selectedOrder?.name) {
+      console.warn('[CashierActionBar] Cannot print: no order selected')
+      return
+    }
+
+    try {
+      console.log('[CashierActionBar] Printing bill for order:', selectedOrder.name)
+      await apiCall(API.PRINT_BILL, { 
+        pos_order: selectedOrder.name 
+      })
+      
+      // Show success message
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ message: 'Bill sent to printer', indicator: 'green' })
+      }
+    } catch (err) {
+      console.error('[CashierActionBar] Failed to print bill:', err)
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ 
+          message: 'Failed to print bill: ' + (err.message || 'Unknown error'), 
+          indicator: 'red' 
+        })
+      } else {
+        alert('Failed to print bill: ' + (err.message || 'Unknown error'))
+      }
+    }
   }
 
   const handleSplitBill = () => {
@@ -49,14 +75,80 @@ export function CashierActionBar() {
     setViewMode('split')
   }
 
-  const handleHoldOrder = () => {
-    console.log('[CashierActionBar] Hold order requested for order:', selectedOrder?.name)
-    // TODO: Implement hold order logic
+  const handleHoldOrder = async () => {
+    if (!selectedOrder?.name) {
+      console.warn('[CashierActionBar] Cannot hold: no order selected')
+      return
+    }
+
+    try {
+      console.log('[CashierActionBar] Holding order:', selectedOrder.name)
+      // Save order with workflow_state = On Hold
+      await apiCall(API.UPDATE_ORDER, { 
+        pos_order: selectedOrder.name,
+        workflow_state: 'On Hold'
+      })
+      
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ message: 'Order held', indicator: 'blue' })
+      }
+      
+      // Trigger order refresh
+      window.dispatchEvent(new CustomEvent('refreshOrder'))
+    } catch (err) {
+      console.error('[CashierActionBar] Failed to hold order:', err)
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ 
+          message: 'Failed to hold order: ' + (err.message || 'Unknown error'), 
+          indicator: 'red' 
+        })
+      } else {
+        alert('Failed to hold order: ' + (err.message || 'Unknown error'))
+      }
+    }
   }
 
-  const handleClearOrder = () => {
-    console.log('[CashierActionBar] Clear order requested for order:', selectedOrder?.name)
-    // TODO: Implement clear order logic
+  const handleClearOrder = async () => {
+    if (!selectedOrder?.name) {
+      console.warn('[CashierActionBar] Cannot clear: no order selected')
+      return
+    }
+
+    // Confirm before clearing
+    const confirmed = confirm(
+      `Clear order ${selectedOrder.name}?\n\nThis will remove all items and cancel the order. This action cannot be undone.`
+    )
+    
+    if (!confirmed) {
+      console.log('[CashierActionBar] Clear order cancelled by user')
+      return
+    }
+
+    try {
+      console.log('[CashierActionBar] Clearing order:', selectedOrder.name)
+      
+      // Cancel the order (this will trigger cleanup)
+      await apiCall('imogi_pos.api.orders.cancel_order', { 
+        pos_order: selectedOrder.name
+      })
+      
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ message: 'Order cleared', indicator: 'orange' })
+      }
+      
+      // Trigger new order creation
+      window.dispatchEvent(new CustomEvent('createNewOrder'))
+    } catch (err) {
+      console.error('[CashierActionBar] Failed to clear order:', err)
+      if (typeof frappe !== 'undefined' && frappe.show_alert) {
+        frappe.show_alert({ 
+          message: 'Failed to clear order: ' + (err.message || 'Unknown error'), 
+          indicator: 'red' 
+        })
+      } else {
+        alert('Failed to clear order: ' + (err.message || 'Unknown error'))
+      }
+    }
   }
 
   // Primary CTA Logic (State Machine)
