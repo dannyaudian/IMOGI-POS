@@ -364,7 +364,7 @@ function App() {
 
     if (module.type === 'cashier' && contextData.pos_profile && contextData.available_pos_profiles.length > 1) {
       try {
-        const response = await apiCall('imogi_pos.api.cashier.get_cashier_device_sessions', {
+        const response = await apiCall(API.GET_CASHIER_DEVICE_SESSIONS, {
           pos_profile: contextData.pos_profile
         })
         

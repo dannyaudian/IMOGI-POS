@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
+import { API, ITEM_MODES } from '@/shared/api/constants'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
 import { VariantPickerModal } from './VariantPickerModal'
@@ -83,7 +84,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       const params = {
         pos_profile: posProfile,  // Required for POS Menu Profile scoping
         item_group: selectedGroup === 'all' ? null : selectedGroup,
-        mode: 'template',  // Show templates + standalone (user can pick variants via modal)
+        mode: ITEM_MODES.TEMPLATE,  // Show templates + standalone (user can pick variants via modal)
         // price_list will be fetched from POS Profile in backend
         // but we can pass it explicitly if available in state
         require_menu_category: 0,  // Don't filter out items without category

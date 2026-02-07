@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from './useOperationalContext'
+import { API } from '@/shared/api/constants'
 
 const MODULE_SELECT_URL = '/app/imogi-module-select'
 
@@ -64,7 +65,7 @@ export function usePOSProfileGuard(options = {}) {
     error: openingError,
     mutate: refetchOpening
   } = useFrappeGetCall(
-    'imogi_pos.api.module_select.get_active_pos_opening',
+    API.GET_ACTIVE_POS_OPENING,
     undefined,
     shouldCheckOpening ? undefined : false,
     {
@@ -98,7 +99,15 @@ export function usePOSProfileGuard(options = {}) {
       return
     }
 
-    if (!posOpening || !posOpening.pos_opening_entry) {
+    // Check for opening in response (pos_opening_entry is the name field from module_select API)
+    const hasOpeningEntry = Boolean(posOpening?.pos_opening_entry)
+    
+    if (!posOpening || !hasOpeningEntry) {
+      console.warn('[POSProfileGuard] Opening check failed:', {
+        hasResponse: !!posOpening,
+        hasEntryField: hasOpeningEntry,
+        responseKeys: posOpening ? Object.keys(posOpening) : []
+      })
       setOpeningStatus('missing')
       return
     }

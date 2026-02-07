@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiCall } from '@/shared/utils/api'
+import { API } from '@/shared/api/constants'
 
 /**
  * useEffectiveOpening Hook - Single source of truth for POS opening validation
@@ -99,7 +100,7 @@ export function useEffectiveOpening({
       // Call backend validation
       console.log('[useEffectiveOpening] Validating URL opening:', urlOpening)
       const response = await apiCall(
-        'imogi_pos.api.module_select.validate_opening_session',
+        API.VALIDATE_OPENING_SESSION,
         {
           opening_entry: urlOpening,
           pos_profile: posProfile
@@ -136,7 +137,7 @@ export function useEffectiveOpening({
       if (import.meta.env.DEV) {
         console.log('[useEffectiveOpening] Loading active opening...')
       }
-      const response = await apiCall('imogi_pos.api.cashier.get_active_opening')
+      const response = await apiCall(API.GET_ACTIVE_OPENING)
 
       // Dev logging: log full response for debugging
       if (import.meta.env.DEV) {
@@ -216,7 +217,7 @@ export function useEffectiveOpening({
       }
 
       // Get current user's active opening
-      const response = await apiCall('imogi_pos.api.cashier.get_active_opening')
+      const response = await apiCall(API.GET_ACTIVE_OPENING)
 
       if (!response?.has_opening) {
         setStatus('mismatch')

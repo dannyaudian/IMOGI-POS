@@ -63,12 +63,14 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
     cacheKey = `order-history-${posProfile}-${orderType || 'all'}`
   }
   
-  // IMPORTANT: Pass null for BOTH params AND key to disable fetch completely
-  // frappe-react-sdk will not fetch if params is null
+  // IMPORTANT: Pass null for method, params AND key to disable fetch completely
+  // frappe-react-sdk will not fetch if method is null
+  const method = shouldFetch ? API.LIST_ORDERS_FOR_CASHIER : null
+  
   const response = useFrappeGetCall(
-    API.LIST_ORDERS_FOR_CASHIER,
-    params,  // null = don't fetch
-    cacheKey,  // null = no cache key needed
+    method,  // null = don't fetch at all
+    params,  // null = no params
+    cacheKey,  // null = no cache key
     {
       revalidateOnFocus: false,
       refreshInterval: shouldFetch ? 30000 : 0 // Only auto-refresh if actively fetching
@@ -173,9 +175,11 @@ export function useItems(posProfile, branch = null) {
     cacheKey = `items-${posProfile}`
   }
   
+  const method = shouldFetch ? API.GET_POS_ITEMS : null
+  
   return useFrappeGetCall(
-    API.GET_POS_ITEMS,
-    params,  // null = don't fetch
+    method,  // null = don't fetch at all
+    params,  // null = no params
     cacheKey,  // null = no cache key
     {
       revalidateOnFocus: false
@@ -273,9 +277,11 @@ export function useTables(posProfile, branch = null) {
     cacheKey = `tables-${posProfile}`
   }
   
+  const method = shouldFetch ? API.GET_TABLES : null
+  
   return useFrappeGetCall(
-    API.GET_TABLES,
-    params,  // null = don't fetch
+    method,  // null = don't fetch at all
+    params,  // null = no params
     cacheKey,  // null = no cache key
     {
       refreshInterval: shouldFetch ? 10000 : 0, // Only auto-refresh if actively fetching
@@ -306,9 +312,11 @@ export function usePendingOrders(posProfile = null, branch = null, filters = {})
     cacheKey = `pending-orders-${posProfile || 'all'}`
   }
   
+  const method = shouldFetch ? API.GET_PENDING_ORDERS : null
+  
   return useFrappeGetCall(
-    API.GET_PENDING_ORDERS,
-    params,  // null = don't fetch
+    method,  // null = don't fetch at all
+    params,  // null = no params
     cacheKey,  // null = no cache key
     {
       refreshInterval: shouldFetch ? 10000 : 0, // Only auto-refresh if actively fetching
@@ -341,14 +349,23 @@ export function useCompleteOrder() {
 }
 
 export function usePaymentMethods(posProfile = null, branch = null) {
-  // pos_profile is primary, branch is deprecated fallback
+  // CRITICAL FIX: Don't make API call if posProfile is null (guard not passed yet)
+  // This prevents 417 errors when operational context isn't set
+  const shouldFetch = posProfile != null
+  
+  // IMPORTANT: Pass null for method to completely disable fetch
+  // frappe-react-sdk will not fetch if method is null
+  const method = shouldFetch ? API.GET_PAYMENT_METHODS : null
+  const params = shouldFetch ? { pos_profile: posProfile, branch } : null
+  const cacheKey = shouldFetch ? `payment-methods-${posProfile}` : null
+  
   return useFrappeGetCall(
-    API.GET_PAYMENT_METHODS,
-    { pos_profile: posProfile, branch },
-    `payment-methods-${posProfile || 'all'}`,
+    method,  // null = don't fetch at all
+    params,  // null = no params
+    cacheKey,  // null = no cache key
     {
       revalidateOnFocus: false,
-      refreshInterval: 60000 // Refresh every minute
+      refreshInterval: shouldFetch ? 60000 : 0 // Only auto-refresh if actively fetching
     }
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apiCall } from '@/shared/utils/api'
+import { API } from '@/shared/api/constants'
 
 /**
  * Hook for restaurant bill request flow
@@ -18,7 +19,7 @@ export function useBillRequest() {
     setError(null)
 
     try {
-      const response = await apiCall('imogi_pos.api.orders.request_bill', {
+      const response = await apiCall(API.REQUEST_BILL, {
         pos_order_name: posOrderName
       })
 
@@ -56,7 +57,7 @@ export function useBillRequest() {
     setError(null)
 
     try {
-      const response = await apiCall('imogi_pos.api.orders.claim_order', {
+      const response = await apiCall(API.CLAIM_ORDER, {
         pos_order_name: posOrderName,
         opening_entry: openingEntry
       })

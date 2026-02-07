@@ -1,6 +1,7 @@
 import React from 'react'
 import { apiCall } from '@/shared/utils/api'
 import { setItem } from '@/shared/utils/storage'
+import { API } from '@/shared/api/constants'
 
 function BranchSelector({ currentBranch, branches, onBranchChange }) {
   const handleChange = async (e) => {
@@ -11,7 +12,7 @@ function BranchSelector({ currentBranch, branches, onBranchChange }) {
     
     // Update user preference in backend
     try {
-      const result = await apiCall('imogi_pos.api.public.set_user_branch', { branch })
+      const result = await apiCall(API.SET_USER_BRANCH, { branch })
       if (result && result.success) {
         console.log('[imogi][branch] Branch updated successfully:', branch)
       }

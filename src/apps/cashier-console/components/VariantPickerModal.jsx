@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiCall } from '@/shared/utils/api'
+import { API, ITEM_MODES } from '@/shared/api/constants'
 import { formatCurrency } from '@/shared/utils/formatters'
 
 export function VariantPickerModal({ 
@@ -29,7 +30,7 @@ export function VariantPickerModal({
     try {
       // Use unified get_pos_items API with mode="variant"
       const response = await apiCall(API.GET_POS_ITEMS, {
-        mode: 'variant',
+        mode: ITEM_MODES.VARIANT,
         item_code: templateName,  // Required for variant mode
         pos_profile: posProfile,
         debug: import.meta.env.DEV ? 1 : 0
