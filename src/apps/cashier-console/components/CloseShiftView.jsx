@@ -3,7 +3,7 @@ import { apiCall } from '@/shared/utils/api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { BlockedScreen } from './BlockedScreen'
 import { formatCurrency } from '@/shared/utils/formatters'
-import { API } from '../constants'
+import { API } from '@/shared/api/constants'
 
 export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed, effectiveOpeningName, revalidateOpening }) {
   const [loading, setLoading] = useState(true)

@@ -1,7 +1,7 @@
 import { useModuleSelectContext } from '../context/ModuleSelectContext'
 import { useState } from 'react'
 import PropTypes from 'prop-types'
-import { LINKS } from '../constants'
+import { LINKS } from '@/shared/api/constants'
 
 /**
  * ModuleSelectHeader - Top navigation bar with logo and user info

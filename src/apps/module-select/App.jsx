@@ -17,7 +17,7 @@ import { SidebarSkeleton, GridSkeleton } from './components/LoadingSkeleton'
 // Context & Utils
 import { ModuleSelectProvider } from './context/ModuleSelectContext'
 import { getVisibleModules } from './utils/moduleUtils'
-import { TIMING, API } from './constants'
+import { TIMING, API } from '@/shared/api/constants'
 
 /**
  * Module Select App - Refactored Architecture

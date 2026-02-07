@@ -2,11 +2,11 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { getModulePriority } from '../utils/moduleRules'
 import { getModuleStatusBadges, isModuleAccessible } from '../utils/moduleUtils'
-import { MODULE_ICONS, MODULE_COLORS, DEFAULTS } from '../constants'
+import { MODULE_ICONS, MODULE_COLORS, MODULE_DEFAULTS } from '@/shared/api/constants'
 
 function ModuleCard({ module, onClick, posOpeningStatus, isNavigating, isLoading }) {
-  const getModuleIcon = (type) => MODULE_ICONS[type] || DEFAULTS.MODULE_ICON
-  const getModuleColor = (type) => MODULE_COLORS[type] || DEFAULTS.MODULE_COLOR
+  const getModuleIcon = (type) => MODULE_ICONS[type] || MODULE_DEFAULTS.ICON
+  const getModuleColor = (type) => MODULE_COLORS[type] || MODULE_DEFAULTS.COLOR
 
   // Get module priority and badges
   const priority = getModulePriority(module.type)

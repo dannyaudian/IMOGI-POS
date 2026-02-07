@@ -32,7 +32,9 @@ import './App.css'
 import './CashierLayout.css'
 
 // Context & Sub-components
-import { CashierProvider } from './context/CashierContext'import { API, TIMING } from './constants'import { CashierHeaderBar } from './components/CashierHeaderBar'
+import { CashierProvider } from './context/CashierContext'
+import { API, TIMING } from '@/shared/api/constants'
+import { CashierHeaderBar } from './components/CashierHeaderBar'
 import { CashierOrderSidebar } from './components/CashierOrderSidebar'
 import { CashierMainContent } from './components/CashierMainContent'
 import { CashierModalsContainer } from './components/CashierModalsContainer'

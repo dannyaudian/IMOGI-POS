@@ -1,5 +1,5 @@
 import React from 'react'
-import { UI } from '../constants'
+import { UI } from '@/shared/api/constants'
 
 /**
  * Skeleton Loader Components untuk loading states

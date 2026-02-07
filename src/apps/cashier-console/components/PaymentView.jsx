@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { usePaymentMethods } from '@/shared/api/imogi-api'
 import { formatCurrency } from '@/shared/utils/formatters'
-import { API } from '../constants'
+import { API } from '@/shared/api/constants'
 import { ErrorModal } from './ErrorModal'
 import { PaymentConfirmationModal } from './PaymentConfirmationModal'
 

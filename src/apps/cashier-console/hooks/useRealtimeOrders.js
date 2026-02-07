@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { TIMING } from '../constants'
+import { TIMING } from '@/shared/api/constants'
 
 export function useRealtimeOrders({ 
   posProfile, 
