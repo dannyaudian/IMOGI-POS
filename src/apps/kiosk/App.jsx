@@ -6,7 +6,7 @@ import { useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { TIMING } from './constants'
 import { KioskProvider } from './context/KioskContext'
-import { KioskMenu, KioskActions } from './components'
+import { KioskMenu, KioskActions, VariantPickerModal } from './components'
 
 function KioskContent({ initialState }) {
   // GUARD: Authentication
@@ -64,7 +64,7 @@ function KioskContent({ initialState }) {
 
   // RENDER: Kiosk display with provider
   return (
-    <div className="imogi-app">
+    <div className="imogi-app" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppHeader title={`Self-Service Kiosk - ${serviceType}`} user="Guest" />
 
       <KioskProvider
@@ -73,10 +73,11 @@ function KioskContent({ initialState }) {
         itemsLoading={itemsLoading}
         itemsError={itemsError}
       >
-        <main className="imogi-main">
+        <main className="imogi-main" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: 0 }}>
           <KioskMenu />
           <KioskActions />
         </main>
+        <VariantPickerModal />
       </KioskProvider>
     </div>
   )

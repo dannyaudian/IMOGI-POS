@@ -102,10 +102,20 @@ export function MenuCatalog({
 
 function MenuItem({ item, onAdd }) {
   const [quantity, setQuantity] = useState(1)
+  const hasVariants = item.has_variants === 1 || item.has_variants === true
 
   const handleAdd = () => {
+    if (hasVariants) {
+      // TODO: Open variant picker modal
+      frappe.show_alert({
+        message: `${item.item_name} has variants. Variant picker coming soon!`,
+        indicator: 'orange'
+      }, 3)
+      return
+    }
+    
     onAdd({ ...item, qty: quantity })
-    setQuantity(1) // Reset quantity after adding
+    setQuantity(1)
   }
 
   const isAvailable = item.is_stock_item ? (item.actual_qty || 0) > 0 : true
@@ -119,7 +129,22 @@ function MenuItem({ item, onAdd }) {
       )}
 
       <div className="item-info">
-        <div className="item-name">{item.item_name}</div>
+        <div className="item-name">
+          {item.item_name}
+          {hasVariants && (
+            <span className="variant-badge" style={{
+              marginLeft: '0.5rem',
+              padding: '0.125rem 0.5rem',
+              background: '#3b82f6',
+              color: 'white',
+              fontSize: '0.625rem',
+              borderRadius: '4px',
+              fontWeight: '600'
+            }}>
+              HAS VARIANTS
+            </span>
+          )}
+        </div>
         
         {item.description && (
           <div className="item-description">{item.description}</div>

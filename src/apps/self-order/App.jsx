@@ -30,7 +30,13 @@ function SelfOrderContent({ initialState }) {
 
   // RENDER: Self-order view with provider
   return (
-    <div className="imogi-app" style={{ background: '#f8f9fa' }}>
+    <div className="imogi-app" style={{ 
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      overflow: 'hidden',
+      background: '#f8f9fa' 
+    }}>
       <SelfOrderProvider
         tableNumber={tableNumber}
         items={items}
@@ -39,7 +45,16 @@ function SelfOrderContent({ initialState }) {
       >
         <SelfOrderHeader />
 
-        <main style={{ padding: '1rem', maxWidth: '600px', margin: '0 auto' }}>
+        <main style={{ 
+          flex: 1,
+          overflow: 'auto',
+          padding: '1rem',
+          paddingBottom: 'calc(80px + 1rem)',
+          maxWidth: '600px', 
+          margin: '0 auto',
+          width: '100%',
+          minHeight: 0
+        }}>
           <SelfOrderMenu />
         </main>
 
