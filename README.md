@@ -60,8 +60,8 @@ Before installing IMOGI POS, ensure ERPNext is installed on your site and that t
 ### Installation Steps
 
 **Prerequisites**:
-- Node.js >= 18.18.0 (check with `node --version`)
-- npm >= 9.6.0 (check with `npm --version`)
+- Node.js >= 18.16.0 (compatible with Frappe Cloud, check with `node --version`)
+- npm >= 8.0.0 (check with `npm --version`)
 
 If you're using nvm, run `nvm use` to switch to the required Node version (configured in `.nvmrc`).
 
