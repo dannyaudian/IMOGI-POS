@@ -29,11 +29,15 @@ export function CashierMainContent() {
     showSummary,
     showCloseShift,
     orders,
-    posMode
+    posMode,
+    posProfile,
+    branch,
+    onAddItemToOrder,
+    pendingOrderType
   } = useCashierContext()
 
-  // Render empty state if no order selected
-  if (!selectedOrder && viewMode === 'orders') {
+  // Render empty state if no order selected and not in draft mode
+  if (!selectedOrder && !pendingOrderType && viewMode === 'orders') {
     return (
       <main className="cashier-main">
         <div className="cashier-empty-state">
@@ -61,8 +65,10 @@ export function CashierMainContent() {
       {/* Catalog view - Item selection */}
       {viewMode === 'catalog' && (
         <CatalogView
-          onBack={() => setViewMode('orders')}
-          selectedOrder={selectedOrder}
+          posProfile={posProfile}
+          branch={branch}
+          menuChannel="Cashier"
+          onSelectItem={onAddItemToOrder}
         />
       )}
 

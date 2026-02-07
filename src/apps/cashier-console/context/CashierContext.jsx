@@ -70,6 +70,11 @@ export function CashierProvider({
   openCustomerDisplay,
   closeCustomerDisplay,
   
+  // Handlers
+  onAddItemToOrder,
+  pendingOrderType,
+  pendingTable,
+  
   // Children
   children
 }) {
@@ -171,6 +176,11 @@ export function CashierProvider({
     isCustomerDisplayOpen,
     openCustomerDisplay,
     closeCustomerDisplay,
+    
+    // Handlers
+    onAddItemToOrder,
+    pendingOrderType,
+    pendingTable,
   }), [
     memoizedSelectedOrder,
     setSelectedOrder,
@@ -209,7 +219,10 @@ export function CashierProvider({
     creatingOrder,
     isCustomerDisplayOpen,
     openCustomerDisplay,
-    closeCustomerDisplay
+    closeCustomerDisplay,
+    onAddItemToOrder,
+    pendingOrderType,
+    pendingTable
   ])
 
   return (

@@ -6,7 +6,7 @@
  * Redirects to native POS Opening Entry form if module requires opening but none exists.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from './useOperationalContext'
 import { API } from '@/shared/api/constants'
@@ -29,6 +29,9 @@ export function usePOSProfileGuard(options = {}) {
     targetModule = null
   } = options
   
+  // Request ID pattern to prevent race conditions
+  const requestIdRef = useRef(0)
+  
   const {
     pos_profile,
     branch,
@@ -50,6 +53,7 @@ export function usePOSProfileGuard(options = {}) {
   const [contextRetries, setContextRetries] = useState(0)
   const [openingRetries, setOpeningRetries] = useState(0)
   const [openingRefreshRequested, setOpeningRefreshRequested] = useState(false)
+  const [profileSettings, setProfileSettings] = useState(null)
   const MAX_CONTEXT_RETRIES = 3
   const MAX_OPENING_RETRIES = 2
   const RETRY_DELAY_MS = 300
@@ -76,6 +80,35 @@ export function usePOSProfileGuard(options = {}) {
     }
   )
 
+  // Fetch POS Profile settings to check if opening is truly required
+  useEffect(() => {
+    if (!pos_profile || !requiresOpening) {
+      setProfileSettings(null)
+      return
+    }
+    
+    // Increment request ID
+    const currentRequestId = ++requestIdRef.current
+    
+    frappe.call({
+      method: 'frappe.client.get_value',
+      args: {
+        doctype: 'POS Profile',
+        filters: { name: pos_profile },
+        fieldname: ['imogi_require_pos_session', 'imogi_enforce_session_on_cashier']
+      },
+      callback: (r) => {
+        // Only update if this is still the current request
+        if (currentRequestId === requestIdRef.current && r.message) {
+          setProfileSettings({
+            require_pos_session: r.message.imogi_require_pos_session || 0,
+            enforce_session_on_cashier: r.message.imogi_enforce_session_on_cashier || 0
+          })
+        }
+      }
+    })
+  }, [pos_profile, requiresOpening])
+  
   useEffect(() => {
     if (!requiresOpening) {
       setOpeningStatus('ok')
@@ -94,7 +127,18 @@ export function usePOSProfileGuard(options = {}) {
       return
     }
 
-    if (openingError || posOpening?.error_code) {
+    // Network or API errors (not just missing opening)
+    if (openingError) {
+      const errorMsg = openingError?.message || ''
+      // Only treat as error if it's a real network/permission error
+      // Not if it's just "opening not found"
+      if (!errorMsg.includes('not found') && !errorMsg.includes('No active')) {
+        setOpeningStatus('error')
+        return
+      }
+    }
+    
+    if (posOpening?.error_code && posOpening.error_code !== 'no_active_opening') {
       setOpeningStatus('error')
       return
     }
@@ -103,12 +147,32 @@ export function usePOSProfileGuard(options = {}) {
     const hasOpeningEntry = Boolean(posOpening?.pos_opening_entry)
     
     if (!posOpening || !hasOpeningEntry) {
-      console.warn('[POSProfileGuard] Opening check failed:', {
-        hasResponse: !!posOpening,
-        hasEntryField: hasOpeningEntry,
-        responseKeys: posOpening ? Object.keys(posOpening) : []
-      })
-      setOpeningStatus('missing')
+      // Check if POS Profile actually requires opening
+      if (profileSettings) {
+        const requiresSession = profileSettings.require_pos_session
+        const enforcesOnCashier = profileSettings.enforce_session_on_cashier
+        
+        // If profile doesn't require session, allow operation without opening
+        if (!requiresSession || !enforcesOnCashier) {
+          console.info('[POSProfileGuard] No opening found but profile allows operation without session')
+          setOpeningStatus('ok')
+          return
+        }
+      }
+      
+      // Only warn if we've confirmed profile requires opening
+      if (profileSettings && profileSettings.require_pos_session) {
+        console.warn('[POSProfileGuard] Opening required but not found:', {
+          hasResponse: !!posOpening,
+          hasEntryField: hasOpeningEntry,
+          profileRequiresSession: profileSettings.require_pos_session,
+          enforceOnCashier: profileSettings.enforce_session_on_cashier
+        })
+        setOpeningStatus('missing')
+      } else {
+        // Still waiting for profile settings
+        setOpeningStatus('loading')
+      }
       return
     }
 
@@ -122,7 +186,8 @@ export function usePOSProfileGuard(options = {}) {
     serverContextLoading,
     serverContextError,
     openingStatus,
-    openingRefreshRequested
+    openingRefreshRequested,
+    profileSettings
   ])
 
   useEffect(() => {
@@ -165,13 +230,19 @@ export function usePOSProfileGuard(options = {}) {
     const openingName = posOpening?.pos_opening_entry || null
     if (openingStatus === 'ok' && openingName) {
       console.info('[POSProfileGuard] openingFound=', openingName)
-    }
-    if (openingStatus !== 'ok') {
-      console.info('[POSProfileGuard] status=', openingStatus, {
-        reason: openingError?.message || posOpening?.error_message || null
+    } else if (openingStatus === 'ok' && !openingName && profileSettings) {
+      console.info('[POSProfileGuard] No opening but allowed by profile settings:', {
+        requireSession: profileSettings.require_pos_session,
+        enforceOnCashier: profileSettings.enforce_session_on_cashier
       })
     }
-  }, [openingStatus, openingError, posOpening])
+    if (openingStatus !== 'ok' && openingStatus !== 'loading') {
+      console.info('[POSProfileGuard] status=', openingStatus, {
+        reason: openingError?.message || posOpening?.error_message || null,
+        profileSettings
+      })
+    }
+  }, [openingStatus, openingError, posOpening, profileSettings])
 
   useEffect(() => {
     if (openingStatus === 'ok' && openingRetries > 0) {

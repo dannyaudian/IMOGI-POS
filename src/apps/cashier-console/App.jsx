@@ -143,6 +143,10 @@ function CounterPOSContent({ initialState }) {
   const [branding, setBranding] = useState(null)
   const [printerStatus, setPrinterStatus] = useState({ connected: false, checking: true })
   const [isCustomerDisplayOpen, setIsCustomerDisplayOpen] = useState(false)
+  
+  // Draft order state - for orders not yet created (no items added)
+  const [pendingOrderType, setPendingOrderType] = useState(null) // 'Counter' | 'Dine In'
+  const [pendingTable, setPendingTable] = useState(null)
 
   // Logged setViewMode for debugging
   const setViewMode = (newMode) => {
@@ -320,67 +324,99 @@ function CounterPOSContent({ initialState }) {
     setShowSplit(false)
   }
 
-  // HANDLER: Create counter order
+  // HANDLER: Create counter order (draft mode - no API call until item added)
   const createCounterOrder = async () => {
-    setCreatingOrder(true)
+    // Don't create order yet - just set pending state and open catalog
+    // Order will be created when first item is added
+    setSelectedOrder(null)
+    setPendingOrderType('Counter')
+    setPendingTable(null)
+    setViewMode('catalog')
     
-    try {
-      const context = await resolveOperationalContext()
-      
-      if (!context.pos_profile || !context.branch) {
-        alert('POS Profile & Branch wajib dipilih. Silakan pilih dari module select.')
-        return
-      }
-      
-      const result = await apiCall(API.CREATE_ORDER, {
-        pos_profile: context.pos_profile,
-        branch: context.branch,
-        order_type: 'Counter',
-        items: []
-      })
-      
-      if (result?.order_name) {
-        const orderDetails = await apiCall(API.GET_ORDER, {
-          order_name: result.order_name
-        })
-        
-        if (orderDetails) {
-          handleSelectOrder(orderDetails)
-        }
-        
-        setViewMode('catalog')
-      }
-    } catch (err) {
-      console.error('[Cashier] Failed to create counter order:', err)
-      frappe.show_alert({
-        message: 'Failed to create order: ' + (err.message || 'Unknown error'),
-        indicator: 'red'
-      }, 5)
-    } finally {
-      setCreatingOrder(false)
-    }
+    console.log('[Cashier] Counter order draft mode activated - waiting for first item')
   }
   
-  // HANDLER: Create table order
+  // HANDLER: Create table order (draft mode - no API call until item added)
   const createTableOrder = async (table) => {
-    setCreatingOrder(true)
     setShowTableSelector(false)
     
+    // Don't create order yet - just set pending state and open catalog
+    // Order will be created when first item is added
+    setSelectedOrder(null)
+    setPendingOrderType('Dine In')
+    setPendingTable(table)
+    setSelectedTable(table)
+    setViewMode('catalog')
+    
+    console.log('[Cashier] Table order draft mode activated for table:', table.name)
+  }
+
+  // HANDLER: Add item to order (smart handler - creates order if needed)
+  const handleAddItemToOrder = async (item) => {
+    setCreatingOrder(true)
+    
     try {
-      const context = await resolveOperationalContext()
-      
-      if (!context.pos_profile || !context.branch) {
-        alert('POS Profile & Branch wajib dipilih. Silakan pilih dari module select.')
+      // CASE 1: Order already exists - just add item
+      if (selectedOrder) {
+        await apiCall(API.ADD_ITEM, {
+          order_name: selectedOrder.name,
+          item_code: item.item_code || item.name,
+          qty: 1
+        })
+        
+        frappe.show_alert({
+          message: `${item.item_name} added to order`,
+          indicator: 'green'
+        }, 3)
+        
+        // Reload order to get updated items
+        const updatedOrder = await apiCall(API.GET_ORDER, {
+          order_name: selectedOrder.name
+        })
+        
+        if (updatedOrder) {
+          setSelectedOrder(updatedOrder)
+        }
+        
         return
       }
       
-      const result = await apiCall(API.CREATE_ORDER, {
+      // CASE 2: No order yet - create order with first item
+      const context = await resolveOperationalContext()
+      
+      if (!context.pos_profile || !context.branch) {
+        frappe.show_alert({
+          message: 'POS Profile & Branch wajib dipilih',
+          indicator: 'red'
+        }, 5)
+        return
+      }
+      
+      // Determine order type from pending state
+      const orderType = pendingOrderType || 'Counter'
+      
+      // Build payload with first item
+      const payload = {
         pos_profile: context.pos_profile,
         branch: context.branch,
-        order_type: 'Dine In',
-        table: table.name,
-        items: []
-      })
+        order_type: orderType,
+        items: [
+          {
+            item: item.item_code || item.name,
+            qty: 1,
+            rate: item.price_list_rate || item.standard_rate || 0
+          }
+        ]
+      }
+      
+      // Add table if Dine In
+      if (pendingTable) {
+        payload.table = pendingTable.name
+      }
+      
+      console.log('[Cashier] Creating order with first item:', payload)
+      
+      const result = await apiCall(API.CREATE_ORDER, payload)
       
       if (result?.order_name) {
         const orderDetails = await apiCall(API.GET_ORDER, {
@@ -389,38 +425,34 @@ function CounterPOSContent({ initialState }) {
         
         if (orderDetails) {
           setSelectedOrder(orderDetails)
-          setSelectedTable(table)
+          setPendingOrderType(null)
+          setPendingTable(null)
+          
+          frappe.show_alert({
+            message: `Order created with ${item.item_name}`,
+            indicator: 'green'
+          }, 3)
         }
-        
-        setViewMode('catalog')
       }
     } catch (err) {
-      console.error('[Cashier] Failed to create table order:', err)
-      frappe.show_alert({
-        message: 'Failed to create order: ' + (err.message || 'Unknown error'),
-        indicator: 'red'
-      }, 5)
+      console.error('[Cashier] Failed to add item:', err)
+      
+      // Check if error is MandatoryError for items
+      const errorMessage = err.message || err.toString() || 'Unknown error'
+      
+      if (errorMessage.includes('items') && errorMessage.includes('Mandatory')) {
+        frappe.show_alert({
+          message: 'Tidak bisa membuat order kosong. Tambahkan item dulu.',
+          indicator: 'orange'
+        }, 5)
+      } else {
+        frappe.show_alert({
+          message: 'Failed to add item: ' + errorMessage,
+          indicator: 'red'
+        }, 5)
+      }
     } finally {
       setCreatingOrder(false)
-    }
-  }
-
-  // HANDLER: Add item to order
-  const addItemToOrder = async (itemName) => {
-    if (!selectedOrder) {
-      alert('Please select an order first or create a new one')
-      return
-    }
-
-    try {
-      await apiCall(API.ADD_ITEM, {
-        order_name: selectedOrder.name,
-        item_code: itemName,
-        qty: 1
-      })
-      alert('Item added to order successfully')
-    } catch (err) {
-      alert('Failed to add item: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -550,6 +582,9 @@ function CounterPOSContent({ initialState }) {
       isCustomerDisplayOpen={isCustomerDisplayOpen}
       openCustomerDisplay={openCustomerDisplay}
       closeCustomerDisplay={closeCustomerDisplay}
+      onAddItemToOrder={handleAddItemToOrder}
+      pendingOrderType={pendingOrderType}
+      pendingTable={pendingTable}
     >
       <div className="cashier-console" data-pos-mode={mode}>
         <NetworkStatus />
