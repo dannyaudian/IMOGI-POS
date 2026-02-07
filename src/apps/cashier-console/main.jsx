@@ -6,6 +6,36 @@ import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import '@/shared/styles/global.css'
 
 /**
+ * CASHIER CONSOLE - React Entry Point
+ * 
+ * INITIALIZATION ORDER (CRITICAL):
+ * 1. All imports evaluated (top-level, no side effects)
+ * 2. initCashierConsole() called - deferred initialization
+ * 3. Initial state retrieved from window.__INITIAL_STATE__
+ * 4. Root element check (standalone mode optional)
+ * 5. React root created and mounted
+ * 6. window.imogiCashierMount registered for Frappe desk integration
+ * 7. window.imogiCashierUnmount registered for cleanup
+ * 
+ * SAFETY GUARDS:
+ * - No side effects at module level (prevents TDZ errors)
+ * - Mount guard prevents concurrent/duplicate mounts
+ * - Unmount is idempotent (safe to call multiple times)
+ * - Error boundary wraps entire app
+ * - Global error handlers catch unhandled rejections
+ * 
+ * TDZ PROTECTION:
+ * - storage.getItem() moved to useEffect (useOperationalContext)
+ * - All initialization wrapped in function (deferred execution)
+ * - Root element check guards against missing container
+ * 
+ * RACE CONDITION PROTECTION:
+ * - mountInProgress flag prevents concurrent mounts
+ * - Try/finally ensures guard is reset even on error
+ * - Cleanup handlers unregister themselves
+ */
+
+/**
  * CRITICAL FIX: Safe initializer pattern to prevent TDZ violations
  * 
  * This function ensures all imports and side effects are properly
@@ -41,9 +71,27 @@ if (rootElement) {
 /**
  * Bulletproof React mount - ALWAYS creates fresh instance
  * Production-safe with developer mode logging
+ * 
+ * GUARD: Only allows one mount at a time (prevents race conditions)
  */
+let mountInProgress = false
+
 window.imogiCashierMount = function(element, options = {}) {
-  const state = options.initialState || window.__INITIAL_STATE__ || {}
+  // GUARD: Prevent concurrent mount operations (race condition protection)
+  if (mountInProgress) {
+    console.warn('[Cashier Mount] Mount already in progress, ignoring duplicate request')
+    return
+  }
+  
+  if (!element) {
+    console.error('[Cashier Mount] Element is required')
+    return
+  }
+  
+  mountInProgress = true
+  
+  try {
+    const state = options.initialState || window.__INITIAL_STATE__ || {}
   
   // STEP 1: Unmount element-scoped root
   if (element._reactRoot) {
@@ -123,6 +171,10 @@ window.imogiCashierMount = function(element, options = {}) {
   window.__IMOGI_POS_CASHIER_MOUNT_KEY = mountKey
   
   return root
+  } finally {
+    // Always reset mount guard, even if mount fails
+    mountInProgress = false
+  }
 }
 
 /**
