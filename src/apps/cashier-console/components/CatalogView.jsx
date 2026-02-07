@@ -166,11 +166,9 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     const hasVariants = item.has_variants === 1 || item.has_variants === true
     
     if (hasVariants) {
-      // Template with variants - open variant list modal
       setSelectedTemplate(item)
       setShowVariantModal(true)
     } else {
-      // Standalone item - add directly
       if (onSelectItem) {
         onSelectItem(item)
       }
@@ -186,11 +184,17 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   }
 
   return (
-    <div className="catalog-panel">
+    <div className="catalog-panel" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      overflow: 'hidden'
+    }}>
       <div className="catalog-header" style={{
         padding: '1rem',
         borderBottom: '1px solid #e0e0e0',
-        background: 'white'
+        background: 'white',
+        flexShrink: 0
       }}>
         <input
           type="text"

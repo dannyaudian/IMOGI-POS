@@ -220,11 +220,13 @@ function CounterPOSContent({ initialState }) {
     setCreatingOrder(true)
     
     try {
+      const itemCode = item.item_code || item.name
+      
       // CASE 1: Order already exists - just add item
       if (selectedOrder) {
         await apiCall(API.ADD_ITEM, {
           order_name: selectedOrder.name,
-          item_code: item.item_code || item.name,
+          item_code: itemCode,
           qty: 1
         })
         
@@ -233,7 +235,6 @@ function CounterPOSContent({ initialState }) {
           indicator: 'green'
         }, 3)
         
-        // Reload order to get updated items
         const updatedOrder = await apiCall(API.GET_ORDER, {
           order_name: selectedOrder.name
         })
@@ -256,17 +257,15 @@ function CounterPOSContent({ initialState }) {
         return
       }
       
-      // Determine order type from pending state
       const orderType = pendingOrderType || 'Counter'
       
-      // Build payload with first item
       const payload = {
         pos_profile: context.pos_profile,
         branch: context.branch,
         order_type: orderType,
         items: [
           {
-            item: item.item_code || item.name,
+            item: itemCode,
             qty: 1,
             rate: item.price_list_rate || item.standard_rate || 0
           }
@@ -320,22 +319,6 @@ function CounterPOSContent({ initialState }) {
       setCreatingOrder(false)
     }
   }, [selectedOrder, pendingOrderType, pendingTable])
-
-  // HANDLER: Convert template to variant
-  const convertTemplateToVariant = async (orderItemRow, variantName) => {
-    if (!selectedOrder) return
-
-    try {
-      await apiCall(API.CHOOSE_VARIANT, {
-        pos_order: selectedOrder.name,
-        order_item_row: orderItemRow,
-        variant_item: variantName
-      })
-      alert('Template converted to variant successfully')
-    } catch (err) {
-      alert('Failed to convert: ' + (err.message || 'Unknown error'))
-    }
-  }
 
   // EFFECT: Sync default view when mode resolves or changes
   useEffect(() => {
