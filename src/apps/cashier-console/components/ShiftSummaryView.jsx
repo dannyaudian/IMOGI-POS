@@ -20,7 +20,7 @@ export function ShiftSummaryView({ posProfile, posOpening, onClose }) {
       setCheckingOpening(true)
       
       // Step 1: Verify active opening exists (page-level guard)
-      const openingRes = await apiCall('imogi_pos.api.cashier.get_active_opening')
+      const openingRes = await apiCall(API.GET_ACTIVE_OPENING)
       
       if (!openingRes?.success || !openingRes?.has_opening) {
         console.error('[ShiftSummary] No active opening found')
@@ -34,7 +34,7 @@ export function ShiftSummaryView({ posProfile, posOpening, onClose }) {
 
       // Step 2: Fetch summary data
       setLoading(true)
-      const summaryRes = await apiCall('imogi_pos.api.cashier.get_opening_summary')
+      const summaryRes = await apiCall(API.GET_OPENING_SUMMARY)
       
       if (!summaryRes?.success) {
         throw new Error(summaryRes?.error || 'Failed to load summary')

@@ -3,6 +3,7 @@ import { apiCall } from '@/shared/utils/api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { BlockedScreen } from './BlockedScreen'
 import { formatCurrency } from '@/shared/utils/formatters'
+import { API } from '../constants'
 
 export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed, effectiveOpeningName, revalidateOpening }) {
   const [loading, setLoading] = useState(true)
@@ -43,7 +44,7 @@ export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed,
       }
       
       // Step 1: Verify active opening exists (page-level guard)
-      const openingRes = await apiCall('imogi_pos.api.cashier.get_active_opening')
+      const openingRes = await apiCall(API.GET_ACTIVE_OPENING)
       
       if (!openingRes?.success || !openingRes?.has_opening) {
         console.error('[CloseShift] No active opening found')
@@ -57,7 +58,7 @@ export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed,
 
       // Step 2: Fetch summary data (expected amounts)
       setLoading(true)
-      const summaryRes = await apiCall('imogi_pos.api.cashier.get_opening_summary')
+      const summaryRes = await apiCall(API.GET_OPENING_SUMMARY)
       
       if (!summaryRes?.success) {
         throw new Error(summaryRes?.error || 'Failed to load summary')
@@ -106,7 +107,7 @@ export function CloseShiftView({ posProfile, posOpening, onClose, onShiftClosed,
       }
 
       // Call close_pos_opening API
-      const result = await apiCall('imogi_pos.api.cashier.close_pos_opening', {
+      const result = await apiCall(API.CLOSE_POS_OPENING, {
         opening_name: openingName,
         counted_balances: countedArray
       })

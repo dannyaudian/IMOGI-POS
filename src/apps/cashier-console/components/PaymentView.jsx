@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { usePaymentMethods } from '@/shared/api/imogi-api'
 import { formatCurrency } from '@/shared/utils/formatters'
+import { API } from '../constants'
 import { ErrorModal } from './ErrorModal'
 import { PaymentConfirmationModal } from './PaymentConfirmationModal'
 
@@ -87,7 +88,7 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
     
     // Step 1: Check if opening exists (native v15 requirement)
     console.log('[Payment] Checking POS opening...')
-    const openingRes = await apiCall('imogi_pos.api.cashier.get_active_opening')
+    const openingRes = await apiCall(API.GET_ACTIVE_OPENING)
     
     if (!openingRes?.has_opening) {
       console.error('[Payment] No active POS Opening:', openingRes)
@@ -98,7 +99,7 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
     
     // Step 2: Create invoice from order (if not exists)
     console.log('[Payment] Creating invoice from order:', order.name)
-    const invoiceRes = await apiCall('imogi_pos.api.cashier.create_invoice_from_order', {
+    const invoiceRes = await apiCall(API.CREATE_INVOICE_FROM_ORDER, {
       order_name: order.name,
       customer: order.customer,
       customer_name: order.customer_name
@@ -113,7 +114,7 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
     
     // Step 3: Process payment (submit invoice with payment)
     console.log('[Payment] Processing payment for invoice:', invoiceRes.invoice)
-    const paymentRes = await apiCall('imogi_pos.api.cashier.process_payment', {
+    const paymentRes = await apiCall(API.PROCESS_PAYMENT, {
       invoice_name: invoiceRes.invoice,
       payments: [{
         mode_of_payment: modeOfPayment,
@@ -131,7 +132,7 @@ export function PaymentView({ order, onClose, onPaymentComplete, posProfile, eff
     
     // Step 4: Complete order workflow
     console.log('[Payment] Completing order:', order.name)
-    const completeRes = await apiCall('imogi_pos.api.cashier.complete_order', {
+    const completeRes = await apiCall(API.COMPLETE_ORDER, {
       order_name: order.name
     })
     

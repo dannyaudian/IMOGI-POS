@@ -28,7 +28,7 @@ export function VariantPickerModal({
 
     try {
       // Use unified get_pos_items API with mode="variant"
-      const response = await apiCall('imogi_pos.api.items.get_pos_items', {
+      const response = await apiCall(API.GET_POS_ITEMS, {
         mode: 'variant',
         item_code: templateName,  // Required for variant mode
         pos_profile: posProfile,

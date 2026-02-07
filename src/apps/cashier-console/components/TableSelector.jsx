@@ -16,7 +16,7 @@ export function TableSelector({ branch, onSelectTable, onClose }) {
     setError(null)
 
     try {
-      const result = await apiCall('imogi_pos.api.table.get_tables', {
+      const result = await apiCall(API.GET_TABLES, {
         branch: branch
       })
       setTables(result || [])

@@ -32,8 +32,7 @@ import './App.css'
 import './CashierLayout.css'
 
 // Context & Sub-components
-import { CashierProvider } from './context/CashierContext'
-import { CashierHeaderBar } from './components/CashierHeaderBar'
+import { CashierProvider } from './context/CashierContext'import { API, TIMING } from './constants'import { CashierHeaderBar } from './components/CashierHeaderBar'
 import { CashierOrderSidebar } from './components/CashierOrderSidebar'
 import { CashierMainContent } from './components/CashierMainContent'
 import { CashierModalsContainer } from './components/CashierModalsContainer'
@@ -286,7 +285,7 @@ function CounterPOSContent({ initialState }) {
   // HANDLER: Load branding
   const loadBranding = async () => {
     try {
-      const result = await apiCall('imogi_pos.api.public.get_branding')
+      const result = await apiCall(API.GET_BRANDING)
       if (result) {
         setBranding(result)
         console.log('[Cashier] Branding loaded:', result)
@@ -331,7 +330,7 @@ function CounterPOSContent({ initialState }) {
         return
       }
       
-      const result = await apiCall('imogi_pos.api.orders.create_order', {
+      const result = await apiCall(API.CREATE_ORDER, {
         pos_profile: context.pos_profile,
         branch: context.branch,
         order_type: 'Counter',
@@ -339,7 +338,7 @@ function CounterPOSContent({ initialState }) {
       })
       
       if (result?.order_name) {
-        const orderDetails = await apiCall('imogi_pos.api.orders.get_order', {
+        const orderDetails = await apiCall(API.GET_ORDER, {
           order_name: result.order_name
         })
         
@@ -373,7 +372,7 @@ function CounterPOSContent({ initialState }) {
         return
       }
       
-      const result = await apiCall('imogi_pos.api.orders.create_order', {
+      const result = await apiCall(API.CREATE_ORDER, {
         pos_profile: context.pos_profile,
         branch: context.branch,
         order_type: 'Dine In',
@@ -382,7 +381,7 @@ function CounterPOSContent({ initialState }) {
       })
       
       if (result?.order_name) {
-        const orderDetails = await apiCall('imogi_pos.api.orders.get_order', {
+        const orderDetails = await apiCall(API.GET_ORDER, {
           order_name: result.order_name
         })
         
@@ -412,7 +411,7 @@ function CounterPOSContent({ initialState }) {
     }
 
     try {
-      await apiCall('imogi_pos.api.orders.add_item_to_order', {
+      await apiCall(API.ADD_ITEM, {
         order_name: selectedOrder.name,
         item_code: itemName,
         qty: 1
@@ -428,7 +427,7 @@ function CounterPOSContent({ initialState }) {
     if (!selectedOrder) return
 
     try {
-      await apiCall('imogi_pos.api.variants.choose_variant_for_order_item', {
+      await apiCall(API.CHOOSE_VARIANT, {
         pos_order: selectedOrder.name,
         order_item_row: orderItemRow,
         variant_item: variantName

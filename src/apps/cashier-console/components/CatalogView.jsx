@@ -58,7 +58,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     }
 
     try {
-      const groups = await apiCall('imogi_pos.api.variants.get_item_groups', {
+      const groups = await apiCall(API.GET_ITEM_GROUPS, {
         pos_profile: posProfile
       })
       setItemGroups(groups || [])
@@ -98,7 +98,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       }
 
       // Use unified get_pos_items API
-      const response = await apiCall('imogi_pos.api.items.get_pos_items', params)
+      const response = await apiCall(API.GET_POS_ITEMS, params)
       
       // Normalize response - handle both direct array and {message: [...]} wrapper
       // Debug mode returns {items: [...], debug: {...}}
