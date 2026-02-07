@@ -221,7 +221,14 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         padding: '1rem'
       }}>
         {/* Item Groups Sidebar */}
-        <div className="catalog-sidebar">
+        <div className="catalog-sidebar" style={{
+          width: '200px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          padding: '1rem',
+          overflowY: 'auto',
+          flexShrink: 0
+        }}>
           <div className="item-group-list">
             <button
               className={`item-group-btn ${selectedGroup === 'all' ? 'active' : ''}`}
@@ -244,7 +251,15 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         </div>
 
         {/* Items Grid */}
-        <div className="catalog-main">
+        <div className="catalog-main" style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          padding: '1.5rem',
+          paddingBottom: 'calc(64px + 2rem)'
+        }}>
           {loading && (
             <div className="loading-container">
               <div className="spinner"></div>
