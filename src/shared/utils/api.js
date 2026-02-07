@@ -247,7 +247,34 @@ async function callViaFetch(method, args, options) {
     }
 
     // Parse JSON response
-    const data = await response.json()
+    let data
+    try {
+      data = await response.json()
+    } catch (jsonError) {
+      // NOT JSON - possibly HTML error page
+      const responseText = await response.text()
+      logger.error('api', `Failed to parse response as JSON for ${method}`, {
+        method,
+        args,
+        responsePreview: responseText.slice(0, 300),
+        contentType: response.headers.get('content-type')
+      })
+      
+      // Check if it's HTML (500 error page)
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        const error = new Error(`Server returned HTML error page (500). Check server logs for details.`)
+        error.httpStatus = 500
+        error.responseText = responseText
+        error.isHTMLError = true
+        throw error
+      }
+      
+      // Unknown format
+      const error = new Error(`Invalid response format: Expected JSON, got ${response.headers.get('content-type')}`)
+      error.responseText = responseText
+      error.parseError = jsonError
+      throw error
+    }
 
     // Return in frappe.call format
     return {

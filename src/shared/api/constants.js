@@ -210,7 +210,9 @@ export const MODULE_DEFAULTS = {
 export const ITEM_MODES = {
   SELLABLE: 'sellable', // Non-variant items only (has_variants=0)
   TEMPLATE: 'template', // Templates + standalone items (for catalog display)
+  GROUPED: 'grouped', // Templates + standalone ONLY (no variant children spam) - DEFAULT for catalog
   VARIANT: 'variant', // Variants of specific template (requires item_code)
+  BOTH: 'both', // All items (advanced use only)
 }
 
 // ============================================================================

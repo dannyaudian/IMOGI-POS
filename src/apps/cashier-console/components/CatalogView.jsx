@@ -84,7 +84,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       const params = {
         pos_profile: posProfile,  // Required for POS Menu Profile scoping
         item_group: selectedGroup === 'all' ? null : selectedGroup,
-        mode: ITEM_MODES.TEMPLATE,  // Templates + standalone (no variant children spam)
+        mode: ITEM_MODES.GROUPED,  // Templates + standalone ONLY (no variant children spam)
         // price_list will be fetched from POS Profile in backend
         // but we can pass it explicitly if available in state
         require_menu_category: 0,  // Don't filter out items without category

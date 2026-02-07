@@ -16,7 +16,7 @@
  *   → Sub-components (read from context via useCashierContext hook)
  */
 
-import { useState, useEffect, useCallback, useContext } from 'react'
+import { useState, useEffect, useCallback, useContext, useRef } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
@@ -130,7 +130,8 @@ function CounterPOSContent({ initialState }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS (React Rules of Hooks)
   // State: Order & view management
   const [selectedOrder, setSelectedOrder] = useState(null)
-  const [viewMode, setViewModeRaw] = useState('orders')
+  // Safe initial state: default to 'catalog' for undefined mode, will sync via effect
+  const [viewMode, setViewModeRaw] = useState('catalog')
   const [showPayment, setShowPayment] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
@@ -147,14 +148,31 @@ function CounterPOSContent({ initialState }) {
   // Draft order state - for orders not yet created (no items added)
   const [pendingOrderType, setPendingOrderType] = useState(null) // 'Counter' | 'Dine In'
   const [pendingTable, setPendingTable] = useState(null)
+  
+  // Track mode changes to avoid aggressive viewMode overrides
+  const lastModeRef = useRef(mode)
+  const userInteractedRef = useRef(false)
 
-  // Logged setViewMode for debugging
-  const setViewMode = (newMode) => {
+  // setViewMode variants: User-initiated vs Auto-sync
+  // Use setViewModeUser when user manually switches view (buttons, shortcuts)
+  // Use setViewModeAuto when system auto-switches based on mode/state
+  const setViewModeUser = useCallback((newMode) => {
     if (import.meta.env.DEV && newMode !== viewMode) {
-      console.log(`[Cashier] viewMode transition: "${viewMode}" -> "${newMode}"`)
+      console.log(`[Cashier] User viewMode transition: "${viewMode}" -> "${newMode}"`)
+    }
+    userInteractedRef.current = true // Mark ALL user interactions, including catalog↔orders
+    setViewModeRaw(newMode)
+  }, [viewMode])
+
+  const setViewModeAuto = useCallback((newMode) => {
+    if (import.meta.env.DEV && newMode !== viewMode) {
+      console.log(`[Cashier] Auto viewMode transition: "${viewMode}" -> "${newMode}"`)
     }
     setViewModeRaw(newMode)
-  }
+  }, [viewMode])
+
+  // Legacy wrapper for backward compatibility (internal use only)
+  const setViewMode = setViewModeUser
 
   // Customer Display handlers
   const openCustomerDisplay = useCallback(() => {
@@ -168,6 +186,39 @@ function CounterPOSContent({ initialState }) {
     // TODO: Implement actual customer display window closing logic
     console.log('[Cashier] Customer display closed')
   }, [])
+
+  // EFFECT: Sync default view when mode resolves or changes
+  useEffect(() => {
+    // Skip if mode is still undefined/null (guard not passed yet)
+    if (!mode) return
+    
+    // Track previous mode for change detection
+    const prevMode = lastModeRef.current
+    const modeChanged = prevMode && prevMode !== mode
+    
+    // Only apply default view if:
+    // 1. Mode actually changed (not just re-render)
+    // 2. User is on default views (not in modal/detail state)
+    // 3. User hasn't manually interacted (or we're forcing reset on mode change)
+    const isOnDefaultView = viewMode === 'orders' || viewMode === 'catalog'
+    const notInModal = !showPayment && !showSplit && !showSummary && !showCloseShift
+    
+    if (modeChanged && isOnDefaultView && notInModal) {
+      const newDefaultView = mode === 'Counter' ? 'catalog' : 'orders'
+      if (viewMode !== newDefaultView) {
+        setViewModeAuto(newDefaultView)
+        console.log(`[Cashier] Mode changed to ${mode}, auto-switching to ${newDefaultView}`)
+      }
+      userInteractedRef.current = false // Reset user interaction flag on mode change
+    } else if (!modeChanged && viewMode === 'catalog' && mode === 'Table') {
+      // Initial load fallback: if Table mode but still on catalog, switch to orders
+      setViewModeAuto('orders')
+    }
+    
+    // CRITICAL: Always update lastModeRef after processing, regardless of branch taken
+    // This prevents modeChanged from staying true incorrectly
+    lastModeRef.current = mode
+  }, [mode, viewMode, showPayment, showSplit, showSummary, showCloseShift, setViewModeAuto])
 
   // EFFECT: Load branding
   useEffect(() => {
@@ -199,12 +250,12 @@ function CounterPOSContent({ initialState }) {
       setShowSummary(true)
       setShowPayment(false)
       setShowCloseShift(false)
-      setViewMode('summary')
+      setViewMode('summary') // User action via header button
     }
 
     window.addEventListener('showShiftSummary', handleShowSummary)
     return () => window.removeEventListener('showShiftSummary', handleShowSummary)
-  }, [])
+  }, [setViewMode])
 
   // EFFECT: Listen for close shift trigger from header
   useEffect(() => {
@@ -213,12 +264,27 @@ function CounterPOSContent({ initialState }) {
       setShowPayment(false)
       setShowSplit(false)
       setShowSummary(false)
-      setViewMode('close')
+      setViewMode('close') // User action via header button
     }
 
     window.addEventListener('closeShift', handleCloseShift)
     return () => window.removeEventListener('closeShift', handleCloseShift)
-  }, [])
+  }, [setViewMode])
+
+  // EFFECT: Listen for new order creation from action bar
+  useEffect(() => {
+    const handleCreateNewOrder = (event) => {
+      // Safe: no assumptions about event.detail
+      if (mode === 'Counter') {
+        createCounterOrder()
+      } else {
+        setShowTableSelector(true)
+      }
+    }
+
+    window.addEventListener('createNewOrder', handleCreateNewOrder)
+    return () => window.removeEventListener('createNewOrder', handleCreateNewOrder)
+  }, [mode, createCounterOrder]) // Include createCounterOrder in deps
 
   // EFFECT: Guard timeout - redirect if guard doesn't pass within 10 seconds
   useEffect(() => {
@@ -270,7 +336,7 @@ function CounterPOSContent({ initialState }) {
         setShowSplit(false)
         setShowSummary(false)
         setShowCloseShift(false)
-        setViewMode('orders')
+        setViewModeAuto('orders') // Auto: cancel action, return to default
       }
       
       // Ctrl+N / Cmd+N - New order
@@ -286,7 +352,7 @@ function CounterPOSContent({ initialState }) {
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode])
+  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode, setViewMode, setViewModeAuto])
 
   // HANDLER: Load branding
   const loadBranding = async () => {
@@ -319,25 +385,25 @@ function CounterPOSContent({ initialState }) {
   // HANDLER: Select order
   const handleSelectOrder = (order) => {
     setSelectedOrder(order)
-    setViewMode('orders')
+    setViewModeUser('orders') // User action: clicked order in sidebar
     setShowPayment(false)
     setShowSplit(false)
   }
 
   // HANDLER: Create counter order (draft mode - no API call until item added)
-  const createCounterOrder = async () => {
+  const createCounterOrder = useCallback(() => {
     // Don't create order yet - just set pending state and open catalog
     // Order will be created when first item is added
     setSelectedOrder(null)
     setPendingOrderType('Counter')
     setPendingTable(null)
-    setViewMode('catalog')
+    setViewModeRaw('catalog') // Direct call to avoid setViewMode wrapper dependency
     
     console.log('[Cashier] Counter order draft mode activated - waiting for first item')
-  }
+  }, [])
   
   // HANDLER: Create table order (draft mode - no API call until item added)
-  const createTableOrder = async (table) => {
+  const createTableOrder = useCallback((table) => {
     setShowTableSelector(false)
     
     // Don't create order yet - just set pending state and open catalog
@@ -346,10 +412,10 @@ function CounterPOSContent({ initialState }) {
     setPendingOrderType('Dine In')
     setPendingTable(table)
     setSelectedTable(table)
-    setViewMode('catalog')
+    setViewModeRaw('catalog') // Direct call to avoid setViewMode wrapper dependency
     
     console.log('[Cashier] Table order draft mode activated for table:', table.name)
-  }
+  }, [])
 
   // HANDLER: Add item to order (smart handler - creates order if needed)
   const handleAddItemToOrder = async (item) => {
