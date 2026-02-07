@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import { apiCall } from '@/shared/utils/api'
 import { API, ITEM_MODES } from '@/shared/api/constants'
