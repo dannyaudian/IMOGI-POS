@@ -50,19 +50,56 @@ export const API = {
   
   // Order Operations
   CREATE_ORDER: 'imogi_pos.api.orders.create_order',
+  UPDATE_ORDER: 'imogi_pos.api.orders.update_order',
+  SUBMIT_ORDER: 'imogi_pos.api.orders.submit_order',
+  CREATE_TABLE_ORDER: 'imogi_pos.api.orders.create_table_order',
   GET_ORDER: 'imogi_pos.api.orders.get_order',
   ADD_ITEM: 'imogi_pos.api.orders.add_item_to_order',
   UPDATE_ITEM_QTY: 'imogi_pos.api.orders.update_item_qty',
   REMOVE_ITEM: 'imogi_pos.api.orders.remove_item',
+  
+  // Billing Operations
+  LIST_ORDERS_FOR_CASHIER: 'imogi_pos.api.billing.list_orders_for_cashier',
+  
+  // KOT (Kitchen Order Ticket) Operations
+  GET_ACTIVE_KOTS: 'imogi_pos.api.kot.get_active_kots',
+  UPDATE_KOT_STATUS: 'imogi_pos.api.kot.update_kot_status',
+  UPDATE_KOT_STATE: 'imogi_pos.api.kot.update_kot_state',
+  SEND_TO_KITCHEN: 'imogi_pos.api.kot.send_to_kitchen',
+  
+  // Cashier Operations (Advanced)
+  GET_PENDING_ORDERS: 'imogi_pos.api.cashier.get_pending_orders',
+  GET_ORDER_DETAILS: 'imogi_pos.api.cashier.get_order_details',
+  GET_PAYMENT_METHODS: 'imogi_pos.api.cashier.get_payment_methods',
+  SPLIT_BILL: 'imogi_pos.api.cashier.split_bill',
   
   // Item & Variant Operations (UNIFIED - only use get_pos_items)
   GET_POS_ITEMS: 'imogi_pos.api.items.get_pos_items', // ← MAIN: supports modes: sellable/template/variant
   GET_ITEM_GROUPS: 'imogi_pos.api.variants.get_item_groups',
   GET_ITEM_VARIANTS: 'imogi_pos.api.variants.get_item_variants',
   CHOOSE_VARIANT: 'imogi_pos.api.variants.choose_variant_for_order_item',
+  SEARCH_CUSTOMERS: 'imogi_pos.api.customers.search_customers',
   
   // Table Operations
-  GET_TABLES: 'imogi_pos.api.table.get_tables',
+  GET_TABLES: 'imogi_pos.api.layout.get_tables',
+  UPDATE_TABLE_STATUS: 'imogi_pos.api.layout.update_table_status',
+  
+  // Customer Display Editor Operations
+  GET_AVAILABLE_DEVICES: 'imogi_pos.api.customer_display_editor.get_available_devices',
+  GET_DISPLAY_TEMPLATES: 'imogi_pos.api.customer_display_editor.get_display_templates',
+  SAVE_DEVICE_CONFIG: 'imogi_pos.api.customer_display_editor.save_device_config',
+  RESET_DEVICE_CONFIG: 'imogi_pos.api.customer_display_editor.reset_device_config',
+  TEST_DEVICE_DISPLAY: 'imogi_pos.api.customer_display_editor.test_device_display',
+  DUPLICATE_PROFILE: 'imogi_pos.api.customer_display_editor.duplicate_profile',
+  CREATE_PROFILE: 'imogi_pos.api.customer_display_editor.create_profile',
+  
+  // Customer Display (Realtime) Operations
+  SEND_ORDER_TO_DISPLAY: 'imogi_pos.api.customer_display.send_order_to_display',
+  UPDATE_DISPLAY_STATUS: 'imogi_pos.api.customer_display.update_display_status',
+  CLEAR_DISPLAY: 'imogi_pos.api.customer_display.clear_display',
+  GET_DISPLAY_FOR_TABLE: 'imogi_pos.api.customer_display.get_display_for_table',
+  SHOW_PAYMENT_PROCESSING: 'imogi_pos.api.customer_display.show_payment_processing',
+  SHOW_THANK_YOU: 'imogi_pos.api.customer_display.show_thank_you',
   
   // Module Select Operations
   GET_AVAILABLE_MODULES: 'imogi_pos.api.module_select.get_available_modules',
