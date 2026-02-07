@@ -35,7 +35,7 @@ export const API = {
   
   // Variant Operations
   GET_ITEM_GROUPS: 'imogi_pos.api.variants.get_item_groups',
-  GET_TEMPLATE_ITEMS: 'imogi_pos.api.variants.get_template_items',
+  GET_POS_ITEMS: 'imogi_pos.api.items.get_pos_items',  // Unified API for item retrieval
   GET_ITEM_VARIANTS: 'imogi_pos.api.variants.get_item_variants',
   CHOOSE_VARIANT: 'imogi_pos.api.variants.choose_variant_for_order_item',
   

@@ -381,13 +381,16 @@
             this.showLoading('Loading menu...');
             
             try {
+                // Use unified get_pos_items API for consistency
                 const response = await frappe.call({
-                    method: 'imogi_pos.api.variants.get_template_items',
+                    method: 'imogi_pos.api.items.get_pos_items',
                     args: {
-                        pos_profile: null,
+                        pos_profile: null,  // Self-order: no specific profile (show all)
+                        mode: 'sellable',   // Show sellable items (variants + standalone)
                         item_group: null,
-                        menu_channel: null,
-                        limit: 500
+                        require_menu_category: 0,
+                        require_price: 0,
+                        debug: 0
                     }
                 });
                 
