@@ -83,6 +83,9 @@ export const API = {
   // Table Operations
   GET_TABLES: 'imogi_pos.api.layout.get_tables',
   UPDATE_TABLE_STATUS: 'imogi_pos.api.layout.update_table_status',
+  GET_FLOORS: 'imogi_pos.api.layout.get_floors',
+  GET_TABLE_LAYOUT: 'imogi_pos.api.layout.get_table_layout',
+  SAVE_TABLE_LAYOUT: 'imogi_pos.api.layout.save_table_layout',
   
   // Customer Display Editor Operations
   GET_AVAILABLE_DEVICES: 'imogi_pos.api.customer_display_editor.get_available_devices',

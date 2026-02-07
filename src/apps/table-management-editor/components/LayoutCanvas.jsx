@@ -13,6 +13,7 @@ import 'reactflow/dist/style.css'
 import { TableNode } from './TableNode'
 import { PropertiesPanel } from './PropertiesPanel'
 import { apiCall } from '../../../shared/utils/api'
+import { API } from '@/shared/api/constants'
 import { convertToReactFlowNodes, convertToBackendFormat } from '../utils/layoutSerializer'
 
 const nodeTypes = {
@@ -62,7 +63,7 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
     try {
       const layoutData = convertToBackendFormat(nodes, floor)
       
-      const response = await apiCall('imogi_pos.api.layout.save_table_layout', {
+      const response = await apiCall(API.SAVE_TABLE_LAYOUT, {
         floor: floor,
         layout_json: JSON.stringify(layoutData)
       })
