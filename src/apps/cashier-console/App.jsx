@@ -156,22 +156,23 @@ function CounterPOSContent({ initialState }) {
   // setViewMode variants: User-initiated vs Auto-sync
   // Use setViewModeUser when user manually switches view (buttons, shortcuts)
   // Use setViewModeAuto when system auto-switches based on mode/state
+  // NOTE: No viewMode in deps to avoid unnecessary re-creation and TDZ issues
   const setViewModeUser = useCallback((newMode) => {
-    if (import.meta.env.DEV && newMode !== viewMode) {
-      console.log(`[Cashier] User viewMode transition: "${viewMode}" -> "${newMode}"`)
+    if (import.meta.env.DEV) {
+      console.log(`[Cashier] User viewMode transition to: "${newMode}"`)
     }
     userInteractedRef.current = true // Mark ALL user interactions, including catalog↔orders
     setViewModeRaw(newMode)
-  }, [viewMode])
+  }, []) // Empty deps - uses ref for tracking, not viewMode value
 
   const setViewModeAuto = useCallback((newMode) => {
-    if (import.meta.env.DEV && newMode !== viewMode) {
-      console.log(`[Cashier] Auto viewMode transition: "${viewMode}" -> "${newMode}"`)
+    if (import.meta.env.DEV) {
+      console.log(`[Cashier] Auto viewMode transition to: "${newMode}"`)
     }
     setViewModeRaw(newMode)
-  }, [viewMode])
+  }, []) // Empty deps - stable reference
 
-  // Legacy wrapper for backward compatibility (internal use only)
+  // Legacy wrapper for backward compatibility
   const setViewMode = setViewModeUser
 
   // Customer Display handlers
@@ -218,7 +219,7 @@ function CounterPOSContent({ initialState }) {
     // CRITICAL: Always update lastModeRef after processing, regardless of branch taken
     // This prevents modeChanged from staying true incorrectly
     lastModeRef.current = mode
-  }, [mode, viewMode, showPayment, showSplit, showSummary, showCloseShift, setViewModeAuto])
+  }, [mode, viewMode, showPayment, showSplit, showSummary, showCloseShift]) // setViewModeAuto is stable, no need in deps
 
   // EFFECT: Load branding
   useEffect(() => {
@@ -255,7 +256,7 @@ function CounterPOSContent({ initialState }) {
 
     window.addEventListener('showShiftSummary', handleShowSummary)
     return () => window.removeEventListener('showShiftSummary', handleShowSummary)
-  }, [setViewMode])
+  }, []) // setViewMode is stable
 
   // EFFECT: Listen for close shift trigger from header
   useEffect(() => {
@@ -269,7 +270,7 @@ function CounterPOSContent({ initialState }) {
 
     window.addEventListener('closeShift', handleCloseShift)
     return () => window.removeEventListener('closeShift', handleCloseShift)
-  }, [setViewMode])
+  }, []) // setViewMode is stable
 
   // EFFECT: Listen for new order creation from action bar
   useEffect(() => {
@@ -352,7 +353,7 @@ function CounterPOSContent({ initialState }) {
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode, setViewMode, setViewModeAuto])
+  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode]) // setViewMode/Auto are stable
 
   // HANDLER: Load branding
   const loadBranding = async () => {
