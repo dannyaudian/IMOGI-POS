@@ -68,7 +68,8 @@ function CounterPOSContent({ initialState }) {
   
   // CRITICAL: Define shouldFetch BEFORE hooks to avoid ReferenceError (React Rules of Hooks)
   const shouldFetchOrders = guardPassed && hasValidOpening && !guardLoading
-  const orderType = mode === 'Table' ? 'Dine In' : 'Counter'
+  // Map frontend mode to backend order_type: Counter → POS, Table → Dine-in
+  const orderType = mode === 'Table' ? 'Dine-in' : 'POS'
   
   // Fetch orders for current mode
   const { data: modeOrders, error: ordersError, isLoading: ordersLoading } = useOrderHistory(
@@ -112,7 +113,7 @@ function CounterPOSContent({ initialState }) {
   const [isCustomerDisplayOpen, setIsCustomerDisplayOpen] = useState(false)
   
   // Draft order state - for orders not yet created (no items added)
-  const [pendingOrderType, setPendingOrderType] = useState(null) // 'Counter' | 'Dine In'
+  const [pendingOrderType, setPendingOrderType] = useState(null) // 'POS' | 'Dine-in'
   const [pendingTable, setPendingTable] = useState(null)
   
   // Track mode changes to avoid aggressive viewMode overrides
@@ -191,7 +192,7 @@ function CounterPOSContent({ initialState }) {
   // HANDLER: Create counter order (draft mode - no API call until item added)
   const createCounterOrder = useCallback(() => {
     setSelectedOrder(null)
-    setPendingOrderType('Counter')
+    setPendingOrderType('POS')
     setPendingTable(null)
     setViewModeRaw('catalog')
     
@@ -257,7 +258,7 @@ function CounterPOSContent({ initialState }) {
         return
       }
       
-      const orderType = pendingOrderType || 'Counter'
+      const orderType = pendingOrderType || 'POS'
       
       const payload = {
         pos_profile: context.pos_profile,
