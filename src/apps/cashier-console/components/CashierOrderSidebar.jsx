@@ -35,8 +35,8 @@ export function CashierOrderSidebar() {
       // Show table selector for Dine In orders
       setShowTableSelector(true)
     } else {
-      // Open variant picker for Counter orders
-      // This is handled by the catalog view
+      // Counter mode: dispatch event to create new draft order
+      window.dispatchEvent(new CustomEvent('createNewOrder'))
     }
   }
 

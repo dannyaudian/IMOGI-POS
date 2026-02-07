@@ -188,7 +188,8 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     <div className="catalog-panel" style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%'
+      flex: 1,
+      minHeight: 0
     }}>
       <div className="catalog-header" style={{
         padding: '1rem',

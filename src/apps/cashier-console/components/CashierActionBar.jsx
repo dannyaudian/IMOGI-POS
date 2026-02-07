@@ -229,19 +229,7 @@ export function CashierActionBar() {
           <button
             className={`view-tab ${viewMode === 'catalog' ? 'active' : ''}`}
             onClick={() => setViewMode('catalog')}
-            disabled={!hasOrder}
-            aria-label="View Catalog"
-          >
-            <i className="fa fa-shopping-cart"></i>
-            <span className="view-tab-label">Catalog</span>
-          </button>
-        </div>
 
-        {/* Center: Quick Actions */}
-        <div className="quick-actions">
-          <button
-            className="action-btn icon-btn"
-            onClick={handlePrintBill}
             disabled={!hasOrder}
             title="Print Bill"
             aria-label="Print Bill"

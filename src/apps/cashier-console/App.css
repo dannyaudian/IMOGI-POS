@@ -1734,7 +1734,7 @@
 /* Catalog View */
 .catalog-container {
   display: flex;
-  height: 100%;
+  flex: 1;
   gap: 1rem;
   min-height: 0;
   padding: 1rem;
