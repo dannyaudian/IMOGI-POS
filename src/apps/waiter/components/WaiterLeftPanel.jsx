@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { useWaiterContext } from '../context/WaiterContext'
+import { ORDER_TYPES } from '../constants'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { TableLayout, MenuCatalog } from './index'
 
@@ -25,7 +26,7 @@ export function WaiterLeftPanel() {
   } = useWaiterContext()
 
   const handleTableSelect = (table) => {
-    if (mode === 'Counter') {
+    if (mode === ORDER_TYPES.COUNTER) {
       setSelectedTable(null)
     } else {
       setSelectedTable(table)
@@ -34,7 +35,7 @@ export function WaiterLeftPanel() {
 
   return (
     <div className="waiter-left-panel">
-      {mode === 'Dine-in' && (
+      {mode === ORDER_TYPES.DINE_IN && (
         <div className="table-section">
           <h3 className="section-title">
             Select Table {selectedTable && `- ${selectedTable.name}`}

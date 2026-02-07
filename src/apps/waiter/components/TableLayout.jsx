@@ -1,4 +1,5 @@
 import React from 'react'
+import { ORDER_TYPES } from '../constants'
 
 /**
  * TableLayout Component
@@ -51,7 +52,7 @@ function TableCard({ table, isSelected, onSelect, mode }) {
     <button
       className={`table-card ${getStatusClass()}`}
       onClick={onSelect}
-      disabled={mode === 'Dine-in' && table.status === 'Occupied' && !isSelected}
+      disabled={mode === ORDER_TYPES.DINE_IN && table.status === 'Occupied' && !isSelected}
     >
       <div className="table-number">{table.table_number || table.name}</div>
       <div className="table-capacity">

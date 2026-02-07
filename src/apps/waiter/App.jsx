@@ -19,6 +19,7 @@ import { useState, useEffect } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useTables, useItems } from '@/shared/api/imogi-api'
+import { API, TIMING, ORDER_TYPES } from './constants'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { NetworkStatus } from '@/shared/components/NetworkStatus'
 import { useCart, useTableOrder } from './hooks'
@@ -60,7 +61,7 @@ function WaiterContent({ initialState }) {
   // Fallback to initialState
   const effectiveBranch = branch || initialState.branch || null
   const effectivePosProfile = posProfile || initialState.pos_profile || null
-  const mode = profileData?.mode || initialState.mode || 'Dine-in'
+  const mode = profileData?.mode || initialState.mode || ORDER_TYPES.DINE_IN
   
   // State: UI
   const [selectedTable, setSelectedTable] = useState(null)
@@ -124,7 +125,7 @@ function WaiterContent({ initialState }) {
           reason: 'missing_pos_profile', 
           target: 'imogi-waiter' 
         })
-      }, 10000)
+      }, TIMING.GUARD_TIMEOUT)
       return () => clearTimeout(timeout)
     }
   }, [guardLoading, guardPassed])
@@ -133,7 +134,7 @@ function WaiterContent({ initialState }) {
   const handleSendToKitchen = async () => {
     try {
       // Validate
-      if (mode === 'Dine-in' && !selectedTable) {
+      if (mode === ORDER_TYPES.DINE_IN && !selectedTable) {
         frappe.show_alert({
           message: 'Please select a table first',
           indicator: 'orange'
@@ -151,7 +152,7 @@ function WaiterContent({ initialState }) {
 
       // Create order
       const result = await createAndSendToKitchen({
-        table: mode === 'Dine-in' ? selectedTable.name : null,
+        table: mode === ORDER_TYPES.DINE_IN ? selectedTable.name : null,
         customer: 'Walk-in Customer',
         waiter: window.frappe?.session?.user,
         items: cartItems,
@@ -169,7 +170,7 @@ function WaiterContent({ initialState }) {
       setSelectedTable(null)
       refreshTables()
       setShowSuccessMessage(true)
-      setTimeout(() => setShowSuccessMessage(false), 3000)
+      setTimeout(() => setShowSuccessMessage(false), TIMING.TOAST_DURATION)
 
     } catch (error) {
       frappe.show_alert({

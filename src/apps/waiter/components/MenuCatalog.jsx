@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
+import { TIMING } from '../constants'
 
 /**
  * MenuCatalog Component
@@ -16,7 +17,7 @@ export function MenuCatalog({
   loading 
 }) {
   const [searchQuery, setSearchQuery] = useState('')
-  const debouncedSearch = useDebounce(searchQuery, 300)
+  const debouncedSearch = useDebounce(searchQuery, TIMING.DEBOUNCE_SEARCH)
   
   // Ensure items and categories are arrays
   const itemList = Array.isArray(items) ? items : []

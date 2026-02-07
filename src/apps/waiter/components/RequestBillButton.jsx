@@ -1,5 +1,6 @@
 import React from 'react'
 import { useBillRequest } from '../hooks'
+import { ORDER_TYPES } from '../constants'
 
 /**
  * RequestBillButton Component
@@ -15,7 +16,7 @@ export function RequestBillButton({ order, onSuccess }) {
   if (!order) return null
 
   // Only show for dine-in orders with table
-  if (order.order_type !== 'Dine-in' || !order.table) {
+  if (order.order_type !== ORDER_TYPES.DINE_IN || !order.table) {
     return null
   }
 
