@@ -101,8 +101,8 @@ export function usePOSProfileGuard(options = {}) {
         // Only update if this is still the current request
         if (currentRequestId === requestIdRef.current && r.message) {
           setProfileSettings({
-            require_pos_session: r.message.imogi_require_pos_session || 0,
-            enforce_session_on_cashier: r.message.imogi_enforce_session_on_cashier || 0
+            imogi_require_pos_session: r.message.imogi_require_pos_session || 0,
+            imogi_enforce_session_on_cashier: r.message.imogi_enforce_session_on_cashier || 0
           })
         }
       }
@@ -127,18 +127,28 @@ export function usePOSProfileGuard(options = {}) {
       return
     }
 
-    // Network or API errors (not just missing opening)
+    // Differentiate between network/permission errors vs opening not found
     if (openingError) {
       const errorMsg = openingError?.message || ''
-      // Only treat as error if it's a real network/permission error
-      // Not if it's just "opening not found"
-      if (!errorMsg.includes('not found') && !errorMsg.includes('No active')) {
+      // Real network/permission errors (not 404/not found)
+      if (errorMsg.includes('permission') || errorMsg.includes('403') || errorMsg.includes('401')) {
+        console.error('[POSProfileGuard] Permission/auth error:', errorMsg)
         setOpeningStatus('error')
         return
       }
+      // Network errors (timeout, connection, etc)
+      if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('fetch')) {
+        console.error('[POSProfileGuard] Network error:', errorMsg)
+        setOpeningStatus('error')
+        return
+      }
+      // "not found" or "No active" is NOT an error - it's just null opening
+      // Continue to check if profile allows operation without opening
     }
     
+    // Backend error codes (except no_active_opening which is normal)
     if (posOpening?.error_code && posOpening.error_code !== 'no_active_opening') {
+      console.error('[POSProfileGuard] Backend error:', posOpening.error_code, posOpening.error_message)
       setOpeningStatus('error')
       return
     }
@@ -149,26 +159,30 @@ export function usePOSProfileGuard(options = {}) {
     if (!posOpening || !hasOpeningEntry) {
       // Check if POS Profile actually requires opening
       if (profileSettings) {
-        const requiresSession = profileSettings.require_pos_session
-        const enforcesOnCashier = profileSettings.enforce_session_on_cashier
+        // Use correct field names with imogi_ prefix and proper boolean coercion
+        const requiresSession = !!profileSettings.imogi_require_pos_session
+        const enforcesOnCashier = !!profileSettings.imogi_enforce_session_on_cashier
         
         // If profile doesn't require session, allow operation without opening
         if (!requiresSession || !enforcesOnCashier) {
-          console.info('[POSProfileGuard] No opening found but profile allows operation without session')
+          console.info('[POSProfileGuard] No opening found but profile allows operation without session:', {
+            requiresSession,
+            enforcesOnCashier,
+            profileName: pos_profile
+          })
           setOpeningStatus('ok')
           return
         }
-      }
-      
-      // Only warn if we've confirmed profile requires opening
-      if (profileSettings && profileSettings.require_pos_session) {
+        
+        // Profile requires opening but it's not found
         console.warn('[POSProfileGuard] Opening required but not found:', {
           hasResponse: !!posOpening,
           hasEntryField: hasOpeningEntry,
-          profileRequiresSession: profileSettings.require_pos_session,
-          enforceOnCashier: profileSettings.enforce_session_on_cashier
+          requiresSession,
+          enforcesOnCashier,
+          profileName: pos_profile
         })
-        setOpeningStatus('missing')
+        setOpeningStatus('needs_opening')
       } else {
         // Still waiting for profile settings
         setOpeningStatus('loading')
@@ -229,20 +243,28 @@ export function usePOSProfileGuard(options = {}) {
   useEffect(() => {
     const openingName = posOpening?.pos_opening_entry || null
     if (openingStatus === 'ok' && openingName) {
-      console.info('[POSProfileGuard] openingFound=', openingName)
+      console.info('[POSProfileGuard] ✅ Opening found:', openingName)
     } else if (openingStatus === 'ok' && !openingName && profileSettings) {
-      console.info('[POSProfileGuard] No opening but allowed by profile settings:', {
-        requireSession: profileSettings.require_pos_session,
-        enforceOnCashier: profileSettings.enforce_session_on_cashier
+      console.info('[POSProfileGuard] ✅ No opening but allowed by profile settings:', {
+        requireSession: !!profileSettings.imogi_require_pos_session,
+        enforceOnCashier: !!profileSettings.imogi_enforce_session_on_cashier,
+        profile: pos_profile
       })
     }
-    if (openingStatus !== 'ok' && openingStatus !== 'loading') {
-      console.info('[POSProfileGuard] status=', openingStatus, {
-        reason: openingError?.message || posOpening?.error_message || null,
-        profileSettings
+    if (openingStatus === 'needs_opening') {
+      console.warn('[POSProfileGuard] ⚠️  Opening required but missing:', {
+        profile: pos_profile,
+        requireSession: !!profileSettings?.imogi_require_pos_session,
+        enforceOnCashier: !!profileSettings?.imogi_enforce_session_on_cashier
       })
     }
-  }, [openingStatus, openingError, posOpening, profileSettings])
+    if (openingStatus === 'error') {
+      console.error('[POSProfileGuard] ❌ Error status:', {
+        errorMessage: openingError?.message || posOpening?.error_message || null,
+        errorCode: posOpening?.error_code || null
+      })
+    }
+  }, [openingStatus, openingError, posOpening, profileSettings, pos_profile])
 
   useEffect(() => {
     if (openingStatus === 'ok' && openingRetries > 0) {
@@ -280,9 +302,35 @@ export function usePOSProfileGuard(options = {}) {
     }
     
     // No current profile selected but profiles are available
-    // FIX: Retry context fetch before redirecting (handles race condition)
+    // FIX: Auto-select if only 1 profile available OR retry context fetch before redirecting
     if (contextRequired && !pos_profile && available_profiles.length > 0 && needsSelection) {
       setGuardPassed(false)
+      
+      // AUTO-SELECT: If only 1 profile available, select it automatically
+      if (available_profiles.length === 1 && contextRetries < MAX_CONTEXT_RETRIES) {
+        const singleProfile = available_profiles[0]
+        console.info('[POSProfileGuard] 🎯 Auto-selecting single available profile:', singleProfile.name)
+        
+        const retryTimer = setTimeout(() => {
+          setContextRetries(prev => prev + 1)
+          
+          // Try to set context with the single profile
+          if (ensureServerContext) {
+            ensureServerContext({ 
+              force: true,
+              pos_profile: singleProfile.name 
+            }).catch(err => {
+              console.error('[POSProfileGuard] Failed to auto-select profile:', err)
+              // If auto-select fails, refetch normally
+              if (refetch) refetch()
+            })
+          } else if (refetch) {
+            refetch()
+          }
+        }, RETRY_DELAY_MS)
+        return () => clearTimeout(retryTimer)
+      }
+      
       // Haven't maxed retries yet → retry context fetch
       if (contextRetries < MAX_CONTEXT_RETRIES) {
         const retryTimer = setTimeout(() => {
@@ -294,11 +342,12 @@ export function usePOSProfileGuard(options = {}) {
         return () => clearTimeout(retryTimer)
       }
       
-      // Max retries reached → now redirect
+      // Max retries reached → now redirect to module select
       setGuardPassed(false)
       if (autoRedirect) {
+        console.warn('[POSProfileGuard] ⚠️  Multiple profiles available, redirecting to module select')
         const redirectUrl = targetModule 
-          ? `${MODULE_SELECT_URL}?reason=missing_pos_profile&target=${targetModule}`
+          ? `${MODULE_SELECT_URL}?reason=needs_profile_selection&target=${targetModule}`
           : MODULE_SELECT_URL
         window.location.href = redirectUrl
       }
@@ -322,7 +371,7 @@ export function usePOSProfileGuard(options = {}) {
         return
       }
 
-      if (openingStatus === 'missing') {
+      if (openingStatus === 'needs_opening') {
         // Block access - let consuming component show error screen
         // (no auto-redirect, so console errors are visible)
         setGuardPassed(false)
@@ -352,6 +401,7 @@ export function usePOSProfileGuard(options = {}) {
     hasAccess,
     contextRetries,
     refetch,
+    ensureServerContext,
     targetModule
   ])
 
