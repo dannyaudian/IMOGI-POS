@@ -1,6 +1,7 @@
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk'
 import { useEffect, useState } from 'react'
 import { apiCall } from '@/shared/utils/api'
+import { API } from './constants'
 
 /**
  * Centralized API calls untuk IMOGI POS
@@ -65,7 +66,7 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
   // IMPORTANT: Pass null for BOTH params AND key to disable fetch completely
   // frappe-react-sdk will not fetch if params is null
   const response = useFrappeGetCall(
-    'imogi_pos.api.billing.list_orders_for_cashier',
+    API.LIST_ORDERS_FOR_CASHIER,
     params,  // null = don't fetch
     cacheKey,  // null = no cache key needed
     {
@@ -111,15 +112,15 @@ export function useOrderHistory(posProfile, branch = null, orderType = null) {
 }
 
 export function useCreateOrder() {
-  return useImogiAPI('imogi_pos.api.orders.create_order')
+  return useImogiAPI(API.CREATE_ORDER)
 }
 
 export function useUpdateOrder() {
-  return useImogiAPI('imogi_pos.api.orders.update_order')
+  return useImogiAPI(API.UPDATE_ORDER)
 }
 
 export function useSubmitOrder() {
-  return useImogiAPI('imogi_pos.api.orders.submit_order')
+  return useImogiAPI(API.SUBMIT_ORDER)
 }
 
 /**
@@ -135,7 +136,7 @@ export function useKOTList(kitchen, station = null, posProfile = null) {
   }
   
   return useFrappeGetCall(
-    'imogi_pos.api.kot.get_active_kots',
+    API.GET_ACTIVE_KOTS,
     params,
     `kot-list-${kitchen}-${station || 'all'}-${posProfile || 'default'}`,
     {
@@ -146,15 +147,15 @@ export function useKOTList(kitchen, station = null, posProfile = null) {
 }
 
 export function useUpdateKOTStatus() {
-  return useImogiAPI('imogi_pos.api.kot.update_kot_status')
+  return useImogiAPI(API.UPDATE_KOT_STATUS)
 }
 
 export function useUpdateKOTState() {
-  return useImogiAPI('imogi_pos.api.kot.update_kot_state')
+  return useImogiAPI(API.UPDATE_KOT_STATE)
 }
 
 export function useSendToKitchen() {
-  return useImogiAPI('imogi_pos.api.kot.send_to_kitchen')
+  return useImogiAPI(API.SEND_TO_KITCHEN)
 }
 
 /**
@@ -173,7 +174,7 @@ export function useItems(posProfile, branch = null) {
   }
   
   return useFrappeGetCall(
-    'imogi_pos.api.items.get_pos_items',
+    API.GET_POS_ITEMS,
     params,  // null = don't fetch
     cacheKey,  // null = no cache key
     {
@@ -184,7 +185,7 @@ export function useItems(posProfile, branch = null) {
 
 export function useItemVariants(itemCode) {
   return useFrappeGetCall(
-    'imogi_pos.api.variants.get_item_variants',
+    API.GET_ITEM_VARIANTS,
     { item_code: itemCode },
     `variants-${itemCode}`,
     {
@@ -198,7 +199,7 @@ export function useItemVariants(itemCode) {
  */
 export function useCustomers(searchTerm = '') {
   return useFrappeGetCall(
-    'imogi_pos.api.customers.search_customers',
+    API.SEARCH_CUSTOMERS,
     { search_term: searchTerm },
     `customers-${searchTerm}`,
     {
@@ -208,7 +209,7 @@ export function useCustomers(searchTerm = '') {
 }
 
 export function useCreateTableOrder() {
-  return useImogiAPI('imogi_pos.api.orders.create_table_order')
+  return useImogiAPI(API.CREATE_TABLE_ORDER)
 }
 
 /**
@@ -216,7 +217,7 @@ export function useCreateTableOrder() {
  */
 export function useCustomerDisplayProfiles() {
   return useFrappeGetCall(
-    'imogi_pos.api.customer_display_editor.get_available_devices',
+    API.GET_AVAILABLE_DEVICES,
     null,
     'customer-display-profiles',
     {
@@ -228,7 +229,7 @@ export function useCustomerDisplayProfiles() {
 
 export function useDisplayTemplates() {
   return useFrappeGetCall(
-    'imogi_pos.api.customer_display_editor.get_display_templates',
+    API.GET_DISPLAY_TEMPLATES,
     null,
     'display-templates',
     {
@@ -238,23 +239,23 @@ export function useDisplayTemplates() {
 }
 
 export function useSaveDisplayConfig() {
-  return useImogiAPI('imogi_pos.api.customer_display_editor.save_device_config')
+  return useImogiAPI(API.SAVE_DEVICE_CONFIG)
 }
 
 export function useResetDisplayConfig() {
-  return useImogiAPI('imogi_pos.api.customer_display_editor.reset_device_config')
+  return useImogiAPI(API.RESET_DEVICE_CONFIG)
 }
 
 export function useTestDisplay() {
-  return useImogiAPI('imogi_pos.api.customer_display_editor.test_device_display')
+  return useImogiAPI(API.TEST_DEVICE_DISPLAY)
 }
 
 export function useDuplicateProfile() {
-  return useImogiAPI('imogi_pos.api.customer_display_editor.duplicate_profile')
+  return useImogiAPI(API.DUPLICATE_PROFILE)
 }
 
 export function useCreateProfile() {
-  return useImogiAPI('imogi_pos.api.customer_display_editor.create_profile')
+  return useImogiAPI(API.CREATE_PROFILE)
 }
 
 /**
@@ -273,7 +274,7 @@ export function useTables(posProfile, branch = null) {
   }
   
   return useFrappeGetCall(
-    'imogi_pos.api.layout.get_tables',
+    API.GET_TABLES,
     params,  // null = don't fetch
     cacheKey,  // null = no cache key
     {
@@ -284,7 +285,7 @@ export function useTables(posProfile, branch = null) {
 }
 
 export function useUpdateTableStatus() {
-  return useImogiAPI('imogi_pos.api.layout.update_table_status')
+  return useImogiAPI(API.UPDATE_TABLE_STATUS)
 }
 
 /**
@@ -306,7 +307,7 @@ export function usePendingOrders(posProfile = null, branch = null, filters = {})
   }
   
   return useFrappeGetCall(
-    'imogi_pos.api.cashier.get_pending_orders',
+    API.GET_PENDING_ORDERS,
     params,  // null = don't fetch
     cacheKey,  // null = no cache key
     {
@@ -318,7 +319,7 @@ export function usePendingOrders(posProfile = null, branch = null, filters = {})
 
 export function useOrderDetails(orderName) {
   return useFrappeGetCall(
-    'imogi_pos.api.cashier.get_order_details',
+    API.GET_ORDER_DETAILS,
     { order_name: orderName },
     `order-details-${orderName}`,
     {
@@ -328,21 +329,21 @@ export function useOrderDetails(orderName) {
 }
 
 export function useCreateInvoice() {
-  return useImogiAPI('imogi_pos.api.cashier.create_invoice_from_order')
+  return useImogiAPI(API.CREATE_INVOICE_FROM_ORDER)
 }
 
 export function useProcessPayment() {
-  return useImogiAPI('imogi_pos.api.cashier.process_payment')
+  return useImogiAPI(API.PROCESS_PAYMENT)
 }
 
 export function useCompleteOrder() {
-  return useImogiAPI('imogi_pos.api.cashier.complete_order')
+  return useImogiAPI(API.COMPLETE_ORDER)
 }
 
 export function usePaymentMethods(posProfile = null, branch = null) {
   // pos_profile is primary, branch is deprecated fallback
   return useFrappeGetCall(
-    'imogi_pos.api.cashier.get_payment_methods',
+    API.GET_PAYMENT_METHODS,
     { pos_profile: posProfile, branch },
     `payment-methods-${posProfile || 'all'}`,
     {
@@ -353,27 +354,27 @@ export function usePaymentMethods(posProfile = null, branch = null) {
 }
 
 export function useSplitBill() {
-  return useImogiAPI('imogi_pos.api.cashier.split_bill')
+  return useImogiAPI(API.SPLIT_BILL)
 }
 
 /**
  * Customer Display Realtime API (Phase 2)
  */
 export function useSendToDisplay() {
-  return useImogiAPI('imogi_pos.api.customer_display.send_order_to_display')
+  return useImogiAPI(API.SEND_ORDER_TO_DISPLAY)
 }
 
 export function useUpdateDisplayStatus() {
-  return useImogiAPI('imogi_pos.api.customer_display.update_display_status')
+  return useImogiAPI(API.UPDATE_DISPLAY_STATUS)
 }
 
 export function useClearDisplay() {
-  return useImogiAPI('imogi_pos.api.customer_display.clear_display')
+  return useImogiAPI(API.CLEAR_DISPLAY)
 }
 
 export function useDisplayForTable(table) {
   return useFrappeGetCall(
-    'imogi_pos.api.customer_display.get_display_for_table',
+    API.GET_DISPLAY_FOR_TABLE,
     { table },
     `display-for-table-${table}`,
     {
@@ -383,9 +384,9 @@ export function useDisplayForTable(table) {
 }
 
 export function useShowPaymentProcessing() {
-  return useImogiAPI('imogi_pos.api.customer_display.show_payment_processing')
+  return useImogiAPI(API.SHOW_PAYMENT_PROCESSING)
 }
 
 export function useShowThankYou() {
-  return useImogiAPI('imogi_pos.api.customer_display.show_thank_you')
+  return useImogiAPI(API.SHOW_THANK_YOU)
 }
