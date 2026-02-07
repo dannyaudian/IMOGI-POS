@@ -1,21 +1,3 @@
-/**
- * Cashier Console App - Refactored Architecture
- * 
- * BEFORE: 923 lines - monolithic component with all logic embedded
- * AFTER: ~550 lines - data fetching + orchestration only
- * 
- * KEY IMPROVEMENTS:
- * ✓ Context API eliminates prop drilling (20+ props → none)
- * ✓ Sub-components focus on single responsibility
- * ✓ Event listeners centralized for keyboard shortcuts
- * ✓ Handlers cleanly organized
- * 
- * DATA FLOW:
- * App.jsx (data + logic)
- *   → CashierProvider (context)
- *   → Sub-components (read from context via useCashierContext hook)
- */
-
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { SessionExpiredProvider } from '@/shared/components/SessionExpired'
@@ -33,7 +15,7 @@ import './CashierLayout.css'
 
 // Context & Sub-components
 import { CashierProvider } from './context/CashierContext'
-import { API, TIMING } from '@/shared/api/constants'
+import { API } from '@/shared/api/constants'
 import { CashierHeaderBar } from './components/CashierHeaderBar'
 import { CashierOrderSidebar } from './components/CashierOrderSidebar'
 import { CashierMainContent } from './components/CashierMainContent'
@@ -43,15 +25,6 @@ const asArray = (value) => (Array.isArray(value) ? value : [])
 
 /**
  * CounterPOSContent - Main app logic container
- * Handles:
- * - POS Profile validation via usePOSProfileGuard
- * - Opening validation via useEffectiveOpening
- * - Order fetching via useOrderHistory (multiple channels)
- * - State management (all delegated to context)
- * - Event listeners (keyboard, variant selection, etc.)
- * - API handlers (create order, add item, etc.)
- * 
- * Renders modular sub-components via CashierProvider
  */
 function CounterPOSContent({ initialState }) {
   // POS Profile validation - ensures user has valid profile & opening
@@ -178,182 +151,11 @@ function CounterPOSContent({ initialState }) {
   // Customer Display handlers
   const openCustomerDisplay = useCallback(() => {
     setIsCustomerDisplayOpen(true)
-    // TODO: Implement actual customer display window opening logic
-    console.log('[Cashier] Customer display opened')
   }, [])
 
   const closeCustomerDisplay = useCallback(() => {
     setIsCustomerDisplayOpen(false)
-    // TODO: Implement actual customer display window closing logic
-    console.log('[Cashier] Customer display closed')
   }, [])
-
-  // EFFECT: Sync default view when mode resolves or changes
-  useEffect(() => {
-    // Skip if mode is still undefined/null (guard not passed yet)
-    if (!mode) return
-    
-    // Track previous mode for change detection
-    const prevMode = lastModeRef.current
-    const modeChanged = prevMode && prevMode !== mode
-    
-    // Only apply default view if:
-    // 1. Mode actually changed (not just re-render)
-    // 2. User is on default views (not in modal/detail state)
-    // 3. User hasn't manually interacted (or we're forcing reset on mode change)
-    const isOnDefaultView = viewMode === 'orders' || viewMode === 'catalog'
-    const notInModal = !showPayment && !showSplit && !showSummary && !showCloseShift
-    
-    if (modeChanged && isOnDefaultView && notInModal) {
-      const newDefaultView = mode === 'Counter' ? 'catalog' : 'orders'
-      if (viewMode !== newDefaultView) {
-        setViewModeAuto(newDefaultView)
-        console.log(`[Cashier] Mode changed to ${mode}, auto-switching to ${newDefaultView}`)
-      }
-      userInteractedRef.current = false // Reset user interaction flag on mode change
-    } else if (!modeChanged && viewMode === 'catalog' && mode === 'Table') {
-      // Initial load fallback: if Table mode but still on catalog, switch to orders
-      setViewModeAuto('orders')
-    }
-    
-    // CRITICAL: Always update lastModeRef after processing, regardless of branch taken
-    // This prevents modeChanged from staying true incorrectly
-    lastModeRef.current = mode
-  }, [mode, viewMode, showPayment, showSplit, showSummary, showCloseShift]) // setViewModeAuto is stable, no need in deps
-
-  // EFFECT: Load branding
-  useEffect(() => {
-    if (effectivePosProfile) {
-      loadBranding()
-      checkPrinterStatus()
-    }
-  }, [effectivePosProfile])
-
-  // EFFECT: Listen for variant selection from OrderDetailPanel
-  useEffect(() => {
-    const handleSelectVariant = (event) => {
-      const { itemRow, itemCode } = event.detail
-      setVariantPickerContext({
-        mode: 'convert',
-        templateName: itemCode,
-        orderItemRow: itemRow
-      })
-      setShowVariantPicker(true)
-    }
-
-    window.addEventListener('selectVariant', handleSelectVariant)
-    return () => window.removeEventListener('selectVariant', handleSelectVariant)
-  }, [selectedOrder])
-
-  // EFFECT: Listen for shift summary trigger from header
-  useEffect(() => {
-    const handleShowSummary = () => {
-      setShowSummary(true)
-      setShowPayment(false)
-      setShowCloseShift(false)
-      setViewMode('summary') // User action via header button
-    }
-
-    window.addEventListener('showShiftSummary', handleShowSummary)
-    return () => window.removeEventListener('showShiftSummary', handleShowSummary)
-  }, []) // setViewMode is stable
-
-  // EFFECT: Listen for close shift trigger from header
-  useEffect(() => {
-    const handleCloseShift = () => {
-      setShowCloseShift(true)
-      setShowPayment(false)
-      setShowSplit(false)
-      setShowSummary(false)
-      setViewMode('close') // User action via header button
-    }
-
-    window.addEventListener('closeShift', handleCloseShift)
-    return () => window.removeEventListener('closeShift', handleCloseShift)
-  }, []) // setViewMode is stable
-
-  // EFFECT: Listen for new order creation from action bar
-  useEffect(() => {
-    const handleCreateNewOrder = (event) => {
-      // Safe: no assumptions about event.detail
-      if (mode === 'Counter') {
-        createCounterOrder()
-      } else {
-        setShowTableSelector(true)
-      }
-    }
-
-    window.addEventListener('createNewOrder', handleCreateNewOrder)
-    return () => window.removeEventListener('createNewOrder', handleCreateNewOrder)
-  }, [mode, createCounterOrder]) // Include createCounterOrder in deps
-
-  // EFFECT: Guard timeout - redirect if guard doesn't pass within 10 seconds
-  useEffect(() => {
-    if (!guardLoading && !guardPassed) {
-      const timeout = setTimeout(() => {
-        console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
-        window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
-      }, 10000)
-      return () => clearTimeout(timeout)
-    }
-  }, [guardLoading, guardPassed])
-  
-  // EFFECT: Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Ignore if typing in input/textarea (except ESC)
-      if ((e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') && e.key !== 'Escape') {
-        return
-      }
-      
-      // "/" - Focus search and open catalog
-      if (e.key === '/' && viewMode !== 'catalog') {
-        e.preventDefault()
-        setViewMode('catalog')
-        setTimeout(() => {
-          const searchInput = document.querySelector('.catalog-search-input')
-          if (searchInput) searchInput.focus()
-        }, 100)
-      }
-      
-      // F2 - Open payment
-      if (e.key === 'F2') {
-        e.preventDefault()
-        if (selectedOrder && !showPayment) {
-          setShowPayment(true)
-          setViewMode('payment')
-        }
-      }
-      
-      // F3 - Toggle catalog
-      if (e.key === 'F3') {
-        e.preventDefault()
-        setViewMode(viewMode === 'catalog' ? 'orders' : 'catalog')
-      }
-      
-      // ESC - Close modals
-      if (e.key === 'Escape') {
-        setShowPayment(false)
-        setShowSplit(false)
-        setShowSummary(false)
-        setShowCloseShift(false)
-        setViewModeAuto('orders') // Auto: cancel action, return to default
-      }
-      
-      // Ctrl+N / Cmd+N - New order
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault()
-        if (mode === 'Counter') {
-          createCounterOrder()
-        } else {
-          setShowTableSelector(true)
-        }
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode]) // setViewMode/Auto are stable
 
   // HANDLER: Load branding
   const loadBranding = async () => {
@@ -386,19 +188,17 @@ function CounterPOSContent({ initialState }) {
   // HANDLER: Select order
   const handleSelectOrder = (order) => {
     setSelectedOrder(order)
-    setViewModeUser('orders') // User action: clicked order in sidebar
+    setViewModeUser('orders')
     setShowPayment(false)
     setShowSplit(false)
   }
 
   // HANDLER: Create counter order (draft mode - no API call until item added)
   const createCounterOrder = useCallback(() => {
-    // Don't create order yet - just set pending state and open catalog
-    // Order will be created when first item is added
     setSelectedOrder(null)
     setPendingOrderType('Counter')
     setPendingTable(null)
-    setViewModeRaw('catalog') // Direct call to avoid setViewMode wrapper dependency
+    setViewModeRaw('catalog')
     
     console.log('[Cashier] Counter order draft mode activated - waiting for first item')
   }, [])
@@ -407,13 +207,11 @@ function CounterPOSContent({ initialState }) {
   const createTableOrder = useCallback((table) => {
     setShowTableSelector(false)
     
-    // Don't create order yet - just set pending state and open catalog
-    // Order will be created when first item is added
     setSelectedOrder(null)
     setPendingOrderType('Dine In')
     setPendingTable(table)
     setSelectedTable(table)
-    setViewModeRaw('catalog') // Direct call to avoid setViewMode wrapper dependency
+    setViewModeRaw('catalog')
     
     console.log('[Cashier] Table order draft mode activated for table:', table.name)
   }, [])
@@ -504,7 +302,6 @@ function CounterPOSContent({ initialState }) {
     } catch (err) {
       console.error('[Cashier] Failed to add item:', err)
       
-      // Check if error is MandatoryError for items
       const errorMessage = err.message || err.toString() || 'Unknown error'
       
       if (errorMessage.includes('items') && errorMessage.includes('Mandatory')) {
@@ -538,6 +335,172 @@ function CounterPOSContent({ initialState }) {
       alert('Failed to convert: ' + (err.message || 'Unknown error'))
     }
   }
+
+  // EFFECT: Sync default view when mode resolves or changes
+  useEffect(() => {
+    // Skip if mode is still undefined/null (guard not passed yet)
+    if (!mode) return
+    
+    // Track previous mode for change detection
+    const prevMode = lastModeRef.current
+    const modeChanged = prevMode && prevMode !== mode
+    
+    // Only apply default view if:
+    // 1. Mode actually changed (not just re-render)
+    // 2. User is on default views (not in modal/detail state)
+    // 3. User hasn't manually interacted (or we're forcing reset on mode change)
+    const isOnDefaultView = viewMode === 'orders' || viewMode === 'catalog'
+    const notInModal = !showPayment && !showSplit && !showSummary && !showCloseShift
+    
+    if (modeChanged && isOnDefaultView && notInModal) {
+      const newDefaultView = mode === 'Counter' ? 'catalog' : 'orders'
+      if (viewMode !== newDefaultView) {
+        setViewModeAuto(newDefaultView)
+        console.log(`[Cashier] Mode changed to ${mode}, auto-switching to ${newDefaultView}`)
+      }
+      userInteractedRef.current = false // Reset user interaction flag on mode change
+    } else if (!modeChanged && viewMode === 'catalog' && mode === 'Table') {
+      // Initial load fallback: if Table mode but still on catalog, switch to orders
+      setViewModeAuto('orders')
+    }
+    
+    // CRITICAL: Always update lastModeRef after processing, regardless of branch taken
+    // This prevents modeChanged from staying true incorrectly
+    lastModeRef.current = mode
+  }, [mode, viewMode, showPayment, showSplit, showSummary, showCloseShift]) // setViewModeAuto is stable, no need in deps
+
+  // EFFECT: Load branding
+  useEffect(() => {
+    if (effectivePosProfile) {
+      loadBranding()
+      checkPrinterStatus()
+    }
+  }, [effectivePosProfile])
+
+  // EFFECT: Listen for variant selection from OrderDetailPanel
+  useEffect(() => {
+    const handleSelectVariant = (event) => {
+      const { itemRow, itemCode } = event.detail
+      setVariantPickerContext({
+        mode: 'convert',
+        templateName: itemCode,
+        orderItemRow: itemRow
+      })
+      setShowVariantPicker(true)
+    }
+
+    window.addEventListener('selectVariant', handleSelectVariant)
+    return () => window.removeEventListener('selectVariant', handleSelectVariant)
+  }, [selectedOrder])
+
+  // EFFECT: Listen for shift summary trigger from header
+  useEffect(() => {
+    const handleShowSummary = () => {
+      setShowSummary(true)
+      setShowPayment(false)
+      setShowCloseShift(false)
+      setViewMode('summary') // User action via header button
+    }
+
+    window.addEventListener('showShiftSummary', handleShowSummary)
+    return () => window.removeEventListener('showShiftSummary', handleShowSummary)
+  }, []) // setViewMode is stable
+
+  // EFFECT: Listen for close shift trigger from header
+  useEffect(() => {
+    const handleCloseShift = () => {
+      setShowCloseShift(true)
+      setShowPayment(false)
+      setShowSplit(false)
+      setShowSummary(false)
+      setViewMode('close') // User action via header button
+    }
+
+    window.addEventListener('closeShift', handleCloseShift)
+    return () => window.removeEventListener('closeShift', handleCloseShift)
+  }, []) // setViewMode is stable
+
+  // EFFECT: Listen for new order creation from action bar
+  useEffect(() => {
+    const handleCreateNewOrder = (event) => {
+      if (mode === 'Counter') {
+        createCounterOrder()
+      } else {
+        setShowTableSelector(true)
+      }
+    }
+
+    window.addEventListener('createNewOrder', handleCreateNewOrder)
+    return () => window.removeEventListener('createNewOrder', handleCreateNewOrder)
+  }, [mode, createCounterOrder])
+
+  // EFFECT: Guard timeout - redirect if guard doesn't pass within 10 seconds
+  useEffect(() => {
+    if (!guardLoading && !guardPassed) {
+      const timeout = setTimeout(() => {
+        console.warn('[Cashier Console] Guard timeout - redirecting to module selection')
+        window.location.href = '/app/imogi-module-select?reason=timeout&target=imogi-cashier'
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [guardLoading, guardPassed])
+  
+  // EFFECT: Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if typing in input/textarea (except ESC)
+      if ((e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') && e.key !== 'Escape') {
+        return
+      }
+      
+      // "/" - Focus search and open catalog
+      if (e.key === '/' && viewMode !== 'catalog') {
+        e.preventDefault()
+        setViewMode('catalog')
+        setTimeout(() => {
+          const searchInput = document.querySelector('.catalog-search-input')
+          if (searchInput) searchInput.focus()
+        }, 100)
+      }
+      
+      // F2 - Open payment
+      if (e.key === 'F2') {
+        e.preventDefault()
+        if (selectedOrder && !showPayment) {
+          setShowPayment(true)
+          setViewMode('payment')
+        }
+      }
+      
+      // F3 - Toggle catalog
+      if (e.key === 'F3') {
+        e.preventDefault()
+        setViewMode(viewMode === 'catalog' ? 'orders' : 'catalog')
+      }
+      
+      // ESC - Close modals
+      if (e.key === 'Escape') {
+        setShowPayment(false)
+        setShowSplit(false)
+        setShowSummary(false)
+        setShowCloseShift(false)
+        setViewModeAuto('orders')
+      }
+      
+      // Ctrl+N / Cmd+N - New order
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        if (mode === 'Counter') {
+          createCounterOrder()
+        } else {
+          setShowTableSelector(true)
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [viewMode, selectedOrder, showPayment, showSplit, showSummary, showCloseShift, mode, createCounterOrder, setViewMode, setViewModeAuto])
 
   // GUARD CHECKS: Verify guard passed and opening is valid
   if (!guardLoading && (!guardPassed || !hasValidOpening)) {
@@ -657,11 +620,6 @@ function CounterPOSContent({ initialState }) {
         <NetworkStatus />
         
         <CashierHeaderBar />
-        
-        {/* Keyboard shortcuts hint */}
-        <div className="keyboard-shortcuts-hint">
-          <div>/ - Catalog | F2 - Pay | F3 - Toggle | Ctrl+N - New | ESC - Close</div>
-        </div>
 
         <div className="cashier-console-layout">
           <CashierOrderSidebar />
