@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useKioskContext } from '../context/KioskContext'
-import { useVariants } from '@/shared/api/imogi-api'
+import { useItemVariants } from '@/shared/api/imogi-api'
 
 export function VariantPickerModal() {
   const { 
@@ -16,7 +16,7 @@ export function VariantPickerModal() {
     data: variants, 
     error: variantsError, 
     isLoading: variantsLoading 
-  } = useVariants(
+  } = useItemVariants(
     showVariantPicker && selectedTemplateItem?.item_code ? selectedTemplateItem.item_code : null
   )
 
