@@ -4,6 +4,7 @@ import { useAuth } from '@/shared/hooks/useAuth'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useItems } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { TIMING } from './constants'
 import { KioskProvider } from './context/KioskContext'
 import { KioskMenu, KioskActions } from './components'
 
@@ -41,7 +42,7 @@ function KioskContent({ initialState }) {
       const timeout = setTimeout(() => {
         console.error('POS Profile required for kiosk - redirecting to module select')
         window.location.href = '/app/imogi-module-select'
-      }, 3000)
+      }, TIMING.TOAST_DURATION)
       return () => clearTimeout(timeout)
     }
   }, [guardLoading, authLoading, effectivePosProfile])

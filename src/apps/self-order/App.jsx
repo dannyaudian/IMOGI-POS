@@ -2,6 +2,7 @@ import { ImogiPOSProvider } from '@/shared/providers/ImogiPOSProvider'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useItems } from '@/shared/api/imogi-api'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { TIMING } from './constants'
 import { SelfOrderProvider } from './context/SelfOrderContext'
 import { SelfOrderHeader, SelfOrderMenu, SelfOrderActions } from './components'
 
