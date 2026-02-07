@@ -213,7 +213,13 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         />
       </div>
       
-      <div className="catalog-container">
+      <div className="catalog-container" style={{
+        display: 'flex',
+        flex: 1,
+        minHeight: 0,
+        gap: '1rem',
+        padding: '1rem'
+      }}>
         {/* Item Groups Sidebar */}
         <div className="catalog-sidebar">
           <div className="item-group-list">
