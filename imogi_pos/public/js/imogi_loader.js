@@ -247,6 +247,13 @@ function resolveDebugUrl(productionUrl, appKey, logPrefix) {
 		`/react/${appKey}/`,
 		`/react/${appKey}-debug/`
 	);
+}
+
+/**
+ * Load and mount a React app bundle
+ */
+window.loadImogiReactApp = function(config) {
+	const {
 		appKey,           // Unique identifier (e.g., 'cashier-console')
 		scriptUrl,        // Full URL to the bundle JS
 		cssUrl,           // Optional: Full URL to the bundle CSS
