@@ -34,12 +34,10 @@ function CounterPOSContent({ initialState }) {
     posProfile,
     profileData,
     branch,
-    posOpening,
     openingStatus,
     openingError,
     retryOpening,
     error: contextError,
-    serverContextReady,
     serverContextError,
     retryServerContext
   } = usePOSProfileGuard({ 
@@ -50,13 +48,8 @@ function CounterPOSContent({ initialState }) {
   // Opening validation - ensures opening is valid & consistent
   const {
     opening: effectiveOpening,
-    effectiveOpeningName,
-    status: openingValidationStatus,
     error: openingValidationError,
-    isValid: hasValidOpening,
-    isMismatch: openingMismatch,
-    isUrlOpening,
-    revalidate: revalidateOpening
+    isValid: hasValidOpening
   } = useEffectiveOpening({
     requiresOpening: true,
     allowUrlParam: true,
@@ -158,20 +151,22 @@ function CounterPOSContent({ initialState }) {
   }, [])
 
   // HANDLER: Load branding
-  const loadBranding = async () => {
+  const loadBranding = useCallback(async () => {
     try {
       const result = await apiCall(API.GET_BRANDING)
       if (result) {
         setBranding(result)
-        console.log('[Cashier] Branding loaded:', result)
+        if (import.meta.env.DEV) {
+          console.log('[Cashier] Branding loaded:', result)
+        }
       }
     } catch (err) {
       console.warn('[Cashier] Failed to load branding:', err)
     }
-  }
+  }, [])
 
   // HANDLER: Check printer status
-  const checkPrinterStatus = async () => {
+  const checkPrinterStatus = useCallback(async () => {
     try {
       if (window.escposPrint && typeof window.escposPrint.getStatus === 'function') {
         const status = await window.escposPrint.getStatus()
@@ -183,15 +178,15 @@ function CounterPOSContent({ initialState }) {
       console.warn('[Cashier] Printer status check failed:', err)
       setPrinterStatus({ connected: false, checking: false })
     }
-  }
+  }, [])
 
   // HANDLER: Select order
-  const handleSelectOrder = (order) => {
+  const handleSelectOrder = useCallback((order) => {
     setSelectedOrder(order)
     setViewModeUser('orders')
     setShowPayment(false)
     setShowSplit(false)
-  }
+  }, [setViewModeUser])
 
   // HANDLER: Create counter order (draft mode - no API call until item added)
   const createCounterOrder = useCallback(() => {
@@ -200,7 +195,9 @@ function CounterPOSContent({ initialState }) {
     setPendingTable(null)
     setViewModeRaw('catalog')
     
-    console.log('[Cashier] Counter order draft mode activated - waiting for first item')
+    if (import.meta.env.DEV) {
+      console.log('[Cashier] Counter order draft mode activated - waiting for first item')
+    }
   }, [])
   
   // HANDLER: Create table order (draft mode - no API call until item added)
@@ -213,11 +210,13 @@ function CounterPOSContent({ initialState }) {
     setSelectedTable(table)
     setViewModeRaw('catalog')
     
-    console.log('[Cashier] Table order draft mode activated for table:', table.name)
+    if (import.meta.env.DEV) {
+      console.log('[Cashier] Table order draft mode activated for table:', table.name)
+    }
   }, [])
 
   // HANDLER: Add item to order (smart handler - creates order if needed)
-  const handleAddItemToOrder = async (item) => {
+  const handleAddItemToOrder = useCallback(async (item) => {
     setCreatingOrder(true)
     
     try {
@@ -279,7 +278,9 @@ function CounterPOSContent({ initialState }) {
         payload.table = pendingTable.name
       }
       
-      console.log('[Cashier] Creating order with first item:', payload)
+      if (import.meta.env.DEV) {
+        console.log('[Cashier] Creating order with first item:', payload)
+      }
       
       const result = await apiCall(API.CREATE_ORDER, payload)
       
@@ -318,7 +319,7 @@ function CounterPOSContent({ initialState }) {
     } finally {
       setCreatingOrder(false)
     }
-  }
+  }, [selectedOrder, pendingOrderType, pendingTable])
 
   // HANDLER: Convert template to variant
   const convertTemplateToVariant = async (orderItemRow, variantName) => {
@@ -356,7 +357,9 @@ function CounterPOSContent({ initialState }) {
       const newDefaultView = mode === 'Counter' ? 'catalog' : 'orders'
       if (viewMode !== newDefaultView) {
         setViewModeAuto(newDefaultView)
-        console.log(`[Cashier] Mode changed to ${mode}, auto-switching to ${newDefaultView}`)
+        if (import.meta.env.DEV) {
+          console.log(`[Cashier] Mode changed to ${mode}, auto-switching to ${newDefaultView}`)
+        }
       }
       userInteractedRef.current = false // Reset user interaction flag on mode change
     } else if (!modeChanged && viewMode === 'catalog' && mode === 'Table') {
@@ -375,12 +378,14 @@ function CounterPOSContent({ initialState }) {
       loadBranding()
       checkPrinterStatus()
     }
-  }, [effectivePosProfile])
+  }, [effectivePosProfile, loadBranding, checkPrinterStatus])
 
   // EFFECT: Listen for variant selection from OrderDetailPanel
   useEffect(() => {
     const handleSelectVariant = (event) => {
-      const { itemRow, itemCode } = event.detail
+      const detail = event?.detail
+      if (!detail) return
+      const { itemRow, itemCode } = detail
       setVariantPickerContext({
         mode: 'convert',
         templateName: itemCode,
@@ -391,7 +396,7 @@ function CounterPOSContent({ initialState }) {
 
     window.addEventListener('selectVariant', handleSelectVariant)
     return () => window.removeEventListener('selectVariant', handleSelectVariant)
-  }, [selectedOrder])
+  }, [])
 
   // EFFECT: Listen for shift summary trigger from header
   useEffect(() => {
@@ -422,7 +427,7 @@ function CounterPOSContent({ initialState }) {
 
   // EFFECT: Listen for new order creation from action bar
   useEffect(() => {
-    const handleCreateNewOrder = (event) => {
+    const handleCreateNewOrder = () => {
       if (mode === 'Counter') {
         createCounterOrder()
       } else {
