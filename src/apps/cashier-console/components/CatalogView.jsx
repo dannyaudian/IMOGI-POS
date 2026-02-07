@@ -4,7 +4,7 @@ import { apiCall } from '@/shared/utils/api'
 import { API, ITEM_MODES } from '@/shared/api/constants'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { formatCurrency } from '@/shared/utils/formatters'
-import { VariantPickerModal } from './VariantPickerModal'
+import { VariantListModal } from './VariantListModal'
 
 export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSelectItem }) {
   const [itemGroups, setItemGroups] = useState([])
@@ -15,8 +15,8 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
   const [error, setError] = useState(null)
   const [debugInfo, setDebugInfo] = useState(null)
   
-  // Variant picker state
-  const [showVariantPicker, setShowVariantPicker] = useState(false)
+  // Variant list modal state
+  const [showVariantModal, setShowVariantModal] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   
   // Debounce search query (300ms)
@@ -84,7 +84,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
       const params = {
         pos_profile: posProfile,  // Required for POS Menu Profile scoping
         item_group: selectedGroup === 'all' ? null : selectedGroup,
-        mode: ITEM_MODES.TEMPLATE,  // Show templates + standalone (user can pick variants via modal)
+        mode: ITEM_MODES.TEMPLATE,  // Templates + standalone (no variant children spam)
         // price_list will be fetched from POS Profile in backend
         // but we can pass it explicitly if available in state
         require_menu_category: 0,  // Don't filter out items without category
@@ -166,25 +166,22 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
     const hasVariants = item.has_variants === 1 || item.has_variants === true
     
     if (hasVariants) {
-      // Template item - open variant picker
+      // Template with variants - open variant list modal
       setSelectedTemplate(item)
-      setShowVariantPicker(true)
+      setShowVariantModal(true)
     } else {
-      // Sellable item (standalone or already a variant) - add directly
+      // Standalone item - add directly
       if (onSelectItem) {
         onSelectItem(item)
       }
     }
   }
   
-  const handleVariantSelect = (variantItemCode) => {
-    // When variant is selected from picker, call onSelectItem with variant item_code
+  const handleVariantSelect = (variant) => {
     if (onSelectItem) {
-      // Fetch the variant details or just pass the item code
-      // For now, create a minimal item object with the variant code
-      onSelectItem({ item_code: variantItemCode, name: variantItemCode })
+      onSelectItem(variant)
     }
-    setShowVariantPicker(false)
+    setShowVariantModal(false)
     setSelectedTemplate(null)
   }
 
@@ -278,40 +275,40 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
                 return (
                   <div className="catalog-grid">
                     {filteredItems.map(item => {
-                    const hasVariants = item.has_variants === 1 || item.has_variants === true
-                    const priceText = hasVariants && item.price_display 
-                      ? item.price_display 
-                      : formatCurrency(item.standard_rate || 0)
-
-                    return (
-                      <div
-                        key={item.name}
-                        className={`catalog-item ${hasVariants ? 'has-variants' : ''}`}
-                        onClick={() => handleItemClick(item)}
-                      >
-                        {item.image && (
-                          <div className="item-image">
-                            <img src={item.image} alt={item.item_name} />
-                          </div>
-                        )}
-                        
-                        <div className="item-details">
-                          <div className="item-name">
-                            {item.item_name}
-                            {hasVariants && (
-                              <i className="fa fa-list variant-icon" title="Has variants"></i>
+                      const hasVariants = item.has_variants === 1 || item.has_variants === true
+                      const priceText = hasVariants && item.price_display 
+                        ? item.price_display 
+                        : formatCurrency(item.price_list_rate || item.standard_rate || 0)
+                      
+                      return (
+                        <div
+                          key={item.name}
+                          className={`catalog-item ${hasVariants ? 'has-variants' : ''}`}
+                          onClick={() => handleItemClick(item)}
+                        >
+                          {item.image && (
+                            <div className="item-image">
+                              <img src={item.image} alt={item.item_name} />
+                            </div>
+                          )}
+                          
+                          <div className="item-details">
+                            <div className="item-name">
+                              {item.item_name}
+                              {hasVariants && (
+                                <i className="fa fa-chevron-down" style={{ marginLeft: '8px', fontSize: '0.8em' }}></i>
+                              )}
+                            </div>
+                            <div className="item-price">{priceText}</div>
+                            
+                            {item.description && (
+                              <div className="item-description">{item.description}</div>
                             )}
                           </div>
-                          <div className="item-price">{priceText}</div>
-                          
-                          {item.description && (
-                            <div className="item-description">{item.description}</div>
-                          )}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
                 )
               })()}
             </div>
@@ -319,17 +316,16 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         </div>
       </div>
       
-      {/* Variant Picker Modal */}
-      <VariantPickerModal
-        isOpen={showVariantPicker}
+      {/* Variant List Modal */}
+      <VariantListModal
+        isOpen={showVariantModal}
         onClose={() => {
-          setShowVariantPicker(false)
+          setShowVariantModal(false)
           setSelectedTemplate(null)
         }}
-        templateName={selectedTemplate?.name}
+        templateItem={selectedTemplate}
         posProfile={posProfile}
         onSelectVariant={handleVariantSelect}
-        mode="add"
       />
     </div>
   )

@@ -1504,6 +1504,92 @@
   width: 95%;
 }
 
+/* Variant List Modal (NEW - List style, not grid) */
+.variant-list-modal {
+  max-width: 600px;
+  width: 95%;
+}
+
+.variant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.variant-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.variant-list-item:hover {
+  border-color: #667eea;
+  background-color: #f9fafb;
+  transform: translateX(4px);
+}
+
+.variant-list-item .variant-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.variant-list-item .variant-name {
+  font-weight: 500;
+  color: #1f2937;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.variant-list-item .variant-attributes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.variant-list-item .attribute-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #ede9fe;
+  color: #7c3aed;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.variant-list-item .variant-price {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #059669;
+  white-space: nowrap;
+}
+
+.variant-list-item .variant-action {
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+.variant-list-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.variant-list-footer .text-muted {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
 .variant-filters {
   margin-bottom: 1.5rem;
   padding: 1rem;

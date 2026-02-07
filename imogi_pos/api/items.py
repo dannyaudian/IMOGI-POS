@@ -417,6 +417,60 @@ def get_pos_items(
         for item in items:
             item["price_list_rate"] = item.get("standard_rate", 0)
     
+    # Template mode: add price range from variants for display
+    if mode == "template" and items:
+        template_items = [item for item in items if item.get("has_variants") == 1]
+        if template_items:
+            template_names = [t["name"] for t in template_items]
+            
+            # Get all variants for these templates
+            variant_prices = frappe.get_all(
+                "Item Price",
+                filters={
+                    "item_code": ["in", frappe.get_all(
+                        "Item",
+                        filters={"variant_of": ["in", template_names], "disabled": 0},
+                        pluck="name"
+                    )],
+                    "price_list": price_list,
+                },
+                fields=["item_code", "price_list_rate"],
+            ) if price_list else []
+            
+            # Get variant parent mapping
+            variant_parent_map = {
+                v["name"]: v["variant_of"]
+                for v in frappe.get_all(
+                    "Item",
+                    filters={"variant_of": ["in", template_names], "disabled": 0},
+                    fields=["name", "variant_of"]
+                )
+            }
+            
+            # Group prices by template
+            template_price_ranges = {}
+            for vp in variant_prices:
+                parent = variant_parent_map.get(vp["item_code"])
+                if parent:
+                    if parent not in template_price_ranges:
+                        template_price_ranges[parent] = []
+                    template_price_ranges[parent].append(flt(vp["price_list_rate"]))
+            
+            # Attach price range to templates
+            for template in template_items:
+                prices = template_price_ranges.get(template["name"], [])
+                if prices:
+                    min_price = min(prices)
+                    max_price = max(prices)
+                    template["min_rate"] = min_price
+                    template["max_rate"] = max_price
+                    if min_price == max_price:
+                        template["price_display"] = f"Rp {min_price:,.0f}"
+                    else:
+                        template["price_display"] = f"Rp {min_price:,.0f} - Rp {max_price:,.0f}"
+                else:
+                    template["price_display"] = "Select variant"
+    
     # Strict pricing mode (production best practice)
     # Filter out items with zero/missing price if require_price=1
     if cint(require_price):
