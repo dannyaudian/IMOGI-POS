@@ -24,7 +24,19 @@ export function useImogiPOS() {
 export function ImogiPOSProvider({ children, initialState = {} }) {
   // Get Frappe site URL from window location (same domain)
   const frappeUrl = window.location.origin
-  
+
+  // CSRF Token Bridge: frappe-react-sdk reads window.csrf_token for X-Frappe-CSRF-Token header.
+  // In Desk mode, Frappe sets frappe.csrf_token but NOT window.csrf_token, causing CSRFTokenError.
+  if (typeof window !== 'undefined' && !window.csrf_token) {
+    const token = window.frappe?.csrf_token
+      || window.frappe?.session?.csrf_token
+      || window.FRAPPE_CSRF_TOKEN
+      || ''
+    if (token) {
+      window.csrf_token = token
+    }
+  }
+
   return (
     <FrappeProvider
       url={frappeUrl}

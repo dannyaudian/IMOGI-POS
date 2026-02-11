@@ -45,6 +45,42 @@
  * 
  * @returns {Promise<Object>} Operational context object
  */
+
+/**
+ * CSRF Token Bridge for frappe-react-sdk
+ * 
+ * frappe-react-sdk reads window.csrf_token to set X-Frappe-CSRF-Token header.
+ * In Desk mode, Frappe only sets frappe.csrf_token / frappe.session.csrf_token,
+ * but NOT window.csrf_token. Without this bridge, all POST requests from the
+ * React SDK fail with CSRFTokenError.
+ */
+(function bridgeCSRFToken() {
+	'use strict';
+
+	function syncCSRFToken() {
+		var token = (window.frappe && window.frappe.csrf_token)
+			|| (window.frappe && window.frappe.session && window.frappe.session.csrf_token)
+			|| '';
+		if (token) {
+			window.csrf_token = token;
+			window.FRAPPE_CSRF_TOKEN = token;
+			window.frappe_csrf_token = token;
+		}
+	}
+
+	// Sync immediately (in case frappe is already loaded)
+	syncCSRFToken();
+
+	// Also sync after DOM ready (frappe.boot is applied after page scripts load)
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', syncCSRFToken);
+	}
+
+	// Re-sync periodically to catch late session init and token refreshes
+	// frappe-react-sdk reads window.csrf_token on every request, so this keeps it fresh
+	setInterval(syncCSRFToken, 5000);
+})();
+
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
 const parseServerMessages = (value) => {
