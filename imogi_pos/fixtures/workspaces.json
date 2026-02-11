@@ -21,12 +21,12 @@
       },
       {
         "label": "Customer Display Editor",
-        "link_to": "customer_display_editor",
+        "link_to": "/customer_display_editor",
         "type": "URL"
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "table_management",
+        "link_to": "/table_management",
         "type": "URL"
       },
       {
