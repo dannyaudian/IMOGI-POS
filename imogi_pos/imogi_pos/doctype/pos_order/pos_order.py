@@ -18,10 +18,17 @@ class POSOrder(Document):
     def before_save(self):
         self.set_last_edited_by()
         # Track previous workflow state for KOT creation trigger
-        if self.get_doc_before_save():
-            self._previous_workflow_state = self.get_doc_before_save().workflow_state
+        doc_before = self.get_doc_before_save()
+        if doc_before:
+            self._previous_workflow_state = doc_before.workflow_state
         else:
-            self._previous_workflow_state = None
+            # For new documents, check if there's a saved version in DB
+            if self.name and frappe.db.exists("POS Order", self.name):
+                self._previous_workflow_state = frappe.db.get_value(
+                    "POS Order", self.name, "workflow_state"
+                )
+            else:
+                self._previous_workflow_state = None
     
     def on_update(self):
         self.update_table_status()
@@ -131,14 +138,29 @@ class POSOrder(Document):
         previous_state = getattr(self, '_previous_workflow_state', None)
         current_state = self.workflow_state
         
+        # DEBUG: Log state transition info
+        frappe.log_error(
+            title="[DEBUG] Auto KOT - State Check",
+            message=f"Order: {self.name}\n"
+                   f"Previous State: {previous_state}\n"
+                   f"Current State: {current_state}\n"
+                   f"POS Profile: {self.pos_profile}"
+        )
+        
         # Only trigger on specific state transitions that indicate "Send to Kitchen"
+        # Also trigger if previous_state is None and current is In Progress (first save with workflow)
         send_to_kitchen_transitions = [
             ("Draft", "In Progress"),
             ("Draft", "Sent to Kitchen"),
+            (None, "In Progress"),  # First save edge case
         ]
         
         transition = (previous_state, current_state)
         if transition not in send_to_kitchen_transitions:
+            frappe.log_error(
+                title="[DEBUG] Auto KOT - Transition Skipped",
+                message=f"Order: {self.name}, Transition {transition} not in allowed list"
+            )
             return
         
         # Check if POS Profile has Restaurant domain and KOT enabled
@@ -150,16 +172,28 @@ class POSOrder(Document):
         )
         
         if not pos_profile_data:
+            frappe.log_error(
+                title="[DEBUG] Auto KOT - No POS Profile Data",
+                message=f"Order: {self.name}, POS Profile: {self.pos_profile}"
+            )
             return
         
         domain = pos_profile_data.get("imogi_pos_domain")
         enable_kot = pos_profile_data.get("imogi_enable_kot")
         
+        # DEBUG: Log POS Profile settings
+        frappe.log_error(
+            title="[DEBUG] Auto KOT - POS Profile Settings",
+            message=f"Order: {self.name}\n"
+                   f"Domain: {domain}\n"
+                   f"Enable KOT: {enable_kot}"
+        )
+        
         # Only create KOT for Restaurant domain with KOT enabled
         if domain != "Restaurant" or not enable_kot:
-            frappe.logger().info(
-                f"[POSOrder] Skipping KOT creation for {self.name}: "
-                f"domain={domain}, enable_kot={enable_kot}"
+            frappe.log_error(
+                title="[DEBUG] Auto KOT - Domain/KOT Check Failed",
+                message=f"Order: {self.name}, domain={domain}, enable_kot={enable_kot}"
             )
             return
         
@@ -170,15 +204,25 @@ class POSOrder(Document):
             if not counters.get("sent"):
                 items_to_send.append(item)
         
+        # DEBUG: Log items check
+        frappe.log_error(
+            title="[DEBUG] Auto KOT - Items Check",
+            message=f"Order: {self.name}\n"
+                   f"Total items: {len(self.items)}\n"
+                   f"Items to send: {len(items_to_send)}"
+        )
+        
         if not items_to_send:
-            frappe.logger().info(
-                f"[POSOrder] No items to send to kitchen for {self.name}"
-            )
             return
         
         # Create KOT
         try:
             from imogi_pos.kitchen.kot_service import create_kot_from_order
+            
+            frappe.log_error(
+                title="[DEBUG] Auto KOT - Creating KOT",
+                message=f"Order: {self.name}, Calling create_kot_from_order..."
+            )
             
             kot_result = create_kot_from_order(
                 pos_order=self.name,
@@ -194,8 +238,14 @@ class POSOrder(Document):
                     alert=True,
                     indicator="green"
                 )
-                frappe.logger().info(
-                    f"[POSOrder] KOT created for {self.name}: {kot_result['tickets']}"
+                frappe.log_error(
+                    title="[DEBUG] Auto KOT - SUCCESS",
+                    message=f"Order: {self.name}, KOT created: {kot_result['tickets']}"
+                )
+            else:
+                frappe.log_error(
+                    title="[DEBUG] Auto KOT - No Tickets Created",
+                    message=f"Order: {self.name}, Result: {kot_result}"
                 )
         except Exception as e:
             frappe.log_error(
