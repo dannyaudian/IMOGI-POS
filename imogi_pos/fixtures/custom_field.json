@@ -1377,7 +1377,7 @@
     "fieldname": "imogi_kitchen_routing_section",
     "fieldtype": "Section Break",
     "label": "Kitchen Routing",
-    "insert_after": "photo",
+    "insert_after": "default_material_request_type",
     "depends_on": "eval:frappe.boot.active_domains && frappe.boot.active_domains.includes(\"Restaurant\")",
     "collapsible": 1,
     "is_system_generated": 0,
