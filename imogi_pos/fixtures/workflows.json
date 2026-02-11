@@ -41,7 +41,7 @@
       },
       {
         "state": "Served",
-        "doc_status": 1,
+        "doc_status": 0,
         "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
@@ -51,7 +51,7 @@
       },
       {
         "state": "Cancelled",
-        "doc_status": 2,
+        "doc_status": 0,
         "allow_edit": "Branch Manager",
         "is_optional_state": 0,
         "update_field": "",
@@ -129,6 +129,15 @@
         "action": "Mark as Served",
         "next_state": "Served",
         "allowed": "Waiter",
+        "allow_self_approval": 1,
+        "condition": "",
+        "doctype": "Workflow Transition"
+      },
+      {
+        "state": "Ready",
+        "action": "Mark as Served",
+        "next_state": "Served",
+        "allowed": "Kitchen Staff",
         "allow_self_approval": 1,
         "condition": "",
         "doctype": "Workflow Transition"
