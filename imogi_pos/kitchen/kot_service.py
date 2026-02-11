@@ -125,10 +125,9 @@ class KOTService:
             tickets.append(kot_ticket)
             all_kot_items.extend(kot_items)
         
-        # Update POS Order state if not already sent to kitchen
-        current_state = pos_order.workflow_state
-        if current_state == "Draft":
-            frappe.db.set_value("POS Order", pos_order.name, "workflow_state", "Sent to Kitchen")
+        # Note: POS Order state is already updated by the workflow action "Send to Kitchen"
+        # We don't need to update it here - it causes the state to become "Draft" again
+        # because "Sent to Kitchen" is not a valid workflow state
         
         # Send realtime notifications to kitchen displays
         if send_to_kitchen:

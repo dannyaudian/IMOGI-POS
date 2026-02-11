@@ -268,19 +268,24 @@ class POSOrder(Document):
         previous_state = getattr(self, '_previous_workflow_state', None)
         current_state = self.workflow_state
         
-        # Only trigger when transitioning to 'Closed'
-        close_transitions = [
-            ("Served", "Closed"),
-            ("Ready", "Closed"),
-            ("In Progress", "Closed"),
-        ]
+        # DEBUG: Log state transition
+        frappe.log_error(
+            title="[DEBUG] Auto Invoice - State Check",
+            message=f"Order: {self.name}\n"
+                   f"Previous State: {previous_state}\n"
+                   f"Current State: {current_state}"
+        )
         
-        transition = (previous_state, current_state)
-        if transition not in close_transitions:
+        # Only trigger when transitioning to 'Closed' from any state
+        if current_state != "Closed":
             return
         
         # Skip if Sales Invoice already exists
         if self.sales_invoice:
+            frappe.log_error(
+                title="[DEBUG] Auto Invoice - Already Exists",
+                message=f"Order: {self.name}, Invoice: {self.sales_invoice}"
+            )
             return
         
         # Create Sales Invoice
