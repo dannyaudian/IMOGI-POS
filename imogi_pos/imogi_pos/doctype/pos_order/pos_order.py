@@ -33,6 +33,7 @@ class POSOrder(Document):
     def on_update(self):
         self.update_table_status()
         self.auto_create_kot_on_send_to_kitchen()
+        self.auto_create_sales_invoice_on_close()
     
     def sync_customer_fields(self):
         """Auto-sync customer fields from Customer master if customer selected"""
@@ -254,6 +255,65 @@ class POSOrder(Document):
             )
             frappe.msgprint(
                 _("Failed to create KOT: {0}").format(str(e)),
+                alert=True,
+                indicator="red"
+            )
+
+    def auto_create_sales_invoice_on_close(self):
+        """
+        Automatically create Sales Invoice when order is closed.
+        This triggers when workflow state changes to 'Closed'.
+        """
+        # Get previous state (set in before_save)
+        previous_state = getattr(self, '_previous_workflow_state', None)
+        current_state = self.workflow_state
+        
+        # Only trigger when transitioning to 'Closed'
+        close_transitions = [
+            ("Served", "Closed"),
+            ("Ready", "Closed"),
+            ("In Progress", "Closed"),
+        ]
+        
+        transition = (previous_state, current_state)
+        if transition not in close_transitions:
+            return
+        
+        # Skip if Sales Invoice already exists
+        if self.sales_invoice:
+            return
+        
+        # Create Sales Invoice
+        try:
+            from imogi_pos.billing.invoice_builder import build_sales_invoice_from_pos_order
+            
+            # Build the invoice (don't submit yet, user may want to add payment first)
+            invoice_name = build_sales_invoice_from_pos_order(
+                pos_order=self,
+                submit=False,  # Don't auto-submit, let user process payment
+                include_notes_in_description=True
+            )
+            
+            if invoice_name:
+                # The invoice_builder already links invoice to this order via db.set_value
+                # Update the in-memory object as well
+                self.db_set("sales_invoice", invoice_name, update_modified=False)
+                
+                frappe.msgprint(
+                    _("Sales Invoice {0} has been created. Please process payment.").format(
+                        frappe.utils.get_link_to_form("Sales Invoice", invoice_name)
+                    ),
+                    alert=True,
+                    indicator="green"
+                )
+                
+        except Exception as e:
+            frappe.log_error(
+                title="Auto Sales Invoice Creation Failed",
+                message=f"Order: {self.name}, Error: {str(e)}\n{frappe.get_traceback()}"
+            )
+            frappe.msgprint(
+                _("Failed to create Sales Invoice: {0}").format(str(e)),
                 alert=True,
                 indicator="red"
             )
