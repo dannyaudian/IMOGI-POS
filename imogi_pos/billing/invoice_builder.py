@@ -118,30 +118,29 @@ def build_sales_invoice_from_pos_order(
     for order_item in pos_order.items:
         item_details = frappe.db.get_value(
             "Item", order_item.item, 
-            ["item_name", "description", "stock_uom", "tax_template"], 
+            ["item_name", "description", "stock_uom"], 
             as_dict=1
         )
         
+        if not item_details:
+            frappe.throw(_("Item {0} not found").format(order_item.item))
+        
         # Prepare item description (with or without notes)
-        description = item_details.description or item_details.item_name
+        description = item_details.get("description") or item_details.get("item_name") or order_item.item
         if should_include_notes and order_item.notes:
             description += f"\n{order_item.notes}"
         
         si_item = si.append("items", {
             "item_code": order_item.item,
-            "item_name": item_details.item_name,
+            "item_name": item_details.get("item_name") or order_item.item,
             "description": description,
             "qty": order_item.qty,
             "rate": order_item.rate,
             "conversion_factor": 1.0,
-            "uom": item_details.stock_uom,
-            "stock_uom": item_details.stock_uom,
+            "uom": item_details.get("stock_uom") or "Nos",
+            "stock_uom": item_details.get("stock_uom") or "Nos",
             "warehouse": pos_profile.warehouse
         })
-        
-        # Set tax template if available
-        if item_details.tax_template:
-            si_item.item_tax_template = item_details.tax_template
     
     # Save the invoice first to calculate totals
     si.set_missing_values()

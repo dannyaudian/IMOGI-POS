@@ -132,7 +132,17 @@ class KOTService:
         
         # Send realtime notifications to kitchen displays
         if send_to_kitchen:
-            self._publish_kot_updates(tickets, event_type="kot_created")
+            for ticket in tickets:
+                try:
+                    KOTPublisher.publish_ticket_update(
+                        ticket=ticket,
+                        event_type="kot_created"
+                    )
+                except Exception as e:
+                    frappe.log_error(
+                        title="KOT Publish Failed",
+                        message=f"Ticket: {ticket.name}, Error: {str(e)}"
+                    )
         
         return {
             "tickets": [t.name for t in tickets],
