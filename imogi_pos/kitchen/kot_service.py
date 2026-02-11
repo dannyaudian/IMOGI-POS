@@ -73,7 +73,10 @@ class KOTService:
                 continue
                 
             # Skip if item has already been sent to kitchen (has counter values)
-            if item.get("counters") and item.counters.get("sent"):
+            # counters is stored as JSON string, need to parse it
+            counters_str = item.get("counters") or "{}"
+            counters = frappe.parse_json(counters_str) if isinstance(counters_str, str) else counters_str
+            if counters and counters.get("sent"):
                 continue
                 
             # Skip if item is a template (variants must be selected)
