@@ -92,13 +92,8 @@ def build_sales_invoice_from_pos_order(
     # Copy tax/charging template from POS Profile
     if pos_profile.taxes_and_charges:
         si.taxes_and_charges = pos_profile.taxes_and_charges
-
-    if not pos_profile.taxes_and_charges:
-        si.append("taxes", {
-            "charge_type": "On Net Total",
-            "description": "PB1 11%",
-            "rate": 11.0
-        })
+    # Note: If no taxes_and_charges template is set, we don't add manual taxes
+    # because account_head is required. Let ERPNext handle taxes via templates.
 
     # Apply order discount if any (custom promo codes as fallback)
     # Native pricing rules will be applied first automatically by ERPNext
