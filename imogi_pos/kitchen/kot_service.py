@@ -92,6 +92,22 @@ class KOTService:
         # Group items by kitchen station
         grouped_items = self._group_items_by_station(items_to_process)
         
+        # Validate that we have valid stations - kitchen_station is required for KOT Ticket
+        for station in grouped_items.keys():
+            if not station:
+                # No station found, need to create a default or throw error
+                default_station = self._ensure_default_kitchen_station(pos_order)
+                if default_station:
+                    # Move items from None to the default station
+                    if None in grouped_items:
+                        grouped_items[default_station] = grouped_items.pop(None)
+                else:
+                    frappe.throw(
+                        _("No Kitchen Station found. Please create a Kitchen Station first, "
+                          "or set a default kitchen station for your items."),
+                        title=_("Kitchen Station Required")
+                    )
+        
         # Create KOT tickets
         tickets = []
         all_kot_items = []
@@ -417,10 +433,31 @@ class KOTService:
                 kitchen_doc = frappe.get_doc("Kitchen", kitchen)
                 station = getattr(kitchen_doc, "default_station", None)
 
-            # If still no station, use a fallback
+            # If still no station, try to find any existing kitchen station
             if not station:
-                # Default to "Main" kitchen station
-                station = "Main"
+                # First try to find station from branch
+                branch = getattr(self.pos_order, "branch", None) if self.pos_order else None
+                if branch:
+                    station = frappe.db.get_value(
+                        "Kitchen Station", 
+                        {"branch": branch}, 
+                        "name"
+                    )
+                
+                # If still nothing, get any active kitchen station
+                if not station:
+                    station = frappe.db.get_value(
+                        "Kitchen Station", 
+                        {"is_active": 1}, 
+                        "name"
+                    )
+                
+                # Last resort: get first kitchen station
+                if not station:
+                    station = frappe.db.get_value("Kitchen Station", {}, "name")
+                
+                # If no station exists, station will be None
+                # This will be handled in create_kot_from_order
 
             # Ensure the item reflects any resolved routing
             if kitchen and not item.get("kitchen"):
@@ -619,6 +656,90 @@ class KOTService:
         domain = frappe.db.get_value("POS Profile", pos_profile, "imogi_pos_domain")
         if domain != "Restaurant":
             frappe.throw(_("KOT features are only available for Restaurant domain"))
+
+    def _ensure_default_kitchen_station(self, pos_order) -> Optional[str]:
+        """
+        Ensure a default Kitchen Station exists. If not, try to create one.
+        
+        Args:
+            pos_order: POS Order document
+            
+        Returns:
+            Name of the default Kitchen Station or None if cannot be created
+        """
+        # First try to find an existing station
+        branch = pos_order.branch if pos_order else None
+        
+        # Try to find station from branch
+        if branch:
+            station = frappe.db.get_value(
+                "Kitchen Station", 
+                {"branch": branch}, 
+                "name"
+            )
+            if station:
+                return station
+        
+        # Try to find any active station
+        station = frappe.db.get_value(
+            "Kitchen Station", 
+            {"is_active": 1}, 
+            "name"
+        )
+        if station:
+            return station
+        
+        # Try to find any station at all
+        station = frappe.db.get_value("Kitchen Station", {}, "name")
+        if station:
+            return station
+        
+        # No station exists - try to auto-create one
+        try:
+            # First, ensure we have a Kitchen
+            kitchen = frappe.db.get_value("Kitchen", {"is_active": 1}, "name")
+            if not kitchen:
+                kitchen = frappe.db.get_value("Kitchen", {}, "name")
+            
+            if not kitchen:
+                # Create a default Kitchen first
+                kitchen_doc = frappe.get_doc({
+                    "doctype": "Kitchen",
+                    "kitchen_name": "Main Kitchen",
+                    "is_active": 1,
+                    "branch": branch
+                })
+                kitchen_doc.insert(ignore_permissions=True)
+                kitchen = kitchen_doc.name
+                frappe.msgprint(
+                    _("Default Kitchen 'Main Kitchen' has been created."),
+                    alert=True
+                )
+            
+            # Now create default Kitchen Station
+            station_doc = frappe.get_doc({
+                "doctype": "Kitchen Station",
+                "station_name": "Main Station",
+                "kitchen": kitchen,
+                "is_active": 1,
+                "branch": branch
+            })
+            station_doc.insert(ignore_permissions=True)
+            frappe.db.commit()
+            
+            frappe.msgprint(
+                _("Default Kitchen Station 'Main Station' has been created."),
+                alert=True
+            )
+            
+            return station_doc.name
+            
+        except Exception as e:
+            frappe.log_error(
+                title="Failed to create default Kitchen Station",
+                message=f"Error: {str(e)}\n{frappe.get_traceback()}"
+            )
+            return None
 
 
 # Module-level functions as convenience wrappers around the service class
