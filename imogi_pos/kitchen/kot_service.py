@@ -93,48 +93,37 @@ class KOTService:
         grouped_items = self._group_items_by_station(items_to_process)
         
         # Validate that we have valid stations - kitchen_station is required for KOT Ticket
-        for station in grouped_items.keys():
-            if not station:
-                # No station found, need to create a default or throw error
-                default_station = self._ensure_default_kitchen_station(pos_order)
-                if default_station:
-                    # Move items from None to the default station
-                    if None in grouped_items:
-                        grouped_items[default_station] = grouped_items.pop(None)
+        # Check if any items were grouped under None (no station)
+        if None in grouped_items:
+            # No station found, need to create a default or throw error
+            default_station = self._ensure_default_kitchen_station(pos_order)
+            if default_station:
+                # Move items from None to the default station
+                items_without_station = grouped_items.pop(None)
+                if default_station in grouped_items:
+                    grouped_items[default_station].extend(items_without_station)
                 else:
-                    frappe.throw(
-                        _("No Kitchen Station found. Please create a Kitchen Station first, "
-                          "or set a default kitchen station for your items."),
-                        title=_("Kitchen Station Required")
-                    )
+                    grouped_items[default_station] = items_without_station
+            else:
+                frappe.throw(
+                    _("No Kitchen Station found. Please create a Kitchen Station first, "
+                      "or set a default kitchen station for your items."),
+                    title=_("Kitchen Station Required")
+                )
         
         # Create KOT tickets
         tickets = []
         all_kot_items = []
         
         for station, station_items in grouped_items.items():
-            kot_ticket = self._create_kot_ticket(pos_order, station)
-            kot_items = self._create_kot_items(kot_ticket.name, station_items)
-            
-            kot_ticket.append_items(kot_items)
-            kot_ticket.save()
+            # Create KOT ticket with items (items is mandatory)
+            # Counter updates are handled inside _create_kot_ticket_with_items
+            kot_ticket, kot_items = self._create_kot_ticket_with_items(
+                pos_order, station, station_items
+            )
             
             tickets.append(kot_ticket)
             all_kot_items.extend(kot_items)
-            
-            # Update counters in POS Order Items
-            for station_item in station_items:
-                counters = frappe.parse_json(station_item.get("counters") or "{}")
-                counters["sent"] = now_datetime()
-                
-                frappe.db.set_value(
-                    "POS Order Item", 
-                    station_item.name, 
-                    {
-                        "counters": frappe.as_json(counters),
-                        "last_edited_by": frappe.session.user
-                    }
-                )
         
         # Update POS Order state if not already sent to kitchen
         current_state = pos_order.workflow_state
@@ -491,6 +480,7 @@ class KOTService:
         Returns:
             Created KOT Ticket document
         """
+        # Just create the doc without insert - will be handled by _create_kot_ticket_with_items
         kot_ticket = frappe.get_doc({
             "doctype": "KOT Ticket",
             "pos_order": pos_order.name,
@@ -505,12 +495,74 @@ class KOTService:
             "creation_time": now_datetime()
         })
         
-        kot_ticket.insert()
         return kot_ticket
+    
+    def _create_kot_ticket_with_items(
+        self, 
+        pos_order: Dict, 
+        station: str, 
+        station_items: List[Dict]
+    ) -> Tuple[Dict, List[Dict]]:
+        """
+        Create a KOT Ticket with its items in a single transaction.
+        Items must be added before insert since items field is mandatory.
+        
+        Args:
+            pos_order: POS Order document
+            station: Kitchen station for this ticket
+            station_items: List of POS Order Items for this station
+            
+        Returns:
+            Tuple of (KOT Ticket document, list of KOT Item dicts)
+        """
+        # Create the ticket doc (without insert)
+        kot_ticket = self._create_kot_ticket(pos_order, station)
+        
+        # Add items to the ticket before insert
+        kot_items = []
+        for item in station_items:
+            # Get item details
+            item_details = frappe.db.get_value(
+                "Item", 
+                item.item, 
+                ["item_name", "description"], 
+                as_dict=1
+            ) or {}
+            
+            kot_ticket.append("items", {
+                "item_code": item.item,
+                "item_name": item_details.get("item_name", item.item),
+                "description": item_details.get("description", ""),
+                "qty": item.qty,
+                "notes": item.get("notes", ""),
+                "pos_order_item": item.name,
+                "workflow_state": self.STATES["QUEUED"]
+            })
+            kot_items.append(item)
+        
+        # Now insert the ticket with items
+        kot_ticket.insert()
+        
+        # Update counters in POS Order Items
+        for station_item in station_items:
+            counters_str = station_item.get("counters") or "{}"
+            counters = frappe.parse_json(counters_str) if isinstance(counters_str, str) else counters_str
+            counters["sent"] = str(now_datetime())
+            
+            frappe.db.set_value(
+                "POS Order Item", 
+                station_item.name, 
+                {
+                    "counters": frappe.as_json(counters),
+                    "last_edited_by": frappe.session.user
+                }
+            )
+        
+        return kot_ticket, kot_items
     
     def _create_kot_items(self, kot_ticket: str, items: List[Dict]) -> List[Dict]:
         """
-        Create KOT Items for a ticket
+        Create KOT Items for a ticket (legacy method, kept for compatibility)
         
         Args:
             kot_ticket: KOT Ticket name
