@@ -75,7 +75,11 @@ def validate_pos_session(pos_profile, enforce_session=None):
 
 
 def notify_stock_update(invoice_doc, profile_doc):
-    """Publish stock updates for items in a submitted Sales Invoice."""
+    """Publish stock updates for items in a submitted Sales Invoice.
+    
+    For BOM-based items, publishes max_producible_qty (from raw materials)
+    instead of actual_qty from Stock Ledger.
+    """
 
     if not invoice_doc or not profile_doc:
         return
@@ -107,19 +111,40 @@ def notify_stock_update(invoice_doc, profile_doc):
         return
 
     realtime = getattr(frappe, "publish_realtime", None) or publish_realtime
+    bom_cache = {}
 
     for item_code in item_codes:
-        actual_qty = frappe.db.get_value(
-            "Bin",
-            {"item_code": item_code, "warehouse": warehouse},
-            "actual_qty",
-        ) or 0
+        # Check if item has active BOM - if so, use BOM capacity instead of actual_qty
+        bom_summary = get_bom_capacity_summary(
+            item_code, 
+            item_warehouse=warehouse, 
+            default_warehouse=warehouse,
+            cache=bom_cache
+        )
+        
+        if bom_summary and bom_summary.get("bom_name"):
+            # Item has BOM - use max_producible_qty as available stock
+            stock_qty = flt(bom_summary.get("max_producible_qty") or 0)
+            has_bom = True
+            low_stock_components = bom_summary.get("low_stock_components", [])
+        else:
+            # Regular item - use actual_qty from Bin
+            stock_qty = frappe.db.get_value(
+                "Bin",
+                {"item_code": item_code, "warehouse": warehouse},
+                "actual_qty",
+            ) or 0
+            has_bom = False
+            low_stock_components = []
+        
         realtime(
             "stock_update",
             {
                 "item_code": item_code,
                 "warehouse": warehouse,
-                "actual_qty": actual_qty,
+                "actual_qty": stock_qty,
+                "has_bom": has_bom,
+                "low_stock_components": low_stock_components[:5] if low_stock_components else [],
             },
         )
 
@@ -408,7 +433,11 @@ def _collect_bom_component_data(
         if finished_stock < 0:
             finished_stock = 0
 
-    bom_capacity = flt(max_producible_qty or 0) + finished_stock
+    # For BOM-based items, stock is calculated from raw material availability only
+    # We don't track finished goods in Stock Ledger - only consume raw materials
+    # bom_capacity = max_producible_qty (what CAN be made from raw materials)
+    # NOTE: finished_stock is stored for reference but NOT added to capacity
+    bom_capacity = flt(max_producible_qty or 0)
 
     return {
         "bom_name": bom_name,
@@ -417,8 +446,8 @@ def _collect_bom_component_data(
         "item_qty": item_qty,
         "item_warehouse": item_warehouse or default_warehouse,
         "max_producible_qty": flt(max_producible_qty or 0),
-        "finished_stock": finished_stock,
-        "bom_capacity": bom_capacity,
+        "finished_stock": finished_stock,  # Keep for reference only
+        "bom_capacity": bom_capacity,  # Now equals max_producible_qty only
         "has_component_shortage": has_component_shortage,
         "low_stock_components": low_stock_components,
     }
@@ -453,6 +482,296 @@ def get_bom_capacity_summary(
         "has_component_shortage": bool(details.get("has_component_shortage")),
         "low_stock_components": list(details.get("low_stock_components") or []),
     }
+
+
+@frappe.whitelist()
+def get_item_stock_with_bom(item_code, warehouse=None, pos_profile=None):
+    """Get available stock for an item, considering BOM capacity for BOM-based items.
+    
+    For items with active BOM:
+        - Returns max_producible_qty (what can be made from raw materials)
+        - Returns low_stock_components if any raw materials are running low
+    
+    For regular items:
+        - Returns actual_qty from Bin (Stock Ledger)
+    
+    Args:
+        item_code (str): Item code to check
+        warehouse (str, optional): Warehouse to check stock in
+        pos_profile (str, optional): POS Profile for default warehouse
+    
+    Returns:
+        dict: Stock information with:
+            - item_code: The item code
+            - available_qty: Available quantity (BOM capacity or actual_qty)
+            - has_bom: Boolean indicating if item has active BOM
+            - bom_name: BOM name if applicable
+            - low_stock_components: List of components with low stock
+            - warehouse: The warehouse checked
+    """
+    if not item_code:
+        return {"success": False, "error": "item_code is required"}
+    
+    # Get default warehouse from POS Profile if not specified
+    default_warehouse = warehouse
+    if not default_warehouse and pos_profile:
+        try:
+            default_warehouse = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+        except Exception:
+            pass
+    
+    # Check for BOM capacity
+    bom_summary = get_bom_capacity_summary(
+        item_code,
+        item_warehouse=default_warehouse,
+        default_warehouse=default_warehouse,
+    )
+    
+    if bom_summary and bom_summary.get("bom_name"):
+        # Item has active BOM - return max_producible_qty
+        return {
+            "success": True,
+            "item_code": item_code,
+            "available_qty": flt(bom_summary.get("max_producible_qty") or 0),
+            "has_bom": True,
+            "bom_name": bom_summary.get("bom_name"),
+            "bom_capacity": flt(bom_summary.get("bom_capacity") or 0),
+            "low_stock_components": bom_summary.get("low_stock_components", []),
+            "has_component_shortage": bom_summary.get("has_component_shortage", False),
+            "warehouse": default_warehouse,
+        }
+    else:
+        # Regular item - return actual_qty from Bin
+        actual_qty = 0
+        if default_warehouse:
+            try:
+                actual_qty = frappe.db.get_value(
+                    "Bin",
+                    {"item_code": item_code, "warehouse": default_warehouse},
+                    "actual_qty",
+                ) or 0
+            except Exception:
+                actual_qty = 0
+        
+        return {
+            "success": True,
+            "item_code": item_code,
+            "available_qty": flt(actual_qty),
+            "has_bom": False,
+            "bom_name": None,
+            "low_stock_components": [],
+            "has_component_shortage": False,
+            "warehouse": default_warehouse,
+        }
+
+
+@frappe.whitelist()
+def get_items_stock_batch(item_codes, warehouse=None, pos_profile=None):
+    """Get available stock for multiple items in a single call.
+    
+    Optimized batch version of get_item_stock_with_bom for POS catalog loading.
+    
+    Args:
+        item_codes (list|str): List of item codes (or JSON string)
+        warehouse (str, optional): Warehouse to check stock in
+        pos_profile (str, optional): POS Profile for default warehouse
+    
+    Returns:
+        dict: Map of item_code -> stock info
+    """
+    import json
+    
+    if isinstance(item_codes, str):
+        try:
+            item_codes = json.loads(item_codes)
+        except Exception:
+            item_codes = [item_codes]
+    
+    if not item_codes:
+        return {}
+    
+    # Get default warehouse
+    default_warehouse = warehouse
+    if not default_warehouse and pos_profile:
+        try:
+            default_warehouse = frappe.db.get_value("POS Profile", pos_profile, "warehouse")
+        except Exception:
+            pass
+    
+    result = {}
+    bom_cache = {}
+    
+    for item_code in item_codes:
+        if not item_code:
+            continue
+        
+        # Check for BOM capacity
+        bom_summary = get_bom_capacity_summary(
+            item_code,
+            item_warehouse=default_warehouse,
+            default_warehouse=default_warehouse,
+            cache=bom_cache,
+        )
+        
+        if bom_summary and bom_summary.get("bom_name"):
+            result[item_code] = {
+                "available_qty": flt(bom_summary.get("max_producible_qty") or 0),
+                "has_bom": True,
+                "bom_name": bom_summary.get("bom_name"),
+                "has_component_shortage": bom_summary.get("has_component_shortage", False),
+            }
+        else:
+            # Regular item
+            actual_qty = 0
+            if default_warehouse:
+                try:
+                    actual_qty = frappe.db.get_value(
+                        "Bin",
+                        {"item_code": item_code, "warehouse": default_warehouse},
+                        "actual_qty",
+                    ) or 0
+                except Exception:
+                    actual_qty = 0
+            
+            result[item_code] = {
+                "available_qty": flt(actual_qty),
+                "has_bom": False,
+                "bom_name": None,
+                "has_component_shortage": False,
+            }
+    
+    return result
+
+
+@frappe.whitelist()
+def get_bom_max_producible_qty(bom_no, warehouse=None, company=None):
+    """Calculate maximum finished good quantity that can be produced from a BOM.
+    
+    This function checks the stock of all BOM components and returns the maximum
+    quantity of finished goods that can be manufactured based on available raw materials.
+    
+    Used by Stock Entry form to auto-fill "Finished Good Quantity" field.
+    
+    Args:
+        bom_no (str): BOM name/ID
+        warehouse (str, optional): Source warehouse for raw materials
+        company (str, optional): Company for warehouse filtering
+    
+    Returns:
+        dict: {
+            "success": bool,
+            "max_producible_qty": int - maximum qty that can be produced,
+            "bom_no": str,
+            "item_code": str - finished good item code,
+            "components": list - detailed component availability,
+            "low_stock_components": list - components with low stock,
+            "limiting_component": dict - the component limiting production
+        }
+    """
+    if not bom_no:
+        return {"success": False, "error": "BOM No is required"}
+    
+    try:
+        bom_doc = frappe.get_doc("BOM", bom_no)
+    except frappe.DoesNotExistError:
+        return {"success": False, "error": f"BOM {bom_no} not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    
+    if not bom_doc.is_active:
+        return {"success": False, "error": f"BOM {bom_no} is not active"}
+    
+    # Get BOM quantity (how many finished goods this BOM makes)
+    bom_quantity = flt(bom_doc.quantity) or 1
+    
+    # Get default warehouse if not specified
+    default_warehouse = warehouse
+    if not default_warehouse:
+        # Try to get from BOM, then from company default
+        default_warehouse = bom_doc.get("warehouse") or bom_doc.get("source_warehouse")
+        if not default_warehouse and company:
+            try:
+                default_warehouse = frappe.db.get_value(
+                    "Stock Settings", None, "default_warehouse"
+                )
+            except Exception:
+                pass
+    
+    components = []
+    low_stock_components = []
+    max_producible_qty = None
+    limiting_component = None
+    
+    for item in bom_doc.items:
+        component_code = item.item_code
+        required_qty_per_unit = flt(item.qty) / bom_quantity  # Qty needed per 1 finished good
+        component_warehouse = item.source_warehouse or default_warehouse
+        
+        # Get stock from Bin (Stock Ledger)
+        available_qty = 0
+        if component_warehouse:
+            try:
+                available_qty = frappe.db.get_value(
+                    "Bin",
+                    {"item_code": component_code, "warehouse": component_warehouse},
+                    "actual_qty",
+                ) or 0
+            except Exception:
+                available_qty = 0
+        
+        available_qty = flt(available_qty)
+        if available_qty < 0:
+            available_qty = 0
+        
+        # Calculate how many finished goods this component can support
+        if required_qty_per_unit > 0:
+            component_capacity = math.floor(available_qty / required_qty_per_unit)
+        else:
+            component_capacity = 0
+        
+        # Track the minimum (limiting factor)
+        if max_producible_qty is None or component_capacity < max_producible_qty:
+            max_producible_qty = component_capacity
+            limiting_component = {
+                "item_code": component_code,
+                "item_name": item.item_name or component_code,
+                "available_qty": available_qty,
+                "required_per_unit": required_qty_per_unit,
+                "capacity": component_capacity,
+                "warehouse": component_warehouse,
+                "stock_uom": item.stock_uom,
+            }
+        
+        component_data = {
+            "item_code": component_code,
+            "item_name": item.item_name or component_code,
+            "required_per_unit": required_qty_per_unit,
+            "available_qty": available_qty,
+            "capacity": component_capacity,
+            "warehouse": component_warehouse,
+            "stock_uom": item.stock_uom,
+        }
+        components.append(component_data)
+        
+        # Track low stock (below threshold or can produce less than 10 units)
+        if available_qty < LOW_STOCK_THRESHOLD or component_capacity < 10:
+            low_stock_components.append(component_data)
+    
+    max_producible_qty = max_producible_qty or 0
+    
+    return {
+        "success": True,
+        "max_producible_qty": max_producible_qty,
+        "bom_no": bom_no,
+        "item_code": bom_doc.item,
+        "item_name": bom_doc.item_name or bom_doc.item,
+        "bom_quantity": bom_quantity,
+        "components": components,
+        "low_stock_components": low_stock_components,
+        "limiting_component": limiting_component,
+        "warehouse": default_warehouse,
+    }
+
 
 def _populate_bom_components(invoice_doc, profile_doc):
     """Populate packed items for BOM components on the given invoice."""
@@ -539,7 +858,11 @@ def _populate_bom_components(invoice_doc, profile_doc):
 
 
 def _validate_bom_capacity(invoice_doc, profile_doc):
-    """Ensure requested quantities do not exceed BOM production capacity."""
+    """Ensure requested quantities do not exceed BOM production capacity.
+    
+    For BOM-based items, capacity is based on raw material availability only.
+    We don't track finished goods in Stock Ledger - only consume raw materials.
+    """
 
     if not invoice_doc or not profile_doc:
         return
@@ -588,7 +911,6 @@ def _validate_bom_capacity(invoice_doc, profile_doc):
                 "item_code": parent_item_code,
                 "requested_qty": 0,
                 "max_producible_qty": flt(summary.get("max_producible_qty") or 0),
-                "finished_stock": summary.get("finished_stock") or 0,
             },
         )
 
@@ -597,47 +919,96 @@ def _validate_bom_capacity(invoice_doc, profile_doc):
             entry["max_producible_qty"],
             flt(summary.get("max_producible_qty") or 0),
         )
-        entry["finished_stock"] = max(
-            flt(entry.get("finished_stock") or 0),
-            flt(summary.get("finished_stock") or 0),
-        )
 
     for entry in capacity_map.values():
         requested_qty = flt(entry.get("requested_qty") or 0)
         max_producible_qty = flt(entry.get("max_producible_qty") or 0)
-        finished_stock = flt(entry.get("finished_stock") or 0)
-        total_capacity = max_producible_qty + finished_stock
+        # total_capacity = max_producible_qty only (no finished_stock)
+        # Because we don't track finished goods - only raw materials
+        total_capacity = max_producible_qty
 
         if requested_qty > total_capacity:
             shortage = requested_qty - total_capacity
             frappe.throw(
                 _(
                     "Item {0} exceeds available BOM capacity by {1}. "
-                    "Reduce the quantity or replenish component stock."
+                    "Reduce the quantity or replenish raw material stock."
                 ).format(entry.get("item_code"), shortage),
                 frappe.ValidationError,
             )
 
 
-def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
-    """Create Stock Entry (Manufacture) records for BOM-based items.
+def _clear_warehouse_for_bom_items(invoice_doc, bom_cache=None):
+    """Clear warehouse from BOM items to prevent Stock Ledger Entry on submit.
     
-    This function creates Stock Entry documents to:
-    1. Consume raw materials from BOM components (s_warehouse)
-    2. Produce finished goods (t_warehouse)
+    For BOM-based items, we don't track finished goods in Stock Ledger.
+    Instead, raw materials are consumed via Material Issue.
     
-    ERPNext v15 requires:
-    - fg_completed_qty at Stock Entry level
-    - Separate rows for raw materials (s_warehouse) and finished goods (t_warehouse)
+    By clearing the warehouse on BOM items, Sales Invoice submit will NOT
+    create Stock Ledger Entry for these items (no finished goods deduction).
+    
+    Args:
+        invoice_doc: Sales Invoice document
+        bom_cache: Optional dict cache of item_code -> bom_name lookups
+    """
+    if not invoice_doc:
+        return
+    
+    invoice_items = getattr(invoice_doc, "items", None) or []
+    if not invoice_items:
+        return
+    
+    if bom_cache is None:
+        bom_cache = {}
+    
+    for item in invoice_items:
+        if isinstance(item, dict):
+            item_code = item.get("item_code")
+        else:
+            item_code = getattr(item, "item_code", None)
+        
+        if not item_code:
+            continue
+        
+        # Check if item has active BOM
+        bom_name = bom_cache.get(item_code)
+        if bom_name is None:
+            bom_name = frappe.db.get_value(
+                "BOM",
+                {"item": item_code, "is_default": 1, "is_active": 1},
+                "name",
+            ) or False
+            bom_cache[item_code] = bom_name
+        
+        if bom_name:
+            # Item has BOM - clear warehouse to prevent Stock Ledger Entry
+            # Raw materials will be consumed via _consume_bom_raw_materials
+            if isinstance(item, dict):
+                item["warehouse"] = None
+            else:
+                setattr(item, "warehouse", None)
+
+
+def _consume_bom_raw_materials(invoice_doc, profile_doc):
+    """Consume raw materials based on BOM when selling BOM-based items.
+    
+    This function creates Stock Entry (Material Issue) documents to:
+    - Consume raw materials from BOM components (s_warehouse)
+    - NO finished goods are produced - stock is calculated virtually from raw materials
+    
+    The finished good stock is NOT tracked in Stock Ledger.
+    Instead, available stock = max_producible_qty calculated from raw material availability.
+    
+    This approach:
+    - Eliminates need to manually input finished good quantity
+    - Stock automatically reflects what CAN BE produced from available raw materials
+    - When sold, only raw materials are deducted
     """
 
     if not invoice_doc or not profile_doc:
         return
 
     if not getattr(invoice_doc, "get", None):
-        return
-
-    if not invoice_doc.get("update_stock"):
         return
 
     invoice_items = getattr(invoice_doc, "items", None) or []
@@ -653,6 +1024,7 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
     bom_cache = {}
     created_entries = []
     low_stock_alerts = []
+    bom_item_codes = []  # Track which items have BOM (for skipping in update_stock)
 
     for invoice_item in invoice_items:
         parent_item_code, item_qty, item_warehouse = _get_invoice_item_values(
@@ -665,6 +1037,9 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         if not details or not details["components"]:
             continue
 
+        # Track this item as BOM-based
+        bom_item_codes.append(parent_item_code)
+
         # Collect low stock alerts for components
         for component in details.get("low_stock_components", []):
             low_stock_alerts.append({
@@ -676,7 +1051,7 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
                 "warehouse": component.get("warehouse"),
             })
 
-        # Build raw material rows (consumption - s_warehouse only)
+        # Build raw material rows (consumption only - s_warehouse)
         component_rows = []
         for component in details["components"]:
             component_code = component.get("item_code")
@@ -691,12 +1066,11 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
             if not source_warehouse:
                 continue
 
-            # Raw material consumption row - only s_warehouse (source)
+            # Raw material consumption row - s_warehouse only (no t_warehouse)
             row_data = {
                 "item_code": component_code,
                 "qty": component_qty,
                 "s_warehouse": source_warehouse,
-                "t_warehouse": None,  # Explicitly None for consumption
             }
             if stock_uom:
                 row_data["stock_uom"] = stock_uom
@@ -708,41 +1082,11 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         if not component_rows:
             continue
 
-        finished_qty = flt(details.get("item_qty") or 0)
-        finished_warehouse = details.get("finished_warehouse") or item_warehouse or default_warehouse
-        
-        if not finished_warehouse:
-            frappe.log_error(
-                f"No finished goods warehouse for item {parent_item_code}",
-                "Stock Entry Manufacture Error"
-            )
-            continue
-
-        # Finished goods row - only t_warehouse (target)
-        if parent_item_code and finished_qty:
-            # Get stock_uom for finished good
-            fg_stock_uom = frappe.db.get_value("Item", parent_item_code, "stock_uom") or "Nos"
-            
-            finished_row = {
-                "item_code": parent_item_code,
-                "qty": finished_qty,
-                "t_warehouse": finished_warehouse,
-                "s_warehouse": None,  # Explicitly None for production
-                "is_finished_item": 1,
-                "stock_uom": fg_stock_uom,
-                "uom": fg_stock_uom,
-                "conversion_factor": 1,
-            }
-            component_rows.append(finished_row)
-
-        # Build Stock Entry with fg_completed_qty (required for ERPNext v15)
+        # Build Stock Entry as Material Issue (consume raw materials only)
+        # NO finished goods row - we don't track finished goods in stock ledger
         stock_entry_data = {
             "doctype": "Stock Entry",
-            "stock_entry_type": "Manufacture",
-            "from_bom": 1,
-            "use_multi_level_bom": 1,
-            "bom_no": details.get("bom_name"),
-            "fg_completed_qty": finished_qty,  # CRITICAL: Required for ERPNext v15
+            "stock_entry_type": "Material Issue",  # Just consume raw materials
             "items": component_rows,
         }
 
@@ -752,6 +1096,9 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
             stock_entry_data["posting_date"] = posting_date
         if posting_time:
             stock_entry_data["posting_time"] = posting_time
+        
+        # Add remarks for traceability
+        stock_entry_data["remarks"] = f"Auto-consumed for BOM item {parent_item_code} via Sales Invoice {invoice_name or 'N/A'}"
         
         # Link to sales invoice if custom field exists
         se_meta = frappe.get_meta("Stock Entry")
@@ -771,19 +1118,29 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
             created_entries.append(getattr(stock_entry_doc, "name", None))
         except Exception as e:
             frappe.log_error(
-                f"Failed to create Stock Entry for {parent_item_code}: {str(e)}\n{frappe.get_traceback()}",
-                "Stock Entry Manufacture Error"
+                f"Failed to consume raw materials for {parent_item_code}: {str(e)}\n{frappe.get_traceback()}",
+                "BOM Raw Material Consumption Error"
             )
             # Continue with other items instead of failing entire invoice
 
     if created_entries:
-        existing_refs = list(getattr(invoice_doc, "imogi_manufacture_entries", []) or [])
+        existing_refs = list(getattr(invoice_doc, "imogi_material_issue_entries", []) or [])
         existing_refs.extend(name for name in created_entries if name)
-        setattr(invoice_doc, "imogi_manufacture_entries", existing_refs)
+        setattr(invoice_doc, "imogi_material_issue_entries", existing_refs)
+    
+    # Store BOM item codes for reference (skip update_stock for these)
+    if bom_item_codes:
+        setattr(invoice_doc, "imogi_bom_item_codes", bom_item_codes)
     
     # Publish low stock alerts via realtime
     if low_stock_alerts:
         _publish_low_stock_alerts(low_stock_alerts, invoice_doc)
+    
+    return bom_item_codes
+
+
+# Keep old function name as alias for backward compatibility
+_create_manufacturing_stock_entries = _consume_bom_raw_materials
 
 
 def _publish_low_stock_alerts(low_stock_alerts, invoice_doc):
@@ -1212,17 +1569,39 @@ def generate_invoice(
         invoice_doc.set_missing_values()
         invoice_doc.calculate_taxes_and_totals()
 
+        # Stock validation for non-BOM items only
+        # BOM items are validated via _validate_bom_capacity (raw material check)
         if invoice_doc.get("update_stock") and not allow_out_of_stock_orders:
             allow_negative_stock = frappe.db.get_value(
                 "Stock Settings", None, "allow_negative_stock"
             )
+            bom_check_cache = {}
             for item in invoice_doc.get("items", []):
+                item_code = item.get("item_code")
                 warehouse = item.get("warehouse") or profile_doc.get("warehouse")
-                if not warehouse:
+                if not warehouse or not item_code:
                     continue
+                
+                # Skip stock check for BOM items - they're validated via BOM capacity
+                # (raw materials, not finished goods)
+                bom_name = bom_check_cache.get(item_code)
+                if bom_name is None:
+                    bom_name = frappe.db.get_value(
+                        "BOM",
+                        {"item": item_code, "is_default": 1, "is_active": 1},
+                        "name",
+                    ) or False
+                    bom_check_cache[item_code] = bom_name
+                
+                if bom_name:
+                    # Item has BOM - skip finished good stock check
+                    # Raw material availability already validated in _validate_bom_capacity
+                    continue
+                
+                # Regular item - check actual stock in Bin
                 available_qty = frappe.db.get_value(
                     "Bin",
-                    {"item_code": item.get("item_code"), "warehouse": warehouse},
+                    {"item_code": item_code, "warehouse": warehouse},
                     "actual_qty",
                 ) or 0
                 if (
@@ -1235,12 +1614,16 @@ def generate_invoice(
                         _(
                             "Item {0} in warehouse {1} is short by {2}. "
                             "Restock the item or enable negative stock in Stock Settings."
-                        ).format(item.get("item_code"), warehouse, shortage),
+                        ).format(item_code, warehouse, shortage),
                         frappe.ValidationError,
                     )
 
+        # For BOM items: clear warehouse to prevent Stock Ledger Entry on submit
+        # Raw materials will be consumed via _consume_bom_raw_materials instead
+        _clear_warehouse_for_bom_items(invoice_doc, bom_check_cache if 'bom_check_cache' in dir() else {})
+
         invoice_doc.insert(ignore_permissions=True)
-        _create_manufacturing_stock_entries(invoice_doc, profile_doc)
+        _consume_bom_raw_materials(invoice_doc, profile_doc)
 
         # CRITICAL FIX: Wrap invoice.submit() with proper error logging
         # Submit can fail due to: NegativeStockError, tax calc, GL posting, permissions
