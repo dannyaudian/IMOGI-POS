@@ -21,13 +21,13 @@
       },
       {
         "label": "Customer Display Editor",
-        "link_to": "/customer_display_editor",
-        "type": "URL"
+        "link_to": "imogi-customer-display-editor",
+        "type": "Page"
       },
       {
         "label": "Table Layout Editor",
-        "link_to": "/table_management",
-        "type": "URL"
+        "link_to": "imogi-table-layout-editor",
+        "type": "Page"
       },
       {
         "label": "POS Orders",
