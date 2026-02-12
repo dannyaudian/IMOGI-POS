@@ -367,14 +367,24 @@ def _collect_bom_component_data(
         }
         components.append(component_data)
 
-        if available_qty is not None and available_qty < LOW_STOCK_THRESHOLD:
+        # Add to low_stock_components if:
+        # 1. Available qty is below LOW_STOCK_THRESHOLD, OR
+        # 2. Required qty exceeds available qty (shortage)
+        is_low_stock = available_qty is not None and available_qty < LOW_STOCK_THRESHOLD
+        has_shortage = available_qty is not None and total_qty > available_qty
+        
+        if is_low_stock or has_shortage:
             low_stock_components.append(
                 {
                     "item_code": component_code,
                     "item_name": item_name,
                     "stock_uom": stock_uom,
                     "actual_qty": available_qty,
+                    "available_qty": available_qty,
+                    "qty": total_qty,
                     "warehouse": warehouse,
+                    "has_shortage": has_shortage,
+                    "shortage_qty": max(0, total_qty - available_qty) if available_qty is not None else 0,
                 }
             )
 
@@ -610,7 +620,16 @@ def _validate_bom_capacity(invoice_doc, profile_doc):
 
 
 def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
-    """Create Stock Entry (Manufacture) records for BOM-based items."""
+    """Create Stock Entry (Manufacture) records for BOM-based items.
+    
+    This function creates Stock Entry documents to:
+    1. Consume raw materials from BOM components (s_warehouse)
+    2. Produce finished goods (t_warehouse)
+    
+    ERPNext v15 requires:
+    - fg_completed_qty at Stock Entry level
+    - Separate rows for raw materials (s_warehouse) and finished goods (t_warehouse)
+    """
 
     if not invoice_doc or not profile_doc:
         return
@@ -633,6 +652,7 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
 
     bom_cache = {}
     created_entries = []
+    low_stock_alerts = []
 
     for invoice_item in invoice_items:
         parent_item_code, item_qty, item_warehouse = _get_invoice_item_values(
@@ -645,11 +665,24 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
         if not details or not details["components"]:
             continue
 
+        # Collect low stock alerts for components
+        for component in details.get("low_stock_components", []):
+            low_stock_alerts.append({
+                "parent_item": parent_item_code,
+                "component": component.get("item_code"),
+                "component_name": component.get("item_name"),
+                "available_qty": component.get("available_qty", 0),
+                "required_qty": component.get("qty", 0),
+                "warehouse": component.get("warehouse"),
+            })
+
+        # Build raw material rows (consumption - s_warehouse only)
         component_rows = []
         for component in details["components"]:
             component_code = component.get("item_code")
             component_qty = flt(component.get("qty") or 0)
             component_warehouse = component.get("warehouse")
+            stock_uom = component.get("stock_uom") or component.get("uom")
 
             if not component_code or not component_qty:
                 continue
@@ -658,34 +691,58 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
             if not source_warehouse:
                 continue
 
-            component_rows.append(
-                {
-                    "item_code": component_code,
-                    "qty": component_qty,
-                    "s_warehouse": source_warehouse,
-                }
-            )
+            # Raw material consumption row - only s_warehouse (source)
+            row_data = {
+                "item_code": component_code,
+                "qty": component_qty,
+                "s_warehouse": source_warehouse,
+                "t_warehouse": None,  # Explicitly None for consumption
+            }
+            if stock_uom:
+                row_data["stock_uom"] = stock_uom
+                row_data["uom"] = stock_uom
+                row_data["conversion_factor"] = 1
+            
+            component_rows.append(row_data)
 
         if not component_rows:
             continue
 
         finished_qty = flt(details.get("item_qty") or 0)
-        finished_warehouse = details.get("finished_warehouse")
+        finished_warehouse = details.get("finished_warehouse") or item_warehouse or default_warehouse
+        
+        if not finished_warehouse:
+            frappe.log_error(
+                f"No finished goods warehouse for item {parent_item_code}",
+                "Stock Entry Manufacture Error"
+            )
+            continue
+
+        # Finished goods row - only t_warehouse (target)
         if parent_item_code and finished_qty:
+            # Get stock_uom for finished good
+            fg_stock_uom = frappe.db.get_value("Item", parent_item_code, "stock_uom") or "Nos"
+            
             finished_row = {
                 "item_code": parent_item_code,
                 "qty": finished_qty,
-                "transfer_qty": finished_qty,
-                "is_finished_item": 1,
                 "t_warehouse": finished_warehouse,
+                "s_warehouse": None,  # Explicitly None for production
+                "is_finished_item": 1,
+                "stock_uom": fg_stock_uom,
+                "uom": fg_stock_uom,
+                "conversion_factor": 1,
             }
             component_rows.append(finished_row)
 
+        # Build Stock Entry with fg_completed_qty (required for ERPNext v15)
         stock_entry_data = {
             "doctype": "Stock Entry",
             "stock_entry_type": "Manufacture",
             "from_bom": 1,
+            "use_multi_level_bom": 1,
             "bom_no": details.get("bom_name"),
+            "fg_completed_qty": finished_qty,  # CRITICAL: Required for ERPNext v15
             "items": component_rows,
         }
 
@@ -695,22 +752,141 @@ def _create_manufacturing_stock_entries(invoice_doc, profile_doc):
             stock_entry_data["posting_date"] = posting_date
         if posting_time:
             stock_entry_data["posting_time"] = posting_time
-        if invoice_name:
+        
+        # Link to sales invoice if custom field exists
+        se_meta = frappe.get_meta("Stock Entry")
+        if se_meta.has_field("sales_invoice") and invoice_name:
             stock_entry_data["sales_invoice"] = invoice_name
+        if se_meta.has_field("imogi_sales_invoice") and invoice_name:
+            stock_entry_data["imogi_sales_invoice"] = invoice_name
 
-        stock_entry_doc = frappe.get_doc(stock_entry_data)
-        stock_entry_doc.insert(ignore_permissions=True)
+        try:
+            stock_entry_doc = frappe.get_doc(stock_entry_data)
+            stock_entry_doc.insert(ignore_permissions=True)
 
-        submit = getattr(stock_entry_doc, "submit", None)
-        if callable(submit):
-            stock_entry_doc.submit()
+            submit = getattr(stock_entry_doc, "submit", None)
+            if callable(submit):
+                stock_entry_doc.submit()
 
-        created_entries.append(getattr(stock_entry_doc, "name", None))
+            created_entries.append(getattr(stock_entry_doc, "name", None))
+        except Exception as e:
+            frappe.log_error(
+                f"Failed to create Stock Entry for {parent_item_code}: {str(e)}\n{frappe.get_traceback()}",
+                "Stock Entry Manufacture Error"
+            )
+            # Continue with other items instead of failing entire invoice
 
     if created_entries:
         existing_refs = list(getattr(invoice_doc, "imogi_manufacture_entries", []) or [])
         existing_refs.extend(name for name in created_entries if name)
         setattr(invoice_doc, "imogi_manufacture_entries", existing_refs)
+    
+    # Publish low stock alerts via realtime
+    if low_stock_alerts:
+        _publish_low_stock_alerts(low_stock_alerts, invoice_doc)
+
+
+def _publish_low_stock_alerts(low_stock_alerts, invoice_doc):
+    """Publish realtime alerts for low stock raw materials.
+    
+    Args:
+        low_stock_alerts: List of dicts with component shortage info
+        invoice_doc: Sales Invoice document for context
+    """
+    if not low_stock_alerts:
+        return
+    
+    # Group alerts by component to avoid duplicates
+    component_alerts = {}
+    for alert in low_stock_alerts:
+        component = alert.get("component")
+        if component and component not in component_alerts:
+            component_alerts[component] = alert
+    
+    # Build alert message
+    alert_items = []
+    for component, alert in component_alerts.items():
+        shortage = flt(alert.get("required_qty", 0)) - flt(alert.get("available_qty", 0))
+        if shortage > 0:
+            alert_items.append({
+                "item_code": component,
+                "item_name": alert.get("component_name") or component,
+                "available_qty": flt(alert.get("available_qty", 0)),
+                "required_qty": flt(alert.get("required_qty", 0)),
+                "shortage": shortage,
+                "warehouse": alert.get("warehouse"),
+                "parent_item": alert.get("parent_item"),
+            })
+    
+    if not alert_items:
+        return
+    
+    # Create system notification for purchasing
+    try:
+        # Get users with Stock Manager or Purchase Manager role
+        users_to_notify = frappe.get_all(
+            "Has Role",
+            filters={"role": ["in", ["Stock Manager", "Purchase Manager", "System Manager"]]},
+            fields=["parent"],
+            distinct=True,
+        )
+        user_list = list(set(u["parent"] for u in users_to_notify if u.get("parent")))
+        
+        # Build notification message
+        message_parts = [_("⚠️ Low Stock Alert - Raw Materials Need Reorder:")]
+        for item in alert_items[:5]:  # Limit to top 5
+            message_parts.append(
+                f"• {item['item_name']} ({item['item_code']}): "
+                f"Available {item['available_qty']}, Need {item['required_qty']} "
+                f"(Short by {item['shortage']})"
+            )
+        
+        if len(alert_items) > 5:
+            message_parts.append(f"... and {len(alert_items) - 5} more items")
+        
+        message_parts.append(_("\nPlease create Purchase Order to replenish stock."))
+        full_message = "\n".join(message_parts)
+        
+        # Publish realtime notification to POS users
+        invoice_user = getattr(invoice_doc, "owner", None) or frappe.session.user
+        publish_realtime(
+            "imogi_low_stock_alert",
+            {
+                "message": full_message,
+                "items": alert_items,
+                "invoice": getattr(invoice_doc, "name", None),
+                "timestamp": now_datetime().isoformat(),
+            },
+            user=invoice_user,
+        )
+        
+        # Also publish to all stock managers
+        for user in user_list[:10]:  # Limit to 10 users
+            if user != invoice_user:
+                publish_realtime(
+                    "imogi_low_stock_alert",
+                    {
+                        "message": full_message,
+                        "items": alert_items,
+                        "invoice": getattr(invoice_doc, "name", None),
+                        "timestamp": now_datetime().isoformat(),
+                    },
+                    user=user,
+                )
+        
+        # Log for audit
+        frappe.logger().warning(
+            f"Low stock alert triggered from invoice {getattr(invoice_doc, 'name', 'N/A')}: "
+            f"{len(alert_items)} components below threshold"
+        )
+        
+    except Exception as e:
+        # Don't fail invoice for notification errors
+        frappe.log_error(
+            f"Failed to publish low stock alert: {str(e)}",
+            "Low Stock Alert Error"
+        )
+
 
 def build_invoice_items(order_doc, mode):
     """Builds Sales Invoice Item dictionaries from a POS Order.
