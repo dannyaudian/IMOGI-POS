@@ -23,8 +23,10 @@ frappe.pages['imogi-module-select'].on_page_load = function(wrapper) {
 	// Create container for React widget
 	const container = $(document.createElement('div'));
 	container.attr('id', 'imogi-module-select-root');
-	container.attr('style', 'width: 100%; height: calc(100vh - 60px); overflow: auto;');
+	container.attr('style', 'width: 100%; flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0;');
 	page.main.html('');
+	// Make page.main a flex column so container fills available height correctly
+	page.main.css({ 'padding': '0', 'display': 'flex', 'flex-direction': 'column', 'overflow': 'hidden' });
 	page.main.append(container);
 
 	// Store references in wrapper for on_page_show access
