@@ -28,6 +28,7 @@ export function ModuleSelectProvider({
   navigationLock = false,
   navigatingToModule = null,
   posOpeningStatus = {},
+  onProfileChange = null,
   children 
 }) {
   
@@ -80,7 +81,10 @@ export function ModuleSelectProvider({
     navigatingToModule,
     
     // POS opening status
-    posOpeningStatus: memoizedPosOpeningStatus
+    posOpeningStatus: memoizedPosOpeningStatus,
+
+    // Profile change callback (wired from App.jsx → Sidebar → POSProfileSwitcher)
+    onProfileChange
   }), [
     memoizedModules,
     loading,
@@ -93,7 +97,8 @@ export function ModuleSelectProvider({
     memoizedVisibleModules,
     navigationLock,
     navigatingToModule,
-    memoizedPosOpeningStatus
+    memoizedPosOpeningStatus,
+    onProfileChange
   ])
 
   return (

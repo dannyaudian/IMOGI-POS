@@ -16,7 +16,8 @@ function CashierSessionCard({
   onClick, 
   isNavigating = false, 
   isLoading = false,
-  isSelected = false 
+  isSelected = false,
+  isCurrentUser = false
 }) {
   
   if (!session) {
@@ -100,6 +101,12 @@ function CashierSessionCard({
             <i className={`fa-solid ${isOpen ? 'fa-check-circle' : 'fa-times-circle'}`}></i>
             {isOpen ? 'Active' : 'Closed'}
           </div>
+          {isCurrentUser && (
+            <div className="session-badge badge-info">
+              <i className="fa-solid fa-star"></i>
+              My Session
+            </div>
+          )}
         </div>
       </div>
 

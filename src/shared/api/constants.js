@@ -110,6 +110,7 @@ export const API = {
   GET_AVAILABLE_MODULES: 'imogi_pos.api.module_select.get_available_modules',
   VALIDATE_OPENING_SESSION: 'imogi_pos.api.module_select.validate_opening_session',
   GET_ACTIVE_POS_OPENING: 'imogi_pos.api.module_select.get_active_pos_opening',
+  LIST_OPEN_CASHIER_SESSIONS: 'imogi_pos.api.module_select.list_open_cashier_sessions',
   
   // Branch & Configuration
   SET_USER_BRANCH: 'imogi_pos.api.public.set_user_branch',

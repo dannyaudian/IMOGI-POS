@@ -342,7 +342,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
         </div>
       </div>
       
-      {/* Variant Picker Modal - Attribute-based ERPNext v15+ */}
+      {/* Variant Picker Modal - Cascading attribute selection */}
       <VariantPickerModal
         isOpen={showVariantModal}
         onClose={() => {
@@ -350,10 +350,10 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
           setSelectedTemplate(null)
         }}
         templateName={selectedTemplate?.name}
+        templateItem={selectedTemplate}
         posProfile={posProfile}
         mode="add"
         onSelectVariant={(variantName) => {
-          // After user selects attributes, variant name is returned
           if (onSelectItem && variantName) {
             onSelectItem({ name: variantName, item_code: variantName })
           }

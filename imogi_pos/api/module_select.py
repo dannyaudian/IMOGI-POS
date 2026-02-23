@@ -257,6 +257,13 @@ def get_available_modules():
                 'table_display': pos_profile_doc.get('imogi_use_table_display', 0) == 1
             }
         
+        # Preload open cashier sessions to avoid an extra round-trip on initial render.
+        # State is display/prefetch only — decisions use a fresh fetch on click.
+        if pos_profile:
+            open_sessions = list_open_cashier_sessions(pos_profile=pos_profile)
+        else:
+            open_sessions = {'success': True, 'sessions': [], 'total': 0, 'has_sessions': False}
+
         return {
             'modules': available_modules,
             'context': {
@@ -270,6 +277,7 @@ def get_available_modules():
             },
             'active_opening': active_opening,
             'sessions_today': sessions_today,
+            'open_sessions': open_sessions,
             'debug_info': debug_info
         }
 
@@ -961,11 +969,11 @@ def list_open_cashier_sessions(pos_profile=None, company=None):
                 'error': 'No POS Profile configured'
             }
         
-        # Build query filters
+        # Build query filters — do NOT filter status at DB level
+        # to preserve legacy records with empty status (period_end_date fallback)
         filters = {
             'pos_profile': pos_profile,
             'docstatus': 1,  # Submitted only
-            'status': 'Open'  # Not closed
         }
         
         # Add company filter if provided
@@ -974,16 +982,26 @@ def list_open_cashier_sessions(pos_profile=None, company=None):
         
         # Query open POS Opening Entries
         date_field = _resolve_pos_opening_date_field()
-        sessions = frappe.get_list(
+        rows = frappe.get_list(
             'POS Opening Entry',
             filters=filters,
-            fields=['name', 'user', 'company', date_field, 'status', 'opening_balance'],
+            fields=['name', 'user', 'company', date_field, 'status', 'period_end_date', 'opening_balance'],
             order_by=f'{date_field} desc'
         )
         
-        # Format response
+        # Priority filter: status is primary source of truth.
+        # period_end_date=null is only a legacy fallback for records with empty status.
+        # (Validated: Closed records with period_end_date=null exist in this instance.)
         session_list = []
-        for session in sessions:
+        for session in rows:
+            status = (session.get('status') or '').strip()
+            if status:
+                is_open = (status == 'Open')
+            else:
+                # Legacy fallback: no status field → check period_end_date
+                is_open = not session.get('period_end_date')
+            if not is_open:
+                continue
             session_list.append({
                 'name': session.get('name'),
                 'opening_entry': session.get('name'),  # Alias for consistency

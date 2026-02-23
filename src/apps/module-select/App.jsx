@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react'
+import React, { useState, useEffect, useMemo, useContext, useRef } from 'react'
 import { FrappeContext, useFrappeGetCall } from 'frappe-react-sdk'
 import { useOperationalContext } from '../../shared/hooks/useOperationalContext'
 import { apiCall } from '../../shared/utils/api'
@@ -70,6 +70,10 @@ function App() {
   const [showCashierSessions, setShowCashierSessions] = useState(false)
   const [cashierSessions, setCashierSessions] = useState([])
 
+  // State: Prefetched open sessions (display/prefetch only; decision-fetch is always fresh on click)
+  const [prefetchedOpenSessions, setPrefetchedOpenSessions] = useState([])
+  const [sessionsFetching, setSessionsFetching] = useState(false)
+
   // State: Navigation lock (prevent duplicate clicks)
   const [navigationLock, setNavigationLock] = useState(false)
   const [navigatingToModule, setNavigatingToModule] = useState(null)
@@ -77,6 +81,9 @@ function App() {
   // State: Error handling
   const [apiError, setApiError] = useState(null)
   const [showErrorModal, setShowErrorModal] = useState(false)
+
+  // Ref: prevent profile prompt from firing more than once per load cycle
+  const hasShownProfilePromptRef = useRef(false)
 
   // API: Fetch available modules
   const { 
@@ -151,6 +158,7 @@ function App() {
       setActiveOpening(payload.active_opening || null)
       setSessionsToday(payload.sessions_today || { sessions: [], total: 0 })
       setDebugInfo(payload.debug_info || null)
+      setPrefetchedOpenSessions(payload.open_sessions?.sessions || [])
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
@@ -271,6 +279,22 @@ function App() {
     }
   }, [moduleData])
 
+  // EFFECT: Auto-show profile modal when loading finishes and user has no profile + require_selection
+  useEffect(() => {
+    if (loading) return
+    if (hasShownProfilePromptRef.current) return
+
+    const profiles = contextState.available_pos_profiles || []
+    const hasMultiple = profiles.length > 1
+    const noProfile = !contextState.pos_profile
+
+    if (contextState.require_selection && noProfile && hasMultiple) {
+      hasShownProfilePromptRef.current = true
+      setPendingProfileModule(null)
+      setShowProfileModal(true)
+    }
+  }, [loading, contextState.require_selection, contextState.pos_profile, contextState.available_pos_profiles])
+
   // EFFECT: Listen for POS opening events from native form
   useEffect(() => {
     const handleSessionOpened = (event) => {
@@ -362,40 +386,48 @@ function App() {
       return
     }
 
-    if (module.type === 'cashier' && contextData.pos_profile && contextData.available_pos_profiles.length > 1) {
+    if (module.type === 'cashier' && contextData.pos_profile) {
+      if (sessionsFetching) return
+      setSessionsFetching(true)
       try {
-        const response = await apiCall(API.GET_CASHIER_DEVICE_SESSIONS, {
+        const response = await apiCall(API.LIST_OPEN_CASHIER_SESSIONS, {
           pos_profile: contextData.pos_profile
         })
-        
-        const sessions = response?.message || response || []
-        if (sessions.length > 1) {
-          setCashierSessions(sessions)
+        const sessions = response?.message?.sessions || response?.sessions || []
+        const currentUser = frappe?.session?.user
+
+        if (sessions.length === 0) {
+          setCashierSessions([])
           setShowCashierSessions(true)
           return
         }
-
-        if (sessions.length === 1) {
-          const sessionData = {
-            pos_opening_entry: sessions[0].name,
-            session: sessions[0].name,
-            user: sessions[0].user
-          }
-          handleCashierSessionSelection(sessionData)
+        if (sessions.length === 1 && sessions[0].user === currentUser) {
+          handleCashierSessionSelection(sessions[0])
           return
         }
+        setCashierSessions(sessions)
+        setShowCashierSessions(true)
+        return
       } catch (error) {
-        console.error('[module-select] Failed to fetch cashier sessions:', error)
+        console.error('[module-select] Failed to fetch cashier sessions, navigating directly:', error)
+      } finally {
+        setSessionsFetching(false)
       }
     }
 
     navigateToModule(module)
   }
 
-  // HANDLER: Profile selection
-  const handleProfileSelection = async (profile) => {
+  // HANDLER: Profile selection (accepts string name OR profile object)
+  const handleProfileSelection = async (profileNameOrObj) => {
     try {
-      setContextOnServer({
+      const profile = typeof profileNameOrObj === 'string'
+        ? (contextState.available_pos_profiles.find(p => p.name === profileNameOrObj)
+            || { name: profileNameOrObj, branch: null })
+        : profileNameOrObj
+
+      // Await server context update before refetching modules
+      await setContextOnServer({
         pos_profile: profile.name,
         branch: profile.branch
       })
@@ -406,11 +438,25 @@ function App() {
         branch: profile.branch
       }))
 
+      // Clear all cashier session state from the previous profile
+      setPrefetchedOpenSessions([])
+      setCashierSessions([])
+      setShowCashierSessions(false)
+      // Reset so auto-show modal can re-evaluate for the new profile state
+      hasShownProfilePromptRef.current = false
+
       setShowProfileModal(false)
 
+      // Refetch modules for the new profile (updates grid + open_sessions preload)
+      if (refetchModuleData) {
+        refetchModuleData()
+      }
+
       if (pendingProfileModule) {
+        const moduleToNavigate = pendingProfileModule
+        setPendingProfileModule(null)
         setTimeout(() => {
-          handleModuleClick(pendingProfileModule)
+          handleModuleClick(moduleToNavigate)
         }, TIMING.NAVIGATION_DELAY)
       }
     } catch (error) {
@@ -471,6 +517,7 @@ function App() {
       navigationLock={navigationLock}
       navigatingToModule={navigatingToModule}
       posOpeningStatus={posOpeningStatus}
+      onProfileChange={handleProfileSelection}
     >
       <div className="module-select-app">
         <ModuleSelectHeader onDebugClick={showDebugLogs} />
@@ -540,13 +587,14 @@ function App() {
                           }}
                           isNavigating={navigationLock && navigatingToModule === 'cashier'}
                           isLoading={navigationLock && navigatingToModule === 'cashier'}
+                          isCurrentUser={session.user === frappe?.session?.user}
                         />
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="cashier-no-sessions">
-                    <p>No open cashier sessions found</p>
+                    <p>No active cashier sessions</p>
                   </div>
                 )}
               </div>
@@ -565,7 +613,7 @@ function App() {
                     window.location.href = `/app/pos-opening-entry/new-pos-opening-entry-1?pos_profile=${encodeURIComponent(contextData.pos_profile)}`
                   }}
                 >
-                  <i className="fa-solid fa-plus"></i> New Opening
+                  <i className="fa-solid fa-plus"></i> Open New Session
                 </button>
               </div>
             </div>

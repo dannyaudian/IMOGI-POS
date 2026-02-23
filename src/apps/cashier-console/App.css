@@ -1731,7 +1731,315 @@
   border-top: 1px solid #e5e7eb;
 }
 
-/* Catalog View */
+/* ===== CASCADING VARIANT PICKER ===== */
+.variant-picker-cascading {
+  max-width: 540px;
+  width: 95%;
+}
+
+.variant-picker-cascading .modal-header h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Override default modal-body padding for cascading picker — body handles its own */
+.variant-picker-cascading .modal-body {
+  padding: 0;
+}
+
+.variant-picker-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.variant-picker-title h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.variant-picker-item-name {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.variant-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+/* Breadcrumb */
+.variant-breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.variant-breadcrumb-steps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.variant-breadcrumb-step {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.variant-breadcrumb-sep {
+  color: #9ca3af;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.variant-breadcrumb-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: default;
+  transition: all 0.15s;
+  line-height: 1.2;
+}
+
+.variant-breadcrumb-btn.is-past,
+.variant-breadcrumb-btn.is-selected {
+  cursor: pointer;
+  border-color: #d1d5db;
+  background: white;
+}
+
+.variant-breadcrumb-btn.is-selected:hover,
+.variant-breadcrumb-btn.is-past:hover {
+  border-color: #667eea;
+  background: #eef2ff;
+}
+
+.variant-breadcrumb-btn.is-current {
+  cursor: default;
+  color: #9ca3af;
+}
+
+.variant-breadcrumb-attr {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.variant-breadcrumb-btn.is-selected .variant-breadcrumb-attr {
+  color: #667eea;
+}
+
+.variant-breadcrumb-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.variant-match-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Step */
+.variant-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.variant-step-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  color: #374151;
+}
+
+.variant-step-label strong {
+  color: #1f2937;
+}
+
+.variant-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #667eea;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Value button grid */
+.variant-value-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.625rem;
+}
+
+.variant-value-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.875rem 0.75rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  position: relative;
+  min-height: 64px;
+}
+
+.variant-value-btn:hover {
+  border-color: #667eea;
+  background: #f5f3ff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+.variant-value-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.variant-value-label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.variant-value-price {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 500;
+}
+
+.variant-value-final {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #10b981;
+  color: white;
+  font-size: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Final list (fallback when all attrs selected but multiple variants remain) */
+.variant-final-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.variant-final-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.variant-final-item:hover {
+  border-color: #667eea;
+  background: #f5f3ff;
+}
+
+.variant-final-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.variant-final-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.variant-final-attrs {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.variant-final-code {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+.variant-final-price {
+  font-weight: 700;
+  color: #059669;
+  white-space: nowrap;
+}
+
+/* Reset button */
+.variant-picker-reset {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.btn-text-muted {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: color 0.15s;
+}
+
+.btn-text-muted:hover {
+  color: #6b7280;
+}
+
 .catalog-container {
   display: flex;
   flex: 1;

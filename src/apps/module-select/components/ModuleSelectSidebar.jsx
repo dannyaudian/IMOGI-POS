@@ -1,30 +1,26 @@
 import { useModuleSelectContext } from '../context/ModuleSelectContext'
 import POSInfoCard from './POSInfoCard'
+import { POSProfileSwitcher } from '../../../shared/components/POSProfileSwitcher'
 
 /**
  * ModuleSelectSidebar - Left sidebar with profile info, POS opening, and user details
  */
 export function ModuleSelectSidebar() {
-  const { contextData, activeOpening } = useModuleSelectContext()
+  const { contextData, activeOpening, onProfileChange } = useModuleSelectContext()
 
   return (
     <aside className="module-select-sidebar">
       {/* POS Profile Info */}
       <div className="sidebar-section">
         <h3>POS Profile</h3>
-        <div className="profile-info-card">
-          <p className="profile-name">
-            {(() => {
-              const profile = contextData.pos_profile
-              if (!profile) return 'Not Selected'
-              if (typeof profile === 'string') return profile
-              return profile.name || 'Not Selected'
-            })()}
-          </p>
-          {contextData.branch && (
-            <p className="profile-branch">Branch: {contextData.branch}</p>
-          )}
-        </div>
+        <POSProfileSwitcher
+          currentProfile={contextData.pos_profile}
+          availableProfiles={contextData.available_pos_profiles || []}
+          branch={contextData.branch}
+          showBranch={true}
+          compact={true}
+          onProfileChange={onProfileChange}
+        />
       </div>
 
       {/* POS Opening Info */}
