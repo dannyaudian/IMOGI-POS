@@ -195,10 +195,12 @@ export function useOperationalContext(options = {}) {
         pos_profile: newContext.pos_profile,
         branch: newContext.branch || null
       })
-      
-      if (result?.success) {
+
+      const payload = result?.message ?? result
+
+      if (payload?.success) {
         // Update local state
-        const updatedContext = result.context || newContext
+        const updatedContext = payload.context || newContext
         setContextState({
           pos_profile: updatedContext.pos_profile,
           branch: updatedContext.branch,
@@ -219,7 +221,7 @@ export function useOperationalContext(options = {}) {
         return { success: true, context: updatedContext }
       }
       
-      throw new Error(result?.message || 'Failed to set operational context')
+      throw new Error(payload?.message || 'Failed to set operational context')
     } catch (error) {
       console.error('Error setting operational context:', error)
       throw error
