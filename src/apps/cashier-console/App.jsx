@@ -115,6 +115,9 @@ function CounterPOSContent({ initialState }) {
   // Draft order state - for orders not yet created (no items added)
   const [pendingOrderType, setPendingOrderType] = useState(null) // 'POS' | 'Dine-in'
   const [pendingTable, setPendingTable] = useState(null)
+
+  // Local cart - Counter mode items accumulated before order creation
+  const [localCartItems, setLocalCartItems] = useState([])
   
   // Track mode changes to avoid aggressive viewMode overrides
   const lastModeRef = useRef(mode)
@@ -194,8 +197,9 @@ function CounterPOSContent({ initialState }) {
     setSelectedOrder(null)
     setPendingOrderType('POS')
     setPendingTable(null)
+    setLocalCartItems([])
     setViewModeRaw('catalog')
-    
+
     if (import.meta.env.DEV) {
       console.log('[Cashier] Counter order draft mode activated - waiting for first item')
     }
@@ -215,6 +219,75 @@ function CounterPOSContent({ initialState }) {
       console.log('[Cashier] Table order draft mode activated for table:', table.name)
     }
   }, [])
+
+  // HANDLER: Add item to local cart (Counter draft mode)
+  const addToLocalCart = useCallback((item) => {
+    const itemCode = item.item_code || item.name
+    setLocalCartItems(prev => {
+      const existingIdx = prev.findIndex(i => i.item_code === itemCode)
+      if (existingIdx >= 0) {
+        const updated = [...prev]
+        updated[existingIdx] = { ...updated[existingIdx], qty: updated[existingIdx].qty + 1 }
+        return updated
+      }
+      return [...prev, {
+        item_code: itemCode,
+        item_name: item.item_name || itemCode,
+        qty: 1,
+        rate: item.price_list_rate || item.standard_rate || 0
+      }]
+    })
+    frappe.show_alert({ message: `${item.item_name || itemCode} ditambahkan`, indicator: 'green' }, 2)
+  }, [])
+
+  // HANDLER: Clear local cart
+  const clearLocalCart = useCallback(() => {
+    setLocalCartItems([])
+  }, [])
+
+  // HANDLER: Create order from local cart and proceed to payment
+  const handleChargeLocalCart = useCallback(async () => {
+    if (!localCartItems.length) return
+    setCreatingOrder(true)
+    try {
+      const context = await resolveOperationalContext()
+      if (!context.pos_profile || !context.branch) {
+        frappe.show_alert({ message: 'POS Profile & Branch wajib dipilih', indicator: 'red' }, 5)
+        return
+      }
+      const payload = {
+        pos_profile: context.pos_profile,
+        branch: context.branch,
+        order_type: 'POS',
+        items: localCartItems.map(i => ({ item: i.item_code, qty: i.qty, rate: i.rate }))
+      }
+      const result = await apiCall(API.CREATE_ORDER, payload)
+      if (result?.order_name) {
+        const orderDetails = await apiCall(API.GET_ORDER, { order_name: result.order_name })
+        if (orderDetails) {
+          setSelectedOrder(orderDetails)
+          setPendingOrderType(null)
+          setLocalCartItems([])
+          setShowPayment(true)
+          setViewModeRaw('payment')
+        }
+      }
+    } catch (err) {
+      console.error('[Cashier] Failed to create order from cart:', err)
+      frappe.show_alert({ message: 'Gagal membuat order: ' + (err.message || 'Unknown error'), indicator: 'red' }, 5)
+    } finally {
+      setCreatingOrder(false)
+    }
+  }, [localCartItems])
+
+  // HANDLER: After payment completes - auto-start new counter order
+  const handleAfterPayment = useCallback(() => {
+    if (mode === 'Counter') {
+      createCounterOrder()
+    } else {
+      setViewModeRaw('orders')
+    }
+  }, [mode, createCounterOrder])
 
   // HANDLER: Add item to order (smart handler - creates order if needed)
   const handleAddItemToOrder = useCallback(async (item) => {
@@ -248,7 +321,14 @@ function CounterPOSContent({ initialState }) {
         return
       }
       
-      // CASE 2: No order yet - create order with first item
+      // CASE 2: No order yet
+      // Counter mode (POS): accumulate in local cart - order created on Charge
+      if (pendingOrderType === 'POS') {
+        addToLocalCart(item)
+        return
+      }
+
+      // Table/Dine In mode: create order with first item immediately
       const context = await resolveOperationalContext()
       
       if (!context.pos_profile || !context.branch) {
@@ -321,7 +401,7 @@ function CounterPOSContent({ initialState }) {
     } finally {
       setCreatingOrder(false)
     }
-  }, [selectedOrder, pendingOrderType, pendingTable, setViewMode])
+  }, [selectedOrder, pendingOrderType, pendingTable, setViewMode, addToLocalCart])
 
   // EFFECT: Sync default view when mode resolves or changes
   useEffect(() => {
@@ -606,6 +686,10 @@ function CounterPOSContent({ initialState }) {
       onAddItemToOrder={handleAddItemToOrder}
       pendingOrderType={pendingOrderType}
       pendingTable={pendingTable}
+      localCartItems={localCartItems}
+      clearLocalCart={clearLocalCart}
+      onChargeLocalCart={handleChargeLocalCart}
+      onAfterPayment={handleAfterPayment}
     >
       <div className="cashier-console" data-pos-mode={mode}>
         <NetworkStatus />
@@ -615,8 +699,9 @@ function CounterPOSContent({ initialState }) {
         <div className="cashier-console-layout">
           <CashierOrderSidebar />
           <CashierMainContent />
-          <CashierActionBar />
         </div>
+
+        <CashierActionBar />
 
         <CashierModalsContainer />
       </div>

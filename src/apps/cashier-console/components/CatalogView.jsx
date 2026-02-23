@@ -257,8 +257,7 @@ export function CatalogView({ posProfile, branch, menuChannel = 'Cashier', onSel
           overflowY: 'auto',
           backgroundColor: 'white',
           borderRadius: '8px',
-          padding: '1.5rem',
-          paddingBottom: 'calc(64px + 2rem)'
+          padding: '1.5rem'
         }}>
           {loading && (
             <div className="loading-container">

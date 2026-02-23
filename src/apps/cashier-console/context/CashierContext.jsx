@@ -74,7 +74,11 @@ export function CashierProvider({
   onAddItemToOrder,
   pendingOrderType,
   pendingTable,
-  
+  localCartItems,
+  clearLocalCart,
+  onChargeLocalCart,
+  onAfterPayment,
+
   // Children
   children
 }) {
@@ -181,6 +185,10 @@ export function CashierProvider({
     onAddItemToOrder,
     pendingOrderType,
     pendingTable,
+    localCartItems,
+    clearLocalCart,
+    onChargeLocalCart,
+    onAfterPayment,
   }), [
     memoizedSelectedOrder,
     setSelectedOrder,
@@ -222,7 +230,11 @@ export function CashierProvider({
     closeCustomerDisplay,
     onAddItemToOrder,
     pendingOrderType,
-    pendingTable
+    pendingTable,
+    localCartItems,
+    clearLocalCart,
+    onChargeLocalCart,
+    onAfterPayment
   ])
 
   return (

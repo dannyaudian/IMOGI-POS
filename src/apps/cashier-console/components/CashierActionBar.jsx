@@ -16,13 +16,16 @@ export function CashierActionBar() {
     creatingOrder,
     isCustomerDisplayOpen,
     openCustomerDisplay,
-    closeCustomerDisplay
+    closeCustomerDisplay,
+    localCartItems,
+    onChargeLocalCart
   } = useCashierContext()
-  
+
   const [showMoreActions, setShowMoreActions] = useState(false)
   const hasOrder = !!selectedOrder
   const isCounterMode = posMode === 'Counter'
   const isTableMode = posMode === 'Table'
+  const localCartCount = localCartItems?.reduce((sum, i) => sum + i.qty, 0) || 0
 
   // Action handlers
   const handleNewOrder = () => {
@@ -169,6 +172,17 @@ export function CashierActionBar() {
         icon: 'fa-chair',
         disabled: false,
         onClick: handleNewOrder
+      }
+    }
+
+    // Counter mode, no order, but has items in local cart → Charge
+    if (isCounterMode && !hasOrder && localCartCount > 0) {
+      return {
+        label: `Charge (${localCartCount})`,
+        icon: 'fa-credit-card',
+        disabled: false,
+        onClick: onChargeLocalCart,
+        accent: true
       }
     }
 
