@@ -384,11 +384,12 @@
 }
 
 /* ===== MAIN LAYOUT (Sidebar + Content) ===== */
-.cashier-console-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0; /* Important for flex children scrolling */
+/* Specificity 0-2-0 matches the `all: revert` rule above, so this wins (later in file) */
+.cashier-console .cashier-console-layout {
+  display: flex !important;
+  flex: 1 !important;
+  overflow: hidden !important;
+  min-height: 0 !important; /* Important for flex children scrolling */
 }
 
 /* ===== SIDEBAR ===== */
