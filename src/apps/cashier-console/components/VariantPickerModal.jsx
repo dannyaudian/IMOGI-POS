@@ -276,6 +276,14 @@ export function VariantPickerModal({
                             : `${formatCurrency(minPrice)} – ${formatCurrency(maxPrice)}`
                           : null
 
+                        // Only show checkmark if: there are multiple attribute steps
+                        // AND at least one previous attribute has been selected.
+                        // Prevents all buttons showing checkmark on the very first step
+                        // when each value maps to exactly 1 variant (single-attribute templates).
+                        const showCheckmark = previewCount === 1
+                          && attrOrder.length > 1
+                          && selectedCount > 0
+
                         return (
                           <button
                             key={value}
@@ -286,7 +294,7 @@ export function VariantPickerModal({
                             {priceHint && (
                               <span className="variant-value-price">{priceHint}</span>
                             )}
-                            {previewCount === 1 && (
+                            {showCheckmark && (
                               <span className="variant-value-final">
                                 <i className="fa fa-check"></i>
                               </span>

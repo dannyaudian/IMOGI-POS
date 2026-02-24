@@ -728,8 +728,10 @@
   border-radius: 12px;
   max-width: 500px;
   width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 85dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
@@ -1734,7 +1736,8 @@
 /* ===== CASCADING VARIANT PICKER ===== */
 .variant-picker-cascading {
   max-width: 540px;
-  width: 95%;
+  width: min(540px, 94vw);
+  max-height: 85dvh;
 }
 
 .variant-picker-cascading .modal-header h3 {
@@ -1745,6 +1748,9 @@
 /* Override default modal-body padding for cascading picker — body handles its own */
 .variant-picker-cascading .modal-body {
   padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .variant-picker-title {
@@ -1773,6 +1779,9 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Breadcrumb */
