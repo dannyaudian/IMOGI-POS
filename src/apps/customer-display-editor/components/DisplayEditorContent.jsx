@@ -4,6 +4,7 @@ import { DisplayEditorHeader } from './DisplayEditorHeader'
 import { DisplayCanvasArea } from './DisplayCanvasArea'
 import { DisplayBlockPanel } from './DisplayBlockPanel'
 import { DisplayPreview } from './DisplayPreview'
+import { TemplateSelector } from './TemplateSelector'
 
 export function DisplayEditorContent() {
   const {
@@ -17,9 +18,6 @@ export function DisplayEditorContent() {
     setShowTemplateSelector,
     templates
   } = useDisplayEditorContext()
-
-  // Import TemplateSelector from existing components
-  const { TemplateSelector } = require('./index')
 
   // RENDER: Template selector modal
   if (showTemplateSelector) {

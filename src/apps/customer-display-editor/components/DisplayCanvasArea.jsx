@@ -1,4 +1,5 @@
 import { useDisplayEditorContext } from '../context/DisplayEditorContext'
+import { VisualLayoutCanvas } from './VisualLayoutCanvas'
 
 export function DisplayCanvasArea() {
   const {
@@ -10,9 +11,6 @@ export function DisplayCanvasArea() {
     onBlockSelect,
     onBlockRemove
   } = useDisplayEditorContext()
-
-  // Import required components from existing structure
-  const { VisualLayoutCanvas } = require('./index')
 
   return (
     <div className="cde-canvas-area">

@@ -1,4 +1,6 @@
 import { useDisplayEditorContext } from '../context/DisplayEditorContext'
+import { BlockLibrary } from './BlockLibrary'
+import { BlockEditor } from './BlockEditor'
 
 export function DisplayBlockPanel() {
   const {
@@ -7,9 +9,6 @@ export function DisplayBlockPanel() {
     onBlockUpdate,
     setSelectedBlock
   } = useDisplayEditorContext()
-
-  // Import from existing components
-  const { BlockLibrary, BlockEditor } = require('./index')
 
   return (
     <div className="cde-sidebar-right">
