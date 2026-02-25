@@ -9,11 +9,11 @@ def get_desktop_page(page=None, **kwargs):
             frappe.form_dict.get("page")
             or frappe.form_dict.get("workspace")
             or frappe.form_dict.get("name")
-        ) or None
+        )
 
-    # Frappe v15 get_desktop_page expects page as JSON string.
-    # If page is None or empty, let Frappe handle it natively.
+    # Frappe v15 get_desktop_page requires page argument (JSON string of workspace).
+    # Fall back to empty JSON object so Frappe loads the default workspace.
     if not page:
-        return frappe_get_desktop_page()
+        page = "{}"
 
     return frappe_get_desktop_page(page)
