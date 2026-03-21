@@ -15,13 +15,11 @@
  *   → Sub-components (read from context)
  */
 
-import { useState, useEffect } from 'react'
-import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
+import { useState, useEffect, useCallback } from 'react'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useTables, useItems } from '@/shared/api/imogi-api'
-import { API, TIMING, ORDER_TYPES } from './constants'
+import { TIMING, ORDER_TYPES } from './constants'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
-import { NetworkStatus } from '@/shared/components/NetworkStatus'
 import { useCart, useTableOrder } from './hooks'
 import { deskNavigate } from '../../shared/utils/deskNavigate'
 import './waiter.css'
@@ -49,7 +47,6 @@ function WaiterContent({ initialState }) {
     posProfile,
     profileData,
     branch,
-    redirectToModuleSelect,
     serverContextReady,
     serverContextError,
     retryServerContext
@@ -131,7 +128,8 @@ function WaiterContent({ initialState }) {
   }, [guardLoading, guardPassed])
 
   // HANDLER: Send to kitchen
-  const handleSendToKitchen = async () => {
+  // useCallback ensures context always receives a stable, up-to-date reference
+  const handleSendToKitchen = useCallback(async () => {
     try {
       // Validate
       if (mode === ORDER_TYPES.DINE_IN && !selectedTable) {
@@ -159,9 +157,10 @@ function WaiterContent({ initialState }) {
         mode: mode
       })
 
-      // Success
+      // Success — result.kots is the full send_to_kitchen response {success, kots, total_kots}
+      const kotCount = result.kots?.total_kots ?? 0
       frappe.show_alert({
-        message: `Order sent to kitchen! ${result.kots.length} KOT(s) created`,
+        message: `Order sent to kitchen! ${kotCount} KOT(s) created`,
         indicator: 'green'
       }, 5)
 
@@ -178,7 +177,7 @@ function WaiterContent({ initialState }) {
         indicator: 'red'
       }, 5)
     }
-  }
+  }, [mode, selectedTable, cartItems, createAndSendToKitchen, clearCart, refreshTables])
 
   // Loading states
   if (guardLoading) {
@@ -240,13 +239,10 @@ function WaiterContent({ initialState }) {
 
 /**
  * App - Provider wrapper
+ * Note: ImogiPOSProvider is already mounted by main.jsx — no double-wrap here.
  */
 function App({ initialState }) {
-  return (
-    <ImogiPOSProvider initialState={initialState}>
-      <WaiterContent initialState={initialState} />
-    </ImogiPOSProvider>
-  )
+  return <WaiterContent initialState={initialState} />
 }
 
 export default App

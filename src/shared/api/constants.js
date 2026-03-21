@@ -140,7 +140,7 @@ export const UI = {
 // ============================================================================
 export const ORDER_TYPES = {
   COUNTER: 'Counter',
-  DINE_IN: 'Dine In',
+  DINE_IN: 'Dine-in',
   TAKEAWAY: 'Takeaway',
   DELIVERY: 'Delivery',
   SELF_ORDER: 'Self Order',

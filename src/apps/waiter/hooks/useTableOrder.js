@@ -25,8 +25,9 @@ export function useTableOrder(branch) {
 
     try {
       // Validate order data
-      if (!orderData.table) {
-        throw new Error('Table is required')
+      const mode = orderData.mode || 'Dine-in'
+      if (mode === 'Dine-in' && !orderData.table) {
+        throw new Error('Table is required for Dine-in orders')
       }
 
       if (!orderData.items || orderData.items.length === 0) {
@@ -40,6 +41,7 @@ export function useTableOrder(branch) {
         customer: orderData.customer || 'Walk-in Customer',
         waiter: orderData.waiter,
         items: orderData.items,
+        mode: orderData.mode || 'Dine-in',
         notes: orderData.notes || ''
       })
 

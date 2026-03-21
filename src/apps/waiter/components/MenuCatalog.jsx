@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useDebounce } from '@/shared/hooks/useDebounce'
-import { formatCurrency } from '@/shared/utils/formatters'
 import { TIMING } from '../constants'
 
 /**

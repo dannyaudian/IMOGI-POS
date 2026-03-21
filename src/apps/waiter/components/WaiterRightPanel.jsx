@@ -38,7 +38,7 @@ export function WaiterRightPanel() {
       {cartItems.length > 0 && (
         <div className="waiter-action-bar-fixed">
           <div className="cart-summary">
-            <div>{cartSummary.totalItems} items</div>
+            <div>{cartSummary.totalQuantity} items</div>
             <div className="total">
               {frappe.format(cartSummary.subtotal, { fieldtype: 'Currency' })}
             </div>
@@ -49,7 +49,7 @@ export function WaiterRightPanel() {
             disabled={orderLoading || cartItems.length === 0}
             onClick={handleSendToKitchen}
           >
-            {orderLoading ? 'Sending...' : `Send to Kitchen (${cartSummary.totalItems})`}
+            {orderLoading ? 'Sending...' : `Send to Kitchen (${cartSummary.totalQuantity})`}
           </button>
         </div>
       )}

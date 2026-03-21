@@ -1492,7 +1492,16 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         if not items or len(items) == 0:
             frappe.throw(_("At least one item is required"))
         
-        if mode == "Dine-in" and not table:
+        # Normalize mode to a valid POS Order order_type (Select field options: Dine-in, Takeaway, Kiosk, POS)
+        # Frontend may send 'Dine In' (old constant) or 'Counter' (waiter counter mode)
+        MODE_TO_ORDER_TYPE = {
+            'Dine-in': 'Dine-in',
+            'Dine In': 'Dine-in',
+            'Counter': 'POS',
+        }
+        order_type = MODE_TO_ORDER_TYPE.get(mode, mode)
+        
+        if order_type == "Dine-in" and not table:
             frappe.throw(_("Table is required for Dine-in orders"))
         
         # Validate branch access
@@ -1506,8 +1515,8 @@ def create_table_order(customer=None, waiter=None, items=None, table=None, mode=
         order_doc.branch = effective_branch
         order_doc.pos_profile = effective_pos_profile
         order_doc.customer = customer
-        order_doc.order_type = mode
-        order_doc.table = table if mode == "Dine-in" else None
+        order_doc.order_type = order_type
+        order_doc.table = table if order_type == "Dine-in" else None
         order_doc.waiter = waiter
         order_doc.workflow_state = "Draft"
         order_doc.imogi_source_module = "Waiter"

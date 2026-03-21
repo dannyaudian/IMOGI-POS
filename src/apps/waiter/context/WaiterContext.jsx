@@ -109,6 +109,7 @@ export function WaiterProvider({
     cartItems,
     orderLoading,
     orderError,
+    handleSendToKitchen,
     mode,
     showSuccessMessage
   ])
