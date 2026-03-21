@@ -28,29 +28,34 @@ export const MODULE_ROLE_RULES = {
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   'cashier-payment': [
     'Cashier',
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   waiter: [
     'Waiter',
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   kitchen: [
     'Kitchen Staff',
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   'self-order': [
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   'table-display': [
     'Waiter',
@@ -58,12 +63,14 @@ export const MODULE_ROLE_RULES = {
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   'customer-display': [
     'Cashier',
     'System Manager',
     'Restaurant Manager',
     'Branch Manager',
+    'Area Manager',
   ],
   // kiosk and table-editor - visible to all by default (not in this object)
 }

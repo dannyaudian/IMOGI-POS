@@ -16,7 +16,7 @@ from frappe import _
 PRIVILEGED_ROLES = ["Administrator", "System Manager"]
 
 # Management hierarchy roles
-MANAGEMENT_ROLES = ["Area Manager", "Branch Manager"]
+MANAGEMENT_ROLES = ["Restaurant Manager", "Area Manager", "Branch Manager"]
 
 # Financial roles
 FINANCE_ROLES = ["Finance Controller"]

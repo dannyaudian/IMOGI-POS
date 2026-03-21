@@ -11,7 +11,7 @@
  * OPTIMIZATION: Deep memoization to prevent unnecessary re-renders
  */
 
-import React, { createContext, useContext, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useMemo } from 'react'
 
 export const ModuleSelectContext = createContext()
 
@@ -38,7 +38,7 @@ export function ModuleSelectProvider({
     contextData.branch,
     contextData.require_selection,
     contextData.is_privileged,
-    // Don't include available_pos_profiles in deps unless it changes frequently
+    contextData.available_pos_profiles?.map(p => p.name).join(','),
   ])
 
   const memoizedSessionsToday = useMemo(() => sessionsToday, [
@@ -52,8 +52,14 @@ export function ModuleSelectProvider({
   ])
 
   // Memoize arrays to prevent re-renders on same content
-  const memoizedModules = useMemo(() => modules, [modules.length, modules.map(m => m.type).join(',')])
-  const memoizedVisibleModules = useMemo(() => visibleModules, [visibleModules.length, visibleModules.map(m => m.type).join(',')])
+  const memoizedModules = useMemo(() => modules, [
+    modules.length,
+    modules.map(m => `${m.type}:${m.has_access}:${m.is_active}`).join(','),
+  ])
+  const memoizedVisibleModules = useMemo(() => visibleModules, [
+    visibleModules.length,
+    visibleModules.map(m => `${m.type}:${m.has_access}:${m.is_active}`).join(','),
+  ])
   const memoizedUserRoles = useMemo(() => userRoles, [userRoles.join(',')])
 
   const value = useMemo(() => ({

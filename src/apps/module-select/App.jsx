@@ -70,8 +70,6 @@ function App() {
   const [showCashierSessions, setShowCashierSessions] = useState(false)
   const [cashierSessions, setCashierSessions] = useState([])
 
-  // State: Prefetched open sessions (display/prefetch only; decision-fetch is always fresh on click)
-  const [prefetchedOpenSessions, setPrefetchedOpenSessions] = useState([])
   const [sessionsFetching, setSessionsFetching] = useState(false)
 
   // State: Navigation lock (prevent duplicate clicks)
@@ -158,7 +156,6 @@ function App() {
       setActiveOpening(payload.active_opening || null)
       setSessionsToday(payload.sessions_today || { sessions: [], total: 0 })
       setDebugInfo(payload.debug_info || null)
-      setPrefetchedOpenSessions(payload.open_sessions?.sessions || [])
       setLoading(false)
     }
   }, [moduleData, modulesLoading])
@@ -393,7 +390,7 @@ function App() {
         const response = await apiCall(API.LIST_OPEN_CASHIER_SESSIONS, {
           pos_profile: contextData.pos_profile
         })
-        const sessions = response?.message?.sessions || response?.sessions || []
+        const sessions = response?.sessions || []
         const currentUser = frappe?.session?.user
 
         if (sessions.length === 0) {
@@ -439,7 +436,6 @@ function App() {
       }))
 
       // Clear all cashier session state from the previous profile
-      setPrefetchedOpenSessions([])
       setCashierSessions([])
       setShowCashierSessions(false)
       // Reset so auto-show modal can re-evaluate for the new profile state
@@ -447,7 +443,7 @@ function App() {
 
       setShowProfileModal(false)
 
-      // Refetch modules for the new profile (updates grid + open_sessions preload)
+      // Refetch modules for the new profile
       if (refetchModuleData) {
         refetchModuleData()
       }
@@ -475,7 +471,7 @@ function App() {
     setNavigationLock(true)
     setNavigatingToModule('cashier')
 
-    const cashierUrl = `/app/imogi-cashier?session=${encodeURIComponent(session.pos_opening_entry || session.name)}`
+    const cashierUrl = `/app/imogi-cashier?session=${encodeURIComponent(session.opening_entry || session.name)}`
     setTimeout(() => {
       window.location.href = cashierUrl
     }, TIMING.NAVIGATION_DELAY)

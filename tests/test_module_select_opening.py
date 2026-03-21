@@ -53,7 +53,7 @@ def module_select_module():
     sys.modules['imogi_pos.api'] = api_pkg
 
     auth_helpers = types.ModuleType("imogi_pos.utils.auth_helpers")
-    auth_helpers.get_user_role_context = lambda user: {}
+    auth_helpers.get_user_role_context = lambda: {}
     sys.modules['imogi_pos.utils.auth_helpers'] = auth_helpers
 
     operational_context = types.ModuleType("imogi_pos.utils.operational_context")

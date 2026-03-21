@@ -51,7 +51,7 @@ function POSInfoCard({ posData, isLoading }) {
 
       <div className="pos-detail">
         <label>Opened At</label>
-        <p className="pos-value">{new Date(timestamp).toLocaleString('id-ID')}</p>
+        <p className="pos-value">{timestamp ? new Date(timestamp).toLocaleString('id-ID') : '-'}</p>
       </div>
 
       <a href={`/app/pos-opening-entry/${pos_opening_entry}`} className="pos-link">

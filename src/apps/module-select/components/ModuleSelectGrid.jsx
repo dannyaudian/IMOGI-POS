@@ -31,15 +31,17 @@ export function ModuleSelectGrid({ onModuleClick }) {
                   key={session.name} 
                   className={`session-chip ${session.name === activeOpening?.pos_opening_entry ? 'active' : ''}`}
                   onClick={() => window.location.href = `/app/pos-opening-entry/${session.name}`}
-                  title={`View ${session.user}'s session`}
+                  title={`View ${session.user ?? 'Unknown'}'s session`}
                 >
                   <i className="fa-solid fa-user-circle"></i>
-                  <span className="session-user">{session.user.split('@')[0]}</span>
+                  <span className="session-user">{session.user?.split('@')[0]}</span>
                   <span className="session-time">
-                    {new Date(session.period_start_date).toLocaleTimeString('id-ID', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
+                    {session.period_start_date
+                      ? new Date(session.period_start_date).toLocaleTimeString('id-ID', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })
+                      : '--:--'}
                   </span>
                   {session.name === activeOpening?.pos_opening_entry && (
                     <span className="session-badge-active">You</span>

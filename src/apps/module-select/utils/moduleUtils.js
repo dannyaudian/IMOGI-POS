@@ -114,6 +114,9 @@ export function getModuleStatusBadges(module, posOpeningStatus = {}) {
  * @returns {boolean} Whether module is accessible
  */
 export function isModuleAccessible(module, posOpeningStatus = {}) {
+  // Guard: treat null/undefined module as fully accessible
+  if (!module) return true
+
   // Check basic access flags (default to true if not specified)
   const hasAccess = module.has_access !== undefined ? module.has_access : true
   const isActive = module.is_active !== undefined ? module.is_active : true

@@ -297,7 +297,7 @@ def get_available_modules():
         raise
     
     except frappe.ValidationError:
-        # Let validation errors bubble up (don't re-throw)
+        # Let validation errors bubble up
         # These might be legitimate errors from operational_context checks
         raise
     
@@ -780,6 +780,7 @@ def get_pos_sessions_today():
     - No longer accepts branch parameter
     - Context managed via operational_context module
     """
+    context = {}
     try:
         context = get_active_operational_context(
             user=frappe.session.user,
