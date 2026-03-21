@@ -1,6 +1,6 @@
 import { useKitchenContext } from '../context/KitchenContext'
 
-export function KitchenHeader({ kitchen, user }) {
+export function KitchenHeaderBar({ kitchen, user }) {
   const { activeCount } = useKitchenContext()
 
   return (
@@ -10,7 +10,7 @@ export function KitchenHeader({ kitchen, user }) {
         <span className="active-count">{activeCount} active orders</span>
       </div>
       <div className="user-info">
-        <span>{user?.display_name || 'Kitchen Staff'}</span>
+        <span>{user?.full_name || user?.name || 'Kitchen Staff'}</span>
       </div>
     </div>
   )

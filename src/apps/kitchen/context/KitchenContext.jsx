@@ -69,7 +69,9 @@ export function KitchenProvider({
     // Computed
     groupedKOTs,
     availableStations,
-    activeCount: kotList?.length || 0,
+    activeCount: (groupedKOTs?.queued?.length || 0)
+      + (groupedKOTs?.preparing?.length || 0)
+      + (groupedKOTs?.ready?.length || 0),
 
     // Actions
     handleAction,

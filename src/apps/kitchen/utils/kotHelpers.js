@@ -51,8 +51,8 @@ export function getStationsFromKOTs(kots) {
 
   const stations = new Set()
   kots.forEach(kot => {
-    if (kot.station) {
-      stations.add(kot.station)
+    if (kot.kitchen_station) {
+      stations.add(kot.kitchen_station)
     }
   })
 

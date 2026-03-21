@@ -190,7 +190,12 @@ class KOTService:
         StateManager.validate_item_transition(old_state, new_state)
 
         # Update item state
+        _TS_MAP = {"In Progress": "in_progress_at", "Ready": "ready_at", "Served": "served_at", "Cancelled": "cancelled_at"}
+        now = now_datetime()
+        ts_field = _TS_MAP.get(new_state)
         item.workflow_state = new_state
+        if ts_field:
+            item.set(ts_field, now)
         item.last_edited_by = user
         item.save()
         
@@ -239,16 +244,23 @@ class KOTService:
         StateManager.validate_ticket_transition(current_state, new_state)
 
         # Update ticket state
+        _TS_MAP = {"In Progress": "in_progress_at", "Ready": "ready_at", "Served": "served_at", "Cancelled": "cancelled_at"}
+        now = now_datetime()
+        ts_field = _TS_MAP.get(new_state)
         old_state = current_state
         ticket.workflow_state = new_state
+        if ts_field:
+            ticket.set(ts_field, now)
         ticket.last_edited_by = user
         ticket.save()
-        
+
         # Update all items to match
         updated_items = []
         for item in ticket.items:
             if item.workflow_state != new_state:
                 item.workflow_state = new_state
+                if ts_field:
+                    item.set(ts_field, now)
                 item.last_edited_by = user
                 item.save()
                 

@@ -2,8 +2,8 @@ import { KOTItem } from './KOTItem'
 import { ActionButtons } from './ActionButtons'
 import { formatElapsedTime } from '../utils/timeHelpers'
 
-export function KOTCard({ kot, currentState, onUpdateStatus, updating = false }) {
-  const elapsed = formatElapsedTime(kot.creation)
+export function KOTCard({ kot, currentState }) {
+  const elapsed = formatElapsedTime(kot.creation_time || kot.creation)
 
   return (
     <div className="kot-card" data-kot={kot.name}>
@@ -18,7 +18,7 @@ export function KOTCard({ kot, currentState, onUpdateStatus, updating = false })
           {kot.table ? (
             <>
               <i className="fa fa-utensils"></i>
-              <span>{kot.table_name || kot.table}</span>
+              <span>{kot.table}</span>
             </>
           ) : (
             <>
@@ -32,7 +32,7 @@ export function KOTCard({ kot, currentState, onUpdateStatus, updating = false })
       <div className="kot-items">
         {kot.items && kot.items.length > 0 ? (
           kot.items.map((item, idx) => (
-            <KOTItem key={idx} item={item} />
+            <KOTItem key={item.name || item.idx || idx} item={item} />
           ))
         ) : (
           <div className="no-items">No items</div>
@@ -40,10 +40,10 @@ export function KOTCard({ kot, currentState, onUpdateStatus, updating = false })
       </div>
 
       <div className="kot-meta">
-        {kot.station && (
+        {kot.kitchen_station && (
           <span className="station">
             <i className="fa fa-location-dot"></i>
-            {kot.station}
+            {kot.kitchen_station}
           </span>
         )}
       </div>
@@ -51,8 +51,6 @@ export function KOTCard({ kot, currentState, onUpdateStatus, updating = false })
       <ActionButtons
         kot={kot}
         currentState={currentState}
-        onUpdateStatus={onUpdateStatus}
-        updating={updating}
       />
     </div>
   )

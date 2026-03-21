@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { ImogiPOSProvider, useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
+import { useImogiPOS } from '@/shared/providers/ImogiPOSProvider'
 import { usePOSProfileGuard } from '@/shared/hooks/usePOSProfileGuard'
 import { useKOTList } from '@/shared/api/imogi-api'
 import { AppHeader, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
@@ -154,11 +154,7 @@ function KitchenContent({ initialState }) {
 }
 
 function App({ initialState }) {
-  return (
-    <ImogiPOSProvider initialState={initialState}>
-      <KitchenContent initialState={initialState} />
-    </ImogiPOSProvider>
-  )
+  return <KitchenContent initialState={initialState} />
 }
 
 export default App

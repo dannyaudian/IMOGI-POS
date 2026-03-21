@@ -35,7 +35,7 @@ export function useKOTRealtime(kitchen, station, onEvent) {
 
     // Subscribe to kitchen channel
     const kitchenChannel = `kitchen:${kitchen}`
-    const stationChannel = station ? `station:${station}` : null
+    const stationChannel = station ? `kitchen:station:${station}` : null
 
     console.log(`Subscribing to kitchen updates: ${kitchenChannel}`)
     window.frappe.realtime.on(kitchenChannel, handleEvent)
@@ -71,6 +71,13 @@ export function useNotificationSound() {
     // Create audio element for notifications
     audioRef.current = new Audio('/assets/imogi_pos/sounds/notification.mp3')
     audioRef.current.volume = 0.5
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
   }, [])
 
   const playSound = useCallback((soundType = 'new_kot') => {

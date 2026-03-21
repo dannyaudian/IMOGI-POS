@@ -9,6 +9,9 @@ export function formatElapsedTime(creationDate) {
   const now = new Date()
   const created = new Date(creationDate)
   const diffMs = now - created
+
+  if (diffMs < 0) return '0m'
+
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
 
@@ -30,7 +33,9 @@ export function formatElapsedTime(creationDate) {
 export function getTimeClass(creationDate, warnMinutes = 15, criticalMinutes = 30) {
   if (!creationDate) return ''
 
-  const diffMins = Math.floor((new Date() - new Date(creationDate)) / 60000)
+  const diffMs = new Date() - new Date(creationDate)
+  if (diffMs < 0) return 'time-ok'
+  const diffMins = Math.floor(diffMs / 60000)
 
   if (diffMins >= criticalMinutes) return 'time-critical'
   if (diffMins >= warnMinutes) return 'time-warning'

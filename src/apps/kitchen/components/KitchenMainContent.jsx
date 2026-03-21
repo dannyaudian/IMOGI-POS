@@ -1,9 +1,9 @@
 import { useKitchenContext } from '../context/KitchenContext'
 import { LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
+import { KOTColumn } from './KOTColumn'
 
 export function KitchenMainContent({ kotLoading, kotError }) {
-  const { stateError, groupedKOTs, stateLoading } = useKitchenContext()
-  const { KOTColumn } = require('./index')
+  const { stateError, groupedKOTs } = useKitchenContext()
 
   return (
     <main className="kitchen-main">
@@ -19,22 +19,16 @@ export function KitchenMainContent({ kotLoading, kotError }) {
       {!kotLoading && !kotError && (
         <div className="kitchen-columns">
           <KOTColumn
-            title="Queued"
             state="queued"
             kots={groupedKOTs?.queued || []}
-            loading={stateLoading}
           />
           <KOTColumn
-            title="In Progress"
             state="preparing"
             kots={groupedKOTs?.preparing || []}
-            loading={stateLoading}
           />
           <KOTColumn
-            title="Ready"
             state="ready"
             kots={groupedKOTs?.ready || []}
-            loading={stateLoading}
           />
         </div>
       )}

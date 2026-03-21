@@ -904,45 +904,45 @@ def get_active_kots(kitchen=None, station=None):
     """
     try:
         from imogi_pos.utils.operational_context import require_operational_context
-        
-        context = require_operational_context()
-        pos_profile = context.get("pos_profile")
+
+        context = require_operational_context(allow_optional=True)
         branch = context.get("branch")
-        
+
         filters = {
             "workflow_state": ["not in", ["Served", "Cancelled"]],
-            "docstatus": 1
         }
-        
+
         # Get branch from POS Profile and filter KOTs by that branch
         if branch:
             filters["branch"] = branch
         elif kitchen:
             filters["kitchen"] = kitchen
-        
+
         if station:
-            filters["station"] = station
-        
+            filters["kitchen_station"] = station
+
         # Fetch KOT tickets
         kots = frappe.get_all(
             "KOT Ticket",
             filters=filters,
             fields=[
                 "name",
-                "ticket_number",
                 "pos_order",
                 "kitchen",
-                "station",
+                "kitchen_station",
                 "workflow_state",
                 "creation",
+                "creation_time",
                 "modified",
-                "table_name",
+                "table",
+                "floor",
                 "order_type",
-                "special_notes"
+                "customer",
+                "branch",
             ],
             order_by="creation asc"
         )
-        
+
         # Batch fetch items for all KOTs (performance optimization: avoid N+1 queries)
         # PERFORMANCE: Reduced from N+1 queries (1 per KOT) to 2 queries total
         if kots:
@@ -956,21 +956,20 @@ def get_active_kots(kitchen=None, station=None):
                     "item_code",
                     "item_name",
                     "qty",
-                    "uom",
-                    "rate",
                     "notes",
-                    "variant_of",
-                    "item_group"
+                    "workflow_state",
+                    "item_options",
+                    "options_display",
                 ],
                 order_by="parent, idx asc"
             )
-            
+
             # Build map of items grouped by parent KOT
             items_map = {}
             for item in all_items:
                 parent = item.pop("parent")
                 items_map.setdefault(parent, []).append(item)
-            
+
             # Assign items to their parent KOTs
             for kot in kots:
                 kot["items"] = items_map.get(kot.name, [])
@@ -1017,20 +1016,21 @@ def update_kot_state(kot_name, new_state, reason=None):
         # Get KOT document
         kot_doc = frappe.get_doc("KOT Ticket", kot_name)
         old_state = kot_doc.workflow_state
-        
+
         # Validate state transition using StateManager
-        state_manager = StateManager()
-        if not state_manager.can_transition(old_state, new_state):
-            frappe.throw(_(
-                "Invalid state transition from {0} to {1}"
-            ).format(old_state, new_state))
+        # Raises frappe.ValidationError internally if transition is not allowed
+        StateManager.validate_ticket_transition(old_state, new_state)
         
-        # Update state
+        # Update state and set transition timestamp
         kot_doc.workflow_state = new_state
+        _TS_MAP = {"In Progress": "in_progress_at", "Ready": "ready_at", "Served": "served_at", "Cancelled": "cancelled_at"}
+        ts_field = _TS_MAP.get(new_state)
+        if ts_field:
+            kot_doc.set(ts_field, now_datetime())
         
         # Add cancellation reason if provided
         if reason:
-            kot_doc.special_notes = (kot_doc.special_notes or "") + f"\nCancellation reason: {reason}"
+            kot_doc.cancellation_reason = reason
         
         # Save with ignore_permissions to allow state updates
         kot_doc.save(ignore_permissions=True)
@@ -1039,15 +1039,15 @@ def update_kot_state(kot_name, new_state, reason=None):
         publish_kitchen_update(
             kot_doc,
             kitchen=kot_doc.kitchen,
-            station=kot_doc.station,
+            station=kot_doc.kitchen_station,
             event_type="kot_state_changed"
         )
-        
+
         # If table-based, publish table update
-        if kot_doc.table_name:
+        if kot_doc.table:
             publish_table_update(
                 kot_doc.pos_order,
-                kot_doc.table_name,
+                kot_doc.table,
                 event_type="kot_state_changed"
             )
         
@@ -1087,8 +1087,7 @@ def send_to_kitchen(order_name, items_by_station):
     try:
         # Parse items_by_station if it's a JSON string
         if isinstance(items_by_station, str):
-            import json
-            items_by_station = json.loads(items_by_station)
+            items_by_station = frappe.parse_json(items_by_station)
         
         if not order_name:
             frappe.throw(_("Order name is required"))
@@ -1120,8 +1119,8 @@ def send_to_kitchen(order_name, items_by_station):
             kot_doc = frappe.new_doc("KOT Ticket")
             kot_doc.pos_order = order_name
             kot_doc.kitchen = kitchen or "Main Kitchen"
-            kot_doc.station = station_name
-            kot_doc.table_name = order_doc.get("table")
+            kot_doc.kitchen_station = station_name
+            kot_doc.table = order_doc.get("table")
             kot_doc.order_type = order_doc.get("order_type", "Dine-in")
             kot_doc.workflow_state = "Queued"
             kot_doc.branch = order_doc.branch
@@ -1132,10 +1131,8 @@ def send_to_kitchen(order_name, items_by_station):
                     "item_code": item.get("item_code"),
                     "item_name": item.get("item_name"),
                     "qty": item.get("qty", 1),
-                    "uom": item.get("uom"),
-                    "rate": item.get("rate", 0),
                     "notes": item.get("notes", ""),
-                    "variant_of": item.get("variant_of")
+                    "workflow_state": "Queued",
                 })
             
             # Save KOT (ignore_permissions allows Waiter role via endpoint permission gate)
@@ -1185,50 +1182,9 @@ Full Traceback:
                     _("Failed to create KOT for {0}: {1}").format(station_name, str(e)),
                     frappe.ValidationError
                 )
-            
-            # Submit KOT with error logging
-            try:
-                kot_doc.submit()
-            except Exception as e:
-                # Log full traceback with context for debugging
-                context_info = {
-                    "kot_name": kot_doc.name,
-                    "pos_order": order_name,
-                    "station": station_name,
-                    "items_count": len(station_items),
-                    "user": frappe.session.user,
-                    "function": "send_to_kitchen::kot_submit"
-                }
-                
-                error_message = f"""
-KOT Submission Failed
 
-Error: {str(e)}
-
-Context:
-- KOT Name: {context_info['kot_name']}
-- POS Order: {context_info['pos_order']}
-- Station: {context_info['station']}
-- Items Count: {context_info['items_count']}
-- User: {context_info['user']}
-
-Full Traceback:
-{frappe.get_traceback()}
-"""
-                
-                frappe.log_error(
-                    title="Error submitting KOT Ticket",
-                    message=error_message
-                )
-                
-                # Re-raise with clear user message
-                frappe.throw(
-                    _("Failed to submit KOT {0}: {1}").format(kot_doc.name, str(e)),
-                    frappe.ValidationError
-                )
-            
             created_kots[station_name] = kot_doc.name
-            
+
             # Publish realtime notification
             publish_kitchen_update(
                 kot_doc,

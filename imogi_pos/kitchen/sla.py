@@ -319,39 +319,32 @@ class KitchenSLA:
         if kot_item:
             # For a KOT Item, we can get workflow transitions
             item_doc = frappe.get_doc("KOT Item", kot_item)
-            
+
             # Get KOT Ticket if not provided
             if not kot_ticket:
                 kot_ticket = item_doc.parent
-                
+
             # Get creation time from parent ticket
             ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
             timestamps["queued"] = get_datetime(ticket_doc.creation_time)
-            
-            # Get state transitions from modified timestamps or version timeline
-            # This is a simplified approach - in a full implementation, you would
-            # track exact state transition times in a separate log or use the
-            # Version timeline to get precise timestamps
-            if item_doc.workflow_state in ["In Progress", "Ready", "Served"]:
-                # In a real implementation, get actual transition timestamp
-                # For now, use modified as an approximation
-                timestamps["in_progress"] = get_datetime(item_doc.modified)
-                
-            if item_doc.workflow_state in ["Ready", "Served"]:
-                # Again, this is an approximation
-                timestamps["ready"] = get_datetime(item_doc.modified)
-                
+
+            # Use dedicated transition timestamp fields (set by KOTService / kot.py)
+            if item_doc.get("in_progress_at"):
+                timestamps["in_progress"] = get_datetime(item_doc.in_progress_at)
+
+            if item_doc.get("ready_at"):
+                timestamps["ready"] = get_datetime(item_doc.ready_at)
+
         elif kot_ticket:
-            # For a KOT Ticket, get creation time and modified time
+            # For a KOT Ticket, get creation time and transition timestamps
             ticket_doc = frappe.get_doc("KOT Ticket", kot_ticket)
             timestamps["queued"] = get_datetime(ticket_doc.creation_time)
-            
-            # Simplified approach for transitions
-            if ticket_doc.workflow_state in ["In Progress", "Ready", "Served"]:
-                timestamps["in_progress"] = get_datetime(ticket_doc.modified)
-                
-            if ticket_doc.workflow_state in ["Ready", "Served"]:
-                timestamps["ready"] = get_datetime(ticket_doc.modified)
+
+            if ticket_doc.get("in_progress_at"):
+                timestamps["in_progress"] = get_datetime(ticket_doc.in_progress_at)
+
+            if ticket_doc.get("ready_at"):
+                timestamps["ready"] = get_datetime(ticket_doc.ready_at)
         
         return timestamps
     

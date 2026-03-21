@@ -95,7 +95,7 @@ class KOTPublisher:
             payload["changed_items"] = [
                 {
                     "name": item.name,
-                    "item_code": item.item,
+                    "item_code": item.item_code,
                     "state": item.workflow_state,
                 }
                 for item in changed_items
@@ -214,7 +214,7 @@ class KOTPublisher:
             "event_type": "kot_item_updated",
             "ticket": ticket_doc.name,
             "item": item_doc.name,
-            "item_code": item_doc.item,
+            "item_code": item_doc.item_code,
             "state": item_doc.workflow_state,
             "kitchen_station": ticket_doc.kitchen_station,
             "timestamp": frappe.utils.now(),

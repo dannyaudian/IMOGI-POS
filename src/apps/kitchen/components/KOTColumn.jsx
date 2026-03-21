@@ -21,7 +21,7 @@ const STATE_CONFIG = {
   }
 }
 
-export function KOTColumn({ state, kots = [], onUpdateStatus, updating = false }) {
+export function KOTColumn({ state, kots = [] }) {
   const config = STATE_CONFIG[state]
 
   if (!config) {
@@ -48,8 +48,7 @@ export function KOTColumn({ state, kots = [], onUpdateStatus, updating = false }
               key={kot.name}
               kot={kot}
               currentState={state}
-              onUpdateStatus={onUpdateStatus}
-              updating={updating}
+
             />
           ))
         )}

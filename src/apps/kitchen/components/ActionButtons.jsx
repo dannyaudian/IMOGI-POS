@@ -1,7 +1,22 @@
-export function ActionButtons({ kot, currentState, onUpdateStatus, updating = false }) {
-  const handleAction = (newState) => {
-    if (updating) return
-    onUpdateStatus(kot.name, newState)
+import { useKitchenContext } from '../context/KitchenContext'
+
+export function ActionButtons({ kot, currentState }) {
+  const { handleAction, stateLoading } = useKitchenContext()
+
+  const handleClick = (action) => {
+    if (stateLoading) return
+    handleAction(action, kot.name).catch(err => {
+      console.error('KOT action failed:', err)
+    })
+  }
+
+  const handleCancel = () => {
+    const reason = window.prompt(`Reason for cancelling KOT ${kot.name}?`)
+    if (reason !== null && reason.trim()) {
+      handleAction('cancel', kot.name, reason).catch(err => {
+        console.error('KOT cancel failed:', err)
+      })
+    }
   }
 
   const renderButtons = () => {
@@ -10,8 +25,8 @@ export function ActionButtons({ kot, currentState, onUpdateStatus, updating = fa
         return (
           <button
             className="btn-primary"
-            onClick={() => handleAction('In Progress')}
-            disabled={updating}
+            onClick={() => handleClick('start')}
+            disabled={stateLoading}
           >
             <i className="fa fa-play"></i>
             Start Preparing
@@ -23,16 +38,16 @@ export function ActionButtons({ kot, currentState, onUpdateStatus, updating = fa
           <div className="button-group">
             <button
               className="btn-primary"
-              onClick={() => handleAction('Ready')}
-              disabled={updating}
+              onClick={() => handleClick('ready')}
+              disabled={stateLoading}
             >
               <i className="fa fa-check"></i>
               Mark Ready
             </button>
             <button
               className="btn-secondary"
-              onClick={() => handleAction('Queued')}
-              disabled={updating}
+              onClick={() => handleClick('return_queue')}
+              disabled={stateLoading}
               title="Return to Queue"
             >
               <i className="fa fa-rotate-left"></i>
@@ -45,16 +60,16 @@ export function ActionButtons({ kot, currentState, onUpdateStatus, updating = fa
           <div className="button-group">
             <button
               className="btn-success"
-              onClick={() => handleAction('Served')}
-              disabled={updating}
+              onClick={() => handleClick('served')}
+              disabled={stateLoading}
             >
               <i className="fa fa-utensils"></i>
               Mark Served
             </button>
             <button
               className="btn-secondary"
-              onClick={() => handleAction('In Progress')}
-              disabled={updating}
+              onClick={() => handleClick('return_kitchen')}
+              disabled={stateLoading}
               title="Return to Kitchen"
             >
               <i className="fa fa-rotate-left"></i>
@@ -72,12 +87,8 @@ export function ActionButtons({ kot, currentState, onUpdateStatus, updating = fa
       {renderButtons()}
       <button
         className="btn-danger btn-icon"
-        onClick={() => {
-          if (confirm(`Cancel KOT ${kot.name}?`)) {
-            handleAction('Cancelled')
-          }
-        }}
-        disabled={updating}
+        onClick={handleCancel}
+        disabled={stateLoading}
         title="Cancel KOT"
       >
         <i className="fa fa-times"></i>
