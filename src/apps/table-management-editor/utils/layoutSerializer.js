@@ -19,13 +19,13 @@ export function convertToReactFlowNodes(tables) {
     },
     data: {
       table: table.name,
-      label: table.table_number || table.name,
-      capacity: table.no_of_seats || table.seating_capacity || 4,
+      label: table.label || table.table_number || table.name,
+      capacity: table.capacity || table.no_of_seats || table.seating_capacity || 4,
       width: table.width || 100,
       height: table.height || 100,
       shape: table.shape || 'rectangle',
       status: table.status || 'Available',
-      backgroundColor: table.backgroundColor || '#ffffff',
+      backgroundColor: table.background_color || table.backgroundColor || '#ffffff',
       rotation: table.rotation || 0,
       currentOrder: table.current_order || null
     }
@@ -46,6 +46,7 @@ export function convertToBackendFormat(nodes, floor) {
     floor,
     nodes: tableNodes.map(node => ({
       id: node.id,
+      node_type: 'table',
       table: node.data.table || null,
       label: node.data.label,
       position_x: Math.round(node.position.x),
@@ -53,10 +54,10 @@ export function convertToBackendFormat(nodes, floor) {
       width: node.data.width || 100,
       height: node.data.height || 100,
       shape: node.data.shape || 'rectangle',
+      color: '#000000',
+      background_color: node.data.backgroundColor || '#ffffff',
       rotation: node.data.rotation || 0,
-      // Additional metadata
-      capacity: node.data.capacity,
-      backgroundColor: node.data.backgroundColor,
+      capacity: node.data.capacity || 4,
       status: node.data.status
     }))
   }

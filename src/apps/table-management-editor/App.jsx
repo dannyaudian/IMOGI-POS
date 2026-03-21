@@ -17,19 +17,24 @@ function TableManagementEditorContent({ initialState }) {
   // API: Fetch layout data
   const { data: layoutData, error: layoutError, isLoading: layoutLoading, mutate } = useLayoutData(selectedFloor)
 
-  // HANDLER: Save layout
-  const handleSaveLayout = useCallback(() => {
+  // HANDLER: Save layout — mutate after save to sync latest, show single alert with count
+  const handleSaveLayout = useCallback((response) => {
     mutate()
-    window.frappe?.show_alert?.({
-      message: '✅ Layout saved successfully!',
-      indicator: 'green'
-    })
+    const count = response?.tables_positioned ?? null
+    if (count === 0) {
+      window.frappe?.show_alert?.({
+        message: '⚠️ Layout saved but no tables linked. Link each node to a Restaurant Table in the Properties Panel.',
+        indicator: 'orange'
+      })
+    } else {
+      window.frappe?.show_alert?.({
+        message: count != null
+          ? `✅ Layout saved — ${count} table${count !== 1 ? 's' : ''} positioned.`
+          : '✅ Layout saved successfully!',
+        indicator: 'green'
+      })
+    }
   }, [mutate])
-
-  // HANDLER: Add node
-  const handleAddNode = useCallback((node) => {
-    console.log('[imogi][layout] Adding node:', node)
-  }, [])
 
   // RENDER: Main app with provider
   return (
@@ -47,12 +52,11 @@ function TableManagementEditorContent({ initialState }) {
         layoutError={layoutError}
         layoutLoading={layoutLoading}
         onSaveLayout={handleSaveLayout}
-        onAddNode={handleAddNode}
       >
         <main className="imogi-main" style={{ padding: '1.5rem' }}>
           <TableManagementHeader />
-          <LayoutEditorPanel />
-          <DisplaySettingsPanel />
+          {activeTab === 'layout' && <LayoutEditorPanel />}
+          {activeTab === 'display' && <DisplaySettingsPanel />}
         </main>
       </TableManagementProvider>
     </div>

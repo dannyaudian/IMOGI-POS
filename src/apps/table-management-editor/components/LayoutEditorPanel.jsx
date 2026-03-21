@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useTableManagementContext } from '../context/TableManagementContext'
 import { Card, LoadingSpinner, ErrorMessage } from '@/shared/components/UI'
 import { LayoutCanvas } from './LayoutCanvas'
@@ -5,6 +6,7 @@ import { ToolbarPanel } from './ToolbarPanel'
 import { FloorSelector } from './FloorSelector'
 
 export function LayoutEditorPanel() {
+  const canvasRef = useRef(null)
   const {
     branch,
     selectedFloor,
@@ -12,8 +14,7 @@ export function LayoutEditorPanel() {
     layoutData,
     layoutError,
     layoutLoading,
-    onSaveLayout,
-    onAddNode
+    onSaveLayout
   } = useTableManagementContext()
 
   return (
@@ -58,7 +59,7 @@ export function LayoutEditorPanel() {
       </div>
 
       {selectedFloor && (
-        <ToolbarPanel onAddNode={onAddNode} />
+        <ToolbarPanel onAddNode={(node) => canvasRef.current?.addNode(node)} />
       )}
 
       {!selectedFloor && (
@@ -91,6 +92,7 @@ export function LayoutEditorPanel() {
 
       {selectedFloor && layoutData && (
         <LayoutCanvas
+          ref={canvasRef}
           floor={selectedFloor}
           initialLayout={layoutData}
           onSave={onSaveLayout}

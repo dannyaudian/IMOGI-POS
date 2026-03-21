@@ -18,6 +18,8 @@
         "column_break_8",
         "canvas_width",
         "canvas_height",
+        "background_image",
+        "scale",
         "show_grid",
         "section_break_12",
         "nodes"
@@ -87,6 +89,17 @@
             "fieldname": "canvas_height",
             "fieldtype": "Int",
             "label": "Canvas Height"
+        },
+        {
+            "fieldname": "background_image",
+            "fieldtype": "Attach",
+            "label": "Background Image"
+        },
+        {
+            "default": "1.0",
+            "fieldname": "scale",
+            "fieldtype": "Float",
+            "label": "Scale"
         },
         {
             "default": "1",

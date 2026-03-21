@@ -5,10 +5,11 @@
 let nodeIdCounter = 1
 
 export function createTableNode(shape = 'rectangle', options = {}) {
-  const id = `table-${Date.now()}-${nodeIdCounter++}`
+  const counter = nodeIdCounter++
+  const id = `table-${Date.now()}-${counter}`
   
   const defaults = {
-    label: `Table ${nodeIdCounter}`,
+    label: `Table ${counter}`,
     capacity: 4,
     width: 100,
     height: 100,

@@ -1,10 +1,8 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   Panel,
   applyNodeChanges,
   applyEdgeChanges
@@ -20,21 +18,26 @@ const nodeTypes = {
   table: TableNode
 }
 
-export function LayoutCanvas({ floor, onSave, initialLayout }) {
+export const LayoutCanvas = forwardRef(function LayoutCanvas({ floor, onSave, initialLayout }, ref) {
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([])
-  const [selectedNode, setSelectedNode] = useState(null)
+  const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const isDirtyRef = useRef(false)
 
-  // Load initial layout
+  // Derive selectedNode fresh from nodes on every render — no stale references
+  const selectedNode = nodes.find(n => n.id === selectedNodeId) || null
+
+  // Load initial layout only when not dirty (don't wipe user's unsaved edits)
   useEffect(() => {
-    if (initialLayout?.tables) {
+    if (initialLayout?.tables && !isDirtyRef.current) {
       const flowNodes = convertToReactFlowNodes(initialLayout.tables)
       setNodes(flowNodes)
     }
   }, [initialLayout])
 
   const onNodesChange = useCallback((changes) => {
+    isDirtyRef.current = true
     setNodes((nds) => applyNodeChanges(changes, nds))
   }, [])
 
@@ -43,11 +46,11 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
   }, [])
 
   const onNodeClick = useCallback((event, node) => {
-    setSelectedNode(node)
+    setSelectedNodeId(node.id)
   }, [])
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null)
+    setSelectedNodeId(null)
   }, [])
 
   const handleSave = async () => {
@@ -68,11 +71,8 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
         layout_json: JSON.stringify(layoutData)
       })
       
-      window.frappe?.show_alert?.({ 
-        message: 'Layout saved successfully!', 
-        indicator: 'green' 
-      })
-      
+      // Reset dirty flag — layout is now persisted
+      isDirtyRef.current = false
       onSave?.(response)
     } catch (error) {
       console.error('[imogi][layout] Save failed:', error)
@@ -85,11 +85,18 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
     }
   }
 
-  const handleAddNode = (newNode) => {
+  const handleAddNode = useCallback((newNode) => {
+    isDirtyRef.current = true
     setNodes((nds) => [...nds, newNode])
-  }
+  }, [])
+
+  // Expose addNode to parent via ref
+  useImperativeHandle(ref, () => ({
+    addNode: handleAddNode
+  }), [handleAddNode])
 
   const handleUpdateNode = (nodeId, updates) => {
+    isDirtyRef.current = true
     setNodes((nds) => 
       nds.map((n) => 
         n.id === nodeId 
@@ -100,8 +107,9 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
   }
 
   const handleDeleteNode = (nodeId) => {
+    isDirtyRef.current = true
     setNodes((nds) => nds.filter((n) => n.id !== nodeId))
-    setSelectedNode(null)
+    setSelectedNodeId(null)
   }
 
   return (
@@ -193,11 +201,12 @@ export function LayoutCanvas({ floor, onSave, initialLayout }) {
       {selectedNode && (
         <PropertiesPanel 
           node={selectedNode}
+          floor={floor}
           onUpdate={(updates) => handleUpdateNode(selectedNode.id, updates)}
           onDelete={() => handleDeleteNode(selectedNode.id)}
-          onClose={() => setSelectedNode(null)}
+          onClose={() => setSelectedNodeId(null)}
         />
       )}
     </div>
   )
-}
+})

@@ -284,13 +284,12 @@ class TableLayoutService:
                     as_dict=1
                 )
                 
-                if order_info:
+                if order_info and order_info.creation:
                     table_status["order_info"] = order_info
                     
-                    # Calculate time elapsed
-                    if order_info.creation:
-                        # Simplified - you may want to format this better
-                        table_status["time_elapsed"] = now_datetime() - order_info.creation
+                    # Calculate time elapsed as integer seconds (JSON-serializable)
+                    elapsed = now_datetime() - order_info.creation
+                    table_status["time_elapsed"] = int(elapsed.total_seconds())
             
             status[table.name] = table_status
             

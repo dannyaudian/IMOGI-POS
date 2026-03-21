@@ -89,6 +89,15 @@ export const API = {
   GET_TABLE_LAYOUT: 'imogi_pos.api.layout.get_table_layout',
   SAVE_TABLE_LAYOUT: 'imogi_pos.api.layout.save_table_layout',
   
+  // Table Display Editor Operations
+  GET_AVAILABLE_DISPLAYS: 'imogi_pos.api.table_display_editor.get_available_displays',
+  GET_DISPLAY_CONFIG: 'imogi_pos.api.table_display_editor.get_display_config',
+  SAVE_DISPLAY_CONFIG: 'imogi_pos.api.table_display_editor.save_display_config',
+  RESET_DISPLAY_CONFIG: 'imogi_pos.api.table_display_editor.reset_display_config',
+  TEST_DISPLAY: 'imogi_pos.api.table_display_editor.test_display',
+  GET_SECTION_DISPLAYS: 'imogi_pos.api.table_display_editor.get_section_displays',
+  BATCH_UPDATE_DISPLAYS: 'imogi_pos.api.table_display_editor.batch_update_displays',
+
   // Customer Display Editor Operations
   GET_AVAILABLE_DEVICES: 'imogi_pos.api.customer_display_editor.get_available_devices',
   GET_DISPLAY_TEMPLATES: 'imogi_pos.api.customer_display_editor.get_display_templates',

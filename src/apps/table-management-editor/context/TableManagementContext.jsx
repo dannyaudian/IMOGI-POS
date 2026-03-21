@@ -13,7 +13,6 @@ export function TableManagementProvider({
   layoutError,
   layoutLoading,
   onSaveLayout,
-  onAddNode,
   children
 }) {
   const contextValue = useMemo(() => ({
@@ -29,13 +28,12 @@ export function TableManagementProvider({
     layoutError,
     layoutLoading,
     // HANDLERS
-    onSaveLayout,
-    onAddNode
+    onSaveLayout
   }), [
     activeTab, setActiveTab,
     selectedFloor, setSelectedFloor,
     branch, user, layoutData, layoutError, layoutLoading,
-    onSaveLayout, onAddNode
+    onSaveLayout
   ])
 
   return (

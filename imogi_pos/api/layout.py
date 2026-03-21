@@ -85,9 +85,6 @@ def get_floors():
     # Check restaurant domain
     check_restaurant_domain(pos_profile)
     
-    # Check restaurant domain
-    check_restaurant_domain(pos_profile)
-    
     if not branch:
         frappe.throw(
             _("No branch found for this POS Profile"),
@@ -147,7 +144,7 @@ def get_table_layout(floor):
         
         # Return basic layout (no positioning)
         return {
-            "floor": floor_doc.as_dict(),
+            "floor": {"name": floor_doc.name, "floor_name": floor_doc.floor_name},
             "tables": tables,
             "layout": None,
             "profile": None
@@ -159,12 +156,12 @@ def get_table_layout(floor):
     # Get layout nodes (positions of tables)
     layout_nodes = frappe.get_all("Table Layout Node", 
                                 filters={"parent": layout_profile},
-                                fields=["table", "position_x", "position_y", "width", "height", "rotation"])
+                                fields=["table", "position_x", "position_y", "width", "height", "rotation", "shape", "background_color", "capacity", "label"])
     
     if not layout_nodes:
         # No tables positioned yet
         return {
-            "floor": floor_doc.as_dict(),
+            "floor": {"name": floor_doc.name, "floor_name": floor_doc.floor_name},
             "tables": [],
             "layout": {
                 "name": profile_doc.name,
@@ -178,13 +175,13 @@ def get_table_layout(floor):
         }
     
     # PERFORMANCE OPTIMIZATION: Batch load all tables instead of N+1 queries
-    table_names = [node.table for node in layout_nodes]
+    table_names = [node.table for node in layout_nodes if node.table]
     
     # Get all table details in one query
     tables_list = frappe.get_all(
         "Restaurant Table",
         filters={"name": ["in", table_names]},
-        fields=["name", "no_of_seats", "minimum_seating", "status", "current_pos_order"]
+        fields=["name", "table_number", "no_of_seats", "minimum_seating", "status", "current_pos_order"]
     )
     tables_map = {t.name: t for t in tables_list}
     
@@ -222,6 +219,7 @@ def get_table_layout(floor):
         # Combine table data with node positioning
         table_data = {
             "name": node.table,
+            "table_number": table_doc.table_number,
             "no_of_seats": table_doc.no_of_seats,
             "minimum_seating": table_doc.minimum_seating,
             "position_x": node.position_x,
@@ -229,6 +227,10 @@ def get_table_layout(floor):
             "width": node.width,
             "height": node.height,
             "rotation": node.rotation,
+            "shape": node.shape or "rectangle",
+            "background_color": node.background_color or "#ffffff",
+            "capacity": node.capacity or table_doc.no_of_seats or 0,
+            "label": node.label or table_doc.table_number or node.table,
             "status": table_doc.status,
             "current_order": status_data
         }
@@ -237,7 +239,7 @@ def get_table_layout(floor):
     
     # Return complete layout
     return {
-        "floor": floor_doc.as_dict(),
+        "floor": {"name": floor_doc.name, "floor_name": floor_doc.floor_name},
         "tables": tables_data,
         "layout": {
             "name": profile_doc.name,
@@ -355,24 +357,31 @@ def save_table_layout(floor, layout_json, profile_name=None, title=None):
         
         # Add node
         profile_doc.append("nodes", {
+            "node_type": node.get("node_type", "table"),
             "table": table,
+            "label": node.get("label") or table,
             "position_x": node.get("position_x", 0),
             "position_y": node.get("position_y", 0),
             "width": node.get("width", 100),
             "height": node.get("height", 100),
-            "rotation": node.get("rotation", 0)
+            "shape": node.get("shape", "rectangle"),
+            "background_color": node.get("background_color", "#ffffff"),
+            "rotation": node.get("rotation", 0),
+            "capacity": cint(node.get("capacity", 0))
         })
     
     # If this is a new active profile, deactivate other profiles for this floor
+    # NOTE: Run SQL AFTER save() so profile_doc.name is guaranteed to be assigned
+    
+    # Save the profile first
+    profile_doc.save()
+
     if not profile_name and profile_doc.is_active:
         frappe.db.sql("""
             UPDATE `tabTable Layout Profile`
             SET is_active = 0
             WHERE default_floor = %s AND name != %s
         """, (floor, profile_doc.name))
-    
-    # Save the profile
-    profile_doc.save()
     
     # Return saved profile
     return {
@@ -422,7 +431,8 @@ def get_tables():
         filters={"floor": ["in", floors]},
         fields=[
             "name",
-            "table_number", 
+            "table_number",
+            "no_of_seats",
             "status",
             "floor"
         ],
@@ -433,7 +443,7 @@ def get_tables():
     for table in tables:
         floor_name = frappe.db.get_value("Restaurant Floor", table.floor, "floor_name")
         table["floor_name"] = floor_name
-        table["seating_capacity"] = 4  # Default, can be customized
+        table["seating_capacity"] = table.get("no_of_seats") or 0
     
     return tables or []
 

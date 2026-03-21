@@ -6,7 +6,7 @@ export function useFloors(branch) {
   return useSWR(
     branch ? ['floors', branch] : null,
     async () => {
-      const response = await apiCall(API.GET_FLOORS)
+      const response = await apiCall(API.GET_FLOORS, { branch })
       return response || []
     },
     {

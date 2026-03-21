@@ -14,8 +14,10 @@ const statuses = [
   { value: 'Cleaning', color: '#2196f3' }
 ]
 
-export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
+export function PropertiesPanel({ node, floor, onUpdate, onDelete, onClose }) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
   const [formData, setFormData] = useState({
+    table: node.data.table || '',
     label: node.data.label || '',
     capacity: node.data.capacity || 4,
     width: node.data.width || 100,
@@ -28,6 +30,7 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
 
   useEffect(() => {
     setFormData({
+      table: node.data.table || '',
       label: node.data.label || '',
       capacity: node.data.capacity || 4,
       width: node.data.width || 100,
@@ -37,7 +40,9 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
       backgroundColor: node.data.backgroundColor || '#ffffff',
       rotation: node.data.rotation || 0
     })
-  }, [node])
+  // Only reset form when the selected node changes (not on every drag/position update)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.id])
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -52,13 +57,19 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
   }
 
   const handleDelete = () => {
-    if (confirm(`Delete table "${formData.label}"?`)) {
-      onDelete()
-      window.frappe?.show_alert?.({ 
-        message: 'Table deleted', 
-        indicator: 'orange' 
-      })
-    }
+    setIsConfirmingDelete(true)
+  }
+
+  const confirmDelete = () => {
+    onDelete()
+    window.frappe?.show_alert?.({ 
+      message: 'Table deleted', 
+      indicator: 'orange' 
+    })
+  }
+
+  const cancelDelete = () => {
+    setIsConfirmingDelete(false)
   }
 
   return (
@@ -92,6 +103,7 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
         </h3>
         <button
           onClick={onClose}
+          aria-label="Close properties panel"
           style={{
             background: 'none',
             border: 'none',
@@ -108,6 +120,44 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
 
       {/* Form */}
       <div style={{ padding: '1rem' }}>
+
+        {/* Restaurant Table Link */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{
+            display: 'block',
+            marginBottom: '0.5rem',
+            fontWeight: '600',
+            fontSize: '0.875rem',
+            color: '#374151'
+          }}>
+            Restaurant Table <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+          <input
+            type="text"
+            value={formData.table}
+            onChange={(e) => handleChange('table', e.target.value)}
+            placeholder="Exact Restaurant Table name (e.g., REST-TABLE-00001)"
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              borderRadius: '6px',
+              border: formData.table ? '1px solid #d1d5db' : '1px solid #f87171',
+              fontSize: '0.875rem',
+              boxSizing: 'border-box'
+            }}
+          />
+          {!formData.table && (
+            <p style={{ margin: '0.375rem 0 0 0', fontSize: '0.75rem', color: '#dc2626' }}>
+              ⚠️ This node will be skipped on save until linked to a Restaurant Table.
+            </p>
+          )}
+          {formData.table && (
+            <p style={{ margin: '0.375rem 0 0 0', fontSize: '0.75rem', color: '#059669' }}>
+              ✓ Floor: {floor || '—'}
+            </p>
+          )}
+        </div>
+
         {/* Label */}
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ 
@@ -343,6 +393,55 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
           </div>
         </div>
 
+        {/* Delete Confirmation */}
+        {isConfirmingDelete && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            borderRadius: '6px'
+          }}>
+            <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', color: '#991b1b', fontWeight: '600' }}>
+              Delete "{formData.label}"? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={cancelDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  background: 'white',
+                  color: '#374151',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div style={{ 
           display: 'flex', 
@@ -367,9 +466,10 @@ export function PropertiesPanel({ node, onUpdate, onDelete, onClose }) {
           </button>
           <button 
             onClick={handleDelete}
+            aria-label="Delete this table"
             style={{
               padding: '0.75rem',
-              background: '#ef4444',
+              background: isConfirmingDelete ? '#9ca3af' : '#ef4444',
               color: 'white',
               border: 'none',
               borderRadius: '6px',

@@ -14,6 +14,7 @@
         "width",
         "height",
         "rotation",
+        "capacity",
         "column_break_9",
         "appearance_section",
         "shape",
@@ -86,6 +87,12 @@
             "label": "Rotation"
         },
         {
+            "default": "0",
+            "fieldname": "capacity",
+            "fieldtype": "Int",
+            "label": "Seating Capacity"
+        },
+        {
             "fieldname": "column_break_9",
             "fieldtype": "Column Break"
         },
@@ -99,7 +106,7 @@
             "fieldname": "shape",
             "fieldtype": "Select",
             "label": "Shape",
-            "options": "rectangle\nround\ncircle\ncustom"
+            "options": "rectangle\nround\ncircle\nbooth\nsquare\ncustom"
         },
         {
             "default": "#000000",
