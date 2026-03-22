@@ -143,27 +143,8 @@ When **Update Stock** is enabled, invoices will fail if an item's quantity excee
 
 ## Documentation
 
-### For Developers
-- **[Architecture Overview](ARCHITECTURE.md)** - System architecture, module structure, and POS profile resolver
-- **[React Quickstart](REACT_QUICKSTART.md)** - Quick development guide
-- **[Finalization Archive](FINALIZATION_ARCHIVE.md)** - Historical fixes, audits, and refactor notes
-
-### For Operations
-- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Fresh deploy checklist and troubleshooting
-- **[Testing Guide](TESTING_GUIDE.md)** - Comprehensive testing procedures
-- **[Security Summary](SECURITY_SUMMARY.md)** - Security measures and best practices
-
-### For Maintenance
-- **[Finalization Archive](FINALIZATION_ARCHIVE.md)** - Cleanup audits, implementation status, and verification notes
-
-### Legacy Documentation (Archived)
-The following phase-specific docs have been consolidated into the guides above:
-- Phase summaries and interim refactoring notes
-- Temporary patch documentation
-- Session expiry testing scenarios
-- Go/No-Go checklists
-
-For the latest information, always refer to the current documentation above.
+For production deployment and operational setup, use this `README.md` as the primary reference.
+Development-only guides, testing playbooks, ad-hoc checklists, and temporary troubleshooting notes have been removed from this branch to keep the production repository lean.
 
 ## Printing Setup
 
