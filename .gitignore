@@ -31,3 +31,7 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+# Local scratch / generated review artifacts
+*.backup
+PR_DESCRIPTION.md
+
